@@ -82,23 +82,50 @@ Content-Type: application/json
 
 ### Implementation in Swift
 
+⚠️ **ВАЖНО: Session ID должен быть привязан к хосту/порту сервера!** При наличии нескольких серверов кеширование в одном ключе UserDefaults приведет к переиспользованию чужих session-id и постоянным 409/401 ошибкам.
+
+**Рекомендуемый подход**:
+- Хранить session-id в памяти (как часть ServerConnection объекта) или в Keychain с ключом типа `"transmission_session_\(host)_\(port)"`
+- Session-id имеет ограниченное время жизни и не должен сохраняться между запусками приложения
+- При переподключении — ожидать HTTP 409 и получить новый session-id
+
 ```swift
-// 1. Handle 409 response and cache session ID
+// ❌ НЕПРАВИЛЬНО: Один ключ для всех серверов
+// if let sessionId = UserDefaults.standard.string(forKey: "transmission_session_id")
+
+// ✅ ПРАВИЛЬНО: Session-id привязан к хосту/порту
+let sessionKey = "transmission_session_\(host)_\(port)"
+if let sessionId = UserDefaults.standard.string(forKey: sessionKey) {
+    request.setValue(sessionId, forHTTPHeaderField: "X-Transmission-Session-Id")
+}
+
+// Или лучше: хранить в памяти как часть ServerConnection
+class ServerConnection {
+    let host: String
+    let port: Int
+    private(set) var sessionId: String?
+    
+    func updateSessionId(_ id: String) {
+        self.sessionId = id
+        // Опционально: сохранить в Keychain с тегом (host, port)
+    }
+}
+
+// 1. Handle 409 response and store session ID for this server
 if response.statusCode == 409,
    let sessionId = response.headerFields?["X-Transmission-Session-Id"] {
-    UserDefaults.standard.set(sessionId, forKey: "transmission_session_id")
+    serverConnection.updateSessionId(sessionId)
+    // или: UserDefaults.standard.set(sessionId, forKey: sessionKey)
 }
 
 // 2. Add session ID to subsequent requests
 var request = URLRequest(url: url)
-if let sessionId = UserDefaults.standard.string(forKey: "transmission_session_id") {
+if let sessionId = serverConnection.sessionId {
     request.setValue(sessionId, forHTTPHeaderField: "X-Transmission-Session-Id")
 }
 ```
 
-## JSON-RPC 2.0 Structure
-
-## JSON-RPC Structure
+## Transmission RPC Structure
 
 ⚠️ **Transmission RPC format (NOT JSON-RPC 2.0)**:
 
