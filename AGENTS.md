@@ -24,7 +24,7 @@
   - Navigation: используйте SwiftUI's `NavigationStack` с TCA state-driven подходом.
   - Тестирование: используйте `TestStore` для exhaustive тестирования reducers и effects (все mutations и side effects проверяются).
 - Для каждого TCA reducer минимум два теста (happy path + error path); эффекты мокируются через зависимости в Environment.
-- `TransmissionClientProtocol` реализует JSON-RPC поверх HTTP(S); репозитории превращают сырой RPC в доменные модели.
+- `TransmissionClientProtocol` реализует Transmission RPC вызовы (собственный протокол поверх HTTP(S), НЕ JSON-RPC 2.0). Обработка рукопожатия (HTTP 409, session-id). Версионирование: поддержка Transmission 3.0+ (рекомендуется 4.0+). **Справочник**: `devdoc/TRANSMISSION_RPC_REFERENCE.md`. Репозитории превращают сырой RPC в доменные модели.
 - Используем async/await, Task, actors; помечаем публичные API @MainActor/@Sendable при необходимости; для детерминированных тестов времени применяем `swift-clocks`.
 
 ## Project Layout & Toolchain
@@ -59,7 +59,7 @@
   - Структура: `@Test` вместо `test*` методов, `@Suite` для группировки, `#expect` и `#require` для проверок.
   - Параметризованные тесты поддерживают аргументы, что снижает дублирование кода.
   - Conditional traits (`@Test(.enabled(if:))`, `@Suite(.serialized)`) управляют выполнением тестов.
-- Unit-тесты: сетевой слой, репозитории, ViewModel/Reducer. Тесты TCA используют зависимостей-моки и `TestStore`.
+- Unit-тесты: сетевой слой (TransmissionClientProtocol), репозитории, TCA редьюсеры с TestStore. Все тесты используют Swift Testing фреймворк и мокируют зависимости через @Dependency DI.
 - Integration: поднятие Transmission через Docker-compose в CI, прогон сценариев connect/add/start/stop/remove.
 - UI: XCUITest для onboarding, списка и добавления торрента (Given/When/Then комментарии).
 - Цель покрытия >=60% на ключевых компонентах; отчёты прикладываем к PR.

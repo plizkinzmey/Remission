@@ -12,6 +12,7 @@
 - Жизненный цикл приложения/конфигурация: редактируйте `RemissionApp.swift` (он отвечает за корневой вид).
 - Тесты размещаются в `RemissionTests/` (unit) и `RemissionUITests/` (UI). В тестах используется модуль `Testing` и атрибут `@Test` (см. `RemissionTests/RemissionTests.swift`).
 - State management: проект использует единую стратегию — The Composable Architecture (TCA). Все feature-модули должны реализовываться через TCA (@ObservableState State, enum Action, Reducer). Не смешивать MVVM и TCA в одном модуле.
+- Network layer: TransmissionClient реализует Transmission RPC вызовы (собственный протокол, не JSON-RPC 2.0). Обработка аутентификации (Basic Auth + HTTP 409 handshake для session-id). Справочник: `devdoc/TRANSMISSION_RPC_REFERENCE.md`.
 
 Сборка и тестирование (рабочие сценарии)
 - Открыть в Xcode: двойной клик по `Remission.xcodeproj` и запуск схемы `Remission` в стандартном симуляторе.
@@ -68,6 +69,15 @@ struct MyFeatureView: View {
 - Библиотека TCA: добавьте зависимость `https://github.com/pointfreeco/swift-composable-architecture` через SPM и используйте её как стандарт для state-management. Все feature-модули должны реализовываться как TCA reducers с @ObservableState, Action enum и Reducer body.
 
 - Swift 6 toolchain: если необходим preview toolchain, добавьте шаг в CI для установки требуемого toolchain.
+
+## Важно про Transmission RPC
+
+- **Собственный формат** (не JSON-RPC 2.0): используются `method`, `arguments`, `tag` в запросе; ответ содержит `result: "success"` или строку-ошибку
+- **HTTP 409 handshake**: обязателен при первом подключении для получения `X-Transmission-Session-Id`
+- **Basic Auth + Session ID**: оба обязательны в заголовках
+- **Версионирование**: поддержка минимум Transmission 3.0+ (рекомендуется 4.0+)
+- **Безопасность**: НИКОГДА не логировать пароли, session-id или чувствительные данные
+- **Справочник**: `devdoc/TRANSMISSION_RPC_REFERENCE.md` и `devdoc/TRANSMISSION_RPC_METHOD_MATRIX.md`
 
 - Рекомендации для AI-агентов при правках:
 - Делайте маленькие атомарные коммиты — одна логическая правка (вью, редьюсер, тест).
