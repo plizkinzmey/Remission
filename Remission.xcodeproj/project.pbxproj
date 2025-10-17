@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 90;
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
@@ -50,24 +50,18 @@
 /* Begin PBXFrameworksBuildPhase section */
 		15AA8C382EA1C9360025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C452EA1C9370025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C4F2EA1C9370025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -105,14 +99,10 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 			);
 			name = Remission;
-			packageProductDependencies = (
-			);
 			productName = Remission;
 			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
 			productType = "com.apple.product-type.application";
@@ -134,8 +124,6 @@
 				15AA8C4B2EA1C9370025EF81 /* RemissionTests */,
 			);
 			name = RemissionTests;
-			packageProductDependencies = (
-			);
 			productName = RemissionTests;
 			productReference = 15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -157,8 +145,6 @@
 				15AA8C552EA1C9370025EF81 /* RemissionUITests */,
 			);
 			name = RemissionUITests;
-			packageProductDependencies = (
-			);
 			productName = RemissionUITests;
 			productReference = 15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -195,7 +181,7 @@
 			);
 			mainGroup = 15AA8C322EA1C9360025EF81;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 90;
 			productRefGroup = 15AA8C3C2EA1C9360025EF81 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -210,48 +196,36 @@
 /* Begin PBXResourcesBuildPhase section */
 		15AA8C392EA1C9360025EF81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C462EA1C9370025EF81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C502EA1C9370025EF81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		15AA8C372EA1C9360025EF81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C442EA1C9370025EF81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		15AA8C4E2EA1C9370025EF81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -269,7 +243,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		15AA8C5A2EA1C9370025EF81 /* Debug */ = {
+		15AA8C5A2EA1C9370025EF81 /* Debug configuration for PBXProject "Remission" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -331,7 +305,7 @@
 			};
 			name = Debug;
 		};
-		15AA8C5B2EA1C9370025EF81 /* Release */ = {
+		15AA8C5B2EA1C9370025EF81 /* Release configuration for PBXProject "Remission" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -385,7 +359,7 @@
 			};
 			name = Release;
 		};
-		15AA8C5D2EA1C9370025EF81 /* Debug */ = {
+		15AA8C5D2EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "Remission" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -423,13 +397,13 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
-		15AA8C5E2EA1C9370025EF81 /* Release */ = {
+		15AA8C5E2EA1C9370025EF81 /* Release configuration for PBXNativeTarget "Remission" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -467,13 +441,13 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
-		15AA8C602EA1C9370025EF81 /* Debug */ = {
+		15AA8C602EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "RemissionTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -499,7 +473,7 @@
 			};
 			name = Debug;
 		};
-		15AA8C612EA1C9370025EF81 /* Release */ = {
+		15AA8C612EA1C9370025EF81 /* Release configuration for PBXNativeTarget "RemissionTests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -525,7 +499,7 @@
 			};
 			name = Release;
 		};
-		15AA8C632EA1C9370025EF81 /* Debug */ = {
+		15AA8C632EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "RemissionUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -550,7 +524,7 @@
 			};
 			name = Debug;
 		};
-		15AA8C642EA1C9370025EF81 /* Release */ = {
+		15AA8C642EA1C9370025EF81 /* Release configuration for PBXNativeTarget "RemissionUITests" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -581,37 +555,33 @@
 		15AA8C362EA1C9360025EF81 /* Build configuration list for PBXProject "Remission" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				15AA8C5A2EA1C9370025EF81 /* Debug */,
-				15AA8C5B2EA1C9370025EF81 /* Release */,
+				15AA8C5A2EA1C9370025EF81 /* Debug configuration for PBXProject "Remission" */,
+				15AA8C5B2EA1C9370025EF81 /* Release configuration for PBXProject "Remission" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		15AA8C5C2EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "Remission" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				15AA8C5D2EA1C9370025EF81 /* Debug */,
-				15AA8C5E2EA1C9370025EF81 /* Release */,
+				15AA8C5D2EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "Remission" */,
+				15AA8C5E2EA1C9370025EF81 /* Release configuration for PBXNativeTarget "Remission" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		15AA8C5F2EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "RemissionTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				15AA8C602EA1C9370025EF81 /* Debug */,
-				15AA8C612EA1C9370025EF81 /* Release */,
+				15AA8C602EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "RemissionTests" */,
+				15AA8C612EA1C9370025EF81 /* Release configuration for PBXNativeTarget "RemissionTests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		15AA8C622EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "RemissionUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				15AA8C632EA1C9370025EF81 /* Debug */,
-				15AA8C642EA1C9370025EF81 /* Release */,
+				15AA8C632EA1C9370025EF81 /* Debug configuration for PBXNativeTarget "RemissionUITests" */,
+				15AA8C642EA1C9370025EF81 /* Release configuration for PBXNativeTarget "RemissionUITests" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
