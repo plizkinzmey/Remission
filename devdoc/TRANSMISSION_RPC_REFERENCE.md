@@ -426,7 +426,7 @@ services:
   transmission:
     image: linuxserver/transmission:latest
     ports:
-      - "6969:6969"
+      - "9091:9091"
     environment:
       - PUID=1000
       - PGID=1000
@@ -441,7 +441,7 @@ services:
 
 ```bash
 docker-compose up -d
-# Test endpoint: http://localhost:6969/transmission/rpc
+# Test endpoint: http://localhost:9091/transmission/rpc
 # Default auth: admin / password
 ```
 
