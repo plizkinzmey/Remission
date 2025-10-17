@@ -126,6 +126,12 @@ reporter: "xcode"
 swiftlint lint
 ```
 
+**Ожидаемый результат:**
+```
+Linting Swift files in current working directory
+Done linting! Found 0 violations, 0 serious in X files.
+```
+
 **Проверка с выводом в формате Xcode (удобно при работе в IDE):**
 ```bash
 swiftlint lint --reporter xcode
