@@ -30,24 +30,26 @@ echo ""
 CHECKS_FAILED=0
 
 # ============================================================================
-# 1. Swift-format check (--lint mode: doesn't modify, only reports)
+# 1. swift-format check (Apple's swift-format: format without --in-place to dry-run)
 # ============================================================================
 echo -e "${BLUE}1️⃣  Checking code formatting with swift-format...${NC}"
 
 if command -v swift-format &> /dev/null; then
-    if swift-format --lint --configuration .swift-format . --recursive; then
+    # swift-format: use format without --in-place for dry-run check
+    if swift-format format --configuration .swift-format --recursive Remission RemissionTests RemissionUITests > /dev/null 2>&1; then
         echo -e "${GREEN}   ✅ swift-format check passed${NC}"
     else
         echo -e "${RED}   ❌ swift-format check failed${NC}"
         echo ""
         echo -e "${YELLOW}   💡 To auto-fix formatting issues, run:${NC}"
-        echo -e "   ${BLUE}swift-format --configuration .swift-format . --recursive${NC}"
+        echo -e "   ${BLUE}swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests${NC}"
         echo ""
         CHECKS_FAILED=1
     fi
 else
-    echo -e "${YELLOW}   ⚠️  swift-format not found (skipping check)${NC}"
-    echo -e "   ${YELLOW}   Install: brew install swift-format${NC}"
+    echo -e "${RED}   ❌ swift-format not found${NC}"
+    echo -e "   ${RED}   Install: brew install swift-format${NC}"
+    CHECKS_FAILED=1
 fi
 
 echo ""

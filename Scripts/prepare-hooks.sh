@@ -29,16 +29,28 @@ fi
 # Check if swift-format is installed
 echo "Checking dependencies..."
 if ! command -v swift-format &> /dev/null; then
-    echo -e "${YELLOW}⚠️  swift-format not found${NC}"
+    echo -e "${RED}❌ swift-format not found${NC}"
     echo "   Install using: brew install swift-format"
-    echo ""
+    DEPS_MISSING=1
+else
+    SWIFT_FORMAT_VERSION=$(swift-format --version 2>/dev/null | head -1)
+    echo -e "${GREEN}✅ swift-format found: $SWIFT_FORMAT_VERSION${NC}"
 fi
 
 # Check if swiftlint is installed
 if ! command -v swiftlint &> /dev/null; then
     echo -e "${YELLOW}⚠️  SwiftLint not found${NC}"
     echo "   Install using: brew install swiftlint"
-    echo ""
+    DEPS_MISSING=1
+else
+    SWIFTLINT_VERSION=$(swiftlint version 2>/dev/null || echo "unknown")
+    echo -e "${GREEN}✅ SwiftLint found: $SWIFTLINT_VERSION${NC}"
+fi
+
+echo ""
+
+if [ ${DEPS_MISSING:-0} -eq 1 ]; then
+    echo -e "${RED}⚠️  Some dependencies are missing. Please install them before continuing.${NC}"
 fi
 
 # Ensure hooks directory exists
@@ -54,12 +66,12 @@ echo ""
 echo -e "${BLUE}=== Configuration ===${NC}"
 echo "📁 Hook location: $PRE_COMMIT_HOOK"
 echo "🔧 swift-format config: .swift-format"
-echo "🔧 swiftlint config: .swiftlint.yml"
+echo "🔧 SwiftLint config: .swiftlint.yml"
 echo ""
 
 echo -e "${BLUE}=== What this hook does ===${NC}"
 echo "Before each commit, the hook will:"
-echo "  1️⃣  Check code formatting with swift-format (--lint mode)"
+echo "  1️⃣  Check code formatting with swift-format (dry-run mode)"
 echo "  2️⃣  Check code style with SwiftLint"
 echo "  3️⃣  Block the commit if any violations are found"
 echo ""
@@ -73,11 +85,11 @@ echo "⏭️  Skip hook if needed (use with caution):"
 echo "   $ git commit --no-verify -m 'Your message'"
 echo ""
 echo "🔍 Manual checks:"
-echo "   $ swiftformat --lint --configuration .swift-format ."
+echo "   $ swift-format format --configuration .swift-format --recursive Remission RemissionTests RemissionUITests"
 echo "   $ swiftlint lint"
 echo ""
 echo "🔧 Auto-fix formatting:"
-echo "   $ swiftformat --configuration .swift-format ."
+echo "   $ swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests"
 echo "   $ swiftlint --fix"
 echo ""
 

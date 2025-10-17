@@ -6,7 +6,7 @@ Remission поддерживает строгие стандарты качес�
 
 ### Используемые инструменты
 
-- **SwiftFormat** (nicklockwood/SwiftFormat) — автоматическое форматирование кода Swift
+- **swift-format** — автоматическое форматирование кода Swift (Apple)
 - **SwiftLint** — проверка стиля кода Swift
 - **Pre-commit hooks** — автоматические проверки перед коммитом
 
@@ -15,8 +15,8 @@ Remission поддерживает строгие стандарты качес�
 ### 1. Установить требуемые инструменты
 
 ```bash
-# Установить SwiftFormat (форматтер кода)
-brew install swiftformat
+# Установить swift-format (форматтер кода, Apple)
+brew install swift-format
 
 # Установить SwiftLint (проверка стиля)
 brew install swiftlint
@@ -53,11 +53,11 @@ git commit -m "Добавить новую фичу"  # Hook запуститс�
 
 ### Автоматическое исправление ошибок
 
-SwiftFormat может автоматически исправить большинство ошибок форматирования:
+swift-format может автоматически исправить большинство ошибок форматирования:
 
 ```bash
 # Автоматическое исправление форматирования
-swiftformat --configuration .swift-format .
+swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests
 
 # Автоматическое исправление некоторых нарушений SwiftLint
 swiftlint --fix
@@ -73,8 +73,8 @@ git commit -m "Исправить стиль кода"  # Должно прой�
 ### Ручные проверки (без коммита)
 
 ```bash
-# Проверить форматирование (без изменения файлов)
-swiftformat --lint --configuration .swift-format .
+# Проверить форматирование (без изменения файлов, dry-run)
+swift-format format --configuration .swift-format --recursive Remission RemissionTests RemissionUITests
 
 # Проверить нарушения стиля
 swiftlint lint
@@ -95,7 +95,7 @@ git commit --no-verify -m "Экстренный коммит"
 
 ## Конфигурационные файлы
 
-- `.swift-format` — конфигурация SwiftFormat (JSON)
+- `.swift-format` — конфигурация swift-format (JSON)
 - `.swiftlint.yml` — конфигурация SwiftLint (YAML)
 - `Scripts/pre-commit` — реализация git pre-commit hook'а
 - `Scripts/prepare-hooks.sh` — скрипт установки hook'ов
@@ -119,14 +119,14 @@ bash Scripts/prepare-hooks.sh
 Проверьте, находятся ли они в PATH:
 
 ```bash
-which swiftformat
+which swift-format
 which swiftlint
 ```
 
 Если не найдены, установите:
 
 ```bash
-brew install swiftformat swiftlint
+brew install swift-format swiftlint
 ```
 
 ### Проблемы на Apple Silicon (M1/M2/M3)?
@@ -143,7 +143,7 @@ brew reinstall swiftformat swiftlint
 Отформатируйте только этот файл:
 
 ```bash
-swiftformat --configuration .swift-format path/to/file.swift
+swift-format format --in-place --configuration .swift-format path/to/file.swift
 ```
 
 ## Интеграция в IDE
