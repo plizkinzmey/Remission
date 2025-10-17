@@ -96,43 +96,41 @@ Remission/
 
 #### Установка swift-format
 
-Если `swift-format` не установлен, установите его через Homebrew:
+**Для Swift 6 (Xcode 16+)**: `swift-format` уже включён в toolchain:
+```bash
+swift format --help
+```
 
+**Установка через Homebrew (если требуется отдельная версия):**
 ```bash
 brew install swift-format
 ```
 
-Или через Swift Package Manager:
-
-```bash
-git clone https://github.com/apple/swift-format.git
-cd swift-format
-swift build -c release
-# Добавьте .build/release/swift-format в PATH
-```
-
 #### Использование
 
-**Проверка форматирования (dry-run):**
+**Вывести отформатированный код в stdout (проверка форматирования):**
 ```bash
-swift-format --mode format --dry-run Remission RemissionTests RemissionUITests
+swift-format format --recursive --configuration .swift-format Remission RemissionTests RemissionUITests
 ```
 
-**Применение форматирования:**
+**Применить форматирование с заменой файлов на месте:**
 ```bash
-swift-format --mode format --in-place Remission RemissionTests RemissionUITests
+swift-format format --in-place --recursive --configuration .swift-format Remission RemissionTests RemissionUITests
 ```
 
-#### Конфигурация
+#### Параметры конфигурации
 
-Конфигурация сохранена в файле `.swift-format` в корне репозитория. Параметры включают:
+Конфигурация хранится в файле `.swift-format` в корне репозитория с параметрами:
 
-- **Отступы**: 4 пробела (соответствует Swift 6 гайдам)
-- **Длина строки**: 100 символов
-- **Именование**: camelCase для переменных/методов, PascalCase для типов
-- **Импорты**: автоматическая сортировка
-- **Комментарии**: предпочтение к triple-slash (`///`) для документации
-- **Прочее**: удаление лишних точек с запятой, форматирование условных выражений и т.д.
+- **Отступы**: 4 пробела (`indentation.spaces`)
+- **Длина строки**: 100 символов (`lineLength`)
+- **Максимум пустых строк**: 1 (`maximumBlankLines`)
+- **Правила**: 45+ встроенных правил форматирования включая:
+  - `AlwaysUseLowerCamelCase` — camelCase для переменных/методов
+  - `TypeNamesShouldBeCapitalized` — PascalCase для типов
+  - `UseTripleSlashForDocumentationComments` — triple-slash для doc-комментариев
+  - `DoNotUseSemicolons` — удаление точек с запятой
+  - И другие правила для консистентного стиля
 
 **Важно**: перед коммитом запустите `swift-format` для всех изменённых файлов, чтобы обеспечить консистентность стиля.
 
