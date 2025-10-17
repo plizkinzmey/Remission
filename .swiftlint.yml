@@ -4,6 +4,7 @@
 disabled_rules:
   - trailing_whitespace
   - force_cast
+  - trailing_comma
 
 opt_in_rules:
   - closure_spacing
@@ -80,9 +81,6 @@ type_name:
 
 force_try:
   severity: warning
-
-trailing_comma:
-  mandatory_comma: true
 
 # Reporter format for Xcode integration
 reporter: "xcode"
