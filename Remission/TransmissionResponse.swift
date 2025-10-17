@@ -58,7 +58,8 @@ nonisolated(unsafe) public struct TransmissionResponse: Codable, Sendable {
 
     /// The tag from the corresponding request (if provided).
     /// Used to correlate async requests with their responses.
-    public let tag: Int?
+    /// Can be either a numeric or string tag depending on server implementation.
+    public let tag: TransmissionTag?
 
     /// Creates a new Transmission RPC response.
     ///
@@ -66,7 +67,7 @@ nonisolated(unsafe) public struct TransmissionResponse: Codable, Sendable {
     ///   - result: The result status ("success" or error message)
     ///   - arguments: Optional response data
     ///   - tag: Optional tag from the request
-    public init(result: String, arguments: AnyCodable? = nil, tag: Int? = nil) {
+    public init(result: String, arguments: AnyCodable? = nil, tag: TransmissionTag? = nil) {
         self.result = result
         self.arguments = arguments
         self.tag = tag

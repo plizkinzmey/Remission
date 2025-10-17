@@ -49,7 +49,8 @@ nonisolated(unsafe) public struct TransmissionRequest: Codable, Sendable {
     /// Optional tag to correlate requests and responses.
     /// The server will echo this tag back in the response.
     /// Useful for matching async requests with responses.
-    public let tag: Int?
+    /// Can be either a numeric or string tag depending on server implementation.
+    public let tag: TransmissionTag?
 
     /// Creates a new Transmission RPC request.
     ///
@@ -57,7 +58,7 @@ nonisolated(unsafe) public struct TransmissionRequest: Codable, Sendable {
     ///   - method: The RPC method name (e.g., "torrent-get", "session-set")
     ///   - arguments: Optional method-specific parameters
     ///   - tag: Optional tag to correlate with response
-    public init(method: String, arguments: AnyCodable? = nil, tag: Int? = nil) {
+    public init(method: String, arguments: AnyCodable? = nil, tag: TransmissionTag? = nil) {
         self.method = method
         self.arguments = arguments
         self.tag = tag

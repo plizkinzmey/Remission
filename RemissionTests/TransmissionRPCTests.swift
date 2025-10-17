@@ -149,13 +149,22 @@ nonisolated struct TransmissionRequestTests {
         #expect(request.tag == nil)
     }
 
-    @Test("Create request with method and tag")
-    nonisolated func createRequestWithTag() {
-        let request = TransmissionRequest(method: "torrent-get", tag: 1)
+    @Test("Create request with method and numeric tag")
+    nonisolated func createRequestWithNumericTag() {
+        let request = TransmissionRequest(method: "torrent-get", tag: .int(1))
 
         #expect(request.method == "torrent-get")
         #expect(request.arguments == nil)
-        #expect(request.tag == 1)
+        #expect(request.tag == .int(1))
+    }
+
+    @Test("Create request with method and string tag")
+    nonisolated func createRequestWithStringTag() {
+        let request = TransmissionRequest(method: "torrent-get", tag: .string("req-1"))
+
+        #expect(request.method == "torrent-get")
+        #expect(request.arguments == nil)
+        #expect(request.tag == .string("req-1"))
     }
 
     @Test("Create request with arguments")
@@ -164,21 +173,32 @@ nonisolated struct TransmissionRequestTests {
             "fields": .array([.string("id"), .string("name"), .string("status")]),
             "ids": .array([.int(1), .int(2)]),
         ])
-        let request = TransmissionRequest(method: "torrent-get", arguments: arguments, tag: 1)
+        let request = TransmissionRequest(method: "torrent-get", arguments: arguments, tag: .int(1))
 
         #expect(request.method == "torrent-get")
         #expect(request.arguments == arguments)
-        #expect(request.tag == 1)
+        #expect(request.tag == .int(1))
     }
 
-    @Test("Encode simple request")
+    @Test("Encode simple request with numeric tag")
     nonisolated func encodeSimpleRequest() throws {
-        let request = TransmissionRequest(method: "session-get", tag: 1)
+        let request = TransmissionRequest(method: "session-get", tag: .int(1))
         let data = try JSONEncoder().encode(request)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
 
         #expect((json["method"] as? String) == "session-get")
         #expect((json["tag"] as? Int) == 1)
+        #expect(json["arguments"] == nil)
+    }
+
+    @Test("Encode request with string tag")
+    nonisolated func encodeRequestWithStringTag() throws {
+        let request = TransmissionRequest(method: "session-get", tag: .string("session-1"))
+        let data = try JSONEncoder().encode(request)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+
+        #expect((json["method"] as? String) == "session-get")
+        #expect((json["tag"] as? String) == "session-1")
         #expect(json["arguments"] == nil)
     }
 
@@ -191,7 +211,7 @@ nonisolated struct TransmissionRequestTests {
         let request = TransmissionRequest(
             method: "session-set",
             arguments: arguments,
-            tag: 2
+            tag: .int(2)
         )
 
         let data = try JSONEncoder().encode(request)
@@ -202,7 +222,7 @@ nonisolated struct TransmissionRequestTests {
         #expect(json["arguments"] != nil)
     }
 
-    @Test("Decode simple request")
+    @Test("Decode simple request with numeric tag")
     nonisolated func decodeSimpleRequest() throws {
         let json = """
             {
@@ -215,11 +235,28 @@ nonisolated struct TransmissionRequestTests {
         let request = try JSONDecoder().decode(TransmissionRequest.self, from: data)
 
         #expect(request.method == "torrent-start")
-        #expect(request.tag == 5)
+        #expect(request.tag == .int(5))
         #expect(request.arguments != nil)
     }
 
-    @Test("Round-trip request encoding/decoding")
+    @Test("Decode simple request with string tag")
+    nonisolated func decodeSimpleRequestStringTag() throws {
+        let json = """
+            {
+              "method": "torrent-start",
+              "arguments": {"ids": [1, 2, 3]},
+              "tag": "req-5"
+            }
+            """
+        let data = json.data(using: .utf8)!
+        let request = try JSONDecoder().decode(TransmissionRequest.self, from: data)
+
+        #expect(request.method == "torrent-start")
+        #expect(request.tag == .string("req-5"))
+        #expect(request.arguments != nil)
+    }
+
+    @Test("Round-trip request encoding/decoding with numeric tag")
     nonisolated func roundTripRequest() throws {
         let arguments: AnyCodable = .object([
             "ids": .array([.int(1), .int(2)]),
@@ -228,13 +265,34 @@ nonisolated struct TransmissionRequestTests {
         let original = TransmissionRequest(
             method: "torrent-get",
             arguments: arguments,
-            tag: 10
+            tag: .int(10)
         )
 
         let encoded = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(TransmissionRequest.self, from: encoded)
 
-        #expect(decoded == original)
+        #expect(decoded.method == original.method)
+        #expect(decoded.arguments == original.arguments)
+        #expect(decoded.tag == original.tag)
+    }
+
+    @Test("Round-trip request encoding/decoding with string tag")
+    nonisolated func roundTripRequestStringTag() throws {
+        let arguments: AnyCodable = .object([
+            "ids": .array([.int(1), .int(2)])
+        ])
+        let original = TransmissionRequest(
+            method: "torrent-get",
+            arguments: arguments,
+            tag: .string("batch-request-1")
+        )
+
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(TransmissionRequest.self, from: encoded)
+
+        #expect(decoded.method == original.method)
+        #expect(decoded.arguments == original.arguments)
+        #expect(decoded.tag == original.tag)
     }
 }
 
@@ -242,20 +300,31 @@ nonisolated struct TransmissionRequestTests {
 
 @Suite("TransmissionResponse")
 nonisolated struct TransmissionResponseTests {
-    @Test("Create success response")
+    @Test("Create success response with numeric tag")
     nonisolated func createSuccessResponse() {
-        let response = TransmissionResponse(result: "success", tag: 1)
+        let response = TransmissionResponse(result: "success", tag: .int(1))
 
         #expect(response.result == "success")
         #expect(response.isSuccess == true)
         #expect(response.isError == false)
         #expect(response.errorMessage == nil)
-        #expect(response.tag == 1)
+        #expect(response.tag == .int(1))
     }
 
-    @Test("Create error response")
-    nonisolated func createErrorResponse() {
-        let response = TransmissionResponse(result: "too many recent requests", tag: 1)
+    @Test("Create success response with string tag")
+    nonisolated func createSuccessResponseStringTag() {
+        let response = TransmissionResponse(result: "success", tag: .string("req-1"))
+
+        #expect(response.result == "success")
+        #expect(response.isSuccess == true)
+        #expect(response.isError == false)
+        #expect(response.errorMessage == nil)
+        #expect(response.tag == .string("req-1"))
+    }
+
+    @Test("Create error response with numeric tag")
+    nonisolated func createErrorResponseNumericTag() {
+        let response = TransmissionResponse(result: "too many recent requests", tag: .int(1))
 
         #expect(response.result == "too many recent requests")
         #expect(response.isSuccess == false)
@@ -263,8 +332,18 @@ nonisolated struct TransmissionResponseTests {
         #expect(response.errorMessage == "too many recent requests")
     }
 
-    @Test("Create response with arguments")
-    nonisolated func createResponseWithArguments() {
+    @Test("Create error response with string tag")
+    nonisolated func createErrorResponseStringTag() {
+        let response = TransmissionResponse(result: "permission denied", tag: .string("delete-1"))
+
+        #expect(response.result == "permission denied")
+        #expect(response.isSuccess == false)
+        #expect(response.isError == true)
+        #expect(response.errorMessage == "permission denied")
+    }
+
+    @Test("Create response with arguments and numeric tag")
+    nonisolated func createResponseWithArgumentsNumericTag() {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -275,20 +354,39 @@ nonisolated struct TransmissionResponseTests {
                 ])
             ])
         ])
-        let response = TransmissionResponse(result: "success", arguments: arguments, tag: 1)
+        let response = TransmissionResponse(result: "success", arguments: arguments, tag: .int(1))
 
         #expect(response.isSuccess == true)
         #expect(response.arguments == arguments)
     }
 
-    @Test("Encode success response")
-    nonisolated func encodeSuccessResponse() throws {
+    @Test("Create response with arguments and string tag")
+    nonisolated func createResponseWithArgumentsStringTag() {
+        let arguments: AnyCodable = .object([
+            "torrents": .array([
+                .object([
+                    "id": .int(1),
+                    "name": .string("Ubuntu"),
+                    "status": .int(4),
+                    "uploadRatio": .double(1.5),
+                ])
+            ])
+        ])
+        let response = TransmissionResponse(
+            result: "success", arguments: arguments, tag: .string("torrents-1"))
+
+        #expect(response.isSuccess == true)
+        #expect(response.arguments == arguments)
+    }
+
+    @Test("Encode success response with numeric tag")
+    nonisolated func encodeSuccessResponseNumericTag() throws {
         let arguments: AnyCodable = .object([
             "rpc-version": .int(17),
             "rpc-version-minimum": .int(14),
             "version": .string("4.0.6"),
         ])
-        let response = TransmissionResponse(result: "success", arguments: arguments, tag: 1)
+        let response = TransmissionResponse(result: "success", arguments: arguments, tag: .int(1))
 
         let data = try JSONEncoder().encode(response)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -298,8 +396,26 @@ nonisolated struct TransmissionResponseTests {
         #expect(json["arguments"] != nil)
     }
 
-    @Test("Decode success response")
-    nonisolated func decodeSuccessResponse() throws {
+    @Test("Encode success response with string tag")
+    nonisolated func encodeSuccessResponseStringTag() throws {
+        let arguments: AnyCodable = .object([
+            "rpc-version": .int(17),
+            "rpc-version-minimum": .int(14),
+            "version": .string("4.0.6"),
+        ])
+        let response = TransmissionResponse(
+            result: "success", arguments: arguments, tag: .string("session-info"))
+
+        let data = try JSONEncoder().encode(response)
+        let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+
+        #expect((json["result"] as? String) == "success")
+        #expect((json["tag"] as? String) == "session-info")
+        #expect(json["arguments"] != nil)
+    }
+
+    @Test("Decode success response with numeric tag")
+    nonisolated func decodeSuccessResponseNumericTag() throws {
         let json = """
             {
               "result": "success",
@@ -315,12 +431,33 @@ nonisolated struct TransmissionResponseTests {
         let response = try JSONDecoder().decode(TransmissionResponse.self, from: data)
 
         #expect(response.isSuccess == true)
-        #expect(response.tag == 1)
+        #expect(response.tag == .int(1))
         #expect(response.arguments != nil)
     }
 
-    @Test("Decode error response")
-    nonisolated func decodeErrorResponse() throws {
+    @Test("Decode success response with string tag")
+    nonisolated func decodeSuccessResponseStringTag() throws {
+        let json = """
+            {
+              "result": "success",
+              "arguments": {
+                "torrents": [
+                  {"id": 1, "name": "Ubuntu", "status": 4}
+                ]
+              },
+              "tag": "get-torrents"
+            }
+            """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(TransmissionResponse.self, from: data)
+
+        #expect(response.isSuccess == true)
+        #expect(response.tag == .string("get-torrents"))
+        #expect(response.arguments != nil)
+    }
+
+    @Test("Decode error response with numeric tag")
+    nonisolated func decodeErrorResponseNumericTag() throws {
         let json = """
             {
               "result": "too many recent requests",
@@ -332,11 +469,27 @@ nonisolated struct TransmissionResponseTests {
 
         #expect(response.isError == true)
         #expect(response.errorMessage == "too many recent requests")
-        #expect(response.tag == 1)
+        #expect(response.tag == .int(1))
     }
 
-    @Test("Round-trip response encoding/decoding")
-    nonisolated func roundTripResponse() throws {
+    @Test("Decode error response with string tag")
+    nonisolated func decodeErrorResponseStringTag() throws {
+        let json = """
+            {
+              "result": "permission denied",
+              "tag": "delete-torrent"
+            }
+            """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(TransmissionResponse.self, from: data)
+
+        #expect(response.isError == true)
+        #expect(response.errorMessage == "permission denied")
+        #expect(response.tag == .string("delete-torrent"))
+    }
+
+    @Test("Round-trip response encoding/decoding with numeric tag")
+    nonisolated func roundTripResponseNumericTag() throws {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -346,7 +499,7 @@ nonisolated struct TransmissionResponseTests {
                 ])
             ])
         ])
-        let original = TransmissionResponse(result: "success", arguments: arguments, tag: 5)
+        let original = TransmissionResponse(result: "success", arguments: arguments, tag: .int(5))
 
         let encoded = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(TransmissionResponse.self, from: encoded)
@@ -354,8 +507,28 @@ nonisolated struct TransmissionResponseTests {
         #expect(decoded == original)
     }
 
-    @Test("Decode response without arguments")
-    nonisolated func decodeResponseWithoutArguments() throws {
+    @Test("Round-trip response encoding/decoding with string tag")
+    nonisolated func roundTripResponseStringTag() throws {
+        let arguments: AnyCodable = .object([
+            "torrents": .array([
+                .object([
+                    "id": .int(1),
+                    "name": .string("Test"),
+                    "percentDone": .double(0.75),
+                ])
+            ])
+        ])
+        let original = TransmissionResponse(
+            result: "success", arguments: arguments, tag: .string("batch-5"))
+
+        let encoded = try JSONEncoder().encode(original)
+        let decoded = try JSONDecoder().decode(TransmissionResponse.self, from: encoded)
+
+        #expect(decoded == original)
+    }
+
+    @Test("Decode response without arguments and numeric tag")
+    nonisolated func decodeResponseWithoutArgumentsNumericTag() throws {
         let json = """
             {
               "result": "success",
@@ -367,7 +540,23 @@ nonisolated struct TransmissionResponseTests {
 
         #expect(response.result == "success")
         #expect(response.arguments == nil)
-        #expect(response.tag == 2)
+        #expect(response.tag == .int(2))
+    }
+
+    @Test("Decode response without arguments and string tag")
+    nonisolated func decodeResponseWithoutArgumentsStringTag() throws {
+        let json = """
+            {
+              "result": "success",
+              "tag": "verify-torrent"
+            }
+            """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(TransmissionResponse.self, from: data)
+
+        #expect(response.result == "success")
+        #expect(response.arguments == nil)
+        #expect(response.tag == .string("verify-torrent"))
     }
 }
 

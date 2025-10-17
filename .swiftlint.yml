@@ -81,5 +81,8 @@ type_name:
 force_try:
   severity: warning
 
+trailing_comma:
+  mandatory_comma: true
+
 # Reporter format for Xcode integration
 reporter: "xcode"
