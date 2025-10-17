@@ -33,10 +33,10 @@
 **Для исследования нового API используйте**: [`CONTEXT7_GUIDE.md`](CONTEXT7_GUIDE.md) (workflow, примеры, best practices).
 
 ### Актуальные источники документации
-- **Официальная документация GitHub**: https://github.com/transmission/transmission/wiki
-- **JSON-RPC 2.0 спецификация**: https://github.com/tunnckocore/jsonrpc-v2.0-spec (Trust Score 9.7, используется как стандарт для RPC коммуникации)
-- **Python transmission-rpc библиотека**: https://transmission-rpc.readthedocs.io (Trust Score 7.5, содержит актуальную информацию о методах)
-- **Поддерживаемые версии Transmission**: 3.0+ (рекомендуется 4.0.6+). Проверка версии выполняется через `session-get` при рукопожатии.
+- **Официальная RPC спецификация GitHub** (AUTHORITATIVE): https://raw.githubusercontent.com/transmission/transmission/main/docs/rpc-spec.md — Определяет формат запросов/ответов, все методы, версионирование
+- **Transmission GitHub Wiki**: https://github.com/transmission/transmission/wiki — Дополнительная информация, примеры CLI
+- **Python transmission-rpc библиотека**: https://transmission-rpc.readthedocs.io (Trust Score 7.5) — Reference implementation для field names
+- **Поддерживаемые версии Transmission**: 3.0+ (минимум), 4.0.6+ (рекомендуется). Проверка версии выполняется через `session-get` при рукопожатии.
 
 ### Основные RPC методы для MVP
 
@@ -59,51 +59,52 @@
 
 ### JSON-RPC структура
 
+⚠️ **ВАЖНО**: Transmission RPC использует собственный формат, НЕ JSON-RPC 2.0. Не путайте!
+
 **Запрос** (пример `torrent-get`):
 ```json
 {
-  "jsonrpc": "2.0",
   "method": "torrent-get",
   "arguments": {
     "ids": [1, 2],
     "fields": ["id", "name", "status", "percentDone"]
   },
-  "id": 1
+  "tag": 1
 }
 ```
 
 **Ответ (успех)**:
 ```json
 {
-  "jsonrpc": "2.0",
-  "result": {
-    "torrents": [...],
-    "arguments": {...}
+  "result": "success",
+  "arguments": {
+    "torrents": [
+      {"id": 1, "name": "Ubuntu", "status": 4, "percentDone": 0.75}
+    ]
   },
-  "id": 1
+  "tag": 1
 }
 ```
 
 **Ответ (ошибка)**:
 ```json
 {
-  "jsonrpc": "2.0",
-  "error": {
-    "code": -32602,
-    "message": "Invalid params"
-  },
-  "id": 1
+  "result": "too many recent requests",
+  "tag": 1
 }
 ```
 
-### Коды ошибок Transmission
+### Коды ошибок
 
-- `412`: Требуется session-id (обычно 409 с заголовком в ответе)
-- `-32600`: Invalid Request
-- `-32602`: Invalid params
-- `-32603`: Internal error
-- `6`: Access denied (auth failed)
-- Остальные: прикладные ошибки Transmission (уникальные коды в `error.data`)
+| Тип | Значение | Действие |
+|-----|---------|---------|
+| **HTTP 409** | Session ID invalid | Кешировать новый `X-Transmission-Session-Id` из заголовка, повторить запрос |
+| **HTTP 401** | Auth failed | Проверить Basic Auth заголовок |
+| **HTTP 400** | Bad request | Проверить формат JSON запроса |
+| **result: "success"** | Успех | Обработать `arguments` |
+| **result: <string>** | Ошибка | Показать `result` как error message (строка, не код) |
+
+⚠️ **НЕ используйте JSON-RPC коды**: Transmission вернёт строку в `result`, а не числовой код вроде -32602!
 
 ### Edge Cases и требования
 
@@ -121,11 +122,11 @@
 ---
 
 ## Веха 1: Основа Transmission RPC
-- M1.1 Смоделировать ключевые конечные точки Transmission RPC и структуры полезной нагрузки. **Использовать контракт выше**.
-- M1.2 Реализовать кодирование и декодирование запросов и ответов с переводом ошибок в тип APIError. Ссылка на контракт: https://transmission-rpc.readthedocs.io/en/v7.0.11/client
-- M1.3 Добавить механизм рукопожатия для получения session-id и согласования версий клиента и сервера. Обработка HTTP 409 с заголовком `X-Transmission-Session-Id`.
-- M1.4 Подготовить мок-сервер для модульных тестов сетевого слоя (использование Swift Testing с @Test). Ссылка на JSON-RPC 2.0 спецификацию: https://github.com/tunnckocore/jsonrpc-v2.0-spec
-- Проверка: покрыть тестами построение запросов и декодирование ответов на фиктивных данных с использованием Swift Testing фреймворка.
+- M1.1 Смоделировать ключевые конечные точки Transmission RPC и структуры полезной нагрузки. **Использовать контракт выше** и [`TRANSMISSION_RPC_REFERENCE.md`](TRANSMISSION_RPC_REFERENCE.md).
+- M1.2 Реализовать кодирование и декодирование запросов и ответов с переводом ошибок в тип APIError. Обратите внимание: используется `method`/`arguments`/`tag` (не JSON-RPC 2.0 `jsonrpc`/`id`/`error`).
+- M1.3 Добавить механизм рукопожатия для получения session-id и согласования версий клиента и сервера. Обработка HTTP 409 с заголовком `X-Transmission-Session-Id`. **Порт: 9091** (не 6969).
+- M1.4 Подготовить мок-сервер для модульных тестов сетевого слоя (использование Swift Testing с @Test). Ссылка: https://raw.githubusercontent.com/transmission/transmission/main/docs/rpc-spec.md
+- Проверка: покрыть тестами построение запросов и декодирование ответов на фиктивных данных с использованием Swift Testing фреймворка. Убедиться, что парсится формат с `"result": "success"` (не JSON-RPC ошибки).
 
 ## Веха 2: Безопасность и аутентификация
 - M2.1 Реализовать подстановку заголовка Basic Auth в TransmissionClient согласно HTTPS требованиям.

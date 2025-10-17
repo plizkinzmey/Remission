@@ -2,13 +2,17 @@
 
 ## Quick Overview
 
-**Transmission RPC** — это JSON-RPC 2.0 API для управления торрент-демоном. Используется в Remission для подключения, управления торрентами и получения информации о сессии.
+**Transmission RPC** — это собственный JSON-based API для управления торрент-демоном. Используется в Remission для подключения, управления торрентами и получения информации о сессии.
+
+⚠️ **Важно**: Transmission RPC использует **собственный формат** (NOT JSON-RPC 2.0). Основные отличия:
+- Запрос: `method`, `arguments`, `tag` (не `jsonrpc`, `id`)
+- Ответ: `result: "success"` или error string, `arguments`, `tag`
 
 - **Минимальная версия Transmission**: 3.0
 - **Рекомендуемая версия**: 4.0+
-- **Протокол**: JSON-RPC 2.0 поверх HTTP(S)
+- **Протокол**: JSON поверх HTTP(S)
 - **Аутентификация**: Basic Auth + Session ID (X-Transmission-Session-Id)
-- **Default порт**: 6969 (HTTP), 6970 (HTTPS)
+- **Default порт**: 9091 (один и тот же для HTTP и HTTPS)
 
 ## Architecture
 
@@ -22,12 +26,14 @@
                    │
                    ▼
         ┌──────────────────────┐
-        │   TransmissionRPC    │
-        │   (HTTP JSON-RPC)    │
+        │  Transmission RPC    │
+        │  (HTTP JSON, NOT     │
+        │   JSON-RPC 2.0)      │
         └──────────┬───────────┘
                    │
         ┌──────────▼───────────┐
         │ transmission-daemon  │
+        │ (port 9091)          │
         │ (3.0+, 4.0+ rec.)    │
         └──────────┬───────────┘
                    │
@@ -68,7 +74,7 @@
 
 ```http
 POST /transmission/rpc HTTP/1.1
-Host: transmission.example.com:6969
+Host: transmission.example.com:9091
 Authorization: Basic base64(username:password)
 X-Transmission-Session-Id: aaaabbbbccccdddd1111222233334444
 Content-Type: application/json
@@ -92,6 +98,10 @@ if let sessionId = UserDefaults.standard.string(forKey: "transmission_session_id
 
 ## JSON-RPC 2.0 Structure
 
+## JSON-RPC Structure
+
+⚠️ **Transmission RPC format (NOT JSON-RPC 2.0)**:
+
 ### Request Format
 
 ```json
@@ -101,15 +111,20 @@ if let sessionId = UserDefaults.standard.string(forKey: "transmission_session_id
     "fields": ["id", "name", "status", "uploadRatio"],
     "ids": [1, 2, 3]
   },
-  "jsonrpc": "2.0",
-  "id": 1
+  "tag": 1
 }
 ```
 
-### Successful Response (2xx)
+Key points:
+- `method`: string, required
+- `arguments`: object, optional (key/value pairs specific to method)
+- `tag`: number, optional (client-generated; server echoes it back in response)
+
+### Successful Response
 
 ```json
 {
+  "result": "success",
   "arguments": {
     "torrents": [
       {
@@ -120,21 +135,28 @@ if let sessionId = UserDefaults.standard.string(forKey: "transmission_session_id
       }
     ]
   },
-  "result": "success",
-  "jsonrpc": "2.0",
-  "id": 1
+  "tag": 1
 }
 ```
+
+Key points:
+- `result`: string, required. Value is ALWAYS `"success"` on success
+- `arguments`: object, optional. Contains method-specific response data
+- `tag`: number, echoed from request
 
 ### Error Response
 
 ```json
 {
-  "result": "failure",
-  "jsonrpc": "2.0",
-  "id": 1
+  "result": "too many recent requests",
+  "tag": 1
 }
 ```
+
+Key points:
+- `result`: string, contains error message (not JSON-RPC error codes like -32602)
+- On errors, `arguments` is typically empty or omitted
+- Different Transmission versions may return different error strings
 
 ## Status Codes (for torrents)
 
@@ -151,26 +173,29 @@ enum TorrentStatus: Int {
 }
 ```
 
-## Error Codes
+## Error Handling
 
 ### HTTP Status Codes
 
 | Code | Meaning | Action |
 |------|---------|--------|
-| **409** | Session ID required | Cache new X-Transmission-Session-Id, retry |
-| **401** | Authentication failed | Check credentials (Basic Auth) |
-| **400** | Bad request | Check JSON-RPC format and arguments |
+| **409** | Session ID invalid or expired | Cache new X-Transmission-Session-Id from response header, retry |
+| **401** | Authentication failed | Check credentials in Basic Auth header |
+| **400** | Bad request | Check format of request JSON and arguments |
 | **500** | Server error | Retry with exponential backoff |
 | **503** | Service unavailable | Retry with exponential backoff |
 
-### Transmission Error Codes
+### Transmission Error Messages (in response.result)
 
-| Code | Meaning |
-|------|---------|
-| 1 | Invalid request |
-| 2 | Server shuts down |
-| 3 | No free space |
-| 4 | Duplicate torrent |
+These are returned as string values in the `result` field, NOT numeric codes:
+
+- `"success"` — Request succeeded
+- `"too many recent requests"` — Rate limiting by Transmission
+- Custom error strings — Vary by method and Transmission version
+
+**Note**: Transmission does NOT use numeric error codes like JSON-RPC (-32602, etc.). Always parse the `result` string to determine success.
+
+````
 
 ## Field References
 
