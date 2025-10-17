@@ -473,7 +473,7 @@ UX и пользовательские потоки
 
 ### Keychain и хранение credentials
 - **Хранилище**: все пароли, токены и sensitive данные должны храниться исключительно в Keychain (iOS/macOS).
-- **Keychain типы**: использовать `kSecAttrAccountClass` для категоризации (например, `Transmission`, `Server`).
+- **Keychain типы**: использовать `kSecClass` для определения типа записи (например, `kSecClassGenericPassword`), `kSecAttrService` (app bundle ID или custom service name) и `kSecAttrAccount` для категоризации учётной записи (например, username, email).
 - **Минимизация**: хранить только необходимый набор — username, password, host, port. Всё остальное может быть кешировано в UserDefaults или CoreData.
 - **Запрос доступа**: при первом использовании Keychain показать пользователю запрос биометрической аутентификации (если требуется).
 
