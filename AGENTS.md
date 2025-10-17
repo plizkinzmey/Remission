@@ -32,7 +32,14 @@
 - `RemissionTests/` - Тесты на Swift Testing фреймворке; именуйте файлы в паре с production-модулями.
 - `RemissionUITests/` - XCUITest сценарии и smoke-проверки.
 - `devdoc/PRD.md` - PRD, обязательное обновление при функциональных изменениях.
-- Стартовые команды:
+
+### Структура при разделении на Swift Packages (будущая масштабируемость):
+- `Sources/` — корневая папка для Swift Package модулей
+  - `Features/` — feature-модули как отдельные пакеты (TorrentList, TorrentDetail, AddTorrent)
+  - `Services/` — сетевой слой и бизнес-логика (TransmissionClient, SyncService, Repositories)
+  - `Shared/` — общие модели, утилиты и переиспользуемые UI компоненты (Models, Utils, Views)
+
+### Стартовые команды:
   - `open Remission.xcodeproj` - запуск Xcode (схема `Remission`).
   - `xcodebuild -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15' build` - CLI-сборка.
   - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` - unit + UI тесты; запускайте перед любым PR.
@@ -56,6 +63,15 @@
 - Integration: поднятие Transmission через Docker-compose в CI, прогон сценариев connect/add/start/stop/remove.
 - UI: XCUITest для onboarding, списка и добавления торрента (Given/When/Then комментарии).
 - Цель покрытия >=60% на ключевых компонентах; отчёты прикладываем к PR.
+
+### Измерение код-кавера:
+- **Инструменты**: xcov или встроенные Code Coverage инструменты Xcode
+- **Запуск с отчётом**:
+```bash
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12' \
+  -resultBundlePath ./build/test.xcresult -code-coverage
+xcov report --workspace Remission.xcworkspace --scheme Remission --output_directory ./coverage
+```
 
 ## CI, Tooling & Releases
 - CI pipeline: swift-format, swiftlint, build, unit/UI тесты, интеграционные сценарии (Transmission docker). Рассмотрите статический анализ Swift 6 preview, если требуется.
@@ -166,6 +182,10 @@ xcodebuild test -scheme Remission -sdk macosx
 5. **Модифицируют State напрямую вне Reducer**
    - ❌ Неправильно: `store.state.torrents.append(newTorrent)`
    - ✅ Правильно: `store.send(.addTorrent(newTorrent))` через Action → Reducer
+
+6. **Забывают инициализировать Store с правильными зависимостями**
+   - ❌ Неправильно: `Store(initialState: TorrentListState())` без Environment
+   - ✅ Правильно: использовать `@Dependency(\.repository)` в Reducer body и предоставить моки в тестах через TestStore
 
 ## CI Pipeline
 

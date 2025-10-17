@@ -69,7 +69,7 @@ struct MyFeatureView: View {
 
 - Swift 6 toolchain: если необходим preview toolchain, добавьте шаг в CI для установки требуемого toolchain.
 
-- Рекомендации для AI-агентов при правках
+- **Рекомендации для AI-агентов при правках
 - Делайте маленькие атомарные коммиты — одна логическая правка (вью, редьюсер, тест).
 - Используйте TCA для всех feature-модулей: State/Action/Environment/Reducer/View. Effects (сетевая логика) инкапсулируйте в Environment.
 - Архитектура: разделение слоёв — UI (View) / Presentation (Reducer/ViewStore) / Domain/Services (Repositories, TransmissionClient) / Persistence (Keychain/CoreData).
@@ -78,7 +78,13 @@ struct MyFeatureView: View {
 - При добавлении тестов следуйте использованию `Testing` и `@Test`; добавляйте unit-тесты для редьюсеров и эффектов.
 - **КРИТИЧЕСКИ ВАЖНО**: Перед реализацией любого кода, конфигурации, зависимости или инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации. Никогда не полагайтесь на гипотезы или устаревшие знания. Используйте `mcp_context7_resolve-library-id` и `mcp_context7_get-library-docs` для получения последней информации. Только после изучения актуальной документации начинайте писать код.
 
-CI и форматирование
+- **После завершения задачи**:
+  - Проверить, актуальны ли примеры команд (если меняется структура проекта)
+  - Убедиться, что коммит-месседж на русском и следует guidelines
+  - Обновить PRD/AGENTS.md если функциональность меняется
+  - Запустить локально: `bash Scripts/prepare-hooks.sh && xcodebuild test` перед push
+
+## CI и форматирование
 - В CI требуется запускать сборку под Swift 6, `swift-format` и `swiftlint`. Форматирование и линтинг должны проходить в pre-commit или как обязательный шаг в CI.
 - **swift-format** (Apple) интегрирован в pre-commit hook. Локально запустите `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests` для проверки. Для применения исправлений: `swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests`. Конфигурация в `.swift-format` (JSON).
 - **SwiftLint** интегрирован в Xcode build phase и запускается автоматически при сборке. Локально запустите `swiftlint lint` для проверки. Конфигурация в `.swiftlint.yml` (см. документ `devdoc/SWIFTLINT.md`).
