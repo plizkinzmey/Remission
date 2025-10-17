@@ -59,13 +59,13 @@
 
 ## CI, Tooling & Releases
 - CI pipeline: swift-format, swiftlint, build, unit/UI тесты, интеграционные сценарии (Transmission docker). Рассмотрите статический анализ Swift 6 preview, если требуется.
-- **swift-format** (Apple): конфигурация хранится в `.swift-format` в корне репозитория. Перед коммитом запустите `swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests` для форматирования всех файлов. Для проверки без внесения изменений (dry-run): `swift-format format --configuration .swift-format --recursive Remission RemissionTests RemissionUITests`.
+- **swift-format** (Apple): конфигурация хранится в `.swift-format` в корне репозитория. Перед коммитом запустите `swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests` для форматирования всех файлов. Для проверки (lint в strict mode): `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`.
 - **SwiftLint**: инструмент для проверки стиля кода Swift (версия 0.61.0+). Конфигурация в `.swiftlint.yml` в корне репозитория. 
   - Интегрирован в Xcode build phase (Run Script) и запускается автоматически при сборке.
   - Локально: `swiftlint lint` для проверки, `swiftlint --fix` для автоисправлений.
   - На Apple Silicon (M1/M2/M3) скрипт автоматически добавляет `/opt/homebrew/bin` в PATH.
   - Полная документация: `devdoc/SWIFTLINT.md`
-- **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки git hook'а, который автоматически проверяет код перед коммитом. Hook запускает swift-format (dry-run) и SwiftLint. См. `CONTRIBUTING.md` для деталей.
+- **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки git hook'а, который автоматически проверяет код перед коммитом. Hook запускает swift-format lint --strict и SwiftLint. См. `CONTRIBUTING.md` для деталей.
 - Перед релизом проверяйте миграции API Transmission, избегайте жёстких зависимостей от конкретной версии; добавьте handshake/compatibility checks.
 - Документируйте публичные API и контракты краткими комментариями; избегайте дублирования бизнес-логики между слоями.
 

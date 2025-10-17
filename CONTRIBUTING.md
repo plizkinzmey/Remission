@@ -73,8 +73,8 @@ git commit -m "Исправить стиль кода"  # Должно прой�
 ### Ручные проверки (без коммита)
 
 ```bash
-# Проверить форматирование (без изменения файлов, dry-run)
-swift-format format --configuration .swift-format --recursive Remission RemissionTests RemissionUITests
+# Проверить форматирование и стиль (strict mode - все нарушения как ошибки)
+swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests
 
 # Проверить нарушения стиля
 swiftlint lint
