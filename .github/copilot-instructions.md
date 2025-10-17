@@ -11,7 +11,7 @@
 - Небольшие изменения интерфейса/фич: редактируйте `ContentView.swift` и добавляйте новые Swift-файлы в папку `Remission/Remission/`.
 - Жизненный цикл приложения/конфигурация: редактируйте `RemissionApp.swift` (он отвечает за корневой вид).
 - Тесты размещаются в `RemissionTests/` (unit) и `RemissionUITests/` (UI). В тестах используется модуль `Testing` и атрибут `@Test` (см. `RemissionTests/RemissionTests.swift`).
-- State management: проект использует единую стратегию — The Composable Architecture (TCA). Все feature-модули должны реализовываться через TCA (State/Action/Environment/Reducer/View). Не смешивать MVVM и TCA в одном модуле.
+- State management: проект использует единую стратегию — The Composable Architecture (TCA). Все feature-модули должны реализовываться через TCA (@ObservableState State, enum Action, Reducer). Не смешивать MVVM и TCA в одном модуле.
 
 Сборка и тестирование (рабочие сценарии)
 - Открыть в Xcode: двойной клик по `Remission.xcodeproj` и запуск схемы `Remission` в стандартном симуляторе.
@@ -49,7 +49,7 @@ struct MyFeatureView: View {
 - Интеграции и внешние зависимости
 - В репозитории нет настроенных внешних пакетов (минимальный шаблон). Все новые модули и зависимости следует подключать через Swift Package Manager (SPM). Рекомендуется создать локальные Swift Packages для крупных модулей (например, `Features/TorrentList`, `Services/TransmissionClient`, `Shared/Models`).
 
-- Библиотека TCA: добавьте зависимость `https://github.com/pointfreeco/swift-composable-architecture` через SPM и используйте её как стандарт для state-management.
+- Библиотека TCA: добавьте зависимость `https://github.com/pointfreeco/swift-composable-architecture` через SPM и используйте её как стандарт для state-management. Все feature-модули должны реализовываться как TCA reducers с @ObservableState, Action enum и Reducer body.
 
 - Swift 6 toolchain: если необходим preview toolchain, добавьте шаг в CI для установки требуемого toolchain.
 

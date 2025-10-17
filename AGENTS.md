@@ -17,14 +17,19 @@
 
 ## Architecture & Patterns
 - Базовая архитектура: MVVM + слои network/domain/persistence; бизнес-логика не живёт во View.
-- Используем The Composable Architecture (TCA) для feature-модулей: каждый стор имеет State/Action/Environment, все side effects инкапсулируются через Effect.
+- **The Composable Architecture (TCA)** для feature-модулей: обязательный паттерн для управления состоянием.
+  - Структура: `@ObservableState struct State`, `enum Action`, `Reducer` с `var body`, store инициализируется с `Store(initialState:, reducer:)`.
+  - State sharing: используйте `@Presents` для опциональных состояний (sheets, alerts) и `IdentifiedArrayOf` для коллекций.
+  - Effects: все побочные эффекты инкапсулируются через `.run { send in ... }` блоки в reducer.
+  - Navigation: используйте SwiftUI's `NavigationStack` с TCA state-driven подходом.
+  - Тестирование: используйте `TestStore` для exhaustive тестирования reducers и effects (все mutations и side effects проверяются).
 - Для каждого TCA reducer минимум два теста (happy path + error path); эффекты мокируются через зависимости в Environment.
 - `TransmissionClientProtocol` реализует JSON-RPC поверх HTTP(S); репозитории превращают сырой RPC в доменные модели.
 - Используем async/await, Task, actors; помечаем публичные API @MainActor/@Sendable при необходимости; для детерминированных тестов времени применяем `swift-clocks`.
 
 ## Project Layout & Toolchain
 - `Remission/` - SwiftUI entry point (`RemissionApp.swift`), основные экраны, ресурсы (`Assets.xcassets`).
-- `RemissionTests/` - XCTest unit-тесты; именуйте файлы в паре с production-модулями.
+- `RemissionTests/` - Тесты на Swift Testing фреймворке; именуйте файлы в паре с production-модулями.
 - `RemissionUITests/` - XCUITest сценарии и smoke-проверки.
 - `devdoc/PRD.md` - PRD, обязательное обновление при функциональных изменениях.
 - Стартовые команды:
@@ -32,7 +37,7 @@
   - `xcodebuild -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15' build` - CLI-сборка.
   - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` - unit + UI тесты; запускайте перед любым PR.
 - Воспользуйтесь SwiftUI previews (`ContentView.swift`) для быстрой итерации UI.
-- Форматирование и стиль: `swift-format` (обязательно в pre-commit/CI) и `swiftlint`. Следуйте Swift 5/Swift API Design Guidelines (4 пробела, PascalCase типов, camelCase членов, noun-based протоколы).
+- Форматирование и стиль: `swift-format` (обязательно в pre-commit/CI) и `swiftlint`. Следуйте Swift 6 API Design Guidelines (4 пробела, PascalCase типов, camelCase членов, noun-based протоколы).
 - Извлекайте переиспользуемые SwiftUI компоненты в отдельные файлы после ~150 строк; ассеты именуем в snake_case (`icon_start`).
 
 ## Security, Reliability & Performance
@@ -43,6 +48,10 @@
 - UI должен оставаться responsive при потоках >200 торрентов: используйте lazy-loading/pagination и оптимизируйте запросы (`torrent-get` с выбранными полями).
 
 ## Testing & QA
+- **Фреймворк тестирования**: Swift Testing (встроенный модуль) с атрибутом `@Test` — современная альтернатива XCTest.
+  - Структура: `@Test` вместо `test*` методов, `@Suite` для группировки, `#expect` и `#require` для проверок.
+  - Параметризованные тесты поддерживают аргументы, что снижает дублирование кода.
+  - Conditional traits (`@Test(.enabled(if:))`, `@Suite(.serialized)`) управляют выполнением тестов.
 - Unit-тесты: сетевой слой, репозитории, ViewModel/Reducer. Тесты TCA используют зависимостей-моки и `TestStore`.
 - Integration: поднятие Transmission через Docker-compose в CI, прогон сценариев connect/add/start/stop/remove.
 - UI: XCUITest для onboarding, списка и добавления торрента (Given/When/Then комментарии).
