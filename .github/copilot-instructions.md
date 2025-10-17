@@ -33,6 +33,22 @@ swift build
 - Превью и быстрая итерация: используйте SwiftUI Preview (Preview area в `ContentView.swift`) для локальной проверки визуальных изменений.
 - Тесты используют внешний модуль `Testing` и `@Test`. Добавляйте тесты в том же стиле.
 
+Быстрый старт (First-Time Setup)
+- **Установить инструменты:**
+  - swift-format 602.0.0+: входит в состав Xcode 15.0+, или установить отдельно через Homebrew
+  - SwiftLint 0.61.0+: `brew install swiftlint`
+
+- **Установить pre-commit hook для автоматических проверок:**
+  ```bash
+  bash Scripts/prepare-hooks.sh
+  ```
+
+- **Проверить, что hook работает:**
+  ```bash
+  git commit --allow-empty -m "Test commit"
+  ```
+  Вывод должен показать, что swift-format и swiftlint пройдены ✅
+
 Конкретные примеры
 - Поменять стартовый экран: редактируйте `Remission/Remission/RemissionApp.swift` — сейчас в `WindowGroup` возвращается `ContentView()`.
 - Добавить новый компонент: создайте `Remission/Remission/MyFeatureView.swift`:
@@ -85,5 +101,13 @@ CI и форматирование
   5. Используйте `mcp_context7_get-library-docs` для получения актуальной документации
 - **Никогда** не полагайтесь на гипотезы, предположения или устаревшую информацию
 - **Только после изучения актуальной информации** начинайте писать код или создавать конфигурации
+
+## Environment & Requirements
+
+- **Xcode:** 15.0 или выше
+- **Swift:** 6.0+
+- **iOS deployment target:** 14.0+
+- **macOS deployment target:** 12.0+
+- **Обязательные инструменты:** swift-format 602.0.0+, SwiftLint 0.61.0+
 
 Конец файла

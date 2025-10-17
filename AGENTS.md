@@ -16,8 +16,8 @@
 - **Нефункциональные цели**: отзывчивость UI при 200+ торрентах (<200 мс в LAN), успех команд >98%, тестовое покрытие ключевых компонентов >=60%.
 
 ## Architecture & Patterns
-- Базовая архитектура: MVVM + слои network/domain/persistence; бизнес-логика не живёт во View.
-- **The Composable Architecture (TCA)** для feature-модулей: обязательный паттерн для управления состоянием.
+- Базовая архитектура: **TCA (The Composable Architecture)** для всех feature-модулей + слои network/domain/persistence; бизнес-логика не живёт во View.
+- **The Composable Architecture (TCA)** для feature-модулей: обязательный паттерн для управления состоянием (исключение: только тривиальные View без состояния).
   - Структура: `@ObservableState struct State`, `enum Action`, `Reducer` с `var body`, store инициализируется с `Store(initialState:, reducer:)`.
   - State sharing: используйте `@Presents` для опциональных состояний (sheets, alerts) и `IdentifiedArrayOf` для коллекций.
   - Effects: все побочные эффекты инкапсулируются через `.run { send in ... }` блоки в reducer.
@@ -75,3 +75,57 @@
 - PR содержат описание изменений, ссылки на PRD/тикеты, доказательство прогона тестов (лог или скрин).
 - Поддерживайте синхронизацию документации: изменения функционала -> обновления `devdoc/PRD.md`, релевантные README/CONTRIBUTING правки.
 - Перед мерджем убедитесь, что новая функциональность покрыта тестами и проверена локально (`xcodebuild test ...`).
+
+## Environment & Requirements
+
+- **Xcode:** 15.0 или выше
+- **Swift:** 6.0+
+- **iOS deployment target:** 14.0+
+- **macOS deployment target:** 12.0+
+- **Обязательные инструменты:** swift-format 602.0.0+, SwiftLint 0.61.0+
+
+## Git & Branching
+
+- **Branch naming:** `feature/RTC-N-краткое-описание`, `fix/RTC-N-краткое-описание`, `docs/RTC-N-краткое-описание`
+- **Commits:** все сообщения на русском, одна логическая правка на коммит
+- **Подпись коммитов:** рекомендуется `git commit -S` (GPG signing), но не обязательна
+- **Pull Requests:** все изменения через PRs с обязательным ревью перед merge
+
+## Common Pitfalls & How to Avoid
+
+1. **Смешение TCA и @State/@StateObject в одной View**
+   - ❌ Неправильно: `@State var torrents = []` + TCA Store одновременно
+   - ✅ Правильно: всё состояние идёт через Store и `@Bindable`
+
+2. **Сохранение секретов в лог**
+   - ❌ Неправильно: `print("Transmission auth: \(username):\(password)")`
+   - ✅ Правильно: логировать только "Auth successful" или error codes
+
+3. **Прямые network calls в View**
+   - ❌ Неправильно: `URLSession.shared.dataTask(...).resume()` в `body { }`
+   - ✅ Правильно: в Reducer effect через `.run { send in ... }`
+
+4. **Забывают тесты для редьюсеров**
+   - ❌ Новая фича без TestStore
+   - ✅ Минимум: happy path + 1 error path тест
+
+5. **Модифицируют State напрямую вне Reducer**
+   - ❌ Неправильно: `store.state.torrents.append(newTorrent)`
+   - ✅ Правильно: `store.send(.addTorrent(newTorrent))` через Action → Reducer
+
+## CI Pipeline
+
+Полный конфиг CI см. в `.github/workflows/`.
+
+**Обязательные checks перед merge:**
+- ✅ `swift-format lint --configuration .swift-format --recursive --strict`
+- ✅ `swiftlint lint`
+- ✅ `xcodebuild build`
+- ✅ `xcodebuild test` (unit + UI)
+- ✅ Покрытие тестами >= 60% на ключевых компонентах
+
+Локально запустите перед push:
+```bash
+bash Scripts/prepare-hooks.sh  # установить pre-commit hook
+git commit -m "Your message"    # hook автоматически проверит код
+```
