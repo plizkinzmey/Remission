@@ -51,11 +51,13 @@
 |--------|---------|-------------------|----------|-------|
 | **session-get** | Get session info | — | session object | Called during handshake (HTTP 409) |
 | **session-set** | Set session config | settings object | — | Configure limits, paths, etc. |
+| **session-stats** | Get aggregate stats | — | stats object | Total/active torrents, global speeds (v3.0+) |
 | **torrent-get** | List torrents | ids, fields | torrents array | Main list view data source |
 | **torrent-add** | Add torrent | filename OR metainfo, download-dir | torrent object | Support .torrent and magnet |
 | **torrent-start** | Start torrent | ids | — | Resume paused torrent |
 | **torrent-stop** | Pause torrent | ids | — | Pause running torrent |
 | **torrent-remove** | Remove torrent | ids, delete-local-data | — | Remove with optional data deletion |
+| **torrent-set** | Set torrent config | ids, priority-*, limits, etc. | — | Set priorities, bandwidth limits (v16.0+) |
 | **torrent-verify** | Verify files | ids | — | Verify local files match metainfo |
 
 ## Authentication Flow (Critical!)
