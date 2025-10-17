@@ -13,7 +13,7 @@
   - `swift-format format --in-place --recursive --configuration .swift-format` для форматирования
   - `swift-format lint --configuration .swift-format --recursive --strict` для проверки
   - `swiftlint lint` для стиля кода (встроено в Xcode build phase)
-- **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли, HTTPS обязателен с проверкой сертификатов
+- **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли, HTTPS рекомендуется с проверкой сертификатов; HTTP допускается с явным предупреждением пользователю
 
 ## Веха 0: Подготовка окружения
 - **Статус**: ✅ Закрыта (по состоянию на 2025-10-17)
