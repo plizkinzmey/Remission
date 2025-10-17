@@ -85,8 +85,63 @@ xcov report --workspace Remission.xcworkspace --scheme Remission --output_direct
 - Перед релизом проверяйте миграции API Transmission, избегайте жёстких зависимостей от конкретной версии; добавьте handshake/compatibility checks.
 - Документируйте публичные API и контракты краткими комментариями; избегайте дублирования бизнес-логики между слоями.
 
+## Documentation & Knowledge Base
+
+### Structure
+
+```
+devdoc/
+├── PRD.md                           # Product Requirements
+├── plan.md                          # Architecture, roadmap, API contracts
+├── SWIFTLINT.md                     # SwiftLint configuration details
+├── CONTEXT7_GUIDE.md                # How to research documentation (THIS IS CRITICAL)
+└── TRANSMISSION_RPC_REFERENCE.md    # Transmission RPC API reference
+```
+
+### Key Documents
+
+**devdoc/plan.md**
+- Contains: Milestones, architecture decisions, API contracts (e.g., "Transmission RPC API контракт")
+- Updated by: Architecture tasks (RTC-N), research/investigation tasks
+- Used by: All implementation tasks link here for reference
+
+**devdoc/CONTEXT7_GUIDE.md** ⭐ READ THIS FIRST
+- Purpose: How to use Context7 for research (DO NOT skip this!)
+- Contains: Step-by-step workflow, real examples, best practices
+- When to use: Before researching any new API, library, or framework
+- Workflow: resolve-library-id → get-library-docs → create-contract → update-tasks
+
+**devdoc/TRANSMISSION_RPC_REFERENCE.md**
+- Contains: Transmission RPC methods, authentication, error handling, edge cases
+- Purpose: Quick reference for developers implementing RTC-19+
+- Sections: Core methods, auth flow, JSON-RPC structure, status codes, compatibility
+- Links: Used by RTC-11, RTC-12, RTC-13, RTC-19, etc.
+
+**devdoc/PRD.md**
+- Product requirements and user scenarios
+- Updated when functional scope changes
+- Read this FIRST when starting work on any task
+
+### Knowledge Sharing Pattern
+
+Every research task (like RTC-16) follows this pattern:
+
+```
+1. Investigate through Context7
+   ↓
+2. Create/update contract in devdoc/plan.md or separate reference file
+   ↓
+3. Update ALL related Linear tasks with "Справочные материалы" sections
+   ↓
+4. Each task now has direct link to documentation
+   ↓
+5. Developers don't need to hunt for docs—they're in every task!
+```
+
+**Why this matters**: If developer only reads task description, they'll find the link they need. No knowledge is siloed in one place.
+
 ## Workflow & Collaboration
-- **КРИТИЧЕСКИ ВАЖНО**: Перед реализацией любого кода, конфигурации или инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации. Никогда не полагайтесь на гипотезы или устаревшие знания. Используйте `mcp_context7_resolve-library-id` и `mcp_context7_get-library-docs` для получения последней информации.
+- **КРИТИЧЕСКИ ВАЖНО**: Перед реализацией любого кода, конфигурации или инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации. Никогда не полагайтесь на гипотезы или устаревшие знания. Используйте `mcp_context7_resolve-library-id` и `mcp_context7_get-library-docs` для получения последней информации. **Прочитайте `devdoc/CONTEXT7_GUIDE.md` для понимания workflow!**
 - Коммит-месседжи: лаконичные императивы на русском (`Добавить поддержку удаленного подключения`), одна логическая правка на коммит.
 - PR содержат описание изменений, ссылки на PRD/тикеты, доказательство прогона тестов (лог или скрин).
 - Поддерживайте синхронизацию документации: изменения функционала -> обновления `devdoc/PRD.md`, релевантные README/CONTRIBUTING правки.
