@@ -63,9 +63,10 @@ struct MyFeatureView: View {
 - **КРИТИЧЕСКИ ВАЖНО**: Перед реализацией любого кода, конфигурации, зависимости или инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации. Никогда не полагайтесь на гипотезы или устаревшие знания. Используйте `mcp_context7_resolve-library-id` и `mcp_context7_get-library-docs` для получения последней информации. Только после изучения актуальной документации начинайте писать код.
 
 CI и форматирование
-- В CI требуется запускать сборку под Swift 6, `swift-format` и `swiftlint`. Форматирование и линтинг должны проходить в pre-commit или как обязательный шаг в CI.
+- В CI требуется запускать сборку под Swift 6, `SwiftFormat`, `swiftlint`. Форматирование и линтинг должны проходить в pre-commit или как обязательный шаг в CI.
+- **SwiftFormat** (nicklockwood/SwiftFormat) интегрирован в pre-commit hook. Локально запустите `swiftformat --lint --configuration .swift-format .` для проверки или `swiftformat --configuration .swift-format .` для применения исправлений. Конфигурация в `.swift-format` (JSON).
 - **SwiftLint** интегрирован в Xcode build phase и запускается автоматически при сборке. Локально запустите `swiftlint lint` для проверки. Конфигурация в `.swiftlint.yml` (см. документ `devdoc/SWIFTLINT.md`).
-- **swift-format** используется для автоматического форматирования кода. Запустите `swift-format format --in-place --recursive Remission RemissionTests RemissionUITests` перед коммитом.
+- **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки автоматических проверок перед коммитом. Hook запускает SwiftFormat и SwiftLint и блокирует коммит при ошибках. См. `CONTRIBUTING.md` для полной информации.
 
 Политика коммитов
 - Все сообщения коммитов должны быть строго на русском языке. Это касается как короткой строки (summary), так и, при необходимости, описания (body). Примеры:

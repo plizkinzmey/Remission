@@ -1,174 +1,174 @@
-# Contributing to Remission
+# Руководство разработчика (Contributing Guidelines)
 
-## Code Style & Quality
+## Контроль качества кода
 
-Remission maintains strict code quality standards using automated tools to ensure consistency across the codebase.
+Remission поддерживает строгие стандарты качества кода с помощью автоматических инструментов для обеспечения консистентности кодовой базы.
 
-### Tools Used
+### Используемые инструменты
 
-- **swift-format** — Automatic Swift code formatting
-- **swiftlint** — Swift style guide enforcement
-- **Pre-commit hooks** — Automatic checks before commit
+- **SwiftFormat** (nicklockwood/SwiftFormat) — автоматическое форматирование кода Swift
+- **SwiftLint** — проверка стиля кода Swift
+- **Pre-commit hooks** — автоматические проверки перед коммитом
 
-## Setup (First Time)
+## Первоначальная настройка
 
-### 1. Install Required Tools
+### 1. Установить требуемые инструменты
 
 ```bash
-# Install swift-format
-brew install swift-format
+# Установить SwiftFormat (форматтер кода)
+brew install swiftformat
 
-# Install swiftlint
+# Установить SwiftLint (проверка стиля)
 brew install swiftlint
 ```
 
-### 2. Install Pre-commit Hook
+### 2. Установить Git pre-commit hook
 
-Run the setup script once:
+Запустите скрипт настройки один раз:
 
 ```bash
 bash Scripts/prepare-hooks.sh
 ```
 
-This will:
-- ✅ Verify your tools are installed
-- ✅ Install the pre-commit hook
-- ✅ Show you helpful information
+Скрипт выполнит:
+- ✅ Проверку установки инструментов
+- ✅ Установку pre-commit hook'а
+- ✅ Вывод полезной информации
 
-**That's it!** Your git commits will now be checked automatically.
+**Готово!** Ваши коммиты будут автоматически проверяться перед добавлением в репозиторий.
 
-## Workflow
+## Рабочий процесс
 
-### Normal Commit Flow
+### Обычный процесс коммита
 
 ```bash
 git add .
-git commit -m "Добавить новую фичу"  # Hook runs automatically
+git commit -m "Добавить новую фичу"  # Hook запустится автоматически
 ```
 
-If the hook finds issues, it will:
-1. 🛑 **Block the commit**
-2. 📝 **Show what's wrong**
-3. 💡 **Suggest how to fix it**
+Если hook обнаружит ошибки, он:
+1. 🛑 **Блокирует коммит**
+2. 📝 **Показывает что не так**
+3. 💡 **Предлагает способы исправления**
 
-### Auto-Fix Issues
+### Автоматическое исправление ошибок
 
-Swift-format can auto-fix most formatting issues:
+SwiftFormat может автоматически исправить большинство ошибок форматирования:
 
 ```bash
-# Auto-fix formatting
+# Автоматическое исправление форматирования
 swiftformat --configuration .swift-format .
 
-# Auto-fix some swiftlint violations
+# Автоматическое исправление некоторых нарушений SwiftLint
 swiftlint --fix
 ```
 
-Then commit again:
+Затем попробуйте коммит снова:
 
 ```bash
 git add .
-git commit -m "Исправить стиль кода"  # Should pass now
+git commit -m "Исправить стиль кода"  # Должно пройти
 ```
 
-### Manual Checks (Without Committing)
+### Ручные проверки (без коммита)
 
 ```bash
-# Check formatting (doesn't modify files)
+# Проверить форматирование (без изменения файлов)
 swiftformat --lint --configuration .swift-format .
 
-# Check style violations
+# Проверить нарушения стиля
 swiftlint lint
 
-# Show detailed swiftlint report
+# Подробный отчёт SwiftLint
 swiftlint lint --reporter xcode
 ```
 
-## Skip Hook (Emergency Only)
+## Пропуск hook'а (только в крайних случаях)
 
-If you absolutely must bypass the checks:
+Если необходимо обойти проверки:
 
 ```bash
-git commit --no-verify -m "Emergency commit"
+git commit --no-verify -m "Экстренный коммит"
 ```
 
-⚠️ **Use with caution!** This should only be done in exceptional circumstances.
+⚠️ **Используйте осторожно!** Это должно делаться только в исключительных случаях.
 
-## Configuration Files
+## Конфигурационные файлы
 
-- `.swift-format` — Swift-format configuration (JSON)
-- `.swiftlint.yml` — SwiftLint configuration (YAML)
-- `Scripts/pre-commit` — Git pre-commit hook implementation
-- `Scripts/prepare-hooks.sh` — Hook installation script
+- `.swift-format` — конфигурация SwiftFormat (JSON)
+- `.swiftlint.yml` — конфигурация SwiftLint (YAML)
+- `Scripts/pre-commit` — реализация git pre-commit hook'а
+- `Scripts/prepare-hooks.sh` — скрипт установки hook'ов
 
-For detailed configuration info:
-- See `devdoc/SWIFTLINT.md` for SwiftLint rules
-- See `devdoc/PRD.md` for project standards
+Подробную информацию о конфигурации см.:
+- `devdoc/SWIFTLINT.md` — правила SwiftLint
+- `devdoc/PRD.md` — стандарты проекта
 
-## Troubleshooting
+## Решение проблем
 
-### Hook not running?
+### Hook не запускается?
 
-Re-install the hook:
+Переустановите hook:
 
 ```bash
 bash Scripts/prepare-hooks.sh
 ```
 
-### Tools not found?
+### Инструменты не найдены?
 
-Make sure they're in your PATH:
+Проверьте, находятся ли они в PATH:
 
 ```bash
-which swift-format
+which swiftformat
 which swiftlint
 ```
 
-If not found, install them:
+Если не найдены, установите:
 
 ```bash
-brew install swift-format swiftlint
+brew install swiftformat swiftlint
 ```
 
-### Apple Silicon (M1/M2/M3) issues?
+### Проблемы на Apple Silicon (M1/M2/M3)?
 
-The hook automatically adds `/opt/homebrew/bin` to PATH. If still having issues:
+Hook автоматически добавляет `/opt/homebrew/bin` в PATH. Если проблемы остаются:
 
 ```bash
-# Reinstall tools via Homebrew
-brew reinstall swift-format swiftlint
+# Переустановить инструменты через Homebrew
+brew reinstall swiftformat swiftlint
 ```
 
-### Specific file has formatting issues?
+### Конкретный файл имеет проблемы с форматированием?
 
-Format just that file:
+Отформатируйте только этот файл:
 
 ```bash
 swiftformat --configuration .swift-format path/to/file.swift
 ```
 
-## IDE Integration
+## Интеграция в IDE
 
 ### VS Code
 
-Install the "Swift for Visual Studio Code" extension. It will automatically use the `.swift-format` configuration.
+Установите расширение "Swift for Visual Studio Code". Оно автоматически будет использовать конфигурацию `.swift-format`.
 
 ### Xcode
 
-SwiftLint is integrated into the Xcode build phase and runs automatically during build.
+SwiftLint интегрирован в Xcode build phase и запускается автоматически при сборке.
 
-## Best Practices
+## Лучшие практики
 
-1. ✅ Run checks before pushing to make reviews faster
-2. ✅ Commit auto-fix changes separately from feature changes
-3. ✅ Read error messages carefully — they tell you exactly what's wrong
-4. ✅ Keep configuration files up to date with team standards
+1. ✅ Проверяйте код перед push'ем для ускорения ревью
+2. ✅ Коммитьте исправления автоформатирования отдельно от фичей
+3. ✅ Внимательно читайте сообщения об ошибках — они точно указывают на проблему
+4. ✅ Поддерживайте конфигурационные файлы в актуальном состоянии
 
-## Questions?
+## Вопросы?
 
-- 📖 Read the PRD: `devdoc/PRD.md`
-- 📖 Read SwiftLint docs: `devdoc/SWIFTLINT.md`
-- 📝 Check issue tracker for similar issues
+- 📖 Прочитайте PRD: `devdoc/PRD.md`
+- 📖 Документация SwiftLint: `devdoc/SWIFTLINT.md`
+- 📝 Проверьте issue tracker на похожие вопросы
 
 ---
 
-**Remember:** These tools help keep our code clean and consistent. They're your teammates! 🚀
+**Помните:** эти инструменты помогают нам держать код чистым и согласованным. Они — ваши помощники! 🚀
