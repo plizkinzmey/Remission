@@ -14,10 +14,10 @@
 |---|---|---|---|
 | session-get | — | arguments: session object (version, rpc-version, rpc-version-minimum, download-dir, speed-limit-*, alt-speed-*, blocklist-*) | Вызывать в рукопожатии для проверки версии и базовой конфигурации.
 | session-set | settings object: speed-limit-up (opt), speed-limit-up-enabled (opt), speed-limit-down (opt), speed-limit-down-enabled (opt), download-dir (opt), alt-speed-*, blocklist-enabled и др. | — | Изменяет параметры сессии. Передавать только те ключи, которые нужно изменить.
-| session-stats | — | arguments: { stats: {activeTorrentCount, downloadCount, seedCount, torrentCount, uploadSpeed, downloadSpeed} } | Агрегированная статистика сессии (глобальные скорости, общие счётчики). Версия 3.0+.
+| session-stats | — | arguments: {activeTorrentCount, downloadSpeed, pausedTorrentCount, torrentCount, uploadSpeed, cumulative-stats, current-stats} | Агрегированная статистика сессии. Поля лежат прямо в arguments (НЕ вложены в stats). Версия 3.0+.
 | torrent-get | ids (opt: number | string(hash) | [..]), fields (opt [string] — если не указано, Transmission использует дефолтный набор) | arguments: torrents [object] (с запрошенными или дефолтными полями) | Главный метод списка. fields опциональное (для оптимизации), не обязательное.
 | torrent-add | filename (URL / magnet) ИЛИ metainfo (base64) (req), download-dir (opt), paused (opt), labels (opt) | arguments: { "torrent-added": {id, name, hashString} } ИЛИ { "torrent-duplicate": {id, name, hashString} } | Если торрент уже существует, возвращается torrent-duplicate.
-| torrent-set | ids (req), priority (opt: -1/0/1), bandwidth-priority (opt), download-limit (opt), upload-limit (opt), download-limited (opt), upload-limited (opt), seedRatioLimit (opt), seedRatioMode (opt) и др. | — | Установка приоритетов и лимитов для конкретных торрентов. Используется для "Set Priority" в UI.
+| torrent-set | ids (req), priority-high (opt: array[int]), priority-normal (opt: array[int]), priority-low (opt: array[int]), bandwidthPriority (opt: int -1/0/1), downloadLimit (opt: int KBps), uploadLimit (opt: int KBps), downloadLimited (opt: bool), uploadLimited (opt: bool), seedRatioLimit (opt: double), seedRatioMode (opt: int) и др. | — | Установка приоритетов файлов и лимитов для торрентов. priority-* — массивы индексов файлов. bandwidthPriority — приоритет полосы пропускания. Используется для "Set Priority" в UI.
 | torrent-start | ids (req) | — | Запускает один или несколько торрентов.
 | torrent-stop | ids (req) | — | Останавливает один или несколько торрентов.
 | torrent-remove | ids (req), delete-local-data (opt, bool) | — | При delete-local-data=true удаляются данные с диска.
@@ -223,18 +223,29 @@
 ```json
 { "method": "session-stats", "arguments": {}, "tag": 9 }
 ```
-Ответ:
+Ответ (поля лежат прямо в arguments):
 ```json
 {
   "result": "success",
   "arguments": {
-    "stats": {
-      "activeTorrentCount": 5,
-      "downloadCount": 2,
-      "seedCount": 3,
-      "torrentCount": 10,
-      "uploadSpeed": 1024000,
-      "downloadSpeed": 5120000
+    "activeTorrentCount": 5,
+    "pausedTorrentCount": 5,
+    "torrentCount": 10,
+    "uploadSpeed": 1024000,
+    "downloadSpeed": 5120000,
+    "cumulative-stats": {
+      "uploadedBytes": 1000000000,
+      "downloadedBytes": 500000000,
+      "filesAdded": 100,
+      "sessionCount": 50,
+      "secondsActive": 86400
+    },
+    "current-stats": {
+      "uploadedBytes": 100000000,
+      "downloadedBytes": 50000000,
+      "filesAdded": 10,
+      "sessionCount": 1,
+      "secondsActive": 3600
     }
   },
   "tag": 9
@@ -243,16 +254,20 @@
 
 ### torrent-set
 
-Запрос (изменить приоритет файлов и лимиты):
+Запрос (установка приоритетов файлов и лимитов):
 ```json
 {
   "method": "torrent-set",
   "arguments": {
     "ids": [1, 2],
-    "priority": 1,
-    "bandwidth-priority": 0,
-    "download-limit": 2048,
-    "download-limited": true
+    "priority-high": [0, 2],
+    "priority-normal": [1],
+    "priority-low": [],
+    "bandwidthPriority": 0,
+    "downloadLimit": 2048,
+    "downloadLimited": true,
+    "uploadLimit": 512,
+    "uploadLimited": true
   },
   "tag": 10
 }
