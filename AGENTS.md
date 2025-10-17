@@ -80,8 +80,9 @@
 
 - **Xcode:** 15.0 или выше
 - **Swift:** 6.0+
-- **iOS deployment target:** 14.0+
-- **macOS deployment target:** 12.0+
+- **iOS deployment target:** 26.0+
+- **macOS deployment target:** 26.0+
+- **visionOS deployment target:** 26.0+
 - **Обязательные инструменты:** swift-format 602.0.0+, SwiftLint 0.61.0+
 
 ## Git & Branching
