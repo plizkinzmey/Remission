@@ -14,8 +14,10 @@
 |---|---|---|---|
 | session-get | — | arguments: session object (version, rpc-version, rpc-version-minimum, download-dir, speed-limit-*, alt-speed-*, blocklist-*) | Вызывать в рукопожатии для проверки версии и базовой конфигурации.
 | session-set | settings object: speed-limit-up (opt), speed-limit-up-enabled (opt), speed-limit-down (opt), speed-limit-down-enabled (opt), download-dir (opt), alt-speed-*, blocklist-enabled и др. | — | Изменяет параметры сессии. Передавать только те ключи, которые нужно изменить.
-| torrent-get | arguments: fields [string] (req — для оптимизации), ids (opt: number | string(hash) | [..]) | arguments: torrents [object] (только запрошенные поля), removed [id]? | Главный метод списка. Рекомендуется минимальный набор полей для UI-первого экрана.
+| session-stats | — | arguments: { stats: {activeTorrentCount, downloadCount, seedCount, torrentCount, uploadSpeed, downloadSpeed} } | Агрегированная статистика сессии (глобальные скорости, общие счётчики). Версия 3.0+.
+| torrent-get | ids (opt: number | string(hash) | [..]), fields (opt [string] — если не указано, Transmission использует дефолтный набор) | arguments: torrents [object] (с запрошенными или дефолтными полями) | Главный метод списка. fields опциональное (для оптимизации), не обязательное.
 | torrent-add | filename (URL / magnet) ИЛИ metainfo (base64) (req), download-dir (opt), paused (opt), labels (opt) | arguments: { "torrent-added": {id, name, hashString} } ИЛИ { "torrent-duplicate": {id, name, hashString} } | Если торрент уже существует, возвращается torrent-duplicate.
+| torrent-set | ids (req), priority (opt: -1/0/1), bandwidth-priority (opt), download-limit (opt), upload-limit (opt), download-limited (opt), upload-limited (opt), seedRatioLimit (opt), seedRatioMode (opt) и др. | — | Установка приоритетов и лимитов для конкретных торрентов. Используется для "Set Priority" в UI.
 | torrent-start | ids (req) | — | Запускает один или несколько торрентов.
 | torrent-stop | ids (req) | — | Останавливает один или несколько торрентов.
 | torrent-remove | ids (req), delete-local-data (opt, bool) | — | При delete-local-data=true удаляются данные с диска.
@@ -213,6 +215,51 @@
 Ответ:
 ```json
 { "result": "success", "tag": 8 }
+```
+
+### session-stats
+
+Запрос (агрегированная статистика):
+```json
+{ "method": "session-stats", "arguments": {}, "tag": 9 }
+```
+Ответ:
+```json
+{
+  "result": "success",
+  "arguments": {
+    "stats": {
+      "activeTorrentCount": 5,
+      "downloadCount": 2,
+      "seedCount": 3,
+      "torrentCount": 10,
+      "uploadSpeed": 1024000,
+      "downloadSpeed": 5120000
+    }
+  },
+  "tag": 9
+}
+```
+
+### torrent-set
+
+Запрос (изменить приоритет файлов и лимиты):
+```json
+{
+  "method": "torrent-set",
+  "arguments": {
+    "ids": [1, 2],
+    "priority": 1,
+    "bandwidth-priority": 0,
+    "download-limit": 2048,
+    "download-limited": true
+  },
+  "tag": 10
+}
+```
+Ответ:
+```json
+{ "result": "success", "tag": 10 }
 ```
 
 ## Версионность и зависимости
