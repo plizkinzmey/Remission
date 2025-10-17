@@ -92,11 +92,49 @@ Remission/
 
 ### Форматирование кода
 
-Проект использует `swift-format` для автоматического форматирования:
+Проект использует `swift-format` для автоматического форматирования в соответствии с [Swift API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) и стилем, описанным в `AGENTS.md`.
+
+#### Установка swift-format
+
+Если `swift-format` не установлен, установите его через Homebrew:
 
 ```bash
-swift-format --mode format --in-place Remission/ RemissionTests/ RemissionUITests/
+brew install swift-format
 ```
+
+Или через Swift Package Manager:
+
+```bash
+git clone https://github.com/apple/swift-format.git
+cd swift-format
+swift build -c release
+# Добавьте .build/release/swift-format в PATH
+```
+
+#### Использование
+
+**Проверка форматирования (dry-run):**
+```bash
+swift-format --mode format --dry-run Remission RemissionTests RemissionUITests
+```
+
+**Применение форматирования:**
+```bash
+swift-format --mode format --in-place Remission RemissionTests RemissionUITests
+```
+
+#### Конфигурация
+
+Конфигурация сохранена в файле `.swift-format` в корне репозитория. Параметры включают:
+
+- **Отступы**: 4 пробела (соответствует Swift 6 гайдам)
+- **Длина строки**: 100 символов
+- **Именование**: camelCase для переменных/методов, PascalCase для типов
+- **Импорты**: автоматическая сортировка
+- **Комментарии**: предпочтение к triple-slash (`///`) для документации
+- **Прочее**: удаление лишних точек с запятой, форматирование условных выражений и т.д.
+
+**Важно**: перед коммитом запустите `swift-format` для всех изменённых файлов, чтобы обеспечить консистентность стиля.
 
 ### Liniting
 

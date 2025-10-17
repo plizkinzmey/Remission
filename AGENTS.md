@@ -59,6 +59,7 @@
 
 ## CI, Tooling & Releases
 - CI pipeline: swift-format, swiftlint, build, unit/UI тесты, интеграционные сценарии (Transmission docker). Рассмотрите статический анализ Swift 6 preview, если требуется.
+- **swift-format**: конфигурация хранится в `.swift-format` в корне репозитория. Перед коммитом запустите `swift-format --mode format --in-place Remission RemissionTests RemissionUITests` для форматирования всех файлов. Dry-run проверка: `swift-format --mode format --dry-run Remission RemissionTests RemissionUITests`.
 - Перед релизом проверяйте миграции API Transmission, избегайте жёстких зависимостей от конкретной версии; добавьте handshake/compatibility checks.
 - Документируйте публичные API и контракты краткими комментариями; избегайте дублирования бизнес-логики между слоями.
 
