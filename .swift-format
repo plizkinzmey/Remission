@@ -7,7 +7,7 @@
   },
   "lineLength": 100,
   "maximumBlankLines": 1,
-  "multiElementCollectionTrailingCommas": true,
+  "multiElementCollectionTrailingCommas": false,
   "respectsExistingLineBreaks": true,
   "rules": {
     "AllPublicDeclarationsHaveDocumentation": false,

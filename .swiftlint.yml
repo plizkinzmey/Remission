@@ -4,6 +4,7 @@
 disabled_rules:
   - trailing_whitespace
   - force_cast
+  - trailing_comma
 
 opt_in_rules:
   - closure_spacing
