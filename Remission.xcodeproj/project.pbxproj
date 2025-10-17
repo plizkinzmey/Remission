@@ -65,29 +65,6 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		15AA8C6A2EA1CA570025EF81 /* SwiftLint */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.swiftlint.yml",
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TEMP_DIR)/SwiftLintDone",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    cd \"${SRCROOT}\"\n    swiftlint lint --reporter xcode || true\nelse\n    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXGroup section */
 		15AA8C322EA1C9360025EF81 = {
 			isa = PBXGroup;
@@ -116,7 +93,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 15AA8C5C2EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "Remission" */;
 			buildPhases = (
-				15AA8C6A2EA1CA570025EF81 /* SwiftLint */,
+				15AA8C6A2EA1CA570025EF81 /* ShellScript */,
 				15AA8C372EA1C9360025EF81 /* Sources */,
 				15AA8C382EA1C9360025EF81 /* Frameworks */,
 				15AA8C392EA1C9360025EF81 /* Resources */,
@@ -234,6 +211,35 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		15AA8C6A2EA1CA570025EF81 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint.yml",
+			);
+			outputPaths = (
+				"$(TEMP_DIR)/SwiftLintDone",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"if [[ \"$(uname -m)\" == arm64 ]]",
+				"then",
+				"    export PATH=\"/opt/homebrew/bin:$PATH\"",
+				"fi",
+				"",
+				"if command -v swiftlint >/dev/null 2>&1",
+				"then",
+				"    cd \"${SRCROOT}\"",
+				"    swiftlint lint --reporter xcode || true",
+				"else",
+				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
+				"fi",
+				"",
+			);
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		15AA8C372EA1C9360025EF81 /* Sources */ = {
