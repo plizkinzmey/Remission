@@ -39,6 +39,19 @@ open Remission.xcodeproj
 
 Затем выберите схему `Remission` и запустите на симуляторе или устройстве.
 
+### Первая установка (опционально)
+
+Если это ваша первая работа с проектом, запустите скрипт настройки SwiftLint:
+
+```bash
+./Scripts/setup-swiftlint.sh
+```
+
+Этот скрипт:
+- Проверит, установлен ли SwiftLint
+- Установит его через Homebrew, если необходимо
+- Запустит первую проверку кода
+
 ### Сборка из командной строки
 
 **Сборка для iOS Simulator:**
@@ -117,6 +130,49 @@ swift-format format --recursive --configuration .swift-format Remission Remissio
 ```bash
 swift-format format --in-place --recursive --configuration .swift-format Remission RemissionTests RemissionUITests
 ```
+
+### Проверка стиля кода (SwiftLint)
+
+Проект использует **SwiftLint** для проверки соответствия стилю кода и выявления типовых ошибок. Конфигурация хранится в `.swiftlint.yml` в корне проекта.
+
+#### Установка SwiftLint
+
+```bash
+brew install swiftlint
+```
+
+#### Использование
+
+**Локальная проверка (на машине разработчика):**
+```bash
+# Простая проверка
+swiftlint lint
+
+# Автоматическое исправление нарушений (если возможно)
+swiftlint --fix
+
+# Проверка с выводом в формате Xcode
+swiftlint lint --reporter xcode
+```
+
+#### Интеграция в Xcode
+
+SwiftLint автоматически запускается при сборке проекта через Run Script Phase в build phases. Предупреждения и ошибки будут отображаться в Xcode Issue Navigator.
+
+Если вы видите sandbox-related ошибки:
+1. Убедитесь, что SwiftLint установлен через Homebrew: `which swiftlint`
+2. На Apple Silicon (M1/M2/M3) скрипт автоматически добавляет `/opt/homebrew/bin` в PATH
+
+#### Конфигурация
+
+Файл `.swiftlint.yml` содержит:
+- **disabled_rules** - отключённые проверки
+- **opt_in_rules** - включённые проверки, требующие явного включения
+- **included** - пути для анализа (по умолчанию: `Remission`, `RemissionTests`, `RemissionUITests`)
+- **excluded** - исключённые пути (по умолчанию: `Pods`, `Carthage`, `.build`)
+- **Кастомные параметры** - настройки для отдельных правил (line_length, identifier_name и т.д.)
+
+````
 
 #### Параметры конфигурации
 
