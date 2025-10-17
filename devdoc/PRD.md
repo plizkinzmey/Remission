@@ -1,6 +1,6 @@
 # PRD: Remission — клиент удалённого управления Transmission (macOS / iOS)
 
-**Последнее обновление:** 17 октября 2025 г.
+**Последнее обновление:** 18 октября 2025 г. (Ревью контракта Transmission RPC, RTC-18)
 
 Краткое описание
 -----------------
@@ -69,8 +69,8 @@ Remission — кроссплатформенное клиентское прил
 - UI (SwiftUI) — платформа-специфичные экраны для iOS и macOS, преимущественно переиспользуемые View-компоненты. Views подписываются на TCA Store и диспатчат Actions.
 - Presentation (TCA Reducers) — управление состоянием через TCA: State, Action, Reducer, Environment. Все побочные эффекты инкапсулируются в Environment.
 - Domain / Services
-  - TransmissionClient (Network layer): реализует JSON-RPC вызовы к Transmission (torrent-get, torrent-add, torrent-start/stop, torrent-remove, session-get/set).
-  - AuthService: управление учётными данными (Keychain), проверка соединения.
+  - TransmissionClient (Network layer): реализует вызовы к Transmission RPC (НЕ JSON-RPC 2.0, собственный формат). Основные методы: torrent-get, torrent-add, torrent-start/stop, torrent-remove, session-get/set. **Справочник**: см. `devdoc/TRANSMISSION_RPC_REFERENCE.md` и `devdoc/plan.md` раздел "Transmission RPC API контракт". **Версионирование**: поддержка Transmission 3.0+ (рекомендуется 4.0+).
+  - AuthService: управление учётными данными (Keychain), проверка соединения, обработка HTTP 409 для session-id handshake.
   - SyncService: polling scheduler и механизм обновления состояния; опционально WebSocket/proxy integration если требуется push.
 - Persistence
   - Cache: лёгкий кеш (файловая база или SQLite/CoreData) для состояния при оффлайне.
