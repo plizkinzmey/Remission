@@ -69,7 +69,7 @@ struct MyFeatureView: View {
 
 - Swift 6 toolchain: если необходим preview toolchain, добавьте шаг в CI для установки требуемого toolchain.
 
-- **Рекомендации для AI-агентов при правках
+- Рекомендации для AI-агентов при правках:
 - Делайте маленькие атомарные коммиты — одна логическая правка (вью, редьюсер, тест).
 - Используйте TCA для всех feature-модулей: State/Action/Environment/Reducer/View. Effects (сетевая логика) инкапсулируйте в Environment.
 - Архитектура: разделение слоёв — UI (View) / Presentation (Reducer/ViewStore) / Domain/Services (Repositories, TransmissionClient) / Persistence (Keychain/CoreData).
