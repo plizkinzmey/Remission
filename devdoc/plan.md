@@ -11,6 +11,7 @@
 - **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли, HTTPS обязателен с проверкой сертификатов
 
 ## Веха 0: Подготовка окружения
+- **Статус**: ✅ Закрыта (по состоянию на 2025-10-17)
 - M0.1 Зафиксировать версии Xcode 15.0+ и Swift 6.0+, обновив раздел "Системные требования" в README и Environment & Requirements в документации.
 - M0.2 Добавить конфигурации swift-format и swiftlint, согласованные с правилами команды. Команды:
   - Форматирование: `swift-format format --in-place --recursive --configuration .swift-format Remission RemissionTests RemissionUITests`
