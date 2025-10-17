@@ -22,11 +22,101 @@
 - M0.5 Обновить AGENTS.md с разделом "Build Settings & Unified Configuration" и таблицей ключевых параметров.
 - Проверка: выполнить `xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12' build` и `xcodebuild -scheme Remission -sdk macosx build`. Оба должны завершиться с BUILD SUCCEEDED без новых предупреждений.
 
+## Transmission RPC API контракт (исследование и спецификация)
+
+### Актуальные источники документации
+- **Официальная документация GitHub**: https://github.com/transmission/transmission/wiki
+- **JSON-RPC 2.0 спецификация**: https://github.com/tunnckocore/jsonrpc-v2.0-spec (Trust Score 9.7, используется как стандарт для RPC коммуникации)
+- **Python transmission-rpc библиотека**: https://transmission-rpc.readthedocs.io (Trust Score 7.5, содержит актуальную информацию о методах)
+- **Поддерживаемые версии Transmission**: 3.0+ (рекомендуется 4.0.6+). Проверка версии выполняется через `session-get` при рукопожатии.
+
+### Основные RPC методы для MVP
+
+| Метод | Назначение | Параметры | Ответ | Примечания |
+|-------|----------|----------|--------|-----------|
+| `session-get` | Получить текущую сессию и версию | — | `rpc-version`, `rpc-version-semver`, `version` | Вызывается при handshake для проверки версии (минимум 3.0) |
+| `session-set` | Задать параметры сессии | `speed-limit-up`, `speed-limit-down`, `speed-limit-up-enabled`, etc. | — | Используется для лимитов скоростей |
+| `torrent-get` | Получить информацию о торрентах | `ids` (опционально), `fields` (массив нужных полей) | Массив торрентов с запрашиваемыми полями | Основной метод. Поля: `id`, `name`, `status`, `downloadDir`, `percentDone`, `rateDownload`, `rateUpload`, `peersConnected`, `files`, `trackers`, `trackerStats` и др. |
+| `torrent-add` | Добавить новый торрент | `filename` или `metainfo` (base64), `download-dir`, `paused`, `labels` | Добавленный торрент или ошибка (например, дубликат) | `filename` может быть URL, magnet-ссылка или путь. Если `paused=true`, торрент запускается в режиме паузы. |
+| `torrent-start` | Запустить торрент(ы) | `ids` | — | `ids` может быть: целое число, строка, массив |
+| `torrent-stop` | Остановить торрент(ы) | `ids` | — | Торрент переходит в режим паузы |
+| `torrent-remove` | Удалить торрент(ы) | `ids`, `delete-local-data` (опционально) | — | Если `delete-local-data=true`, удаляются файлы торрента |
+| `torrent-verify` | Проверить целостность торрента | `ids` | — | Долгая операция, статус проверяется через poll |
+
+### Аутентификация и рукопожатие
+
+1. **Session ID получение**: При первом запросе возвращается HTTP 409 с заголовком `X-Transmission-Session-Id`. Этот ID должен быть сохранен и отправлен в последующих запросах через заголовок `X-Transmission-Session-Id`.
+2. **Basic Auth**: Username и password отправляются в заголовке `Authorization: Basic <base64(username:password)>`.
+3. **HTTPS обязателен** для безопасности учетных данных (see Веха 2).
+
+### JSON-RPC структура
+
+**Запрос** (пример `torrent-get`):
+```json
+{
+  "jsonrpc": "2.0",
+  "method": "torrent-get",
+  "arguments": {
+    "ids": [1, 2],
+    "fields": ["id", "name", "status", "percentDone"]
+  },
+  "id": 1
+}
+```
+
+**Ответ (успех)**:
+```json
+{
+  "jsonrpc": "2.0",
+  "result": {
+    "torrents": [...],
+    "arguments": {...}
+  },
+  "id": 1
+}
+```
+
+**Ответ (ошибка)**:
+```json
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32602,
+    "message": "Invalid params"
+  },
+  "id": 1
+}
+```
+
+### Коды ошибок Transmission
+
+- `412`: Требуется session-id (обычно 409 с заголовком в ответе)
+- `-32600`: Invalid Request
+- `-32602`: Invalid params
+- `-32603`: Internal error
+- `6`: Access denied (auth failed)
+- Остальные: прикладные ошибки Transmission (уникальные коды в `error.data`)
+
+### Edge Cases и требования
+
+1. **Timeout и retry**: Рекомендуемый timeout = 30 секунд. При сетевых ошибках использовать exponential backoff (1s, 2s, 4s, ..., max 60s).
+2. **Пустые ответы**: Торрент может не содержать поле `files`, если их нет в списке. Проверять наличие перед использованием.
+3. **Сериализация**: `ids` может быть integer, string (для hash), или array. Всегда использовать array для унификации.
+4. **Версионирование**: RPC версия может измениться, поля добавляться/удаляться. Использовать `session-get` и `utils.get_torrent_arguments(rpc_version)` для динамического определения поддерживаемых полей.
+
+### Ссылки для разработчиков
+
+- **Мониторинг совместимости**: При подключении проверить `session-get` результат, убедиться что версия >= 3.0 или >= 4.0 согласно требованиям MVP.
+- **Локальное тестирование**: Docker образ `transmissionbt/transmission:latest` или версии 4.0+ для CI.
+- **Документация API**: https://github.com/transmission/transmission/wiki (основной источник). При изменении требований обновить ссылку и версионные требования в этой таблице.
+
+---
+
 ## Веха 1: Основа Transmission RPC
-- M1.1 Смоделировать ключевые конечные точки Transmission RPC и структуры полезной нагрузки.
-- M1.2 Реализовать кодирование и декодирование запросов и ответов с переводом ошибок в тип APIError.
-- M1.3 Добавить механизм рукопожатия для получения session-id и согласования версий клиента и сервера.
-- M1.4 Подготовить мок-сервер для модульных тестов сетевого слоя (использование Swift Testing с @Test).
+- M1.1 Смоделировать ключевые конечные точки Transmission RPC и структуры полезной нагрузки. **Использовать контракт выше**.
+- M1.2 Реализовать кодирование и декодирование запросов и ответов с переводом ошибок в тип APIError. Ссылка на контракт: https://transmission-rpc.readthedocs.io/en/v7.0.11/client
+- M1.3 Добавить механизм рукопожатия для получения session-id и согласования версий клиента и сервера. Обработка HTTP 409 с заголовком `X-Transmission-Session-Id`.
+- M1.4 Подготовить мок-сервер для модульных тестов сетевого слоя (использование Swift Testing с @Test). Ссылка на JSON-RPC 2.0 спецификацию: https://github.com/tunnckocore/jsonrpc-v2.0-spec
 - Проверка: покрыть тестами построение запросов и декодирование ответов на фиктивных данных с использованием Swift Testing фреймворка.
 
 ## Веха 2: Безопасность и аутентификация
