@@ -30,7 +30,7 @@
 
 ## Веха 2: Безопасность и аутентификация
 - M2.1 Реализовать подстановку заголовка Basic Auth в TransmissionClient согласно HTTPS требованиям.
-- M2.2 Сохранить учетные данные через обертку Keychain (используя `kSecClass` для типа записи, `kSecAttrService` для служб и `kSecAttrAccount` для категоризации) и написать для нее модульные тесты Swift Testing.
+- M2.2 Сохранить учетные данные через обертку Keychain (используя `kSecClass` для типа записи (kSecClassGenericPassword), `kSecAttrService` для идентификации сервиса (com.remission), `kSecAttrAccount` для username/email и `.accessibility(.whenUnlocked)` для безопасности) и написать для нее модульные тесты Swift Testing.
 - M2.3 Предоставить безопасный API управления учетными данными для верхних слоев. НИКОГДА не логировать пароли — логировать только "Auth successful" или error codes.
 - M2.4 Задокументировать требования к HTTPS/TLS, проверке сертификатов и обработке self-signed сертификатов (показать диалог пользователю).
 - M2.5 Добавить требование HTTPS при подключении с предупреждением для HTTP соединений в Keychain раздел PRD.

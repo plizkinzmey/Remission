@@ -473,9 +473,15 @@ UX и пользовательские потоки
 
 ### Keychain и хранение credentials
 - **Хранилище**: все пароли, токены и sensitive данные должны храниться исключительно в Keychain (iOS/macOS).
-- **Keychain типы**: использовать `kSecClass` для определения типа записи (например, `kSecClassGenericPassword`), `kSecAttrService` (app bundle ID или custom service name) и `kSecAttrAccount` для категоризации учётной записи (например, username, email).
+- **Правильное использование Keychain API** (согласно документации Context7 `/kishikawakatsumi/keychainaccess`):
+  - `kSecClass`: определяет тип записи в Keychain (например, `kSecClassGenericPassword` для app-specific паролей или `kSecClassInternetPassword` для интернет-сервисов).
+  - `kSecAttrService`: служба или bundle ID приложения (например, `com.example.remission` или `Transmission`).
+  - `kSecAttrAccount`: идентификатор учётной записи (например, username, email или custom identifier).
+  - `kSecValueData` или `kSecValueRef`: данные для хранения (пароль, токен и т.д.).
+  - Пример: `keychain = Keychain(service: "com.remission.transmission").accessibility(.whenUnlocked)`; затем `keychain["username"] = "admin"`.
 - **Минимизация**: хранить только необходимый набор — username, password, host, port. Всё остальное может быть кешировано в UserDefaults или CoreData.
 - **Запрос доступа**: при первом использовании Keychain показать пользователю запрос биометрической аутентификации (если требуется).
+- **Synchronizable**: по умолчанию отключить синхронизацию через iCloud (`.synchronizable(false)`); включить только при явном запросе пользователя.
 
 ### Безопасность логирования
 - **КРИТИЧЕСКИ**: НИКОГДА не логировать пароль, username, токены, RPC-ответы с чувствительными данными.
