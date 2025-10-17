@@ -242,6 +242,30 @@ xcodebuild test -scheme Remission -sdk macosx
    - ❌ Неправильно: `Store(initialState: TorrentListState())` без Environment
    - ✅ Правильно: использовать `@Dependency(\.repository)` в Reducer body и предоставить моки в тестах через TestStore
 
+## Quick Checklist для нового feature
+
+При создании нового feature-модуля убедитесь перед commit:
+
+- [ ] **Ветка:** `feature/RTC-N-описание` или `fix/RTC-N-описание`
+- [ ] **TCA структура:** @ObservableState State → enum Action → @Reducer
+- [ ] **Покрытие тестами:** TestStore с happy path + error path (минимум 2 теста)
+- [ ] **Форматирование:** `swift-format lint --configuration .swift-format --recursive --strict` ✅
+- [ ] **Линтинг:** `swiftlint lint` ✅ (0 violations)
+- [ ] **Тестовое покрытие:** >= 60% критических путей
+- [ ] **Коммит-месседж:** на русском, одна логическая правка
+- [ ] **PR:** ссылка на Linear task (RTC-N), доказательство прогона тестов
+- [ ] **Никаких credentials в логах:** пароли, session-id, API keys НЕ логируются
+- [ ] **Keychain для секретов:** все credentials сохраняются в Keychain, не в UserDefaults
+
+**Перед push запустите:**
+```bash
+bash Scripts/prepare-hooks.sh  # если ещё не установлены hooks
+git status                      # проверка изменений
+swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests
+swiftlint lint
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
+```
+
 ## CI Pipeline
 
 Полный конфиг CI см. в `.github/workflows/`.
