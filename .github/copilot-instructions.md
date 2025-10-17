@@ -86,69 +86,6 @@ struct MyFeatureView: View {
 - Не смешивать frontend-логику и backend-логику в одном файле или модуле. Сеть и persistence должны быть в `Services`/`Repositories`.
 - Не перестраивайте структуру проекта без запроса — сохраняйте простую точку входа приложения. Если требуется рефакторинг — опишите мотивацию в сообщении коммита и создайте отдельный PR.
 - При добавлении тестов следуйте использованию `Testing` и `@Test`; добавляйте unit-тесты для редьюсеров и эффектов.
-## Context7 Research Workflow (ESSENTIAL)
-
-**READ FIRST**: `devdoc/CONTEXT7_GUIDE.md` — подробное руководство по исследованию документации.
-
-### Quick Pattern
-
-```bash
-# 1. Resolve library ID
-mcp_context7_resolve-library-id(libraryName="Transmission RPC API")
-
-# 2. Get documentation
-mcp_context7_get-library-docs(
-  context7CompatibleLibraryID="/websites/transmission-rpc_readthedocs_io",
-  tokens=8000
-)
-
-# 3. Create contract in devdoc/plan.md
-# (Add sections, tables, examples)
-
-# 4. Update all related Linear tasks with "Справочные материалы"
-# (Each task should link to devdoc documentation)
-
-# 5. Commit with references
-git commit -m "RTC-N: Description
-
-- Researched via Context7
-- Created/updated contract in devdoc/plan.md
-- Updated related tasks with documentation links
-- Sources: [links]"
-```
-
-### Real Example: RTC-16
-
-- ✅ Resolved: transmission-rpc (Trust 7.5) + json-rpc-spec (Trust 9.7)
-- ✅ Created: `devdoc/TRANSMISSION_RPC_REFERENCE.md` (comprehensive reference)
-- ✅ Updated: 24+ tasks (RTC-10 through RTC-33) with "Справочные материалы" sections
-- ✅ Result: Developers see links in every task → no need to hunt for docs
-
-### When to Use Context7
-
-- ✅ New external library (SPM package)
-- ✅ New protocol/API (Transmission RPC, etc.)
-- ✅ Framework version updates (Swift 6, Xcode 16, TCA v2)
-- ✅ Research best practices (TCA patterns, Swift concurrency)
-- ✅ Create specification/contract for new components
-
-### Key Rules
-
-1. **Never guess or use old knowledge** — Context7 is your source of truth
-2. **Document sources** — Always link to what you found
-3. **Update all related tasks** — Don't leave links in one file only
-4. **Create reference files** — Like `TRANSMISSION_RPC_REFERENCE.md`
-5. **Use trust scores** — Prefer sources with Trust Score ≥ 7.5
-
----
-
-- **КРИТИЧЕСКИ ВАЖНО**: Перед реализацией любого кода, конфигурации, зависимости или инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации. Никогда не полагайтесь на гипотезы или устаревшие знания. Используйте `mcp_context7_resolve-library-id` и `mcp_context7_get-library-docs` для получения последней информации. Только после изучения актуальной документации начинайте писать код.
-
-- **После завершения задачи**:
-  - Проверить, актуальны ли примеры команд (если меняется структура проекта)
-  - Убедиться, что коммит-месседж на русском и следует guidelines
-  - Обновить PRD/AGENTS.md если функциональность меняется
-  - Запустить локально: `bash Scripts/prepare-hooks.sh && xcodebuild test` перед push
 
 ## CI и форматирование
 - В CI требуется запускать сборку под Swift 6, `swift-format` и `swiftlint`. Форматирование и линтинг должны проходить в pre-commit или как обязательный шаг в CI.
@@ -163,16 +100,6 @@ git commit -m "RTC-N: Description
 
 Если что-то непонятно
 - Спросите владельца репозитория о таргете (iOS или macOS), устройстве/симуляторе для тестов и о допустимости добавления Swift Package зависимостей.
-
-- Правило Context7 для AI-агентов
-- **ОБЯЗАТЕЛЬНО** перед началом работы над любой задачей:
-  1. Если задача требует конфигурации инструмента (swift-format, swiftlint, CocoaPods, SPM и т.д.) — обратитесь в Context7 для актуальной документации
-  2. Если задача требует интеграции внешней библиотеки — обратитесь в Context7 для последней версии и API
-  3. Если задача требует использования новых версий Swift, Xcode или платформ — проверьте Context7 для совместимости
-  4. Используйте `mcp_context7_resolve-library-id` для поиска правильной библиотеки
-  5. Используйте `mcp_context7_get-library-docs` для получения актуальной документации
-- **Никогда** не полагайтесь на гипотезы, предположения или устаревшую информацию
-- **Только после изучения актуальной информации** начинайте писать код или создавать конфигурации
 
 ## Environment & Requirements
 

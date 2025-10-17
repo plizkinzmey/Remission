@@ -73,17 +73,47 @@ xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iO
 xcov report --workspace Remission.xcworkspace --scheme Remission --output_directory ./coverage
 ```
 
-## CI, Tooling & Releases
+## CI Pipeline
+
+CI pipeline автоматически запускает проверки при push. Все checks обязательны перед merge.
+
+### Инструменты и конфигурация
+
 - CI pipeline: swift-format, swiftlint, build, unit/UI тесты, интеграционные сценарии (Transmission docker). Рассмотрите статический анализ Swift 6 preview, если требуется.
-- **swift-format** (Apple): конфигурация хранится в `.swift-format` в корне репозитория. Перед коммитом запустите `swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests` для форматирования всех файлов. Для проверки (lint в strict mode): `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`.
-- **SwiftLint**: инструмент для проверки стиля кода Swift (версия 0.61.0+). Конфигурация в `.swiftlint.yml` в корне репозитория. 
-  - Интегрирован в Xcode build phase (Run Script) и запускается автоматически при сборке.
-  - Локально: `swiftlint lint` для проверки, `swiftlint --fix` для автоисправлений.
-  - На Apple Silicon (M1/M2/M3) скрипт автоматически добавляет `/opt/homebrew/bin` в PATH.
+- **swift-format** (Apple): конфигурация хранится в `.swift-format` в корне репозитория. 
+  - Локально запустите: `swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests` для форматирования
+  - Проверка: `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`
+- **SwiftLint** (версия 0.61.0+): конфигурация в `.swiftlint.yml`, интегрирован в Xcode build phase
+  - Локально: `swiftlint lint` для проверки, `swiftlint --fix` для автоисправлений
+  - На Apple Silicon (M1/M2/M3): скрипт автоматически добавляет `/opt/homebrew/bin` в PATH
   - Полная документация: `devdoc/SWIFTLINT.md`
-- **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки git hook'а, который автоматически проверяет код перед коммитом. Hook запускает swift-format lint --strict и SwiftLint. См. `CONTRIBUTING.md` для деталей.
-- Перед релизом проверяйте миграции API Transmission, избегайте жёстких зависимостей от конкретной версии; добавьте handshake/compatibility checks.
-- Документируйте публичные API и контракты краткими комментариями; избегайте дублирования бизнес-логики между слоями.
+- **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки git hook'а, который автоматически проверяет код перед коммитом. Hook запускает swift-format lint --strict и SwiftLint.
+
+### Обязательные checks перед merge
+
+- ✅ `swift-format lint --configuration .swift-format --recursive --strict`
+- ✅ `swiftlint lint` (0 violations)
+- ✅ `xcodebuild build`
+- ✅ `xcodebuild test` (unit + UI тесты)
+- ✅ Покрытие тестами >= 60% на ключевых компонентах
+
+### Локальный workflow перед push
+
+```bash
+bash Scripts/prepare-hooks.sh  # установить pre-commit hook (один раз)
+git status                      # проверка изменений
+swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests
+swiftlint lint
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
+git commit -m "Your message"    # hook автоматически проверит код перед коммитом
+```
+
+### Релиз и совместимость
+
+- Перед релизом проверяйте миграции API Transmission, избегайте жёстких зависимостей от конкретной версии
+- Добавьте handshake/compatibility checks для новых версий Transmission
+- Документируйте публичные API и контракты краткими комментариями
+- Избегайте дублирования бизнес-логики между слоями
 
 ## Documentation & Knowledge Base
 
@@ -264,21 +294,4 @@ git status                      # проверка изменений
 swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests
 swiftlint lint
 xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
-```
-
-## CI Pipeline
-
-Полный конфиг CI см. в `.github/workflows/`.
-
-**Обязательные checks перед merge:**
-- ✅ `swift-format lint --configuration .swift-format --recursive --strict`
-- ✅ `swiftlint lint`
-- ✅ `xcodebuild build`
-- ✅ `xcodebuild test` (unit + UI)
-- ✅ Покрытие тестами >= 60% на ключевых компонентах
-
-Локально запустите перед push:
-```bash
-bash Scripts/prepare-hooks.sh  # установить pre-commit hook
-git commit -m "Your message"    # hook автоматически проверит код
 ```
