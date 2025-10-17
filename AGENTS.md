@@ -85,6 +85,59 @@
 - **visionOS deployment target:** 26.0+
 - **Обязательные инструменты:** swift-format 602.0.0+, SwiftLint 0.61.0+
 
+## Build Settings & Unified Configuration
+
+Проект использует унифицированные build settings для всех целей и платформ (iOS, macOS, visionOS) с целью предотвращения расхождений в поведении приложения и упрощения поддержки кроссплатформенности.
+
+### Ключевые параметры сборки
+
+| Параметр | Значение | Обоснование |
+|----------|----------|-----------|
+| **SWIFT_VERSION** | 6.0 | Все цели используют Swift 6.0 для совместимости с требованиями проекта |
+| **IPHONEOS_DEPLOYMENT_TARGET** | 26.0 | Минимальная поддерживаемая версия iOS согласно требованиям Environment & Requirements |
+| **MACOSX_DEPLOYMENT_TARGET** | 26.0 | Минимальная поддерживаемая версия macOS согласно требованиям |
+| **XROS_DEPLOYMENT_TARGET** | 26.0 | Минимальная поддерживаемая версия visionOS согласно требованиям |
+| **SUPPORTED_PLATFORMS** | iphoneos iphonesimulator macosx xros xrsimulator | Все поддерживаемые платформы |
+| **SDKROOT** | auto | Автоматический выбор SDK в зависимости от целевой платформы |
+| **SWIFT_APPROACHABLE_CONCURRENCY** | YES | Встроенная поддержка async/await и современного concurrency подхода |
+| **SWIFT_DEFAULT_ACTOR_ISOLATION** | MainActor | Все основные цели маркируются как @MainActor по умолчанию для безопасности потокового кода |
+| **SWIFT_EMIT_LOC_STRINGS** | YES (основное) / NO (тесты) | Генерация локализованных строк для основного приложения, отключено для тестов |
+| **SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY** | YES | Включение предстоящих фич Swift 6 для лучшей совместимости |
+| **STRING_CATALOG_GENERATE_SYMBOLS** | YES (основное) / NO (тесты) | Генерация символов из строковых каталогов для основного приложения |
+
+### Отличия между целями
+
+**Основная цель (Remission app):**
+- Все warning flags включены
+- App Sandbox включён (`ENABLE_APP_SANDBOX = YES`)
+- Hardened Runtime включён (`ENABLE_HARDENED_RUNTIME = YES`)
+- User-selected files поддержка readonly (`ENABLE_USER_SELECTED_FILES = readonly`)
+- Автоматическое распределение рабочей нагрузки (`BuildIndependentTargetsInParallel = 1`)
+
+**Тестовые цели (RemissionTests, RemissionUITests):**
+- Те же базовые параметры Swift и Deployment Target
+- Строка каталогов не генерируется (`STRING_CATALOG_GENERATE_SYMBOLS = NO`)
+- Локализованные строки не эмитируются (`SWIFT_EMIT_LOC_STRINGS = NO`)
+- TEST_HOST указывает на основную цель для удобства линкования
+
+### Проверка унифицированности
+
+Для проверки, что все build settings синхронизированы, выполните:
+
+```bash
+# iOS Simulator
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12' build
+
+# macOS
+xcodebuild -scheme Remission -sdk macosx build
+
+# Все тесты
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12'
+xcodebuild test -scheme Remission -sdk macosx
+```
+
+Обе сборки должны завершиться с **BUILD SUCCEEDED** и **TEST SUCCEEDED** без новых предупреждений.
+
 ## Git & Branching
 
 - **Branch naming:** `feature/RTC-N-краткое-описание`, `fix/RTC-N-краткое-описание`, `docs/RTC-N-краткое-описание`
