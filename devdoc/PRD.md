@@ -61,11 +61,13 @@ Remission — кроссплатформенное клиентское прил
 
 Архитектура и дизайн системы
 ----------------------------
-Общая идея: модульное, тестируемое приложение с разделением на слои.
+Общая идея: модульное, тестируемое приложение с разделением на слои и использованием The Composable Architecture (TCA) для всего управления состоянием.
+
+**Критическое требование**: весь state-management реализуется через TCA (@ObservableState, Action, Reducer). Не смешиваем MVVM и TCA в одном проекте.
 
 Слои:
-- UI (SwiftUI) — платформа-специфичные экраны для iOS и macOS, преимущественно переиспользуемые View-компоненты.
-- Presentation (ViewModels) — MVVM: ViewModel содержит состояние и команды, обращается к сервисам бизнес-логики.
+- UI (SwiftUI) — платформа-специфичные экраны для iOS и macOS, преимущественно переиспользуемые View-компоненты. Views подписываются на TCA Store и диспатчат Actions.
+- Presentation (TCA Reducers) — управление состоянием через TCA: State, Action, Reducer, Environment. Все побочные эффекты инкапсулируются в Environment.
 - Domain / Services
   - TransmissionClient (Network layer): реализует JSON-RPC вызовы к Transmission (torrent-get, torrent-add, torrent-start/stop, torrent-remove, session-get/set).
   - AuthService: управление учётными данными (Keychain), проверка соединения.
@@ -113,17 +115,17 @@ Remission — кроссплатформенное клиентское прил
 --------------------------------
 - Добавление зависимости: подключаем `composable-architecture` через Swift Package Manager в `Package.swift` или через Xcode.
 - Структура фичи (рекомендуемая):
-   - `Features/TorrentList/State.swift` — модель состояния `struct TorrentListState`.
+   - `Features/TorrentList/State.swift` — модель состояния `@ObservableState struct TorrentListState`.
    - `Features/TorrentList/Action.swift` — `enum TorrentListAction`.
-   - `Features/TorrentList/Environment.swift` — зависимости (клиент, scheduler, etc.).
-   - `Features/TorrentList/Reducer.swift` — `let torrentListReducer = Reducer<TorrentListState, TorrentListAction, TorrentListEnvironment>`.
-   - `Features/TorrentList/View.swift` — `TorrentListView` использующий `Store<TorrentListState, TorrentListAction>` и `WithViewStore`.
-   - `Features/TorrentList/Tests/` — unit tests для редьюсера и эффектов.
+   - `Features/TorrentList/Reducer.swift` — реализация `@Reducer` или функция-редьюсер.
+   - `Features/TorrentList/View.swift` — `TorrentListView` использующий `@Bindable` и `Store`.
+   - `Features/TorrentList/Tests/` — unit tests для редьюсера и эффектов используя `TestStore`.
 
-Пример минимального редьюсера и View (упрощённо):
+Пример минимального редьюсера и View (современный синтаксис Swift 6 с TCA):
 
 ```swift
 // State.swift
+@ObservableState
 struct TorrentListState: Equatable {
    var torrents: [Torrent] = []
    var isLoading: Bool = false
@@ -136,43 +138,53 @@ enum TorrentListAction: Equatable {
    case torrentsResponse(Result<[Torrent], APIError>)
 }
 
-// Environment.swift
-struct TorrentListEnvironment {
-   var mainQueue: AnySchedulerOf<DispatchQueue>
-   var repository: TorrentRepositoryProtocol
-}
-
 // Reducer.swift
-let torrentListReducer = Reducer<TorrentListState, TorrentListAction, TorrentListEnvironment> { state, action, env in
-   switch action {
-   case .onAppear, .refresh:
-      state.isLoading = true
-      return env.repository.fetchTorrents()
-         .receive(on: env.mainQueue)
-         .catchToEffect(TorrentListAction.torrentsResponse)
-
-   case let .torrentsResponse(.success(torrents)):
-      state.isLoading = false
-      state.torrents = torrents
-      return .none
-   case .torrentsResponse(.failure):
-      state.isLoading = false
-      return .none
+@Reducer
+struct TorrentListReducer {
+   @Dependency(\.repository) var repository
+   @Dependency(\.mainQueue) var mainQueue
+   
+   var body: some ReducerOf<Self> {
+      Reduce { state, action in
+         switch action {
+         case .onAppear, .refresh:
+            state.isLoading = true
+            return .run { send in
+               do {
+                  let torrents = try await repository.fetchTorrents()
+                  await send(.torrentsResponse(.success(torrents)))
+               } catch {
+                  await send(.torrentsResponse(.failure(error as! APIError)))
+               }
+            }
+         
+         case let .torrentsResponse(.success(torrents)):
+            state.isLoading = false
+            state.torrents = torrents
+            return .none
+            
+         case .torrentsResponse(.failure):
+            state.isLoading = false
+            return .none
+         }
+      }
    }
 }
 
 // View.swift
+#Preview {
+   TorrentListView(store: Store(initialState: TorrentListState(), reducer: { TorrentListReducer() }))
+}
+
 struct TorrentListView: View {
-   let store: Store<TorrentListState, TorrentListAction>
+   @Bindable var store: StoreOf<TorrentListReducer>
 
    var body: some View {
-      WithViewStore(self.store) { viewStore in
-         List(viewStore.torrents) { t in
-            Text(t.name)
-         }
-         .onAppear { viewStore.send(.onAppear) }
-         .refreshable { viewStore.send(.refresh) }
+      List(store.torrents) { torrent in
+         Text(torrent.name)
       }
+      .onAppear { store.send(.onAppear) }
+      .refreshable { store.send(.refresh) }
    }
 }
 ```
@@ -209,34 +221,58 @@ struct TorrentListView: View {
    - Писать короткие комментарии для public/protocol API; документировать контракты сервисов и предположения (preconditions).
 
 10) Примеры паттернов (конкретно)
-   - Repository pattern:
+   - Repository pattern с async/await:
 
 ```swift
-protocol TorrentRepository {
+protocol TorrentRepositoryProtocol: Sendable {
     func fetchTorrents() async throws -> [Torrent]
+    func addTorrent(_ torrent: Torrent) async throws -> Int
 }
 
-final class TransmissionRepository: TorrentRepository {
+final class TransmissionRepository: TorrentRepositoryProtocol {
     private let client: TransmissionClientProtocol
+    
     func fetchTorrents() async throws -> [Torrent] {
-        let resp = try await client.torrentGet(fields: [...])
-        return resp.map { Torrent(mapFrom: $0) }
+        let resp = try await client.torrentGet(fields: ["id", "name", "status", "percentDone"])
+        return resp.torrents.map { Torrent(mapFrom: $0) }
+    }
+    
+    func addTorrent(_ torrent: Torrent) async throws -> Int {
+        let result = try await client.torrentAdd(torrent: torrent)
+        return result.torrentId
     }
 }
 ```
 
-   - Interactor usage in ViewModel:
+   - DI для TCA Reducer через @Dependency:
 
 ```swift
-final class TorrentListViewModel: ObservableObject {
-    @Published var items: [TorrentViewModel] = []
-    private let interactor: TorrentListInteractor
+@Reducer
+struct TorrentListReducer {
+    @Dependency(\.repository) var repository
+    @Dependency(\.mainQueue) var mainQueue
+    
+    // используется в reducer body...
+}
+```
 
-    func refresh() {
-        Task {
-            let domain = try await interactor.loadTorrents()
-            self.items = domain.map(TorrentViewModel.init)
+   - TestStore для покрытия редьюсера:
+
+```swift
+@MainActor
+func testFetchTorrents() async {
+    let store = TestStore(
+        initialState: TorrentListState(),
+        reducer: { TorrentListReducer() },
+        withDependencies: {
+            $0.repository = .testValue  // mock repository
         }
+    )
+    
+    await store.send(.onAppear)
+    await store.receive(.torrentsResponse(.success([.mock]))) {
+        $0.torrents = [.mock]
+        $0.isLoading = false
     }
 }
 ```
@@ -253,14 +289,29 @@ final class TorrentListViewModel: ObservableObject {
 
 Включение этих правил в PRD и в гайдлайны разработки позволит избежать «винегрета» кода и получить модульный, поддерживаемый проект.
 
+Требование использования Context7
+----------------------------------
+**КРИТИЧЕСКИ ВАЖНО для всех разработчиков и AI-агентов**: Перед реализацией любого кода, конфигурации, добавлением зависимостей или использованием нового инструмента **обязательно обратитесь в Context7** для получения актуальной информации и документации.
+
+- Процесс:
+  1. Если задача требует конфигурации инструмента (swift-format, swiftlint, CocoaPods, SPM и т.д.) — обратитесь в Context7 для актуальной документации
+  2. Если задача требует интеграции внешней библиотеки — обратитесь в Context7 для последней версии и API
+  3. Если задача требует использования новых версий Swift, Xcode или платформ — проверьте Context7 для совместимости
+  4. Используйте `mcp_context7_resolve-library-id` для поиска правильной библиотеки
+  5. Используйте `mcp_context7_get-library-docs` для получения актуальной документации
+
+- **Никогда** не полагайтесь на гипотезы, предположения или устаревшую информацию
+- **Только после изучения актуальной информации** начинайте писать код или создавать конфигурации
+- Документируйте, какие версии библиотек и инструментов были использованы и почему они выбраны
+
 Технологические решения
 ----------------------
-- Язык/фреймворки: Swift + SwiftUI; архитектура MVVM; модуль бизнес-логики оформлен как Swift Package для повторного использования.
+- Язык/фреймворки: Swift 6 + SwiftUI; архитектура TCA (The Composable Architecture); модуль бизнес-логики оформлен как Swift Package для повторного использования.
 - Network: URLSession-based client, JSON parsing через Codable; обёртка для retry/backoff.
 - Storage: Keychain для секретов; UserDefaults/Files/CoreData для пользовательских настроек и кеша (выбрать CoreData при необходимости сложной модели).
-- Dependency management: по возможности минимально — использовать встроенные фреймворки; при добавлении сторонних либ — через Swift Package Manager.
-- Тесты: XCTest для unit и интеграционных тестов; XCUITest для UI.
-- CI: GitHub Actions — сборка, unit-тесты, линтинг (swiftlint если добавим), запуск UI-тестов на симуляторе.
+- Dependency management: по возможности минимально — использовать встроенные фреймворки; при добавлении сторонних либ — через Swift Package Manager. **Обязательно обращаться в Context7 перед добавлением любой новой зависимости**.
+- Тесты: Swift Testing (встроенный модуль) с атрибутом `@Test` для unit и интеграционных тестов; XCUITest для UI.
+- CI: GitHub Actions — сборка, unit-тесты, линтинг (swift-format, swiftlint), запуск UI-тестов на симуляторе.
 
 Swift 6 — требования и лучшие практики
 -------------------------------------
@@ -293,7 +344,13 @@ swift build -Xswiftc -swift-version 6
    - Форматирование: `swift-format` (run as pre-commit or CI step):
 
 ```bash
-swift-format -i <paths>
+swift-format format --in-place --recursive --configuration .swift-format Remission RemissionTests RemissionUITests
+```
+
+   - Проверка без изменений (dry-run):
+
+```bash
+swift-format format --recursive --configuration .swift-format Remission RemissionTests RemissionUITests
 ```
 
    - Статический анализ/стиль: `swiftlint` — настроить правила и запускать в CI.
