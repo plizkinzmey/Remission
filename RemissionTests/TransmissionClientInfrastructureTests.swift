@@ -111,7 +111,8 @@ struct TransmissionClientProtocolTests {
             }
 
             func torrentAdd(
-                filename: String,
+                filename: String?,
+                metainfo: Data?,
                 downloadDir: String?,
                 paused: Bool?,
                 labels: [String]?
@@ -162,6 +163,63 @@ struct TransmissionClientProtocolTests {
 
     @Suite("TransmissionClientDependencyKey Tests")
     struct TransmissionClientDependencyKeyTests {
+        private struct SuccessStubTransmissionClient: TransmissionClientProtocol {
+            func sessionGet() async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func sessionSet(arguments: AnyCodable) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func sessionStats() async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentGet(
+                ids: [Int]?,
+                fields: [String]?
+            ) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentAdd(
+                filename: String?,
+                metainfo: Data?,
+                downloadDir: String?,
+                paused: Bool?,
+                labels: [String]?
+            ) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentRemove(
+                ids: [Int],
+                deleteLocalData: Bool?
+            ) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentSet(
+                ids: [Int],
+                arguments: AnyCodable
+            ) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+
+            func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
+                TransmissionResponse(result: "success")
+            }
+        }
+
         @Test("DependencyKey предоставляет default значение")
         func testDependencyKeyDefaultValue() throws {
             var deps: DependencyValues = DependencyValues()
@@ -171,64 +229,8 @@ struct TransmissionClientProtocolTests {
 
         @Test("DependencyKey можно переопределить")
         func testDependencyKeyCanBeOverridden() throws {
-            struct MockClient: TransmissionClientProtocol {
-                func sessionGet() async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func sessionSet(arguments: AnyCodable) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func sessionStats() async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentGet(
-                    ids: [Int]?,
-                    fields: [String]?
-                ) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentAdd(
-                    filename: String,
-                    downloadDir: String?,
-                    paused: Bool?,
-                    labels: [String]?
-                ) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentRemove(
-                    ids: [Int],
-                    deleteLocalData: Bool?
-                ) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentSet(
-                    ids: [Int],
-                    arguments: AnyCodable
-                ) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-
-                func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
-                    TransmissionResponse(result: "success", arguments: nil, tag: nil)
-                }
-            }
-
             var deps: DependencyValues = DependencyValues()
-            deps.transmissionClient = MockClient()
+            deps.transmissionClient = SuccessStubTransmissionClient()
 
             let response: TransmissionResponse = try deps.transmissionClient.sessionGet()
             #expect(response.result == "success")

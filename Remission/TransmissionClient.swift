@@ -102,6 +102,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     ) async throws -> TransmissionResponse {
         var mutableRequest: URLRequest = urlRequest
         var remainingRetries: Int = max(config.maxRetries, 0)
+        var retryAttempt: Int = 0
         var handshakeAttempts: Int = 0
 
         while true {
@@ -123,8 +124,16 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     config.logger.logError(method: method, error: urlError)
                 }
                 if remainingRetries > 0, shouldRetry(urlError) {
+                    let exponentialDelay: TimeInterval =
+                        config.retryDelay * pow(2.0, Double(retryAttempt))
+                    let safeDelay: TimeInterval = min(
+                        max(exponentialDelay, 0),
+                        TimeInterval(UInt64.max) / 1_000_000_000
+                    )
+                    retryAttempt += 1
                     remainingRetries -= 1
-                    try await Task.sleep(nanoseconds: UInt64(config.retryDelay * 1_000_000_000))
+                    let nanoseconds: UInt64 = UInt64(safeDelay * 1_000_000_000)
+                    try await Task.sleep(nanoseconds: nanoseconds)
                     continue
                 }
                 throw APIError.mapURLError(urlError)
@@ -277,12 +286,26 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     }
 
     public func torrentAdd(
-        filename: String,
+        filename: String?,
+        metainfo: Data?,
         downloadDir: String?,
         paused: Bool?,
         labels: [String]?
     ) async throws -> TransmissionResponse {
-        var arguments: [String: AnyCodable] = ["filename": .string(filename)]
+        var arguments: [String: AnyCodable] = [:]
+
+        if let metainfo {
+            let base64Payload: String = metainfo.base64EncodedString()
+            arguments["metainfo"] = .string(base64Payload)
+        }
+
+        if let filename {
+            arguments["filename"] = .string(filename)
+        }
+
+        guard arguments["metainfo"] != nil || arguments["filename"] != nil else {
+            throw APIError.unknown(details: "torrent-add requires filename or metainfo")
+        }
 
         if let downloadDir = downloadDir {
             arguments["download-dir"] = .string(downloadDir)

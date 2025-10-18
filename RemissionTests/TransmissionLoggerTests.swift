@@ -3,6 +3,7 @@ import Testing
 
 @testable import Remission
 
+// swiftlint:disable explicit_type_interface
 @MainActor
 @Suite("TransmissionLogger Tests")
 struct TransmissionLoggerTests {
@@ -98,13 +99,15 @@ struct TransmissionLoggerTests {
             store.append(message)
         }
 
-        let responseData = """
+        let responseData: Data = Data(
+            """
             {
               "result": "success",
               "arguments": {"torrents": []},
               "tag": 1
             }
-            """.data(using: .utf8)!
+            """.utf8
+        )
 
         logger.logResponse(method: "torrent-get", statusCode: 200, responseBody: responseData)
 
@@ -126,12 +129,14 @@ struct TransmissionLoggerTests {
             store.append(message)
         }
 
-        let responseData = """
+        let responseData: Data = Data(
+            """
             {
               "result": "session-id-mismatch",
               "tag": 1
             }
-            """.data(using: .utf8)!
+            """.utf8
+        )
 
         logger.logResponse(method: "torrent-get", statusCode: 409, responseBody: responseData)
 
@@ -245,3 +250,4 @@ struct TransmissionLoggerTests {
         #expect(!loggedMessages.isEmpty)
     }
 }
+// swiftlint:enable explicit_type_interface

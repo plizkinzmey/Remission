@@ -49,7 +49,8 @@ import Foundation
                 }
 
                 func torrentAdd(
-                    filename: String,
+                    filename: String?,
+                    metainfo: Data?,
                     downloadDir: String?,
                     paused: Bool?,
                     labels: [String]?
@@ -110,7 +111,8 @@ import Foundation
                 }
 
                 func torrentAdd(
-                    filename: String,
+                    filename: String?,
+                    metainfo: Data?,
                     downloadDir: String?,
                     paused: Bool?,
                     labels: [String]?

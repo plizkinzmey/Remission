@@ -37,8 +37,8 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
     }
 
     public func logRequest(method: String, request: URLRequest) {
-        let maskedRequest = maskRequest(request)
-        let headers = formatHeaders(maskedRequest.allHTTPHeaderFields ?? [:])
+        let maskedRequest: URLRequest = maskRequest(request)
+        let headers: String = formatHeaders(maskedRequest.allHTTPHeaderFields ?? [:])
         logFn(
             "🔵 [TransmissionClient] Request: \(method)\n"
                 + "   URL: \(maskedRequest.url?.absoluteString ?? "<no-url>")\n"
@@ -47,7 +47,7 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
     }
 
     public func logResponse(method: String, statusCode: Int, responseBody: Data) {
-        let bodySummary = sanitizeResponseBody(responseBody)
+        let bodySummary: String = sanitizeResponseBody(responseBody)
         let statusEmoji: String = (200...299).contains(statusCode) ? "✅" : "⚠️"
         logFn(
             "\(statusEmoji) [TransmissionClient] Response: \(method)\n"
@@ -66,13 +66,13 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
 
     /// Замаскировать чувствительные заголовки в запросе.
     private func maskRequest(_ request: URLRequest) -> URLRequest {
-        var masked = request
-        if let headers = masked.allHTTPHeaderFields {
-            var maskedHeaders = headers
-            if let auth = maskedHeaders["Authorization"] {
+        var masked: URLRequest = request
+        if let headers: [String: String] = masked.allHTTPHeaderFields {
+            var maskedHeaders: [String: String] = headers
+            if let auth: String = maskedHeaders["Authorization"] {
                 maskedHeaders["Authorization"] = maskAuthHeader(auth)
             }
-            if let sessionId = maskedHeaders["X-Transmission-Session-Id"] {
+            if let sessionId: String = maskedHeaders["X-Transmission-Session-Id"] {
                 maskedHeaders["X-Transmission-Session-Id"] = maskSessionID(sessionId)
             }
             masked.allHTTPHeaderFields = maskedHeaders
@@ -86,30 +86,30 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
     private func maskAuthHeader(_ authHeader: String) -> String {
         // Обрабатываем как "Basic <credentials>" (без чувствительного раскрытия)
         // Если формат другой — возвращаем укороченную версию для безопасности.
-        let lower = authHeader.lowercased()
+        let lower: String = authHeader.lowercased()
         guard lower.hasPrefix("basic ") else {
             // Для других схем показываем только первые 6/последние 2 символа
-            let visiblePrefix = String(authHeader.prefix(6))
-            let visibleSuffix = String(authHeader.suffix(2))
+            let visiblePrefix: String = String(authHeader.prefix(6))
+            let visibleSuffix: String = String(authHeader.suffix(2))
             return "\(visiblePrefix)...\(visibleSuffix)"
         }
 
-        let components = authHeader.split(
+        let components: [Substring] = authHeader.split(
             separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         guard components.count == 2 else {
             return "Basic ..."
         }
 
-        let scheme = String(components[0])  // "Basic"
-        let credentials = String(components[1])
+        let scheme: String = String(components[0])  // "Basic"
+        let credentials: String = String(components[1])
 
         // Показываем первые 4 и последние 4 символа base64 строки, если длина позволяет
         if credentials.count <= 8 {
             return "\(scheme) ..."
         }
 
-        let first = String(credentials.prefix(4))
-        let last = String(credentials.suffix(4))
+        let first: String = String(credentials.prefix(4))
+        let last: String = String(credentials.suffix(4))
         return "\(scheme) \(first)...\(last)"
     }
 
@@ -119,14 +119,14 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         guard sessionID.count > 8 else {
             return "****"
         }
-        let first = String(sessionID.prefix(4))
-        let last = String(sessionID.suffix(4))
+        let first: String = String(sessionID.prefix(4))
+        let last: String = String(sessionID.suffix(4))
         return "\(first)...\(last)"
     }
 
     /// Форматировать заголовки для логирования.
     private func formatHeaders(_ headers: [String: String]) -> String {
-        let headerStrings = headers.map { key, value in
+        let headerStrings: [String] = headers.map { key, value in
             "\(key): \(value)"
         }
         return "[\(headerStrings.joined(separator: ", "))]"
@@ -140,8 +140,8 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         }
 
         do {
-            let jsonObject = try JSONSerialization.jsonObject(with: data)
-            let summary = summarizeJSON(jsonObject, depth: 0)
+            let jsonObject: Any = try JSONSerialization.jsonObject(with: data)
+            let summary: String = summarizeJSON(jsonObject, depth: 0)
             return truncateIfNeeded(summary, maxLength: 200)
         } catch {
             return "<\(data.count) bytes>"
@@ -156,7 +156,7 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
 
         switch value {
         case let dictionary as [String: Any]:
-            let components =
+            let components: [String] =
                 dictionary
                 .sorted { $0.key < $1.key }
                 .map { key, value in
@@ -195,14 +195,14 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         guard string.count > maxLength else {
             return string
         }
-        let prefix = string.prefix(maxLength)
+        let prefix: Substring = string.prefix(maxLength)
         return String(prefix) + "... (truncated)"
     }
 }
 
 /// Нейтральная реализация логирования (ничего не логирует).
 public final class NoOpTransmissionLogger: TransmissionLogger, Sendable {
-    public static let shared = NoOpTransmissionLogger()
+    public static let shared: NoOpTransmissionLogger = NoOpTransmissionLogger()
 
     public func logRequest(method: String, request: URLRequest) {}
 

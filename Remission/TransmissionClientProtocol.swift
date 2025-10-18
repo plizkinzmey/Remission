@@ -26,12 +26,14 @@ public protocol TransmissionClientProtocol: Sendable {
 
     /// Добавить новый торрент из файла, magnet-ссылки или URL.
     /// - Parameters:
-    ///   - filename: Путь к файлу, URL или magnet-ссылка.
+    ///   - filename: Путь к файлу, URL или magnet-ссылка. Опционально, если используется `metainfo`.
+    ///   - metainfo: Base64-исходные данные `.torrent` файла (сырые байты до кодирования). Опционально, если используется `filename`.
     ///   - downloadDir: Опциональная директория для загрузки.
     ///   - paused: Запустить ли торрент в режиме паузы.
     ///   - labels: Опциональные теги для торрента.
     func torrentAdd(
-        filename: String,
+        filename: String?,
+        metainfo: Data?,
         downloadDir: String?,
         paused: Bool?,
         labels: [String]?

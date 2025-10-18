@@ -48,6 +48,7 @@ struct TransmissionClientMethodsTests {
             call: { client in
                 try await client.torrentAdd(
                     filename: "magnet:?xt=urn:btih:123",
+                    metainfo: nil,
                     downloadDir: "/downloads",
                     paused: true,
                     labels: ["tv", "1080p"]
@@ -70,6 +71,7 @@ struct TransmissionClientMethodsTests {
             call: { client in
                 try await client.torrentAdd(
                     filename: "magnet:?xt=urn:btih:error",
+                    metainfo: nil,
                     downloadDir: nil,
                     paused: nil,
                     labels: nil
@@ -83,6 +85,50 @@ struct TransmissionClientMethodsTests {
             },
             failureResult: "duplicate torrent"
         )
+    }
+
+    @Test("torrent-add кодирует metainfo в base64 и не добавляет filename")
+    func testTorrentAddMetainfoEncoding() async throws {
+        let payload = Data([0x00, 0x01, 0xFF])
+
+        try await runSuccessTest(
+            call: { client in
+                try await client.torrentAdd(
+                    filename: nil,
+                    metainfo: payload,
+                    downloadDir: nil,
+                    paused: nil,
+                    labels: nil
+                )
+            },
+            validate: { request in
+                #expect(request.method == "torrent-add")
+                let arguments = try #require(request.arguments?.objectValue)
+                #expect(arguments["metainfo"] == .string(payload.base64EncodedString()))
+                #expect(arguments["filename"] == nil)
+            }
+        )
+    }
+
+    @Test("torrent-add требует filename или metainfo")
+    func testTorrentAddRequiresSource() async throws {
+        MockURLProtocol.setHandlers([])
+        let client = makeClient()
+
+        do {
+            _ = try await client.torrentAdd(
+                filename: nil,
+                metainfo: nil,
+                downloadDir: nil,
+                paused: nil,
+                labels: nil
+            )
+            #expect(Bool(false), "Ожидалась ошибка при отсутствии источника торрента")
+        } catch let error as APIError {
+            #expect(error == .unknown(details: "torrent-add requires filename or metainfo"))
+        } catch {
+            #expect(Bool(false), "Ожидалась APIError, получено \(error)")
+        }
     }
 
     @Test("torrent-start кодирует список идентификаторов")
