@@ -6,21 +6,22 @@ import Testing
 // swiftlint:disable explicit_type_interface
 
 @Suite("TransmissionTag")
-nonisolated struct TransmissionTagTests {
+@MainActor
+struct TransmissionTagTests {
     @Test("Create integer tag")
-    nonisolated func createIntTag() {
+    func createIntTag() {
         let tag: TransmissionTag = .int(42)
         #expect(tag == .int(42))
     }
 
     @Test("Create string tag")
-    nonisolated func createStringTag() {
+    func createStringTag() {
         let tag: TransmissionTag = .string("batch-1")
         #expect(tag == .string("batch-1"))
     }
 
     @Test("Decode integer tag from JSON")
-    nonisolated func decodeIntTag() throws {
+    func decodeIntTag() throws {
         let json = "42"
         let data = json.data(using: .utf8)!
         let tag = try JSONDecoder().decode(TransmissionTag.self, from: data)
@@ -28,7 +29,7 @@ nonisolated struct TransmissionTagTests {
     }
 
     @Test("Decode string tag from JSON")
-    nonisolated func decodeStringTag() throws {
+    func decodeStringTag() throws {
         let json = "\"req-1\""
         let data = json.data(using: .utf8)!
         let tag = try JSONDecoder().decode(TransmissionTag.self, from: data)
@@ -36,7 +37,7 @@ nonisolated struct TransmissionTagTests {
     }
 
     @Test("Encode integer tag to JSON")
-    nonisolated func encodeIntTag() throws {
+    func encodeIntTag() throws {
         let tag: TransmissionTag = .int(42)
         let data = try JSONEncoder().encode(tag)
         let decoded = try JSONDecoder().decode(Int.self, from: data)
@@ -44,7 +45,7 @@ nonisolated struct TransmissionTagTests {
     }
 
     @Test("Encode string tag to JSON")
-    nonisolated func encodeStringTag() throws {
+    func encodeStringTag() throws {
         let tag: TransmissionTag = .string("session-1")
         let data = try JSONEncoder().encode(tag)
         let json = String(data: data, encoding: .utf8)!
@@ -52,7 +53,7 @@ nonisolated struct TransmissionTagTests {
     }
 
     @Test("Equatable comparison for tags")
-    nonisolated func equatableComparison() {
+    func equatableComparison() {
         let intTag1: TransmissionTag = .int(1)
         let intTag2: TransmissionTag = .int(1)
         let intTag3: TransmissionTag = .int(2)
@@ -64,12 +65,12 @@ nonisolated struct TransmissionTagTests {
     }
 
     @Test("Hashable for tags")
-    nonisolated func hashableSupport() {
+    func hashableSupport() {
         let intTag1: TransmissionTag = .int(1)
         let intTag2: TransmissionTag = .int(1)
         let stringTag: TransmissionTag = .string("1")
 
-        var set: Set<TransmissionTag> = [intTag1, stringTag]
+        let set: Set<TransmissionTag> = [intTag1, stringTag]
         #expect(set.contains(intTag2))
         #expect(set.contains(stringTag))
         #expect(set.count == 2)

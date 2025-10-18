@@ -237,6 +237,8 @@
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
 				"fi",
 				"",
+				"",
+				"",
 			);
 		};
 /* End PBXShellScriptBuildPhase section */

@@ -3,8 +3,8 @@
 ///
 /// This allows flexible serialization/deserialization of Transmission RPC requests and responses
 /// without needing to know the exact structure at compile time.
-@frozen
-nonisolated(unsafe) public enum AnyCodable: Sendable {
+@preconcurrency @frozen
+public enum AnyCodable: Sendable {
     case null
     case bool(Bool)
     case int(Int)
@@ -16,9 +16,9 @@ nonisolated(unsafe) public enum AnyCodable: Sendable {
 
 // MARK: - Codable Conformance
 
-nonisolated extension AnyCodable: Codable {
+extension AnyCodable: Codable {
     // swiftlint:disable explicit_type_interface
-    public init(from decoder: Decoder) throws {
+    nonisolated public init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
 
         if container.decodeNil() {
@@ -43,7 +43,7 @@ nonisolated extension AnyCodable: Codable {
         }
     }
 
-    public func encode(to encoder: Encoder) throws {
+    nonisolated public func encode(to encoder: Encoder) throws {
         var container = encoder.singleValueContainer()
 
         switch self {
@@ -68,9 +68,9 @@ nonisolated extension AnyCodable: Codable {
 
 // MARK: - Equatable Conformance
 
-nonisolated extension AnyCodable: Equatable {
+extension AnyCodable: Equatable {
     // swiftlint:disable identifier_name
-    public static func == (a: AnyCodable, b: AnyCodable) -> Bool {
+    nonisolated public static func == (a: AnyCodable, b: AnyCodable) -> Bool {
         switch (a, b) {
         case (.null, .null):
             return true
@@ -95,8 +95,8 @@ nonisolated extension AnyCodable: Equatable {
 
 // MARK: - Hashable Conformance
 
-nonisolated extension AnyCodable: Hashable {
-    public func hash(into hasher: inout Hasher) {
+extension AnyCodable: Hashable {
+    nonisolated public func hash(into hasher: inout Hasher) {
         switch self {
         case .null:
             hasher.combine(0)

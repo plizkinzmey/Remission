@@ -6,9 +6,10 @@ import Testing
 // swiftlint:disable explicit_type_interface
 
 @Suite("TransmissionRequest")
-nonisolated struct TransmissionRequestTests {
+@MainActor
+struct TransmissionRequestTests {
     @Test("Create request with method only")
-    nonisolated func createRequestMethodOnly() {
+    func createRequestMethodOnly() {
         let request = TransmissionRequest(method: "session-get")
 
         #expect(request.method == "session-get")
@@ -17,7 +18,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Create request with method and numeric tag")
-    nonisolated func createRequestWithNumericTag() {
+    func createRequestWithNumericTag() {
         let request = TransmissionRequest(method: "torrent-get", tag: .int(1))
 
         #expect(request.method == "torrent-get")
@@ -26,7 +27,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Create request with method and string tag")
-    nonisolated func createRequestWithStringTag() {
+    func createRequestWithStringTag() {
         let request = TransmissionRequest(method: "torrent-get", tag: .string("req-1"))
 
         #expect(request.method == "torrent-get")
@@ -35,7 +36,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Create request with arguments")
-    nonisolated func createRequestWithArguments() {
+    func createRequestWithArguments() {
         let arguments: AnyCodable = .object([
             "fields": .array([.string("id"), .string("name"), .string("status")]),
             "ids": .array([.int(1), .int(2)])
@@ -48,7 +49,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Encode simple request with numeric tag")
-    nonisolated func encodeSimpleRequest() throws {
+    func encodeSimpleRequest() throws {
         let request = TransmissionRequest(method: "session-get", tag: .int(1))
         let data = try JSONEncoder().encode(request)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -59,7 +60,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Encode request with string tag")
-    nonisolated func encodeRequestWithStringTag() throws {
+    func encodeRequestWithStringTag() throws {
         let request = TransmissionRequest(method: "session-get", tag: .string("session-1"))
         let data = try JSONEncoder().encode(request)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -70,7 +71,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Encode request with arguments")
-    nonisolated func encodeRequestWithArguments() throws {
+    func encodeRequestWithArguments() throws {
         let arguments: AnyCodable = .object([
             "speed-limit-down": .int(1024),
             "speed-limit-up": .int(256)
@@ -90,7 +91,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Decode simple request with numeric tag")
-    nonisolated func decodeSimpleRequest() throws {
+    func decodeSimpleRequest() throws {
         let json = """
             {
               "method": "torrent-start",
@@ -107,7 +108,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Decode simple request with string tag")
-    nonisolated func decodeSimpleRequestStringTag() throws {
+    func decodeSimpleRequestStringTag() throws {
         let json = """
             {
               "method": "torrent-start",
@@ -124,7 +125,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Round-trip request encoding/decoding with numeric tag")
-    nonisolated func roundTripRequest() throws {
+    func roundTripRequest() throws {
         let arguments: AnyCodable = .object([
             "ids": .array([.int(1), .int(2)]),
             "fields": .array([.string("id"), .string("name"), .string("percentDone")])
@@ -144,7 +145,7 @@ nonisolated struct TransmissionRequestTests {
     }
 
     @Test("Round-trip request encoding/decoding with string tag")
-    nonisolated func roundTripRequestStringTag() throws {
+    func roundTripRequestStringTag() throws {
         let arguments: AnyCodable = .object([
             "ids": .array([.int(1), .int(2)])
         ])

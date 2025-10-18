@@ -6,9 +6,10 @@ import Testing
 // swiftlint:disable explicit_type_interface
 
 @Suite("TransmissionResponse")
-nonisolated struct TransmissionResponseTests {
+@MainActor
+struct TransmissionResponseTests {
     @Test("Create success response with numeric tag")
-    nonisolated func createSuccessResponse() {
+    func createSuccessResponse() {
         let response = TransmissionResponse(result: "success", tag: .int(1))
 
         #expect(response.result == "success")
@@ -19,7 +20,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Create success response with string tag")
-    nonisolated func createSuccessResponseStringTag() {
+    func createSuccessResponseStringTag() {
         let response = TransmissionResponse(result: "success", tag: .string("req-1"))
 
         #expect(response.result == "success")
@@ -30,7 +31,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Create error response with numeric tag")
-    nonisolated func createErrorResponseNumericTag() {
+    func createErrorResponseNumericTag() {
         let response = TransmissionResponse(result: "too many recent requests", tag: .int(1))
 
         #expect(response.result == "too many recent requests")
@@ -40,7 +41,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Create error response with string tag")
-    nonisolated func createErrorResponseStringTag() {
+    func createErrorResponseStringTag() {
         let response = TransmissionResponse(result: "permission denied", tag: .string("delete-1"))
 
         #expect(response.result == "permission denied")
@@ -50,7 +51,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Create response with arguments and numeric tag")
-    nonisolated func createResponseWithArgumentsNumericTag() {
+    func createResponseWithArgumentsNumericTag() {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -68,7 +69,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Create response with arguments and string tag")
-    nonisolated func createResponseWithArgumentsStringTag() {
+    func createResponseWithArgumentsStringTag() {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -87,7 +88,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Encode success response with numeric tag")
-    nonisolated func encodeSuccessResponseNumericTag() throws {
+    func encodeSuccessResponseNumericTag() throws {
         let arguments: AnyCodable = .object([
             "rpc-version": .int(17),
             "rpc-version-minimum": .int(14),
@@ -104,7 +105,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Encode success response with string tag")
-    nonisolated func encodeSuccessResponseStringTag() throws {
+    func encodeSuccessResponseStringTag() throws {
         let arguments: AnyCodable = .object([
             "rpc-version": .int(17),
             "rpc-version-minimum": .int(14),
@@ -122,7 +123,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode success response with numeric tag")
-    nonisolated func decodeSuccessResponseNumericTag() throws {
+    func decodeSuccessResponseNumericTag() throws {
         let json = """
             {
               "result": "success",
@@ -143,7 +144,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode success response with string tag")
-    nonisolated func decodeSuccessResponseStringTag() throws {
+    func decodeSuccessResponseStringTag() throws {
         let json = """
             {
               "result": "success",
@@ -164,7 +165,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode error response with numeric tag")
-    nonisolated func decodeErrorResponseNumericTag() throws {
+    func decodeErrorResponseNumericTag() throws {
         let json = """
             {
               "result": "too many recent requests",
@@ -180,7 +181,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode error response with string tag")
-    nonisolated func decodeErrorResponseStringTag() throws {
+    func decodeErrorResponseStringTag() throws {
         let json = """
             {
               "result": "permission denied",
@@ -196,7 +197,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Round-trip response encoding/decoding with numeric tag")
-    nonisolated func roundTripResponseNumericTag() throws {
+    func roundTripResponseNumericTag() throws {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -215,7 +216,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Round-trip response encoding/decoding with string tag")
-    nonisolated func roundTripResponseStringTag() throws {
+    func roundTripResponseStringTag() throws {
         let arguments: AnyCodable = .object([
             "torrents": .array([
                 .object([
@@ -235,7 +236,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode response without arguments and numeric tag")
-    nonisolated func decodeResponseWithoutArgumentsNumericTag() throws {
+    func decodeResponseWithoutArgumentsNumericTag() throws {
         let json = """
             {
               "result": "success",
@@ -251,7 +252,7 @@ nonisolated struct TransmissionResponseTests {
     }
 
     @Test("Decode response without arguments and string tag")
-    nonisolated func decodeResponseWithoutArgumentsStringTag() throws {
+    func decodeResponseWithoutArgumentsStringTag() throws {
         let json = """
             {
               "result": "success",

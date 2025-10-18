@@ -8,16 +8,16 @@
 /// {"method": "torrent-get", "tag": 1}        // numeric tag
 /// {"method": "torrent-get", "tag": "req-1"}  // string tag
 /// ```
-@frozen
-nonisolated(unsafe) public enum TransmissionTag: Sendable {
+@preconcurrency @frozen
+public enum TransmissionTag: Sendable {
     case int(Int)
     case string(String)
 }
 
 // MARK: - Codable Conformance
 
-nonisolated extension TransmissionTag: Codable {
-    public init(from decoder: Decoder) throws {
+extension TransmissionTag: Codable {
+    nonisolated public init(from decoder: Decoder) throws {
         let container: SingleValueDecodingContainer = try decoder.singleValueContainer()
 
         if let intValue: Int = try? container.decode(Int.self) {
@@ -32,7 +32,7 @@ nonisolated extension TransmissionTag: Codable {
         }
     }
 
-    public func encode(to encoder: Encoder) throws {
+    nonisolated public func encode(to encoder: Encoder) throws {
         var container: SingleValueEncodingContainer = encoder.singleValueContainer()
 
         switch self {
@@ -46,8 +46,8 @@ nonisolated extension TransmissionTag: Codable {
 
 // MARK: - Equatable Conformance
 
-nonisolated extension TransmissionTag: Equatable {
-    public static func == (lhs: TransmissionTag, rhs: TransmissionTag) -> Bool {
+extension TransmissionTag: Equatable {
+    nonisolated public static func == (lhs: TransmissionTag, rhs: TransmissionTag) -> Bool {
         switch (lhs, rhs) {
         case (.int(let lhsValue), .int(let rhsValue)):
             return lhsValue == rhsValue
@@ -61,8 +61,8 @@ nonisolated extension TransmissionTag: Equatable {
 
 // MARK: - Hashable Conformance
 
-nonisolated extension TransmissionTag: Hashable {
-    public func hash(into hasher: inout Hasher) {
+extension TransmissionTag: Hashable {
+    nonisolated public func hash(into hasher: inout Hasher) {
         switch self {
         case .int(let value):
             hasher.combine(0)

@@ -18,11 +18,11 @@
 ///
 /// - Parameters:
 ///   - method: The RPC method name (e.g., "torrent-get", "session-set")
-///   - arguments: Optional method-specific parameters as a generic dictionary
+///   - arguments: Optional method-specific parameters
 ///   - tag: Optional client-generated tag that the server will echo back in the response
 ///
 /// - Note: `Sendable` for thread-safe usage in async/await contexts
-nonisolated(unsafe) public struct TransmissionRequest: Codable, Sendable {
+public struct TransmissionRequest: Codable, Sendable {
     /// The name of the RPC method to invoke
     public let method: String
 
@@ -75,7 +75,7 @@ nonisolated(unsafe) public struct TransmissionRequest: Codable, Sendable {
 
 // MARK: - Equatable
 
-nonisolated extension TransmissionRequest: Equatable {
+extension TransmissionRequest: Equatable {
     public static func == (lhs: TransmissionRequest, rhs: TransmissionRequest) -> Bool {
         lhs.method == rhs.method && lhs.arguments == rhs.arguments && lhs.tag == rhs.tag
     }
@@ -83,7 +83,7 @@ nonisolated extension TransmissionRequest: Equatable {
 
 // MARK: - Hashable
 
-nonisolated extension TransmissionRequest: Hashable {
+extension TransmissionRequest: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(method)
         hasher.combine(arguments)

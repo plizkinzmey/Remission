@@ -6,9 +6,9 @@ import Testing
 // swiftlint:disable explicit_type_interface
 
 @Suite("AnyCodable")
-nonisolated struct AnyCodableTests {
+struct AnyCodableTests {
     @Test("Decode null value")
-    nonisolated func decodeNull() throws {
+    func decodeNull() throws {
         let json = "null"
         let data = json.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
@@ -17,7 +17,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode boolean values")
-    nonisolated func decodeBoolean() throws {
+    func decodeBoolean() throws {
         for value in [true, false] {
             let json = value ? "true" : "false"
             let data = json.data(using: .utf8)!
@@ -28,7 +28,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode integer value")
-    nonisolated func decodeInteger() throws {
+    func decodeInteger() throws {
         let json = "42"
         let data = json.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
@@ -37,7 +37,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode double value")
-    nonisolated func decodeDouble() throws {
+    func decodeDouble() throws {
         let json = "3.14"
         let data = json.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
@@ -46,7 +46,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode string value")
-    nonisolated func decodeString() throws {
+    func decodeString() throws {
         let json = "\"hello world\""
         let data = json.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
@@ -55,7 +55,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode array value")
-    nonisolated func decodeArray() throws {
+    func decodeArray() throws {
         let json = "[1, 2, 3, \"four\"]"
         let data = json.data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AnyCodable.self, from: data)
@@ -65,7 +65,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Decode object value")
-    nonisolated func decodeObject() throws {
+    func decodeObject() throws {
         let json = """
             {
               "name": "Ubuntu",
@@ -87,7 +87,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Encode null value")
-    nonisolated func encodeNull() throws {
+    func encodeNull() throws {
         let value: AnyCodable = .null
         let data = try JSONEncoder().encode(value)
         let json = String(data: data, encoding: .utf8)!
@@ -96,7 +96,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Encode string value")
-    nonisolated func encodeString() throws {
+    func encodeString() throws {
         let value: AnyCodable = .string("hello")
         let data = try JSONEncoder().encode(value)
         let json = String(data: data, encoding: .utf8)!
@@ -105,7 +105,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Encode array with mixed types")
-    nonisolated func encodeArray() throws {
+    func encodeArray() throws {
         let value: AnyCodable = .array([.int(1), .string("two"), .bool(false)])
         let data = try JSONEncoder().encode(value)
         let json = String(data: data, encoding: .utf8)!
@@ -114,7 +114,7 @@ nonisolated struct AnyCodableTests {
     }
 
     @Test("Round-trip complex nested structure")
-    nonisolated func roundTripComplex() throws {
+    func roundTripComplex() throws {
         let original: AnyCodable = .object([
             "id": .int(1),
             "files": .array([

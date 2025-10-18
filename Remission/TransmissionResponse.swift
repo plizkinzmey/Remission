@@ -32,7 +32,7 @@
 ///   - tag: The tag from the corresponding request (if provided)
 ///
 /// - Note: `Sendable` for thread-safe usage in async/await contexts
-nonisolated(unsafe) public struct TransmissionResponse: Codable, Sendable {
+public struct TransmissionResponse: Codable, Sendable {
     /// The result status of the request.
     ///
     /// On success, this will be the string `"success"`.
@@ -105,7 +105,7 @@ nonisolated(unsafe) public struct TransmissionResponse: Codable, Sendable {
 
 // MARK: - Equatable
 
-nonisolated extension TransmissionResponse: Equatable {
+extension TransmissionResponse: Equatable {
     public static func == (lhs: TransmissionResponse, rhs: TransmissionResponse) -> Bool {
         lhs.result == rhs.result && lhs.arguments == rhs.arguments && lhs.tag == rhs.tag
     }
@@ -113,7 +113,7 @@ nonisolated extension TransmissionResponse: Equatable {
 
 // MARK: - Hashable
 
-nonisolated extension TransmissionResponse: Hashable {
+extension TransmissionResponse: Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(result)
         hasher.combine(arguments)
