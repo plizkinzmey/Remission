@@ -296,8 +296,8 @@ if case .array(let items) = anyCodable {
     }
 }
 
-// Работа с объектами
-if case .object(let dict) = response.arguments {
+// Работа с объектами (response.arguments имеет тип AnyCodable?)
+if case .object(let dict)? = response.arguments {
     // Получить значение по ключу
     if let torrentsData = dict["torrents"] {
         if case .array(let torrents) = torrentsData {
@@ -318,8 +318,8 @@ if case .object(let dict) = response.arguments {
     }
 }
 
-// Более сложный пример: вложенный доступ
-if case .object(let dict) = response.arguments,
+// Более сложный пример: вложенный доступ (response.arguments имеет тип AnyCodable?)
+if case .object(let dict)? = response.arguments,
    let sessionData = dict["session"],
    case .object(let sessionDict) = sessionData,
    case .int(let version) = sessionDict["rpc-version"] {
