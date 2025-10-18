@@ -282,30 +282,110 @@ if case .int(let value) = anyCodable {
     print("Integer: \(value)")
 }
 
+if case .bool(let value) = anyCodable {
+    print("Boolean: \(value)")
+}
+
 // Работа с массивами
 if case .array(let items) = anyCodable {
     for item in items {
         // Обработать каждый элемент
+        if case .string(let str) = item {
+            print("Array item: \(str)")
+        }
     }
 }
 
 // Работа с объектами
 if case .object(let dict) = response.arguments {
-    if case .array(let torrents) = dict["torrents"] {
-        for torrent in torrents {
-            if case .object(let torrentDict) = torrent,
-               case .int(let id) = torrentDict["id"],
-               case .string(let name) = torrentDict["name"] {
-                print("Torrent: \(id) - \(name)")
+    // Получить значение по ключу
+    if let torrentsData = dict["torrents"] {
+        if case .array(let torrents) = torrentsData {
+            for torrent in torrents {
+                if case .object(let torrentDict) = torrent {
+                    // Извлечь конкретные поля
+                    if case .int(let id) = torrentDict["id"] {
+                        if case .string(let name) = torrentDict["name"] {
+                            print("Torrent: \(id) - \(name)")
+                        }
+                    }
+                    if case .double(let ratio) = torrentDict["uploadRatio"] {
+                        print("Upload ratio: \(ratio)")
+                    }
+                }
             }
         }
     }
 }
 
-// Опциональный доступ через вспомогательные методы
-// (если добавить их в расширение)
-let name = response.arguments?.object?["name"]?.string
-let speed = response.arguments?.object?["speed"]?.int
+// Более сложный пример: вложенный доступ
+if case .object(let dict) = response.arguments,
+   let sessionData = dict["session"],
+   case .object(let sessionDict) = sessionData,
+   case .int(let version) = sessionDict["rpc-version"] {
+    print("RPC version: \(version)")
+}
+```
+
+### Вспомогательные функции для удобства
+
+Можно добавить расширения для упрощения доступа (но это опционально):
+
+```swift
+// Расширение AnyCodable для удобных геттеров (добавить в Remission/AnyCodable.swift)
+extension AnyCodable {
+    var stringValue: String? {
+        if case .string(let value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    var intValue: Int? {
+        if case .int(let value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    var doubleValue: Double? {
+        if case .double(let value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    var boolValue: Bool? {
+        if case .bool(let value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    var arrayValue: [AnyCodable]? {
+        if case .array(let value) = self {
+            return value
+        }
+        return nil
+    }
+    
+    var objectValue: [String: AnyCodable]? {
+        if case .object(let value) = self {
+            return value
+        }
+        return nil
+    }
+}
+
+// Использование с расширениями (более читаемо):
+if let torrents = response.arguments?.objectValue?["torrents"]?.arrayValue {
+    for torrent in torrents {
+        if let id = torrent.objectValue?["id"]?.intValue,
+           let name = torrent.objectValue?["name"]?.stringValue {
+            print("Torrent: \(id) - \(name)")
+        }
+    }
+}
 ```
 
 ### Достоинства
@@ -483,7 +563,7 @@ public enum APIError: Error, Equatable {
 
 ### Маппинг ошибок Transmission RPC
 
-Transmission RPC возвращает ошибки как строки в `result` поле:
+Transmission RPC возвращает ошибки как строки в `result` поле. Маппер проверяет содержимое строки ошибки:
 
 ```swift
 // Версионные ошибки
@@ -491,19 +571,22 @@ if errorString.contains("version") || errorString.contains("rpc-version") {
     return .versionUnsupported(version: errorString)
 }
 
-// Auth ошибки
-if errorString.contains("auth") || errorString.contains("unauthorized") {
+// Auth ошибки (проверяет: "auth", "unauthorized", "credential")
+if errorString.contains("auth") || errorString.contains("unauthorized") 
+    || errorString.contains("credential") {
     return .unauthorized
 }
 
-// Ошибки декодирования
-if errorString.contains("invalid JSON") || errorString.contains("parse") {
-    return .decodingFailed(underlyingError: errorString)
+// Session ошибки (проверяет: "session", "csrf")
+if errorString.contains("session") || errorString.contains("csrf") {
+    return .sessionConflict
 }
 
-// Fallback
+// Все остальные ошибки Transmission RPC
 return .unknown(details: errorString)
 ```
+
+**Примечание**: `decodingFailed` используется **ТОЛЬКО** для Swift `DecodingError` при парсинге JSON, а не для ошибок Transmission RPC. Для получения `decodingFailed` используйте `APIError.mapDecodingError(_:)`.
 
 ### Примеры использования
 
@@ -543,6 +626,55 @@ do {
 } catch APIError.unknown(let details) {
     logger.error("Unknown error: \(details)")
     showAlert("An unexpected error occurred: \(details)")
+}
+```
+
+#### Маппинг HTTP статус кодов
+
+```swift
+let httpStatusCode = response.statusCode
+let apiError = APIError.mapHTTPStatusCode(httpStatusCode)
+
+switch apiError {
+case .unauthorized:
+    // HTTP 401 - переаутентифицировать
+case .sessionConflict:
+    // HTTP 409 - обновить session-id
+default:
+    // Другие коды
+}
+```
+
+#### Маппинг Swift `DecodingError`
+
+```swift
+do {
+    let response = try JSONDecoder().decode(
+        TransmissionResponse.self,
+        from: jsonData
+    )
+} catch let decodingError as DecodingError {
+    // Конвертировать Swift DecodingError в APIError
+    let apiError = APIError.mapDecodingError(decodingError)
+    // Теперь это .decodingFailed с подробным описанием
+    throw apiError
+}
+```
+
+#### Маппинг `URLError`
+
+```swift
+do {
+    let data = try await URLSession.shared.data(from: url).0
+} catch let urlError as URLError {
+    let apiError = APIError.mapURLError(urlError)
+    
+    switch apiError {
+    case .networkUnavailable:
+        showAlert("No network connection")
+    default:
+        showAlert("Network error: \(apiError)")
+    }
 }
 ```
 
