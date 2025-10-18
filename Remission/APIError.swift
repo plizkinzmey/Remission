@@ -77,17 +77,22 @@ extension APIError {
         }
 
         // Check for decoding/parsing errors reported by Transmission
-        if lowerErrorString.contains("invalid json")
+        let containsParsingError: Bool =
+            lowerErrorString.contains("invalid json")
             || lowerErrorString.contains("parse")
             || lowerErrorString.contains("decode")
-        {
+
+        if containsParsingError {
             return .decodingFailed(underlyingError: errorString)
         }
 
         // Check for authentication errors
-        if lowerErrorString.contains("auth") || lowerErrorString.contains("unauthorized")
+        let containsAuthError: Bool =
+            lowerErrorString.contains("auth")
+            || lowerErrorString.contains("unauthorized")
             || lowerErrorString.contains("credential")
-        {
+
+        if containsAuthError {
             return .unauthorized
         }
 

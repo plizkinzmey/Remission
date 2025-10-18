@@ -1,14 +1,14 @@
-Это репозиторий минимального SwiftUI-приложения (macOS/iOS), созданного из шаблона. Цель этих инструкций — быстро ввести в работу AI-агентов, описав структуру проекта, соглашения и полезные команды.
+Это репозиторий клиента Remission для удалённого управления Transmission. Документ помогает AI-агентам быстро разобраться в архитектуре SwiftUI/TCA, принятых соглашениях и обязательных шагах перед коммитами.
 
 - Ключевые факты
 - Язык: Swift (SwiftUI). Проект использует Swift 6 — все изменения должны быть совместимы с Swift 6 и билдиться с соответствующим режимом компилятора.
-- Точка входа приложения: `Remission/Remission/RemissionApp.swift` — `@main` App struct.
-- Основной UI: `Remission/Remission/ContentView.swift` — упрощённый `View`, используемый в `WindowGroup`.
-- Тесты: `Remission/RemissionTests/RemissionTests.swift` и UI-тесты в `Remission/RemissionUITests/`.
+- Точка входа приложения: `Remission/RemissionApp.swift` — `@main` App struct.
+- Основной UI: `Remission/ContentView.swift` — корневой `View`, используемый в `WindowGroup`.
+- Тесты: `RemissionTests/RemissionTests.swift` и UI-тесты в `RemissionUITests/`.
 - В репозитории присутствует ` .github/copilot-instructions.md`; также добавлены `.gitignore` и `devdoc/PRD.md`. Этот файл служит главным источником инструкций для AI-агентов.
 
 - Что менять и почему
-- Небольшие изменения интерфейса/фич: редактируйте `ContentView.swift` и добавляйте новые Swift-файлы в папку `Remission/Remission/`.
+- Небольшие изменения интерфейса/фич: редактируйте `ContentView.swift` и добавляйте новые Swift-файлы в папку `Remission/`.
 - Жизненный цикл приложения/конфигурация: редактируйте `RemissionApp.swift` (он отвечает за корневой вид).
 - Тесты размещаются в `RemissionTests/` (unit) и `RemissionUITests/` (UI). В тестах используется модуль `Testing` и атрибут `@Test` (см. `RemissionTests/RemissionTests.swift`).
 - State management: проект использует единую стратегию — The Composable Architecture (TCA). Все feature-модули должны реализовываться через TCA (@ObservableState State, enum Action, Reducer). Не смешивать MVVM и TCA в одном модуле.
@@ -16,21 +16,17 @@
 
 Сборка и тестирование (рабочие сценарии)
 - Открыть в Xcode: двойной клик по `Remission.xcodeproj` и запуск схемы `Remission` в стандартном симуляторе.
-- Сборка и тесты из терминала (xcodebuild / SwiftPM примеры):
+- Сборка и тесты из терминала:
 
 ```bash
 xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14' build
 xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14'
 ```
 
-- Для быстрой компиляции отдельных Swift-файлов можно использовать SwiftPM из корня проекта:
-
-```bash
-swift build
-```
+- Сборка проекта через SwiftPM не поддерживается (проект не оформлен как Swift Package); используйте Xcode или `xcodebuild`.
 
 Особенности и соглашения проекта
-- Проект — минимальный шаблон: представления реализованы как SwiftUI `struct` (см. `ContentView.swift`). Вью очень компактны — предпочитайте создавать маленькие переиспользуемые `View`-компоненты в `Remission/Remission/`.
+- Приложение использует модульную структуру поверх SwiftUI `struct`. Старайтесь выносить повторно используемые компоненты в отдельные `View` в `Remission/`, чтобы поддерживать читаемость.
 - Превью и быстрая итерация: используйте SwiftUI Preview (Preview area в `ContentView.swift`) для локальной проверки визуальных изменений.
 - Тесты используют внешний модуль `Testing` и `@Test`. Добавляйте тесты в том же стиле.
 
@@ -51,8 +47,8 @@ swift build
   Вывод должен показать, что swift-format и swiftlint пройдены ✅
 
 Конкретные примеры
-- Поменять стартовый экран: редактируйте `Remission/Remission/RemissionApp.swift` — сейчас в `WindowGroup` возвращается `ContentView()`.
-- Добавить новый компонент: создайте `Remission/Remission/MyFeatureView.swift`:
+- Поменять стартовый экран: редактируйте `Remission/RemissionApp.swift` — сейчас в `WindowGroup` возвращается `ContentView()`.
+- Добавить новый компонент: создайте `Remission/MyFeatureView.swift`:
 
 ```swift
 struct MyFeatureView: View {
@@ -61,10 +57,10 @@ struct MyFeatureView: View {
 ```
 
 и подключите его в `RemissionApp` или в навигации.
-- Добавить unit-тест: создайте файл в `Remission/RemissionTests/` и следуйте примеру в `RemissionTests/RemissionTests.swift`.
+- Добавить unit-тест: создайте файл в `RemissionTests/` и следуйте примеру в `RemissionTests/RemissionTests.swift`.
 
 - Интеграции и внешние зависимости
-- В репозитории нет настроенных внешних пакетов (минимальный шаблон). Все новые модули и зависимости следует подключать через Swift Package Manager (SPM). Рекомендуется создать локальные Swift Packages для крупных модулей (например, `Features/TorrentList`, `Services/TransmissionClient`, `Shared/Models`).
+- Внешние зависимости подключаются через Swift Package Manager. При добавлении новых пакетов фиксируйте изменения в PR и отражайте обновлённую структуру в `devdoc/plan.md`. Для крупных модулей рассматривайте вынос в локальные Swift Packages (`Features/TorrentList`, `Services/TransmissionClient`, `Shared/Models`).
 
 - Библиотека TCA: добавьте зависимость `https://github.com/pointfreeco/swift-composable-architecture` через SPM и используйте её как стандарт для state-management. Все feature-модули должны реализовываться как TCA reducers с @ObservableState, Action enum и Reducer body.
 

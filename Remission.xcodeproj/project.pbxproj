@@ -27,6 +27,7 @@
 		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = file; path = Remission.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -69,6 +70,7 @@
 		15AA8C322EA1C9360025EF81 = {
 			isa = PBXGroup;
 			children = (
+				15D03AFF2EA3B62200044487 /* Remission.xctestplan */,
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 				15AA8C4B2EA1C9370025EF81 /* RemissionTests */,
 				15AA8C552EA1C9370025EF81 /* RemissionUITests */,
@@ -236,6 +238,8 @@
 				"else",
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
 				"fi",
+				"",
+				"",
 				"",
 				"",
 				"",

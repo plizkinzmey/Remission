@@ -85,6 +85,7 @@ CI pipeline автоматически запускает проверки пр�
   - Проверка: `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`
 - **SwiftLint** (версия 0.61.0+): конфигурация в `.swiftlint.yml`, интегрирован в Xcode build phase
   - Локально: `swiftlint lint` для проверки, `swiftlint --fix` для автоисправлений
+  - Нюанс: правило `opening_brace` конфликтует с длинными условиями после `swift-format`; читайте раздел «Совместимость со swift-format» в `devdoc/SWIFTLINT.md`
   - На Apple Silicon (M1/M2/M3): скрипт автоматически добавляет `/opt/homebrew/bin` в PATH
   - Полная документация: `devdoc/SWIFTLINT.md`
 - **Pre-commit hooks**: используйте `bash Scripts/prepare-hooks.sh` для установки git hook'а, который автоматически проверяет код перед коммитом. Hook запускает swift-format lint --strict и SwiftLint.

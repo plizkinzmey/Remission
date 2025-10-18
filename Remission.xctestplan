@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "7A57B33A-773B-4D4E-9422-8BC743622ADD",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Remission.xcodeproj",
+      "identifier" : "15AA8C3A2EA1C9360025EF81",
+      "name" : "Remission"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Remission.xcodeproj",
+        "identifier" : "15AA8C472EA1C9370025EF81",
+        "name" : "RemissionTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Remission.xcodeproj",
+        "identifier" : "15AA8C512EA1C9370025EF81",
+        "name" : "RemissionUITests"
+      }
+    }
+  ],
+  "version" : 1
+}
