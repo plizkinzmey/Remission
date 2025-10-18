@@ -79,25 +79,32 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         urlRequest.httpBody = jsonData
 
+        // Логируем запрос если логирование включено
+        if config.enableLogging {
+            config.logger.logRequest(method: method, request: urlRequest)
+        }
+
         // Отправляем запрос с retry логикой
-        return try await sendRequestWithRetry(urlRequest)
+        return try await sendRequestWithRetry(urlRequest, method: method)
     }
 
     /// Отправить запрос с поддержкой HTTP 409 handshake и повторов.
     ///
     /// - Parameters:
     ///   - urlRequest: URLRequest для отправки.
+    ///   - method: Имя RPC метода (для логирования).
     ///
     /// - Returns: TransmissionResponse.
     /// - Throws: APIError при ошибках.
     private func sendRequestWithRetry(
-        _ urlRequest: URLRequest
+        _ urlRequest: URLRequest,
+        method: String
     ) async throws -> TransmissionResponse {
         var mutableRequest: URLRequest = urlRequest
-        var attempt: Int = 0
-        let maxAttempts: Int = config.maxRetries
+        var remainingRetries: Int = max(config.maxRetries, 0)
+        var handshakeAttempts: Int = 0
 
-        while attempt < maxAttempts {
+        while true {
             do {
                 let (data, response): (Data, URLResponse) = try await session.data(
                     for: mutableRequest)
@@ -106,38 +113,55 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     data: data,
                     response: response,
                     request: &mutableRequest,
-                    attempt: &attempt
+                    handshakeAttempts: &handshakeAttempts,
+                    method: method
                 ) {
                     return transmissionResponse
                 }
             } catch let urlError as URLError {
-                if try await shouldContinue(
-                    after: urlError,
-                    attempt: &attempt,
-                    maxAttempts: maxAttempts
-                ) {
+                if config.enableLogging {
+                    config.logger.logError(method: method, error: urlError)
+                }
+                if remainingRetries > 0, shouldRetry(urlError) {
+                    remainingRetries -= 1
+                    try await Task.sleep(nanoseconds: UInt64(config.retryDelay * 1_000_000_000))
                     continue
                 }
                 throw APIError.mapURLError(urlError)
             } catch let apiError as APIError {
+                if config.enableLogging {
+                    config.logger.logError(method: method, error: apiError)
+                }
                 throw apiError
             } catch {
+                if config.enableLogging {
+                    config.logger.logError(method: method, error: error)
+                }
                 throw APIError.unknown(details: error.localizedDescription)
             }
         }
-
-        throw APIError.networkUnavailable
     }
 
     private func handleResponse(
         data: Data,
         response: URLResponse,
         request: inout URLRequest,
-        attempt: inout Int
+        handshakeAttempts: inout Int,
+        method: String
     ) throws -> TransmissionResponse? {
         let httpResponse: HTTPURLResponse = try requireHTTPResponse(response)
 
-        if try processSessionConflictIfNeeded(httpResponse, request: &request, attempt: &attempt) {
+        // Логируем ответ если логирование включено
+        if config.enableLogging {
+            config.logger.logResponse(
+                method: method, statusCode: httpResponse.statusCode, responseBody: data)
+        }
+
+        if try processSessionConflictIfNeeded(
+            httpResponse,
+            request: &request,
+            handshakeAttempts: &handshakeAttempts
+        ) {
             return nil
         }
 
@@ -162,10 +186,15 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private func processSessionConflictIfNeeded(
         _ httpResponse: HTTPURLResponse,
         request: inout URLRequest,
-        attempt: inout Int
+        handshakeAttempts: inout Int
     ) throws -> Bool {
         guard httpResponse.statusCode == 409 else {
             return false
+        }
+
+        handshakeAttempts += 1
+        guard handshakeAttempts <= 2 else {
+            throw APIError.sessionConflict
         }
 
         guard
@@ -177,7 +206,6 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         setSessionID(sessionIDFromHeader)
         request.setValue(sessionIDFromHeader, forHTTPHeaderField: "X-Transmission-Session-Id")
-        attempt += 1
         return true
     }
 
@@ -201,20 +229,6 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         } catch {
             throw APIError.unknown(details: error.localizedDescription)
         }
-    }
-
-    private func shouldContinue(
-        after urlError: URLError,
-        attempt: inout Int,
-        maxAttempts: Int
-    ) async throws -> Bool {
-        attempt += 1
-        guard attempt < maxAttempts, shouldRetry(urlError) else {
-            return false
-        }
-
-        try await Task.sleep(nanoseconds: UInt64(config.retryDelay * 1_000_000_000))
-        return true
     }
 
     /// Получить текущий session ID (потокобезопасно).

@@ -24,6 +24,10 @@ public struct TransmissionClientConfig: Sendable {
     /// Логировать ли запросы/ответы (с маскировкой чувствительных данных).
     public var enableLogging: Bool
 
+    /// Логгер для вывода логов запросов/ответов.
+    /// По умолчанию используется NoOpTransmissionLogger (ничего не логирует).
+    public var logger: TransmissionLogger
+
     /// Инициализация конфигурации с основными параметрами.
     /// - Parameters:
     ///   - baseURL: URL сервера (например, "http://localhost:9091/transmission/rpc").
@@ -33,6 +37,7 @@ public struct TransmissionClientConfig: Sendable {
     ///   - maxRetries: Максимум повторов (по умолчанию 3).
     ///   - retryDelay: Интервал между повторами в секундах (по умолчанию 1).
     ///   - enableLogging: Включить логирование (по умолчанию false).
+    ///   - logger: Логгер для вывода логов (по умолчанию NoOpTransmissionLogger).
     public init(
         baseURL: URL,
         username: String? = nil,
@@ -40,7 +45,8 @@ public struct TransmissionClientConfig: Sendable {
         requestTimeout: TimeInterval = 30,
         maxRetries: Int = 3,
         retryDelay: TimeInterval = 1,
-        enableLogging: Bool = false
+        enableLogging: Bool = false,
+        logger: TransmissionLogger = NoOpTransmissionLogger.shared
     ) {
         self.baseURL = baseURL
         self.username = username
@@ -49,6 +55,7 @@ public struct TransmissionClientConfig: Sendable {
         self.maxRetries = maxRetries
         self.retryDelay = retryDelay
         self.enableLogging = enableLogging
+        self.logger = logger
     }
 
     /// Маскированная версия конфигурации для логирования (без пароля).

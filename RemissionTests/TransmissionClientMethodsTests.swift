@@ -338,6 +338,45 @@ struct TransmissionClientMethodsTests {
                 == "session-123")
     }
 
+    @Test("session-conflict обрабатывается даже при maxRetries = 0")
+    func testSessionConflictRetryWithoutAdditionalRetries() async throws {
+        let sessionResponse = TransmissionResponse(result: "success")
+
+        MockURLProtocol.setHandlers([
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-456"]
+                )!
+                return (response, Data())
+            },
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                let data = try JSONEncoder().encode(sessionResponse)
+                return (response, data)
+            }
+        ])
+
+        let config = TransmissionClientConfig(
+            baseURL: baseURL,
+            maxRetries: 0
+        )
+        let client = makeClient(config: config)
+        let response = try await client.sessionStats()
+        #expect(response == sessionResponse)
+        #expect(MockURLProtocol.requests.count == 2)
+        #expect(
+            MockURLProtocol.requests[1].value(forHTTPHeaderField: "X-Transmission-Session-Id")
+                == "session-456")
+    }
+
     @Test("ограничивает ретраи для не повторяемых URLError")
     func testNonRetryableURLError() async throws {
         MockURLProtocol.setHandlers([
@@ -381,6 +420,10 @@ struct TransmissionClientMethodsTests {
             { _ in
                 attempt += 1
                 throw URLError(.timedOut)
+            },
+            { _ in
+                attempt += 1
+                throw URLError(.timedOut)
             }
         ])
 
@@ -397,7 +440,7 @@ struct TransmissionClientMethodsTests {
             #expect(Bool(false), "Ожидалась ошибка после исчерпания ретраев")
         } catch let error as APIError {
             #expect(error == .networkUnavailable)
-            #expect(attempt == 3)
+            #expect(attempt == 4)
         } catch {
             #expect(Bool(false), "Ожидалась APIError, получено \(error)")
         }
