@@ -122,6 +122,8 @@
 
 ### Коды ошибок
 
+**Подробное описание и примеры маппинга** см. в документе — **[`devdoc/MODELS.md`](MODELS.md) - раздел "5. APIError"**.
+
 | Тип | Значение | Действие |
 |-----|---------|---------|
 | **HTTP 409** | Session ID invalid | Кешировать новый `X-Transmission-Session-Id` из заголовка, повторить запрос |
@@ -131,6 +133,377 @@
 | **result: <string>** | Ошибка | Показать `result` как error message (строка, не код) |
 
 ⚠️ **НЕ используйте JSON-RPC коды**: Transmission вернёт строку в `result`, а не числовой код вроде -32602!
+
+## Модели Transmission RPC (DTO и APIError)
+
+В проекте определены четыре основные модели для работы с Transmission RPC:
+
+**📖 Полная документация с примерами**: [`devdoc/MODELS.md`](MODELS.md)
+
+**Краткий обзор**:
+
+| Модель | Назначение | Файл |
+|--------|-----------|------|
+| `TransmissionRequest` | Исходящий RPC запрос (method, arguments, tag) | `Remission/TransmissionRequest.swift` |
+| `TransmissionResponse` | Входящий RPC ответ (result, arguments, tag) + вспомогательные свойства | `Remission/TransmissionResponse.swift` |
+| `AnyCodable` | Type-erasure для гибкого парсинга JSON (null, bool, int, double, string, array, object) | `Remission/AnyCodable.swift` |
+| `TransmissionTag` | Перечисление для тегов запросов (int или string) | `Remission/TransmissionTag.swift` |
+| `APIError` | Перечисление всех ошибок при работе с API (networkUnavailable, unauthorized, sessionConflict, versionUnsupported, decodingFailed, unknown) | `Remission/APIError.swift` |
+
+**Все модели**:
+- ✅ Соответствуют `Codable` протоколу для сериализации/десериализации
+- ✅ Помечены `Sendable` для безопасного использования в async/await контексте
+- ✅ Содержат документирующие комментарии в исходном коде
+
+**Документация включает**:
+- Полные определения типов
+- Практические примеры использования
+- Примеры JSON запросов и ответов
+- Матрицу маппинга ошибок
+- Рекомендации по расширению моделей
+- Best practices и замечания по безопасности
+
+### Коды ошибок
+
+## Модели Transmission RPC (DTO и APIError)
+
+В проекте определены следующие типы для работы с Transmission RPC:
+
+### 1. TransmissionRequest
+
+Представляет исходящий RPC запрос. Структура содержит метод, параметры и опциональный тег для корреляции.
+
+**Определение**:
+```swift
+public struct TransmissionRequest: Codable, Sendable {
+    public let method: String              // Имя метода RPC
+    public let arguments: AnyCodable?      // Параметры метода
+    public let tag: TransmissionTag?       // Опциональный тег для корреляции
+}
+```
+
+**Пример использования**:
+```swift
+// Получить список торрентов
+let request = TransmissionRequest(
+    method: "torrent-get",
+    arguments: AnyCodable.object([
+        "fields": .array([
+            .string("id"),
+            .string("name"),
+            .string("status"),
+            .string("percentDone"),
+            .string("rateDownload"),
+            .string("rateUpload")
+        ]),
+        "ids": .array([.int(1), .int(2)])
+    ]),
+    tag: .int(1)
+)
+
+// Установить лимиты скоростей
+let setLimitsRequest = TransmissionRequest(
+    method: "session-set",
+    arguments: AnyCodable.object([
+        "speed-limit-down": .int(1024),
+        "speed-limit-up": .int(256),
+        "speed-limit-down-enabled": .bool(true),
+        "speed-limit-up-enabled": .bool(true)
+    ]),
+    tag: .int(2)
+)
+```
+
+**JSON после сериализации**:
+```json
+{
+  "method": "torrent-get",
+  "arguments": {
+    "fields": ["id", "name", "status", "percentDone", "rateDownload", "rateUpload"],
+    "ids": [1, 2]
+  },
+  "tag": 1
+}
+```
+
+### 2. TransmissionResponse
+
+Представляет входящий RPC ответ от сервера. Содержит статус результата, данные ответа и тег для корреляции.
+
+**Определение**:
+```swift
+public struct TransmissionResponse: Codable, Sendable {
+    public let result: String         // "success" или сообщение об ошибке
+    public let arguments: AnyCodable? // Данные ответа (структура зависит от метода)
+    public let tag: TransmissionTag?  // Тег для корреляции с запросом
+    
+    // Вспомогательные свойства
+    public var isSuccess: Bool { result == "success" }
+    public var isError: Bool { !isSuccess }
+    public var errorMessage: String? { isError ? result : nil }
+}
+```
+
+**Примеры использования**:
+
+**Успешный ответ** (torrent-get):
+```json
+{
+  "result": "success",
+  "arguments": {
+    "torrents": [
+      {
+        "id": 1,
+        "name": "Ubuntu 22.04 LTS",
+        "status": 4,
+        "percentDone": 0.75,
+        "rateDownload": 2048000,
+        "rateUpload": 512000,
+        "peersConnected": 12
+      },
+      {
+        "id": 2,
+        "name": "Debian 12",
+        "status": 0,
+        "percentDone": 1.0,
+        "rateDownload": 0,
+        "rateUpload": 128000,
+        "peersConnected": 3
+      }
+    ]
+  },
+  "tag": 1
+}
+```
+
+**Ответ об ошибке**:
+```json
+{
+  "result": "too many recent requests",
+  "tag": 1
+}
+```
+
+**Обработка в коде**:
+```swift
+let decoder = JSONDecoder()
+let response = try decoder.decode(TransmissionResponse.self, from: data)
+
+if response.isSuccess {
+    // Обработать успешный ответ
+    if let torrents = response.arguments?.object?["torrents"]?.array {
+        // Распарсить список торрентов
+    }
+} else {
+    // Обработать ошибку
+    let errorMsg = response.errorMessage ?? "Unknown error"
+    throw APIError.mapTransmissionError(errorMsg)
+}
+```
+
+### 3. AnyCodable
+
+Тип-erasure для представления любого JSON-совместимого значения. Используется для гибкого декодирования `arguments` поля, которое может содержать различные структуры данных.
+
+**Определение**:
+```swift
+@frozen
+public enum AnyCodable: Sendable {
+    case null
+    case bool(Bool)
+    case int(Int)
+    case double(Double)
+    case string(String)
+    case array([AnyCodable])
+    case object([String: AnyCodable])
+}
+```
+
+**Примеры использования**:
+
+```swift
+// Создание значений
+let nullValue = AnyCodable.null
+let boolValue = AnyCodable.bool(true)
+let intValue = AnyCodable.int(42)
+let stringValue = AnyCodable.string("example")
+let arrayValue = AnyCodable.array([.int(1), .int(2), .int(3)])
+
+// Создание объекта
+let objectValue = AnyCodable.object([
+    "method": .string("torrent-get"),
+    "arguments": .object([
+        "ids": .array([.int(1), .int(2)])
+    ]),
+    "tag": .int(1)
+])
+
+// Доступ к значениям
+if case .object(let dict) = response.arguments {
+    if case .array(let torrents) = dict["torrents"] {
+        for torrent in torrents {
+            if case .object(let torrentDict) = torrent,
+               case .int(let id) = torrentDict["id"],
+               case .string(let name) = torrentDict["name"] {
+                print("Torrent: \(id) - \(name)")
+            }
+        }
+    }
+}
+```
+
+**Достоинства**:
+- Позволяет парсить JSON без знания точной структуры
+- Поддерживает рекурсивные объекты и массивы
+- Совместим с Swift Codable протоколом
+- Thread-safe (Sendable)
+
+### 4. TransmissionTag
+
+Перечисление, которое представляет тег запроса/ответа. Transmission RPC поддерживает теги как целые числа, так и строки.
+
+**Определение**:
+```swift
+@frozen
+public enum TransmissionTag: Sendable {
+    case int(Int)
+    case string(String)
+}
+```
+
+**Примеры использования**:
+
+```swift
+// Числовой тег
+let numericTag = TransmissionTag.int(1)
+
+// Строковый тег
+let stringTag = TransmissionTag.string("request-123")
+
+// Использование в запросе
+let request = TransmissionRequest(
+    method: "torrent-get",
+    arguments: nil,
+    tag: numericTag
+)
+
+// Соответствие в ответе
+let response = try decoder.decode(TransmissionResponse.self, from: data)
+if case .int(let tagValue) = response.tag {
+    print("Response tag: \(tagValue)")
+}
+```
+
+**Зачем нужно**:
+- Позволяет корреллировать асинхронные запросы с их ответами
+- Поддерживает оба формата тегов, используемые серверами
+- Работает с параллельными запросами
+
+### 5. APIError
+
+Перечисление ошибок для представления всех типов сбоев при работе с Transmission RPC.
+
+**Определение**:
+```swift
+@frozen
+public enum APIError: Error, Equatable {
+    case networkUnavailable                      // Сеть недоступна
+    case unauthorized                             // Auth failed (HTTP 401)
+    case sessionConflict                          // HTTP 409 — нужен новый session-id
+    case versionUnsupported(version: String)     // Версия Transmission < 3.0
+    case decodingFailed(underlyingError: String) // Ошибка парсинга JSON
+    case unknown(details: String)                 // Неизвестная ошибка
+}
+```
+
+**Маппинг ошибок HTTP**:
+
+| HTTP Code | APIError | Действие |
+|-----------|----------|----------|
+| 401 | `unauthorized` | Проверить Basic Auth заголовок, запросить пароль заново |
+| 409 | `sessionConflict` | Кешировать новый `X-Transmission-Session-Id` из заголовка, повторить запрос |
+| 400 | `unknown(details:)` | Проверить формат JSON запроса |
+| Network error | `networkUnavailable` | Проверить соединение, использовать exponential backoff |
+
+**Маппинг ошибок Transmission RPC** (строки в `result` поле):
+
+```swift
+// Версионные ошибки
+if errorString.contains("version") {
+    return .versionUnsupported(version: errorString)
+}
+
+// Auth ошибки
+if errorString.contains("auth") || errorString.contains("unauthorized") {
+    return .unauthorized
+}
+
+// Ошибки декодирования
+if errorString.contains("invalid JSON") || errorString.contains("parse") {
+    return .decodingFailed(underlyingError: errorString)
+}
+
+// Fallback
+return .unknown(details: errorString)
+```
+
+**Примеры использования**:
+
+```swift
+do {
+    let response = try makeRPCCall(request)
+    
+    if response.isError {
+        let error = APIError.mapTransmissionError(response.result)
+        throw error
+    }
+    
+    // Обработать успешный ответ
+} catch APIError.networkUnavailable {
+    showAlert("No network connection. Please check your internet.")
+} catch APIError.unauthorized {
+    showAlert("Authentication failed. Please check your credentials.")
+} catch APIError.sessionConflict {
+    // Система должна автоматически восстановить session и повторить запрос
+    refreshSessionAndRetry()
+} catch APIError.versionUnsupported(let version) {
+    showAlert("Transmission version \(version) is not supported. Please upgrade to 3.0+")
+} catch APIError.decodingFailed(let error) {
+    logger.error("Failed to decode response: \(error)")
+    showAlert("Server returned invalid data")
+} catch APIError.unknown(let details) {
+    logger.error("Unknown error: \(details)")
+    showAlert("An unexpected error occurred")
+}
+```
+
+### Расширение моделей в будущем
+
+**Добавление новых полей**:
+- При появлении новых методов Transmission, добавить соответствующие Codable типы в отдельные файлы (`TorrentPayload.swift`, `SessionPayload.swift` и т.д.)
+- Использовать `AnyCodable` для гибкости при добавлении новых полей
+- Обновить `APIError` при появлении новых типов ошибок
+
+**Версионирование**:
+- При изменении структуры DTO, проверить совместимость с RPC версией (через `session-get`)
+- Использовать `CodingKeys` для маппинга устаревших полей
+- Документировать поддерживаемые версии в комментариях
+
+**Пример добавления нового типа ответа**:
+
+```swift
+/// Расширение: поддержка torrent-verify status
+public struct TorrentVerifyStatus: Codable, Sendable {
+    public let id: Int
+    public let verifyProgress: Double // 0.0 до 1.0
+}
+
+// Использование в arguments как часть AnyCodable
+let verifyResponse = try decoder.decode(TransmissionResponse.self, from: data)
+if let statusData = verifyResponse.arguments?.object?["status"] {
+    // Парсить статус проверки
+}
+```
 
 ### Edge Cases и требования
 
