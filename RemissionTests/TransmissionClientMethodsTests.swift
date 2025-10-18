@@ -423,6 +423,78 @@ struct TransmissionClientMethodsTests {
                 == "session-456")
     }
 
+    @Test("session-conflict без заголовка session-id приводит к ошибке")
+    func testSessionConflictMissingHeader() async throws {
+        MockURLProtocol.setHandlers([
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: [:]
+                )!
+                return (response, Data())
+            }
+        ])
+
+        let client = makeClient()
+
+        do {
+            _ = try await client.sessionGet()
+            #expect(Bool(false), "Ожидалась APIError.sessionConflict при отсутствии заголовка")
+        } catch let error as APIError {
+            #expect(error == .sessionConflict)
+            #expect(MockURLProtocol.requests.count == 1)
+        } catch {
+            #expect(Bool(false), "Ожидалась APIError.sessionConflict, получено \(error)")
+        }
+    }
+
+    @Test("ограничивает количество handshake ретраев при повторных 409")
+    func testSessionConflictHandshakeLimit() async throws {
+        MockURLProtocol.setHandlers([
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-1"]
+                )!
+                return (response, Data())
+            },
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-2"]
+                )!
+                return (response, Data())
+            },
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-3"]
+                )!
+                return (response, Data())
+            }
+        ])
+
+        let client = makeClient()
+
+        do {
+            _ = try await client.sessionStats()
+            #expect(Bool(false), "Ожидалась APIError.sessionConflict после двух ретраев")
+        } catch let error as APIError {
+            #expect(error == .sessionConflict)
+            #expect(MockURLProtocol.requests.count == 3)
+        } catch {
+            #expect(Bool(false), "Ожидалась APIError.sessionConflict, получено \(error)")
+        }
+    }
+
     @Test("ограничивает ретраи для не повторяемых URLError")
     func testNonRetryableURLError() async throws {
         MockURLProtocol.setHandlers([
