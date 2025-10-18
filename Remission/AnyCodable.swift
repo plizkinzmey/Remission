@@ -121,3 +121,87 @@ extension AnyCodable: Hashable {
         }
     }
 }
+
+// MARK: - Convenience Accessors
+
+extension AnyCodable {
+    /// Returns the string value if this is a `.string` case, otherwise nil.
+    ///
+    /// Example:
+    /// ```swift
+    /// if let name = anyCodable.stringValue {
+    ///     print("Name: \(name)")
+    /// }
+    /// ```
+    nonisolated public var stringValue: String? {
+        if case .string(let value) = self {
+            return value
+        }
+        return nil
+    }
+
+    /// Returns the integer value if this is an `.int` case, otherwise nil.
+    ///
+    /// Example:
+    /// ```swift
+    /// if let id = anyCodable.intValue {
+    ///     print("ID: \(id)")
+    /// }
+    /// ```
+    nonisolated public var intValue: Int? {
+        if case .int(let value) = self {
+            return value
+        }
+        return nil
+    }
+
+    /// Returns the double value if this is a `.double` case, otherwise nil.
+    nonisolated public var doubleValue: Double? {
+        if case .double(let value) = self {
+            return value
+        }
+        return nil
+    }
+
+    /// Returns the boolean value if this is a `.bool` case, otherwise nil.
+    nonisolated public var boolValue: Bool? {
+        if case .bool(let value) = self {
+            return value
+        }
+        return nil
+    }
+
+    /// Returns the array value if this is an `.array` case, otherwise nil.
+    ///
+    /// Example:
+    /// ```swift
+    /// if let items = anyCodable.arrayValue {
+    ///     for item in items {
+    ///         print(item)
+    ///     }
+    /// }
+    /// ```
+    nonisolated public var arrayValue: [AnyCodable]? {
+        if case .array(let value) = self {
+            return value
+        }
+        return nil
+    }
+
+    /// Returns the object (dictionary) value if this is an `.object` case, otherwise nil.
+    ///
+    /// Example:
+    /// ```swift
+    /// if let dict = anyCodable.objectValue {
+    ///     if let name = dict["name"]?.stringValue {
+    ///         print("Name: \(name)")
+    ///     }
+    /// }
+    /// ```
+    nonisolated public var objectValue: [String: AnyCodable]? {
+        if case .object(let value) = self {
+            return value
+        }
+        return nil
+    }
+}
