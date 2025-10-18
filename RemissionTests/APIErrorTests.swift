@@ -83,6 +83,24 @@ struct APIErrorTests {
         }
     }
 
+    @Test("Maps parsing error strings to decodingFailed")
+    func testParsingErrorStringsMapToDecodingFailed() {
+        let parsingErrors = [
+            "Invalid JSON payload",
+            "Could not parse request body",
+            "Decode failure: unexpected token"
+        ]
+
+        for errorString in parsingErrors {
+            let error = APIError.mapTransmissionError(errorString)
+            if case .decodingFailed(let details) = error {
+                #expect(details == errorString)
+            } else {
+                #expect(Bool(false), "Expected .decodingFailed for '\(errorString)', got \(error)")
+            }
+        }
+    }
+
     @Test("Maps unknown error strings to unknown error")
     func testUnknownErrorStringsMapToUnknown() {
         let unknownError = "Something went wrong with the torrent"
@@ -198,8 +216,8 @@ struct APIErrorTests {
         #expect(error == .networkUnavailable)
     }
 
-    @Test("Maps other URLErrors to unknown error")
-    func testOtherURLErrorsMapsToUnknown() {
+    @Test("Maps additional URLErrors to networkUnavailable")
+    func testAdditionalURLErrorsMapToNetworkUnavailable() {
         let testErrors: [URLError.Code] = [
             .timedOut,
             .cannotFindHost,
@@ -209,11 +227,10 @@ struct APIErrorTests {
         for errorCode in testErrors {
             let urlError = URLError(errorCode)
             let error = APIError.mapURLError(urlError)
-            if case .unknown = error {
-                // Successfully mapped to unknown case
-            } else {
-                #expect(Bool(false), "Expected .unknown for URLError.\(errorCode), got \(error)")
-            }
+            #expect(
+                error == .networkUnavailable,
+                "Expected .networkUnavailable for URLError.\(errorCode), got \(error)"
+            )
         }
     }
 

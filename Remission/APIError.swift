@@ -76,6 +76,14 @@ extension APIError {
             return .versionUnsupported(version: errorString)
         }
 
+        // Check for decoding/parsing errors reported by Transmission
+        if lowerErrorString.contains("invalid json")
+            || lowerErrorString.contains("parse")
+            || lowerErrorString.contains("decode")
+        {
+            return .decodingFailed(underlyingError: errorString)
+        }
+
         // Check for authentication errors
         if lowerErrorString.contains("auth") || lowerErrorString.contains("unauthorized")
             || lowerErrorString.contains("credential")
@@ -133,7 +141,17 @@ extension APIError {
     /// - Returns: An appropriate `APIError` case for the network condition.
     public nonisolated static func mapURLError(_ error: URLError) -> APIError {
         switch error.code {
-        case .notConnectedToInternet, .networkConnectionLost:
+        case .notConnectedToInternet,
+            .networkConnectionLost,
+            .timedOut,
+            .cannotFindHost,
+            .cannotConnectToHost,
+            .dnsLookupFailed,
+            .internationalRoamingOff,
+            .callIsActive,
+            .dataNotAllowed,
+            .secureConnectionFailed,
+            .cannotLoadFromNetwork:
             return .networkUnavailable
 
         default:
