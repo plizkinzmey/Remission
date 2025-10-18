@@ -69,7 +69,7 @@ extension APIError {
     /// - Parameter errorString: The error message returned by Transmission RPC.
     /// - Returns: An `APIError` case matching the error message, or `.unknown` if no specific match is found.
     public nonisolated static func mapTransmissionError(_ errorString: String) -> APIError {
-        let lowerErrorString = errorString.lowercased()
+        let lowerErrorString: String = errorString.lowercased()
 
         // Check for version-related errors
         if lowerErrorString.contains("version") || lowerErrorString.contains("rpc-version") {
