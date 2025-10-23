@@ -3,6 +3,8 @@ import Testing
 
 @testable import Remission
 
+// swiftlint:disable explicit_type_interface
+
 @Suite("TransmissionClientConfig Tests")
 struct TransmissionClientConfigTests {
     @MainActor
@@ -145,16 +147,18 @@ struct TransmissionClientProtocolTests {
             func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
                 throw APIError.unknown(details: "mock")
             }
+
+            func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+                throw APIError.unknown(details: "mock")
+            }
         }
 
-        #expect(true)  // Успешно скомпилировалось и создано
+        #expect(Bool(true))
     }
 
     @Test("Протокол является Sendable")
     func testProtocolIsSendable() throws {
-        // Проверяем, что протокол помечен как Sendable
         let _: any (TransmissionClientProtocol & Sendable)
-        #expect(true)
     }
 }
 
@@ -165,22 +169,19 @@ struct TransmissionClientProtocolTests {
     struct TransmissionClientDependencyKeyTests {
         private struct SuccessStubTransmissionClient: TransmissionClientProtocol {
             func sessionGet() async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func sessionSet(arguments: AnyCodable) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func sessionStats() async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
-            func torrentGet(
-                ids: [Int]?,
-                fields: [String]?
-            ) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+            func torrentGet(ids: [Int]?, fields: [String]?) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentAdd(
@@ -190,51 +191,68 @@ struct TransmissionClientProtocolTests {
                 paused: Bool?,
                 labels: [String]?
             ) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentRemove(
                 ids: [Int],
                 deleteLocalData: Bool?
             ) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentSet(
                 ids: [Int],
                 arguments: AnyCodable
             ) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
             }
 
             func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
-                TransmissionResponse(result: "success")
+                await MainActor.run { TransmissionResponse(result: "success") }
+            }
+
+            func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+                await MainActor.run { (compatible: true, rpcVersion: 17) }
             }
         }
 
+        @MainActor
         @Test("DependencyKey предоставляет default значение")
-        func testDependencyKeyDefaultValue() throws {
-            var deps: DependencyValues = DependencyValues()
-            let client: TransmissionClientProtocol = deps.transmissionClient
-            #expect(client is TransmissionClientProtocol)
+        func testDependencyKeyDefaultValue() async {
+            let deps: DependencyValues = DependencyValues()
+
+            do {
+                _ = try await deps.transmissionClient.sessionGet()
+                Issue.record("Expected default transmission client to be unconfigured")
+            } catch TransmissionClientDependencyError.notConfigured(let name) {
+                #expect(name == "sessionGet")
+            } catch {
+                Issue.record("Unexpected error: \(String(reflecting: error))")
+            }
         }
 
+        @MainActor
         @Test("DependencyKey можно переопределить")
-        func testDependencyKeyCanBeOverridden() throws {
+        func testDependencyKeyCanBeOverridden() async throws {
             var deps: DependencyValues = DependencyValues()
-            deps.transmissionClient = SuccessStubTransmissionClient()
+            deps.transmissionClient = TransmissionClientDependency.live(
+                client: SuccessStubTransmissionClient()
+            )
 
-            let response: TransmissionResponse = try deps.transmissionClient.sessionGet()
+            let response = try await deps.transmissionClient.sessionGet()
             #expect(response.result == "success")
         }
     }
 
 #endif
+
+// swiftlint:enable explicit_type_interface

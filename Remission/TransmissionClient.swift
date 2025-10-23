@@ -1,5 +1,7 @@
 import Foundation
 
+// swiftlint:disable type_body_length
+
 /// Конкретная реализация TransmissionClientProtocol.
 /// Использует URLSession для отправки HTTP запросов к Transmission RPC API.
 /// Обрабатывает аутентификацию (Basic Auth + HTTP 409 session-id handshake),
@@ -268,6 +270,41 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         try await sendRequest(method: "session-stats")
     }
 
+    public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+        let response: TransmissionResponse = try await sessionGet()
+
+        // Парсируем rpc-version из ответа
+        guard let arguments = response.arguments,
+            case .object(let dict) = arguments,
+            let rpcVersionValue = dict["rpc-version"],
+            case .int(let rpcVersion) = rpcVersionValue
+        else {
+            throw APIError.decodingFailed(
+                underlyingError: "Missing or invalid rpc-version in session-get response"
+            )
+        }
+
+        // Минимальная версия: RPC v14 соответствует Transmission 3.0
+        let minimumRpcVersion: Int = 14
+        let isCompatible: Bool = rpcVersion >= minimumRpcVersion
+
+        if config.enableLogging {
+            // Используем logResponse для информационного логирования
+            let message: String =
+                "Server RPC version: \(rpcVersion), compatible: \(isCompatible) (minimum: \(minimumRpcVersion))"
+            let logMessage: Data = Data(message.utf8)
+            config.logger.logResponse(
+                method: "session-get", statusCode: 200, responseBody: logMessage)
+        }
+
+        // Согласно контракту в devdoc/plan.md, при несовместимой версии завершаем рукопожатие ошибкой
+        guard isCompatible else {
+            throw APIError.versionUnsupported(version: "RPC v\(rpcVersion)")
+        }
+
+        return (isCompatible, rpcVersion)
+    }
+
     // MARK: - Torrent Methods
 
     public func torrentGet(ids: [Int]?, fields: [String]?) async throws -> TransmissionResponse {
@@ -387,3 +424,5 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
     }
 }
+
+// swiftlint:enable type_body_length

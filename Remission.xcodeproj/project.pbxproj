@@ -6,6 +6,10 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 15AADFF42EA417C5003711C3 /* ComposableArchitecture */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		15AA8C492EA1C9370025EF81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 		15AA8C382EA1C9360025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */,
 			);
 		};
 		15AA8C452EA1C9370025EF81 /* Frameworks */ = {
@@ -106,6 +111,9 @@
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 			);
 			name = Remission;
+			packageProductDependencies = (
+				15AADFF42EA417C5003711C3 /* ComposableArchitecture */,
+			);
 			productName = Remission;
 			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
 			productType = "com.apple.product-type.application";
@@ -184,6 +192,9 @@
 			);
 			mainGroup = 15AA8C322EA1C9360025EF81;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 15AA8C3C2EA1C9360025EF81 /* Products */;
 			projectDirPath = "";
@@ -238,6 +249,8 @@
 				"else",
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
 				"fi",
+				"",
+				"",
 				"",
 				"",
 				"",
@@ -432,7 +445,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -476,7 +488,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -623,6 +634,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.23.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		15AADFF42EA417C5003711C3 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 15AA8C332EA1C9360025EF81 /* Project object */;
 }

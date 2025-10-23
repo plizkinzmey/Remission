@@ -56,4 +56,11 @@ public protocol TransmissionClientProtocol: Sendable {
 
     /// Проверить целостность торрента (долгая операция).
     func torrentVerify(ids: TorrentIDs) async throws -> ClientResult
+
+    /// Checks server version compatibility with the minimum required Transmission version (3.0+, RPC v14).
+    ///
+    /// - Returns: A tuple containing compatibility status and the RPC version number.
+    /// - Throws: `APIError.versionUnsupported` if server version is below minimum (RPC v14),
+    ///           `APIError.decodingFailed` if unable to parse version information.
+    func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int)
 }
