@@ -139,16 +139,23 @@ enum TorrentDetailTestHelpers {
 
     private static func parserTorrentFields() -> [String: AnyCodable] {
         var fields: [String: AnyCodable] = basicTorrentFields()
+        fields["name"] = .string("Ubuntu")
         fields["percentDone"] = .double(0.75)
         fields["totalSize"] = .int(1_024)
         fields["downloadedEver"] = .int(768)
+        fields["uploadedEver"] = .int(256)
+        fields["eta"] = .int(120)
+        fields["rateDownload"] = .int(500_000)
+        fields["rateUpload"] = .int(100_000)
         fields["uploadRatio"] = .double(1.5)
         fields["downloadLimit"] = .int(1_500)
         fields["uploadLimit"] = .int(750)
+        fields["peersConnected"] = .int(5)
         fields["peersFrom"] = .object([
             "cache": .int(3),
             "tracker": .int(2)
         ])
+        fields["dateAdded"] = .int(123_456)
         fields["files"] = .array(parserFileCodables())
         fields["trackers"] = .array(parserTrackerCodables())
         fields["trackerStats"] = .array(parserTrackerStatCodables())

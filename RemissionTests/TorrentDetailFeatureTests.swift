@@ -219,6 +219,8 @@ struct TorrentDetailFeatureTests {
             trackerStats: []
         )
 
+        let fixedDate = Date(timeIntervalSince1970: 100)
+
         let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
@@ -229,6 +231,7 @@ struct TorrentDetailFeatureTests {
             parser.parse = { _ in snapshot }
             $0.transmissionClient = client
             $0.torrentDetailParser = parser
+            $0.date.now = fixedDate
         }
 
         await store.send(.startTorrent)
@@ -237,16 +240,31 @@ struct TorrentDetailFeatureTests {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), Date())) {
+        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), fixedDate)) {
             $0.isLoading = false
             $0.name = "Updated"
             $0.status = 1
             $0.percentDone = 0.25
+            $0.totalSize = 42
+            $0.downloadedEver = 21
+            $0.eta = 10
+            $0.rateDownload = 100
+            $0.rateUpload = 50
+            $0.uploadRatio = 0.5
             $0.downloadLimit = 200
             $0.downloadLimited = true
             $0.uploadLimit = 100
             $0.uploadLimited = false
             $0.peersConnected = 2
+            $0.downloadDir = "/downloads"
+            $0.dateAdded = 7
+            $0.speedHistory = [
+                SpeedSample(
+                    timestamp: fixedDate,
+                    downloadRate: 100,
+                    uploadRate: 50
+                )
+            ]
         }
     }
 
@@ -291,6 +309,8 @@ struct TorrentDetailFeatureTests {
             trackerStats: []
         )
 
+        let fixedDate = Date(timeIntervalSince1970: 200)
+
         let store = TestStore(
             initialState: {
                 var state = TorrentDetailState(torrentId: 1)
@@ -308,6 +328,7 @@ struct TorrentDetailFeatureTests {
             parser.parse = { _ in snapshot }
             $0.transmissionClient = client
             $0.torrentDetailParser = parser
+            $0.date.now = fixedDate
         }
 
         await store.send(.toggleDownloadLimit(true)) {
@@ -318,10 +339,14 @@ struct TorrentDetailFeatureTests {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), Date())) {
+        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), fixedDate)) {
             $0.isLoading = false
+            $0.name = "Torrent"
             $0.downloadLimit = 512
             $0.downloadLimited = true
+            $0.speedHistory = [
+                SpeedSample(timestamp: fixedDate, downloadRate: 0, uploadRate: 0)
+            ]
         }
     }
 
