@@ -87,6 +87,8 @@ struct TorrentDetailReducer {
         Reduce { state, action in
             @Dependency(\.transmissionClient) var transmissionClient: TransmissionClientDependency
             @Dependency(\.date) var date: DateGenerator
+            @Dependency(\.torrentDetailParser) var torrentDetailParser:
+                TorrentDetailParserDependency
 
             switch action {
             case .loadTorrentDetails:
@@ -120,8 +122,15 @@ struct TorrentDetailReducer {
 
             case .detailsLoaded(let response, let timestamp):
                 state.isLoading = false
-                // Парсируем ответ и обновляем состояние
-                parseAndUpdateState(&state, from: response, now: timestamp)
+                do {
+                    let snapshot: TorrentDetailParsedSnapshot = try torrentDetailParser.parse(
+                        response)
+                    state.apply(snapshot)
+                    state.errorMessage = nil
+                    updateSpeedHistory(state: &state, timestamp: timestamp)
+                } catch {
+                    state.errorMessage = error.localizedDescription
+                }
                 return .none
 
             case .loadingFailed(let message):
@@ -318,187 +327,6 @@ struct TorrentDetailReducer {
 // MARK: - Reducer helpers
 
 extension TorrentDetailReducer {
-    fileprivate func parseAndUpdateState(
-        _ state: inout TorrentDetailState,
-        from response: TransmissionResponse,
-        now: Date
-    ) {
-        guard let torrentDict = extractTorrentDictionary(from: response) else {
-            state.errorMessage = "Ошибка парсирования ответа сервера"
-            return
-        }
-
-        parsePrimaryFields(into: &state, from: torrentDict)
-        parseSpeedAndLimits(into: &state, from: torrentDict)
-        parsePeers(into: &state, from: torrentDict)
-        parseFiles(into: &state, from: torrentDict)
-        parseTrackers(into: &state, from: torrentDict)
-        updateSpeedHistory(state: &state, timestamp: now)
-    }
-
-    fileprivate func extractTorrentDictionary(
-        from response: TransmissionResponse
-    ) -> [String: AnyCodable]? {
-        guard let arguments = response.arguments,
-            case .object(let dict) = arguments,
-            let torrentsData = dict["torrents"],
-            case .array(let torrentsArray) = torrentsData,
-            let torrentObj = torrentsArray.first,
-            case .object(let torrentDict) = torrentObj
-        else {
-            return nil
-        }
-
-        return torrentDict
-    }
-
-    fileprivate func parsePrimaryFields(
-        into state: inout TorrentDetailState,
-        from dict: [String: AnyCodable]
-    ) {
-        if let name = stringValue(for: "name", in: dict) {
-            state.name = name
-        }
-
-        if let status = intValue(for: "status", in: dict) {
-            state.status = status
-        }
-
-        if let percent = dict["percentDone"] {
-            switch percent {
-            case .double(let value):
-                state.percentDone = value
-            case .int(let value):
-                state.percentDone = Double(value) / 100.0
-            default:
-                break
-            }
-        }
-
-        state.totalSize = intValue(for: "totalSize", in: dict) ?? state.totalSize
-        state.downloadedEver = intValue(for: "downloadedEver", in: dict) ?? state.downloadedEver
-        state.uploadedEver = intValue(for: "uploadedEver", in: dict) ?? state.uploadedEver
-        state.eta = intValue(for: "eta", in: dict) ?? state.eta
-        state.downloadDir = stringValue(for: "downloadDir", in: dict) ?? state.downloadDir
-        state.dateAdded = intValue(for: "dateAdded", in: dict) ?? state.dateAdded
-    }
-
-    fileprivate func parseSpeedAndLimits(
-        into state: inout TorrentDetailState,
-        from dict: [String: AnyCodable]
-    ) {
-        state.rateDownload = intValue(for: "rateDownload", in: dict) ?? state.rateDownload
-        state.rateUpload = intValue(for: "rateUpload", in: dict) ?? state.rateUpload
-        state.uploadRatio = doubleValue(for: "uploadRatio", in: dict) ?? state.uploadRatio
-        state.peersConnected = intValue(for: "peersConnected", in: dict) ?? state.peersConnected
-
-        state.downloadLimit = intValue(for: "downloadLimit", in: dict) ?? state.downloadLimit
-        state.downloadLimited = boolValue(for: "downloadLimited", in: dict) ?? state.downloadLimited
-        state.uploadLimit = intValue(for: "uploadLimit", in: dict) ?? state.uploadLimit
-        state.uploadLimited = boolValue(for: "uploadLimited", in: dict) ?? state.uploadLimited
-    }
-
-    fileprivate func parsePeers(
-        into state: inout TorrentDetailState, from dict: [String: AnyCodable]
-    ) {
-        guard let peersValue = dict["peersFrom"], case .object(let peersDict) = peersValue else {
-            state.peersFrom = []
-            return
-        }
-
-        state.peersFrom = peersDict.compactMap { key, value in
-            if case .int(let count) = value {
-                return PeerSource(name: key, count: count)
-            }
-            return nil
-        }
-        .sorted { lhs, rhs in lhs.count > rhs.count }
-    }
-
-    fileprivate func parseFiles(
-        into state: inout TorrentDetailState, from dict: [String: AnyCodable]
-    ) {
-        guard let filesValue = dict["files"], case .array(let filesArray) = filesValue else {
-            state.files = []
-            return
-        }
-
-        state.files = filesArray.enumerated().compactMap { index, fileData in
-            guard case .object(let fileDict) = fileData,
-                let name = stringValue(for: "name", in: fileDict),
-                let length = intValue(for: "length", in: fileDict),
-                let completed = intValue(for: "bytesCompleted", in: fileDict)
-            else {
-                return nil
-            }
-
-            let priority: Int = intValue(for: "priority", in: fileDict) ?? 1
-
-            return TorrentFile(
-                index: index,
-                name: name,
-                length: length,
-                bytesCompleted: completed,
-                priority: priority
-            )
-        }
-    }
-
-    fileprivate func parseTrackers(
-        into state: inout TorrentDetailState, from dict: [String: AnyCodable]
-    ) {
-        state.trackers = trackerList(from: dict)
-        state.trackerStats = trackerStats(from: dict)
-    }
-
-    fileprivate func trackerList(from dict: [String: AnyCodable]) -> [TorrentTracker] {
-        guard let trackersValue = dict["trackers"], case .array(let trackersArray) = trackersValue
-        else {
-            return []
-        }
-
-        return trackersArray.enumerated().compactMap { index, trackerData in
-            guard case .object(let trackerDict) = trackerData,
-                let announce = stringValue(for: "announce", in: trackerDict)
-            else {
-                return nil
-            }
-
-            let tier: Int = intValue(for: "tier", in: trackerDict) ?? 0
-            return TorrentTracker(index: index, announce: announce, tier: tier)
-        }
-    }
-
-    fileprivate func trackerStats(from dict: [String: AnyCodable]) -> [TrackerStat] {
-        guard let statsValue = dict["trackerStats"], case .array(let statsArray) = statsValue else {
-            return []
-        }
-
-        return statsArray.compactMap { statData in
-            guard case .object(let statDict) = statData else {
-                return nil
-            }
-
-            let trackerId: Int =
-                intValue(for: "id", in: statDict)
-                ?? intValue(for: "trackerId", in: statDict)
-                ?? 0
-
-            let announceResult: String = stringValue(for: "lastAnnounceResult", in: statDict) ?? ""
-            let downloadCount: Int = intValue(for: "downloadCount", in: statDict) ?? 0
-            let leecherCount: Int = intValue(for: "leecherCount", in: statDict) ?? 0
-            let seederCount: Int = intValue(for: "seederCount", in: statDict) ?? 0
-
-            return TrackerStat(
-                trackerId: trackerId,
-                lastAnnounceResult: announceResult,
-                downloadCount: downloadCount,
-                leecherCount: leecherCount,
-                seederCount: seederCount
-            )
-        }
-    }
-
     fileprivate func updateSpeedHistory(state: inout TorrentDetailState, timestamp: Date) {
         let sample: SpeedSample = SpeedSample(
             timestamp: timestamp,
@@ -510,40 +338,38 @@ extension TorrentDetailReducer {
             state.speedHistory.removeFirst(state.speedHistory.count - 20)
         }
     }
+}
 
-    fileprivate func intValue(for key: String, in dict: [String: AnyCodable]) -> Int? {
-        guard let value = dict[key] else { return nil }
-        if case .int(let intValue) = value {
-            return intValue
-        }
-        return nil
+extension TorrentDetailState {
+    private mutating func assign<Value>(
+        _ value: Value?, to keyPath: WritableKeyPath<TorrentDetailState, Value>
+    ) {
+        guard let value else { return }
+        self[keyPath: keyPath] = value
     }
 
-    fileprivate func doubleValue(for key: String, in dict: [String: AnyCodable]) -> Double? {
-        guard let value = dict[key] else { return nil }
-        if case .double(let doubleValue) = value {
-            return doubleValue
-        }
-        if case .int(let intValue) = value {
-            return Double(intValue)
-        }
-        return nil
-    }
-
-    fileprivate func boolValue(for key: String, in dict: [String: AnyCodable]) -> Bool? {
-        guard let value = dict[key] else { return nil }
-        if case .bool(let boolValue) = value {
-            return boolValue
-        }
-        return nil
-    }
-
-    fileprivate func stringValue(for key: String, in dict: [String: AnyCodable]) -> String? {
-        guard let value = dict[key] else { return nil }
-        if case .string(let stringValue) = value {
-            return stringValue
-        }
-        return nil
+    fileprivate mutating func apply(_ snapshot: TorrentDetailParsedSnapshot) {
+        assign(snapshot.name, to: \.name)
+        assign(snapshot.status, to: \.status)
+        assign(snapshot.percentDone, to: \.percentDone)
+        assign(snapshot.totalSize, to: \.totalSize)
+        assign(snapshot.downloadedEver, to: \.downloadedEver)
+        assign(snapshot.uploadedEver, to: \.uploadedEver)
+        assign(snapshot.eta, to: \.eta)
+        assign(snapshot.rateDownload, to: \.rateDownload)
+        assign(snapshot.rateUpload, to: \.rateUpload)
+        assign(snapshot.uploadRatio, to: \.uploadRatio)
+        assign(snapshot.downloadLimit, to: \.downloadLimit)
+        assign(snapshot.downloadLimited, to: \.downloadLimited)
+        assign(snapshot.uploadLimit, to: \.uploadLimit)
+        assign(snapshot.uploadLimited, to: \.uploadLimited)
+        assign(snapshot.peersConnected, to: \.peersConnected)
+        assign(snapshot.downloadDir, to: \.downloadDir)
+        assign(snapshot.dateAdded, to: \.dateAdded)
+        self.peersFrom = snapshot.peersFrom
+        self.files = snapshot.files
+        self.trackers = snapshot.trackers
+        self.trackerStats = snapshot.trackerStats
     }
 }
 

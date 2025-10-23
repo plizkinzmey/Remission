@@ -80,6 +80,7 @@ struct TorrentDetailFeatureTests {
             client.torrentGet = { _, _ in response }
             $0.transmissionClient = client
             $0.date.now = fixedDate
+            $0.torrentDetailParser = TorrentDetailTestHelpers.makeParserDependency()
         }
 
         await store.send(.loadTorrentDetails) {
@@ -153,6 +154,7 @@ struct TorrentDetailFeatureTests {
             client.torrentGet = { _, _ in throw APIError.networkUnavailable }
             $0.transmissionClient = client
             $0.date.now = Date(timeIntervalSince1970: 5)
+            $0.torrentDetailParser = TorrentDetailTestHelpers.makeParserDependency()
         }
 
         await store.send(.loadTorrentDetails) {
@@ -167,8 +169,165 @@ struct TorrentDetailFeatureTests {
     }
 
     @Test
+    func detailsLoadedParserFailure() async throws {
+        let response = TransmissionResponse(result: "success")
+        let store = TestStore(
+            initialState: {
+                var state = TorrentDetailState(torrentId: 1)
+                state.isLoading = true
+                return state
+            }()
+        ) {
+            TorrentDetailReducer()
+        } withDependencies: {
+            var parser = TorrentDetailParserDependency.testValue
+            parser.parse = { _ in throw TorrentDetailParserError.missingTorrentData }
+            $0.torrentDetailParser = parser
+        }
+
+        let timestamp = Date(timeIntervalSince1970: 42)
+
+        await store.send(.detailsLoaded(response, timestamp)) {
+            $0.isLoading = false
+            $0.errorMessage = TorrentDetailParserError.missingTorrentData.localizedDescription
+        }
+    }
+
+    @Test
+    func startTorrentSuccess() async throws {
+        let snapshot = TorrentDetailParsedSnapshot(
+            name: "Updated",
+            status: 1,
+            percentDone: 0.25,
+            totalSize: 42,
+            downloadedEver: 21,
+            uploadedEver: 0,
+            eta: 10,
+            rateDownload: 100,
+            rateUpload: 50,
+            uploadRatio: 0.5,
+            downloadLimit: 200,
+            downloadLimited: true,
+            uploadLimit: 100,
+            uploadLimited: false,
+            peersConnected: 2,
+            peersFrom: [],
+            downloadDir: "/downloads",
+            dateAdded: 7,
+            files: [],
+            trackers: [],
+            trackerStats: []
+        )
+
+        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+            TorrentDetailReducer()
+        } withDependencies: {
+            var client = TransmissionClientDependency.testValue
+            client.torrentStart = { _ in TransmissionResponse(result: "success") }
+            client.torrentGet = { _, _ in TransmissionResponse(result: "success") }
+            var parser = TorrentDetailParserDependency.testValue
+            parser.parse = { _ in snapshot }
+            $0.transmissionClient = client
+            $0.torrentDetailParser = parser
+        }
+
+        await store.send(.startTorrent)
+        await store.receive(.actionCompleted("Торрент запущен"))
+        await store.receive(.loadTorrentDetails) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), Date())) {
+            $0.isLoading = false
+            $0.name = "Updated"
+            $0.status = 1
+            $0.percentDone = 0.25
+            $0.downloadLimit = 200
+            $0.downloadLimited = true
+            $0.uploadLimit = 100
+            $0.uploadLimited = false
+            $0.peersConnected = 2
+        }
+    }
+
+    @Test
+    func startTorrentFailure() async throws {
+        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+            TorrentDetailReducer()
+        } withDependencies: {
+            var client = TransmissionClientDependency.testValue
+            client.torrentStart = { _ in throw APIError.networkUnavailable }
+            $0.transmissionClient = client
+            $0.torrentDetailParser = TorrentDetailTestHelpers.makeParserDependency()
+        }
+
+        await store.send(.startTorrent)
+        await store.receive(.actionFailed("Сеть недоступна"))
+    }
+
+    @Test
+    func toggleDownloadLimitSuccess() async throws {
+        let snapshot = TorrentDetailParsedSnapshot(
+            name: "Torrent",
+            status: nil,
+            percentDone: nil,
+            totalSize: nil,
+            downloadedEver: nil,
+            uploadedEver: nil,
+            eta: nil,
+            rateDownload: nil,
+            rateUpload: nil,
+            uploadRatio: nil,
+            downloadLimit: 512,
+            downloadLimited: true,
+            uploadLimit: nil,
+            uploadLimited: nil,
+            peersConnected: nil,
+            peersFrom: [],
+            downloadDir: nil,
+            dateAdded: nil,
+            files: [],
+            trackers: [],
+            trackerStats: []
+        )
+
+        let store = TestStore(
+            initialState: {
+                var state = TorrentDetailState(torrentId: 1)
+                state.downloadLimit = 256
+                state.downloadLimited = false
+                return state
+            }()
+        ) {
+            TorrentDetailReducer()
+        } withDependencies: {
+            var client = TransmissionClientDependency.testValue
+            client.torrentSet = { _, _ in TransmissionResponse(result: "success") }
+            client.torrentGet = { _, _ in TransmissionResponse(result: "success") }
+            var parser = TorrentDetailParserDependency.testValue
+            parser.parse = { _ in snapshot }
+            $0.transmissionClient = client
+            $0.torrentDetailParser = parser
+        }
+
+        await store.send(.toggleDownloadLimit(true)) {
+            $0.downloadLimited = true
+        }
+        await store.receive(.actionCompleted("Настройки скоростей обновлены"))
+        await store.receive(.loadTorrentDetails) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), Date())) {
+            $0.isLoading = false
+            $0.downloadLimit = 512
+            $0.downloadLimited = true
+        }
+    }
+
+    @Test
     func setPriorityUpdatesIndices() async throws {
-        let baseResponse = makeBasicResponse()
+        let baseResponse = TorrentDetailTestHelpers.makeBasicResponse()
         let responseStore = ResponseStore(responses: [baseResponse, baseResponse])
         let argumentStore = ArgumentStore()
 
@@ -190,6 +349,7 @@ struct TorrentDetailFeatureTests {
             }
             $0.transmissionClient = client
             $0.date.now = Date(timeIntervalSince1970: 10)
+            $0.torrentDetailParser = TorrentDetailTestHelpers.makeParserDependency()
         }
 
         await store.send(.loadTorrentDetails) {
@@ -274,94 +434,6 @@ struct TorrentDetailFeatureTests {
         #expect(indices == [1])
     }
 
-    // MARK: - Helpers
-
-    private func makeBasicResponse() -> TransmissionResponse {
-        TransmissionResponse(
-            result: "success",
-            arguments: .object([
-                "torrents": .array([
-                    .object([
-                        "id": .int(1),
-                        "name": .string("Torrent"),
-                        "status": .int(4),
-                        "percentDone": .double(0.5),
-                        "totalSize": .int(300),
-                        "downloadedEver": .int(150),
-                        "uploadedEver": .int(75),
-                        "eta": .int(60),
-                        "rateDownload": .int(100_000),
-                        "rateUpload": .int(50_000),
-                        "uploadRatio": .double(0.5),
-                        "downloadLimit": .int(1000),
-                        "downloadLimited": .bool(true),
-                        "uploadLimit": .int(500),
-                        "uploadLimited": .bool(false),
-                        "peersConnected": .int(3),
-                        "peersFrom": .object(["tracker": .int(3)]),
-                        "downloadDir": .string("/downloads"),
-                        "dateAdded": .int(111),
-                        "files": .array([
-                            .object([
-                                "name": .string("File A"),
-                                "length": .int(100),
-                                "bytesCompleted": .int(50),
-                                "priority": .int(1)
-                            ]),
-                            .object([
-                                "name": .string("File B"),
-                                "length": .int(200),
-                                "bytesCompleted": .int(200),
-                                "priority": .int(1)
-                            ])
-                        ]),
-                        "trackers": .array([
-                            .object([
-                                "announce": .string("https://tracker/announce"),
-                                "tier": .int(0)
-                            ])
-                        ]),
-                        "trackerStats": .array([
-                            .object([
-                                "id": .int(0),
-                                "lastAnnounceResult": .string("ok"),
-                                "downloadCount": .int(1),
-                                "leecherCount": .int(1),
-                                "seederCount": .int(2)
-                            ])
-                        ])
-                    ])
-                ])
-            ])
-        )
-    }
-}
-
-// MARK: - Test Transmission Client
-
-private actor ResponseStore {
-    private var responses: [TransmissionResponse]
-
-    init(responses: [TransmissionResponse]) {
-        self.responses = responses
-    }
-
-    func next() -> TransmissionResponse? {
-        guard responses.isEmpty == false else { return nil }
-        return responses.removeFirst()
-    }
-}
-
-private actor ArgumentStore {
-    private var argument: AnyCodable?
-
-    func store(_ value: AnyCodable) {
-        argument = value
-    }
-
-    func current() -> AnyCodable? {
-        argument
-    }
 }
 
 // swiftlint:enable explicit_type_interface function_body_length type_body_length
