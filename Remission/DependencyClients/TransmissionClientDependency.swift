@@ -1,7 +1,8 @@
 #if canImport(ComposableArchitecture)
     import ComposableArchitecture
+    import Dependencies
+    import DependenciesMacros  // макрос @DependencyClient требует отдельного модуля
     import Foundation
-    import XCTestDynamicOverlay
 
     @DependencyClient
     struct TransmissionClientDependency: Sendable {
@@ -26,11 +27,16 @@
     }
 
     extension TransmissionClientDependency {
-        fileprivate static let placeholder: Self = Self(
-            sessionGet: { throw TransmissionClientDependencyError.notConfigured("sessionGet") },
-            sessionSet: { _ in throw TransmissionClientDependencyError.notConfigured("sessionSet")
+        static let placeholder: Self = Self(
+            sessionGet: {
+                throw TransmissionClientDependencyError.notConfigured("sessionGet")
             },
-            sessionStats: { throw TransmissionClientDependencyError.notConfigured("sessionStats") },
+            sessionSet: { _ in
+                throw TransmissionClientDependencyError.notConfigured("sessionSet")
+            },
+            sessionStats: {
+                throw TransmissionClientDependencyError.notConfigured("sessionStats")
+            },
             torrentGet: { _, _ in
                 throw TransmissionClientDependencyError.notConfigured("torrentGet")
             },
@@ -40,7 +46,8 @@
             torrentStart: { _ in
                 throw TransmissionClientDependencyError.notConfigured("torrentStart")
             },
-            torrentStop: { _ in throw TransmissionClientDependencyError.notConfigured("torrentStop")
+            torrentStop: { _ in
+                throw TransmissionClientDependencyError.notConfigured("torrentStop")
             },
             torrentRemove: { _, _ in
                 throw TransmissionClientDependencyError.notConfigured("torrentRemove")
@@ -69,40 +76,9 @@
         }
     }
 
-    extension TransmissionClientDependency: DependencyKey {
-        static let liveValue: Self = placeholder
+    extension TransmissionClientDependency: TestDependencyKey {
         static let testValue: Self = placeholder
-    }
-
-    extension TransmissionClientDependency {
-        static func live(client: TransmissionClientProtocol) -> Self {
-            Self(
-                sessionGet: { try await client.sessionGet() },
-                sessionSet: { arguments in try await client.sessionSet(arguments: arguments) },
-                sessionStats: { try await client.sessionStats() },
-                torrentGet: { ids, fields in try await client.torrentGet(ids: ids, fields: fields)
-                },
-                torrentAdd: { filename, metainfo, downloadDir, paused, labels in
-                    try await client.torrentAdd(
-                        filename: filename,
-                        metainfo: metainfo,
-                        downloadDir: downloadDir,
-                        paused: paused,
-                        labels: labels
-                    )
-                },
-                torrentStart: { ids in try await client.torrentStart(ids: ids) },
-                torrentStop: { ids in try await client.torrentStop(ids: ids) },
-                torrentRemove: { ids, deleteLocalData in
-                    try await client.torrentRemove(ids: ids, deleteLocalData: deleteLocalData)
-                },
-                torrentSet: { ids, arguments in
-                    try await client.torrentSet(ids: ids, arguments: arguments)
-                },
-                torrentVerify: { ids in try await client.torrentVerify(ids: ids) },
-                checkServerVersion: { try await client.checkServerVersion() }
-            )
-        }
+        static let previewValue: Self = placeholder
     }
 
     extension DependencyValues {

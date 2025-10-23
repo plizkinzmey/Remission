@@ -135,6 +135,10 @@ Remission/
 ├── Remission/              # Основное приложение (SwiftUI)
 │   ├── RemissionApp.swift  # @main App struct
 │   ├── ContentView.swift   # Главное окно
+│   ├── DependencyClients/  # Определения @DependencyClient и тестовые значения
+│   │   └── TransmissionClientDependency.swift
+│   ├── DependencyClientLive/  # Live-реализации зависимостей
+│   │   └── TransmissionClientDependency+Live.swift
 │   └── Assets.xcassets/    # Ресурсы (иконки, цвета и т.д.)
 ├── RemissionTests/         # Unit-тесты
 ├── RemissionUITests/       # UI-тесты
