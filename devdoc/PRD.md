@@ -30,6 +30,38 @@ Remission — кроссплатформенное клиентское прил
    - Проверка соединения и отображение статуса (online/offline).
    - Опция сохранения учётных данных в Keychain.
 
+### Поток рукопожатия Transmission RPC
+
+**Цель:** гарантировать, что клиент корректно прошёл HTTP 409 session-id handshake, проверил версию RPC и вывел понятную обратную связь пользователю.
+
+1. **Первичный запрос:** клиент отправляет POST на `/transmission/rpc` без `X-Transmission-Session-Id`.
+2. **HTTP 409 + session-id:** сервер отвечает `409 Conflict` и добавляет заголовок `X-Transmission-Session-Id: <uuid>`. Клиент кэширует значение, привязывая его к `(host, port, proto)` активного сервера. Session-id хранится только в памяти (либо в Keychain с уникальным ключом) и сбрасывается при перезапуске приложения.
+3. **Повтор с session-id:** клиент повторяет изначальный запрос, добавляя заголовок `X-Transmission-Session-Id`. В Remission допускается максимум **2 попытки** на получение session-id; дальнейшие 409 считаем ошибкой `APIError.sessionConflict`.
+4. **Проверка версии:** после успешного запроса выполняем `session-get` и читаем поля `rpc-version`, `rpc-version-minimum`, `version` для проверки совместимости. Минимально поддерживаемый RPC — **v14 (Transmission 3.0)**; при `rpc-version < 14` выводим ошибку `Версия Transmission не поддерживается` и прекращаем подключение.[^transmission-session]
+5. **Фиксация handshake:** при успешной проверке сохраняем session-id в клиенте и продолжаем работу (polling, действия). При переключении на другой сервер session-id не переиспользуется.
+
+#### Ветки сценария
+- **Успех:** после `session-get` статусы UI обновляются на `Online`, скрываем ошибки, сохраняем server profile.
+- **HTTP 409 (повторный):** если после повторного запроса снова получаем 409 или отсутствует заголовок, показываем пользователю понятное сообщение «Не удалось завершить рукопожатие. Попробуйте снова» и кнопку Retry, логируем событие в локальный лог.
+- **Несовместимая версия:** отображаем блок с заголовком «Требуется Transmission 3.0+», подзаголовок с обнаруженной версией (например, `2.94`) и ссылку «Подробнее» на документацию. Предлагаем действие `Закрыть` и `Обновить Transmission`.
+- **HTTP 401:** сообщаем «Неверный логин или пароль», предоставляем `Повторить` и `Изменить учётные данные`.
+- **Сетевая ошибка:** выводим «Не удалось подключиться» + техническое сообщение из `APIError`, предлагаем повтор.
+
+#### UI/UX ожидания
+- Экран подключения показывает прогресс-бар/индикатор во время handshake. На повторных попытках индикатор перезапускается.
+- Ошибки рукопожатия отображаются через TCA `@Presents var alert` или `sheet` в соответствии с дизайном; используем `.alert($store.scope(state: \.alert, action: \.alert))` для унифицированного UX и тестируем через `TestStore`.[^tca-alert]
+- Все сообщения локализуются (RU/EN). Настройки Retry/Cancel доступны с VoiceOver.
+- Логирование: фиксируем HTTP статус, отсутствие заголовка и число попыток без записи session-id или credentials.
+
+#### Повторное подключение и сброс
+- При смене сервера или явном `Log out` session-id очищается.
+- При `APIError.sessionConflict` во время фонового polling выполняем повтор запроса с новым session-id без отображения алерта, пока не исчерпан лимит попыток; по истечении лимита выводим пользователю предупреждение.
+
+Ссылки на реализацию: `TransmissionClient` (`sendRequestWithRetry`, `processSessionConflictIfNeeded`), `TransmissionClientVersionCheckTests`.
+
+[^transmission-session]: [Transmission RPC session fields](https://transmission-rpc.readthedocs.io/en/v7.0.11/session) — описывает `rpc_version`, `rpc_version_minimum` и `version`, используемые для проверки совместимости.
+[^tca-alert]: [TCA migration guide — alert API](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/MigrationGuides/MigratingTo1.7.md) — пример использования `.alert($store.scope(state: \.alert, action: \.alert))`.
+
 2. Список торрентов
    - Отображение списка торрентов с полями: id, name, status, progress (%), downloadRate, uploadRate, peers.
    - Сортировка и фильтрация (по статусу, по имени, по прогрессу).

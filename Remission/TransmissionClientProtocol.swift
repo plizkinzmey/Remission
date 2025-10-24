@@ -1,5 +1,28 @@
 import Foundation
 
+/// Результат рукопожатия Transmission RPC, содержащий метаданные соединения.
+public struct TransmissionHandshakeResult: Equatable, Sendable {
+    public let sessionID: String?
+    public let rpcVersion: Int
+    public let minimumSupportedRpcVersion: Int
+    public let serverVersionDescription: String?
+    public let isCompatible: Bool
+
+    public init(
+        sessionID: String?,
+        rpcVersion: Int,
+        minimumSupportedRpcVersion: Int,
+        serverVersionDescription: String?,
+        isCompatible: Bool
+    ) {
+        self.sessionID = sessionID
+        self.rpcVersion = rpcVersion
+        self.minimumSupportedRpcVersion = minimumSupportedRpcVersion
+        self.serverVersionDescription = serverVersionDescription
+        self.isCompatible = isCompatible
+    }
+}
+
 /// Протокол для клиента взаимодействия с Transmission RPC API.
 /// Определяет контракт для всех методов, необходимых MVP (session-get, torrent-get/add/start/stop/remove).
 /// Конкретную реализацию с URLSession подключают через DI.
@@ -63,4 +86,12 @@ public protocol TransmissionClientProtocol: Sendable {
     /// - Throws: `APIError.versionUnsupported` if server version is below minimum (RPC v14),
     ///           `APIError.decodingFailed` if unable to parse version information.
     func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int)
+
+    /// Выполняет полное рукопожатие с сервером Transmission:
+    /// получает session-id (при необходимости) и проверяет совместимость версии.
+    ///
+    /// - Returns: `TransmissionHandshakeResult` с подробной информацией.
+    /// - Throws: `APIError.sessionConflict`, `APIError.versionUnsupported`,
+    ///           `APIError.decodingFailed` и другие ошибки сетевого слоя.
+    func performHandshake() async throws -> TransmissionHandshakeResult
 }

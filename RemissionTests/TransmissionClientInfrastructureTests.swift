@@ -151,6 +151,10 @@ struct TransmissionClientProtocolTests {
             func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
                 throw APIError.unknown(details: "mock")
             }
+
+            func performHandshake() async throws -> TransmissionHandshakeResult {
+                throw APIError.unknown(details: "mock")
+            }
         }
 
         #expect(Bool(true))
@@ -222,6 +226,18 @@ struct TransmissionClientProtocolTests {
 
             func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
                 await MainActor.run { (compatible: true, rpcVersion: 17) }
+            }
+
+            func performHandshake() async throws -> TransmissionHandshakeResult {
+                await MainActor.run {
+                    TransmissionHandshakeResult(
+                        sessionID: "session-success",
+                        rpcVersion: 17,
+                        minimumSupportedRpcVersion: 14,
+                        serverVersionDescription: "4.0.0",
+                        isCompatible: true
+                    )
+                }
             }
         }
 

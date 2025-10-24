@@ -7,6 +7,9 @@ import Foundation
 /// Обрабатывает аутентификацию (Basic Auth + HTTP 409 session-id handshake),
 /// парсирование ответов и ошибки согласно Transmission RPC специфике (не JSON-RPC 2.0).
 public final class TransmissionClient: TransmissionClientProtocol, Sendable {
+    /// Минимально поддерживаемая версия RPC (Transmission 3.0 соответствует 14).
+    private let minimumRpcVersion: Int = 14
+
     /// Конфигурация клиента (базовый URL, credentials, таймауты).
     private let config: TransmissionClientConfig
 
@@ -256,6 +259,43 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         self._sessionID = sessionID
     }
 
+    private func parseHandshake(from response: TransmissionResponse) throws
+        -> TransmissionHandshakeResult
+    {
+        guard let arguments = response.arguments,
+            case .object(let dict) = arguments
+        else {
+            throw APIError.decodingFailed(
+                underlyingError: "Missing arguments in session-get response"
+            )
+        }
+
+        guard let rpcVersionValue = dict["rpc-version"],
+            case .int(let rpcVersion) = rpcVersionValue
+        else {
+            throw APIError.decodingFailed(
+                underlyingError: "Missing or invalid rpc-version in session-get response"
+            )
+        }
+
+        let serverVersionString: String?
+        if let versionValue = dict["version"],
+            case .string(let value) = versionValue
+        {
+            serverVersionString = value
+        } else {
+            serverVersionString = nil
+        }
+
+        return TransmissionHandshakeResult(
+            sessionID: getSessionID(),
+            rpcVersion: rpcVersion,
+            minimumSupportedRpcVersion: minimumRpcVersion,
+            serverVersionDescription: serverVersionString,
+            isCompatible: rpcVersion >= minimumRpcVersion
+        )
+    }
+
     // MARK: - Session Methods
 
     public func sessionGet() async throws -> TransmissionResponse {
@@ -271,38 +311,34 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     }
 
     public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+        let handshake: TransmissionHandshakeResult = try await performHandshake()
+        return (handshake.isCompatible, handshake.rpcVersion)
+    }
+
+    public func performHandshake() async throws -> TransmissionHandshakeResult {
         let response: TransmissionResponse = try await sessionGet()
-
-        // Парсируем rpc-version из ответа
-        guard let arguments = response.arguments,
-            case .object(let dict) = arguments,
-            let rpcVersionValue = dict["rpc-version"],
-            case .int(let rpcVersion) = rpcVersionValue
-        else {
-            throw APIError.decodingFailed(
-                underlyingError: "Missing or invalid rpc-version in session-get response"
-            )
-        }
-
-        // Минимальная версия: RPC v14 соответствует Transmission 3.0
-        let minimumRpcVersion: Int = 14
-        let isCompatible: Bool = rpcVersion >= minimumRpcVersion
+        let handshake: TransmissionHandshakeResult = try parseHandshake(from: response)
 
         if config.enableLogging {
-            // Используем logResponse для информационного логирования
             let message: String =
-                "Server RPC version: \(rpcVersion), compatible: \(isCompatible) (minimum: \(minimumRpcVersion))"
+                "Server RPC version: \(handshake.rpcVersion), compatible: \(handshake.isCompatible) (minimum: \(handshake.minimumSupportedRpcVersion))"
             let logMessage: Data = Data(message.utf8)
             config.logger.logResponse(
                 method: "session-get", statusCode: 200, responseBody: logMessage)
         }
 
-        // Согласно контракту в devdoc/plan.md, при несовместимой версии завершаем рукопожатие ошибкой
-        guard isCompatible else {
-            throw APIError.versionUnsupported(version: "RPC v\(rpcVersion)")
+        guard handshake.isCompatible else {
+            throw APIError.versionUnsupported(
+                version: handshake.serverVersionDescription ?? "RPC v\(handshake.rpcVersion)")
         }
 
-        return (isCompatible, rpcVersion)
+        return TransmissionHandshakeResult(
+            sessionID: getSessionID(),
+            rpcVersion: handshake.rpcVersion,
+            minimumSupportedRpcVersion: handshake.minimumSupportedRpcVersion,
+            serverVersionDescription: handshake.serverVersionDescription,
+            isCompatible: handshake.isCompatible
+        )
     }
 
     // MARK: - Torrent Methods

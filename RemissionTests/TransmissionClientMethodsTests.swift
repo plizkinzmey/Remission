@@ -495,6 +495,89 @@ struct TransmissionClientMethodsTests {
         }
     }
 
+    @Test("performHandshake возвращает результат после успешного рукопожатия")
+    func testPerformHandshakeSuccess() async throws {
+        let handshakePayload: TransmissionResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "rpc-version": .int(17),
+                "rpc-version-minimum": .int(14),
+                "version": .string("4.0.0")
+            ])
+        )
+
+        MockURLProtocol.setHandlers([
+            { _ in
+                let response = HTTPURLResponse(
+                    url: baseURL,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-handshake"]
+                )!
+                return (response, Data())
+            },
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                let data = try JSONEncoder().encode(handshakePayload)
+                return (response, data)
+            }
+        ])
+
+        let client = makeClient()
+        let result = try await client.performHandshake()
+
+        #expect(MockURLProtocol.requests.count == 2)
+        #expect(
+            MockURLProtocol.requests[1].value(forHTTPHeaderField: "X-Transmission-Session-Id")
+                == "session-handshake")
+        #expect(result.sessionID == "session-handshake")
+        #expect(result.rpcVersion == 17)
+        #expect(result.isCompatible == true)
+        #expect(result.serverVersionDescription == "4.0.0")
+    }
+
+    @Test("performHandshake выбрасывает versionUnsupported при старой версии")
+    func testPerformHandshakeVersionUnsupported() async throws {
+        let handshakePayload: TransmissionResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "rpc-version": .int(13),
+                "version": .string("2.94")
+            ])
+        )
+
+        MockURLProtocol.setHandlers([
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                let data = try JSONEncoder().encode(handshakePayload)
+                return (response, data)
+            }
+        ])
+
+        let client = makeClient()
+
+        do {
+            _ = try await client.performHandshake()
+            Issue.record("Ожидалась версия unsupported")
+        } catch let error as APIError {
+            if case .versionUnsupported(let version) = error {
+                #expect(version.contains("2.94") || version.contains("13"))
+            } else {
+                Issue.record("Ожидалась APIError.versionUnsupported, получено \(error)")
+            }
+        }
+    }
+
     @Test("ограничивает ретраи для не повторяемых URLError")
     func testNonRetryableURLError() async throws {
         MockURLProtocol.setHandlers([

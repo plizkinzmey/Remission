@@ -24,6 +24,7 @@
         var torrentSet: @Sendable ([Int], AnyCodable) async throws -> TransmissionResponse
         var torrentVerify: @Sendable ([Int]) async throws -> TransmissionResponse
         var checkServerVersion: @Sendable () async throws -> (compatible: Bool, rpcVersion: Int)
+        var performHandshake: @Sendable () async throws -> TransmissionHandshakeResult
     }
 
     extension TransmissionClientDependency {
@@ -60,6 +61,9 @@
             },
             checkServerVersion: {
                 throw TransmissionClientDependencyError.notConfigured("checkServerVersion")
+            },
+            performHandshake: {
+                throw TransmissionClientDependencyError.notConfigured("performHandshake")
             }
         )
     }

@@ -69,7 +69,7 @@ struct TransmissionClientVersionCheckTests {
             #expect(Bool(false), "Expected versionUnsupported error")
         } catch let error as APIError {
             if case .versionUnsupported(let version) = error {
-                #expect(version.contains("13"))
+                #expect(version.contains("13") || version.contains("2.94"))
             } else {
                 #expect(Bool(false), "Expected versionUnsupported, got \(error)")
             }

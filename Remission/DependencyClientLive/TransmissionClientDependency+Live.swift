@@ -47,6 +47,9 @@
                 },
                 checkServerVersion: {
                     try await client.checkServerVersion()
+                },
+                performHandshake: {
+                    try await client.performHandshake()
                 }
             )
         }
