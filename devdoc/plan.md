@@ -512,6 +512,46 @@ public final class TransmissionMockServer: @unchecked Sendable {
 - **Fail-fast**: отсутствие совпадения шага приводит к понятной ошибке теста.
 - **Thread-safety**: очередь/лог защищены актором или serial queue внутри сервера.
 
+### Mock Server для Transmission RPC тестов
+
+**Статус**: Реализовано (RTC-29)  
+**Расположение**: `RemissionTests/TransmissionMockServer.swift`
+
+#### Архитектура
+- `TransmissionMockServer` регистрирует сценарии и предоставляет `URLSessionConfiguration` с `TransmissionMockURLProtocol`.
+- `TransmissionMockURLProtocol` перехватывает запросы клиента, выполнив handshake/ответ/ошибку.
+- Потокобезопасность обеспечена `NSLock`, `activeServer` хранится с weak-ссылкой, чтобы исключить утечки памяти.
+
+#### Поддерживаемые сценарии
+- HTTP 409 + `X-Transmission-Session-Id` рукопожатие.
+- Успешные RPC ответы с аргументами и тегами.
+- Ошибки RPC (`result != success`) с кастомными заголовками/кодами.
+- Вбрасывание сетевых ошибок (`URLError`) для проверки retry-логики.
+- Повторяющиеся шаги (`repeats`) для polling-тестов.
+- Кастомные матчеры и assertions для валидации аргументов/заголовков.
+
+#### Использование в тестах
+```swift
+let server = TransmissionMockServer()
+server.register(scenario: .init(
+    name: "Session flow",
+    steps: [
+        .handshake(sessionID: "abc123", followUp: .rpcSuccess()),
+        .rpcSuccess(method: "torrent-get", arguments: torrents)
+    ]
+))
+let config = server.makeEphemeralSessionConfiguration()
+let client = TransmissionClient(config: testConfig, session: URLSession(configuration: config))
+let response = try await client.sessionGet()
+try server.assertAllScenariosFinished()
+```
+
+### Хелперы для составления шагов
+- `.handshake(sessionID:followUp:)` — быстрый способ описать 409 → повторный ответ для любого метода (по умолчанию `session-get`).
+- `.rpcSuccess(method:arguments:tag:repeats:assertions:)` — шаблон для успешных RPC-ответов.
+- `.rpcError(method:result:statusCode:headers:repeats:assertions:)` — декларативное описание ошибок Transmission.
+- `.networkFailure(method:error:repeats:assertions:)` — инъекция `URLError` для проверки retry/обработки сетевых сбоев.
+
 ### Интеграция в тесты
 ```swift
 let mockServer = TransmissionMockServer()

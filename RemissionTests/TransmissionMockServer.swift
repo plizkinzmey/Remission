@@ -3,6 +3,12 @@ import Testing
 
 @testable import Remission
 
+// MARK: - Transmission Mock Server
+// Референсы по реализации макета HTTP поверх URLProtocol:
+// - URL Loading System: https://developer.apple.com/documentation/foundation/urlprotocol
+// - Mockingjay (pattern for request matching + scripted responses): https://github.com/kylef/mockingjay/blob/master/README.md
+// - Swift Testing async patterns: https://github.com/swiftlang/swift-testing/blob/main/Sources/Testing/Testing.docc/testing-asynchronous-code.md
+
 // MARK: - Errors
 
 enum TransmissionMockError: Error, LocalizedError, Sendable {
@@ -14,8 +20,8 @@ enum TransmissionMockError: Error, LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .serverNotRegistered:
-            return
-                "TransmissionMockServer не зарегистрирован. Вызовите makeEphemeralSessionConfiguration() перед использованием клиента."
+            return "TransmissionMockServer не зарегистрирован. "
+                + "Вызовите makeEphemeralSessionConfiguration() перед использованием клиента."
         case .unexpectedRequest(let description):
             return "TransmissionMockServer получил неожиданный запрос: \(description)"
         case .decodingFailed(let details):
@@ -91,6 +97,71 @@ public struct TransmissionMockMatcher: Sendable {
         TransmissionMockMatcher(description: description) { request, _ in
             predicate(request)
         }
+    }
+}
+
+extension TransmissionMockStep {
+    /// Создает шаг, моделирующий HTTP 409 handshake с передачей session-id
+    /// и автоматическим добавлением последующего ответа.
+    public static func handshake(
+        method: String = "session-get",
+        sessionID: String,
+        followUp: TransmissionMockResponsePlan,
+        assertions: [TransmissionMockAssertion] = []
+    ) -> Self {
+        TransmissionMockStep(
+            matcher: .method(method),
+            response: .handshake(sessionID: sessionID, followUp: followUp),
+            assertions: assertions
+        )
+    }
+
+    /// Создает шаг с успешным Transmission RPC ответом.
+    public static func rpcSuccess(
+        method: String,
+        arguments: AnyCodable? = nil,
+        tag: TransmissionTag? = nil,
+        repeats: Int? = nil,
+        assertions: [TransmissionMockAssertion] = []
+    ) -> Self {
+        TransmissionMockStep(
+            matcher: .method(method),
+            response: .rpcSuccess(arguments: arguments, tag: tag),
+            assertions: assertions,
+            repeats: repeats
+        )
+    }
+
+    /// Создает шаг с ошибочным Transmission RPC ответом.
+    public static func rpcError(
+        method: String,
+        result: String,
+        statusCode: Int = 200,
+        headers: [String: String] = [:],
+        repeats: Int? = nil,
+        assertions: [TransmissionMockAssertion] = []
+    ) -> Self {
+        TransmissionMockStep(
+            matcher: .method(method),
+            response: .rpcError(result: result, statusCode: statusCode, headers: headers),
+            assertions: assertions,
+            repeats: repeats
+        )
+    }
+
+    /// Создает шаг, инжектирующий сетевую ошибку (`URLError`).
+    public static func networkFailure(
+        method: String,
+        error: URLError,
+        repeats: Int? = nil,
+        assertions: [TransmissionMockAssertion] = []
+    ) -> Self {
+        TransmissionMockStep(
+            matcher: .method(method),
+            response: .network(error),
+            assertions: assertions,
+            repeats: repeats
+        )
     }
 }
 
@@ -275,10 +346,12 @@ final class TransmissionMockURLProtocol: URLProtocol {
         }
 
         do {
-            let (pending, transmissionRequest) = try server.consumeStep(
-                for: request,
-                requestBody: body
-            )
+            let (pending, transmissionRequest): (TransmissionMockPendingStep, TransmissionRequest) =
+                try server
+                .consumeStep(
+                    for: request,
+                    requestBody: body
+                )
 
             for assertion in pending.step.assertions {
                 do {

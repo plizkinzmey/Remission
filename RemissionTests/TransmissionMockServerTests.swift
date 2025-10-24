@@ -30,12 +30,9 @@ struct TransmissionMockServerTests {
             scenario: .init(
                 name: "Handshake success",
                 steps: [
-                    .init(
-                        matcher: .method("session-get"),
-                        response: .handshake(
-                            sessionID: "mock-session",
-                            followUp: .rpcSuccess(arguments: arguments)
-                        )
+                    .handshake(
+                        sessionID: "mock-session",
+                        followUp: .rpcSuccess(arguments: arguments)
                     )
                 ]
             )
@@ -56,10 +53,7 @@ struct TransmissionMockServerTests {
             scenario: .init(
                 name: "Expect torrent-get",
                 steps: [
-                    .init(
-                        matcher: .method("torrent-get"),
-                        response: .rpcSuccess(arguments: nil)
-                    )
+                    .rpcSuccess(method: "torrent-get")
                 ]
             )
         )
@@ -103,10 +97,7 @@ struct TransmissionMockServerTests {
             scenario: .init(
                 name: "RPC error",
                 steps: [
-                    .init(
-                        matcher: .method("session-get"),
-                        response: .rpcError(result: "too many recent requests")
-                    )
+                    .rpcError(method: "session-get", result: "too many recent requests")
                 ]
             )
         )
@@ -136,9 +127,9 @@ struct TransmissionMockServerTests {
             scenario: .init(
                 name: "Polling torrent-get",
                 steps: [
-                    .init(
-                        matcher: .method("torrent-get"),
-                        response: .rpcSuccess(arguments: torrentsArguments),
+                    .rpcSuccess(
+                        method: "torrent-get",
+                        arguments: torrentsArguments,
                         repeats: 2
                     )
                 ]
@@ -153,5 +144,32 @@ struct TransmissionMockServerTests {
         #expect(first.isSuccess)
         #expect(second.isSuccess)
         try mockServer.assertAllScenariosFinished()
+    }
+
+    @Test("networkFailure step мапится в APIError.networkUnavailable")
+    func testNetworkFailureStep() async {
+        let mockServer: TransmissionMockServer = TransmissionMockServer()
+        mockServer.register(
+            scenario: .init(
+                name: "Network unavailable",
+                steps: [
+                    .networkFailure(
+                        method: "torrent-get",
+                        error: URLError(.notConnectedToInternet)
+                    )
+                ]
+            )
+        )
+
+        let client: TransmissionClient = makeClient(using: mockServer)
+
+        do {
+            _ = try await client.torrentGet(ids: nil, fields: nil)
+            #expect(Bool(false), "Ожидалась ошибка networkUnavailable")
+        } catch let apiError as APIError {
+            #expect(apiError == .networkUnavailable)
+        } catch {
+            #expect(Bool(false), "Ожидалась APIError.networkUnavailable, получено \(error)")
+        }
     }
 }
