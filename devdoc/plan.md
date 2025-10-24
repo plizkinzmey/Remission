@@ -419,6 +419,135 @@ if case .int(let tagValue) = response.tag {
 - Поддерживает оба формата тегов, используемые серверами
 - Работает с параллельными запросами
 
+## Transmission Mock Server Interface (RTC-28)
+
+### Контекст и цели
+- Нужна спецификация мок-сервера Transmission для тестов, поддерживающего последовательные сценарии и проверки (asserts), совместимого с текущим `TransmissionClient`.
+- Решение должно моделировать handshake (`HTTP 409` → `X-Transmission-Session-Id`), ошибки и успешные ответы Transmission RPC, не нарушая разделение слоёв (Tests ↔︎ Network).
+
+### Рассматривались варианты
+- **Кастомный `URLProtocol`** — библиотеки вроде Mockingjay демонстрируют, как перехватывать HTTP-запросы и выдавать преднастроенные ответы/ошибки через DSL `stub(...)` ([Mockingjay README](https://github.com/kylef/mockingjay/blob/master/README.md)).
+- **Локальный HTTP сервер** — лёгкие фреймворки (например, Hummingbird) позволяют поднять embedded сервер с роутами (`Router`, `app.runService()`) ([Hummingbird README](https://github.com/hummingbird-project/hummingbird/blob/main/README.md)).
+
+### Решение
+Выбираем `URLProtocol`-подход:
+- Интегрируется в `URLSession`, поэтому весь стек `TransmissionClient` остаётся нетронутым.
+- Легко моделирует handshake: первый шаг отдаёт `409` с session-id, следующий — ожидаемый JSON.
+- Обеспечивает быстрые детерминированные тесты без сетевых сокетов, что критично для Swift Testing и CI.
+- Embedded сервер оставляем на будущее (см. Веха 13) для end-to-end сценариев с реальным Transmission.
+
+### Архитектурный эскиз
+```
+Test → TransmissionMockServer
+     → TransmissionMockURLProtocol (intercepts URLSession)
+     → TransmissionClient (боевой код)
+```
+
+- `TransmissionMockServer` управляет сценариями и предоставляет `URLSessionConfiguration` с зарегистрированным протоколом.
+- `TransmissionMockURLProtocol` сопоставляет входящие запросы с шагами сценария, эмитит ответы и фиксирует обращения.
+- Тесты конфигурируют сценарии декларативно — без if/else логики рядом с проверками.
+
+### Предлагаемая API-поверхность
+```swift
+public struct TransmissionMockScenario: Sendable {
+    public let name: String
+    public let steps: [TransmissionMockStep]
+    public init(name: String, steps: [TransmissionMockStep])
+}
+
+public struct TransmissionMockStep: Sendable {
+    public let matcher: TransmissionMockMatcher
+    public let response: TransmissionMockResponsePlan
+    public let assertions: [TransmissionMockAssertion]
+    public let repeats: Int?
+    public init(
+        matcher: TransmissionMockMatcher,
+        response: TransmissionMockResponsePlan,
+        assertions: [TransmissionMockAssertion] = [],
+        repeats: Int? = nil
+    )
+}
+
+public struct TransmissionMockMatcher: Sendable {
+    public let description: String
+    public let matches: @Sendable (TransmissionRequest, URLRequest) -> Bool
+    public static func method(_ name: String) -> Self
+    public static func custom(
+        description: String,
+        _ predicate: @escaping @Sendable (TransmissionRequest) -> Bool
+    ) -> Self
+}
+
+public enum TransmissionMockResponsePlan: Sendable {
+    case rpcSuccess(arguments: AnyCodable? = nil, tag: TransmissionTag? = nil)
+    case rpcError(result: String, statusCode: Int = 200, headers: [String: String] = [:])
+    case http(statusCode: Int, headers: [String: String], body: Data? = nil)
+    case network(_ error: URLError)
+    case handshake(sessionID: String, followUp: TransmissionMockResponsePlan)
+    case custom(_ builder: @Sendable (TransmissionRequest, URLRequest) throws -> TransmissionMockResponsePlan)
+}
+
+public struct TransmissionMockAssertion: Sendable {
+    public let description: String
+    public let evaluate: @Sendable (TransmissionRequest, URLRequest) throws -> Void
+    public init(
+        _ description: String,
+        evaluate: @escaping @Sendable (TransmissionRequest, URLRequest) throws -> Void
+    )
+}
+
+public final class TransmissionMockServer: @unchecked Sendable {
+    public init()
+    public func register(scenario: TransmissionMockScenario)
+    public func reset()
+    public func makeEphemeralSessionConfiguration() -> URLSessionConfiguration
+    public func assertAllScenariosFinished(file: StaticString = #filePath, line: UInt = #line)
+}
+```
+
+Ключевые особенности:
+- **Очередь шагов**. Шаги потребляются в порядке регистрации; `repeats` позволяет одной записью описать N одинаковых ответов (например, polling `torrent-get`).
+- **Handshake как первый класс**. `.handshake` возвращает `409` с session-id и автоматически подставляет follow-up ответ.
+- **Assertions** проверяют `arguments`/`headers` и предотвращают «тихие» изменения клиента.
+- **Fail-fast**: отсутствие совпадения шага приводит к понятной ошибке теста.
+- **Thread-safety**: очередь/лог защищены актором или serial queue внутри сервера.
+
+### Интеграция в тесты
+```swift
+let mockServer = TransmissionMockServer()
+mockServer.register(scenario: .init(
+    name: "Happy path: handshake → list",
+    steps: [
+        .init(
+            matcher: .method("session-get"),
+            response: .handshake(
+                sessionID: "mock-session",
+                followUp: .rpcSuccess(arguments: .object(["rpc-version": .int(20)]))
+            )
+        ),
+        .init(
+            matcher: .method("torrent-get"),
+            response: .rpcSuccess(arguments: torrentsArguments)
+        )
+    ]
+))
+
+let session = URLSession(configuration: mockServer.makeEphemeralSessionConfiguration())
+let client = TransmissionClient(config: testConfig, session: session)
+// ... TestStore, reducers ...
+mockServer.assertAllScenariosFinished()
+```
+
+- Тесты остаются в парадигме TCA/TestStore: внедряем клиента через `@Dependency(\.transmissionClient)` с кастомным `URLSession`.
+- Assertions фиксируют, что аргументы `torrent-get`/`session-set` соответствуют ожиданиям.
+- `reset()` вызывается в `tearDown` для очистки.
+
+### Следующие шаги реализации
+1. Реализовать описанные типы + `TransmissionMockURLProtocol` (регистрация в `URLSessionConfiguration.protocolClasses`).
+2. Покрыть mock unit-тестами (success, error, repeats, handshake, race conditions).
+3. Переписать существующие reducer-тесты, заменив ручные стабы на сценарии.
+4. Документировать шаблоны сценариев (happy path, ошибки авторизации, повторное получение session-id) в README/Tests.
+
 ### 5. APIError
 
 Перечисление ошибок для представления всех типов сбоев при работе с Transmission RPC.
