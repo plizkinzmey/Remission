@@ -552,6 +552,27 @@ try server.assertAllScenariosFinished()
 - `.rpcError(method:result:statusCode:headers:repeats:assertions:)` — декларативное описание ошибок Transmission.
 - `.networkFailure(method:error:repeats:assertions:)` — инъекция `URLError` для проверки retry/обработки сетевых сбоев.
 
+### Transmission Fixtures Catalog (RTC-30)
+
+- **Расположение**: `RemissionTests/Fixtures`
+  - `Transmission/Session` — session-get/session-stats ответы (совместимость RPC 3.0+, рукопожатие).
+  - `Transmission/Torrents` — успехи для torrent-get/add/start/stop/remove.
+  - `Transmission/Errors` — обобщённые error-case ответы (throttle, auth, invalid JSON).
+- **Загрузчик**: `TransmissionFixtureName` + `TransmissionFixture` обеспечивают доступ к данным и декодирование в `TransmissionResponse`.
+  - `TransmissionMockResponsePlan.fixture(_:)` строит сценарии мок-сервера напрямую из фикстур.
+- **Тесты**: `RemissionTests/TransmissionFixturesTests.swift` выполняет smoke-проверки загрузки, декодирования и маппинга ошибок.
+- **Покрываемые сценарии для RTC-31/RTC-32**:
+  1. Успешный session-get с RPC 17 (минимум 14) и пример несовместимой версии (RPC 12).
+  2. Happy-pathы torrent-get/add/start/stop/remove.
+  3. Ошибки: rate limit, unauthorized, invalid JSON (→ `APIError.decodingFailed`).
+  4. Некорректная структура `session-get` (`arguments` не объект) для smoke-проверки `decodingFailed`.
+- **Правила обновления** описаны в `RemissionTests/Fixtures/README.md` (структура, формат, smoke-tests).
+
+Справочные материалы (Context7):
+- `/pointfreeco/swift-composable-architecture` — статья *Testing TCA* (TestStore, фикстуры для зависимостей).
+- `/swiftlang/swift-testing` — документация по Discoverable Test Content и структуре Swift Testing.
+- `/websites/transmission-rpc_readthedocs_io` — актуальные примеры ответов Transmission RPC (session-get, torrent-*).
+
 ### Интеграция в тесты
 ```swift
 let mockServer = TransmissionMockServer()

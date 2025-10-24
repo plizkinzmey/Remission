@@ -1,0 +1,27 @@
+{
+  "result": "success",
+  "arguments": {
+    "rpc-version": 17,
+    "rpc-version-minimum": 14,
+    "version": "4.0.3 (bb6b5a062f)",
+    "config-dir": "/var/lib/transmission-daemon",
+    "download-dir": "/volume1/Downloads",
+    "default-trackers": [
+      "https://tracker.example.com/announce"
+    ],
+    "units": {
+      "speed-units": [
+        "KB/s",
+        "MB/s",
+        "GB/s"
+      ],
+      "size-units": [
+        "KB",
+        "MB",
+        "GB"
+      ],
+      "memory-bytes": 1024
+    }
+  },
+  "tag": 1
+}
