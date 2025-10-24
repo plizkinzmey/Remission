@@ -1,0 +1,11 @@
+{
+  "result": "success",
+  "arguments": {
+    "torrent-added": {
+      "id": 8,
+      "name": "Fedora-Workstation-Live-x86_64-40",
+      "hashString": "b73fc0c25fbf79bd5f9f0b61b7a44d64d3fabcde"
+    }
+  },
+  "tag": "torrent-add-magnet"
+}
