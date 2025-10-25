@@ -568,6 +568,15 @@ try server.assertAllScenariosFinished()
   4. Некорректная структура `session-get` (`arguments` не объект) для smoke-проверки `decodingFailed`.
 - **Правила обновления** описаны в `RemissionTests/Fixtures/README.md` (структура, формат, smoke-tests).
 
+### TransmissionClient error-path тесты (RTC-32)
+- **Расположение**: `RemissionTests/TransmissionClientErrorScenariosTests.swift`.
+- **Инструменты**: `TransmissionMockServer` + Point-Free Swift Testing.
+- **Покрытие**:
+  - 409 → повтор с ограничением по рукопожатию (генерирует `APIError.sessionConflict`).
+  - Версия RPC < 14 (→ `APIError.versionUnsupported`), HTTP 500 (→ `.unknown`), невалидный JSON (→ `.decodingFailed`), `URLError(.cannotConnectToHost)` (→ `.networkUnavailable`).
+  - Проверка безопасного логирования: `DefaultTransmissionLogger` инжектируется с кастомным sink и подтверждает, что Base64 credentials и session-id не попадают в логи.
+- **Взаимосвязь**: тесты используют те же фикстуры и сценарии, что и happy-path набор (RTC-31), поэтому новые сценарии документированы в том же разделе и не дублируют прод-код.
+
 Справочные материалы (Context7):
 - `/pointfreeco/swift-composable-architecture` — статья *Testing TCA* (TestStore, фикстуры для зависимостей).
 - `/swiftlang/swift-testing` — документация по Discoverable Test Content и структуре Swift Testing.
