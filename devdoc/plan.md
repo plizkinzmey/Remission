@@ -26,14 +26,14 @@
 - **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли; поддержка как HTTP (по умолчанию для локальных серверов), так и HTTPS (опционально, с явным выбором и предупреждениями). См. [PRD.md](PRD.md) раздел "HTTP vs HTTPS политика".
 
 ### CI: Swift Testing для TransmissionClient
-- **Workflow**: `.github/workflows/ci.yml` запускается на `push` в `develop/main` и на всех PR. Он фиксирует версию Xcode (15.4), выполняет `swift-format lint`, `swiftlint lint` и `xcodebuild test` с включённым покрытием (`-enableCodeCoverage YES`) на симуляторе iPhone 15. Результаты выгружаются как артефакт `remission-test-results`.
+- **Workflow**: `.github/workflows/ci.yml` запускается на `push` в `develop/main` и на всех PR. Он фиксирует версию Xcode (16.4), выполняет `swift-format lint`, `swiftlint lint` и `xcodebuild test` с включённым покрытием (`-enableCodeCoverage YES`) на симуляторе iPhone 16. Результаты выгружаются как артефакт `remission-test-results`.
 - **Команда тестов**:  
   ```bash
   xcodebuild test \
     -project Remission.xcodeproj \
     -scheme Remission \
     -testPlan Remission \
-    -destination 'platform=iOS Simulator,name=iPhone 15' \
+    -destination 'platform=iOS Simulator,name=iPhone 16' \
   -enableCodeCoverage YES \
   -resultBundlePath build/TestResults.xcresult
   ```
