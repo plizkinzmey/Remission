@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - "*"
+
+env:
+  XCODE_SCHEME: Remission
+  XCODE_DESTINATION: platform=iOS Simulator,name=iPhone 15
+  TEST_RESULT_BUNDLE: build/TestResults.xcresult
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode 15.4
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "15.4"
+
+      - name: Install tooling
+        run: |
+          brew update
+          brew install swift-format swiftlint
+
+      - name: Swift Format (lint mode)
+        run: swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests
+
+      - name: SwiftLint
+        run: swiftlint lint
+
+      - name: Build for testing
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project Remission.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -testPlan Remission \
+            -destination "$XCODE_DESTINATION"
+
+      - name: Run Swift Testing suite with coverage
+        env:
+          DEVELOPER_DIR: /Applications/Xcode_15.4.app/Contents/Developer
+        run: |
+          set -o pipefail
+          mkdir -p "$(dirname "$TEST_RESULT_BUNDLE")"
+          xcodebuild test-without-building \
+            -project Remission.xcodeproj \
+            -scheme "$XCODE_SCHEME" \
+            -testPlan Remission \
+            -destination "$XCODE_DESTINATION" \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$TEST_RESULT_BUNDLE"
+
+      - name: Enforce TransmissionClient coverage ≥ 60%
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+
+          bundle = os.environ["TEST_RESULT_BUNDLE"]
+          threshold = 60.0
+
+          result = subprocess.run(
+              ["xcrun", "xccov", "view", "--json", bundle],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          data = json.loads(result.stdout)
+
+          total_lines = 0.0
+          covered_lines = 0.0
+
+          def visit(files):
+              nonlocal total_lines, covered_lines
+              for file in files or []:
+                  if "TransmissionClient" in file.get("name", ""):
+                      line_count = file.get("lineCount", 0)
+                      coverage = file.get("lineCoverage", 0.0)
+                      total_lines += line_count
+                      covered_lines += line_count * coverage
+                  visit(file.get("files"))
+
+          for target in data.get("targets", []):
+              visit(target.get("files"))
+
+          if total_lines == 0:
+              print("⚠️  No TransmissionClient files found in coverage report.")
+              sys.exit(1)
+
+          coverage_percent = (covered_lines / total_lines) * 100
+          print(f"TransmissionClient aggregated coverage: {coverage_percent:.2f}%")
+
+          if coverage_percent < threshold:
+              print(f"❌ Coverage {coverage_percent:.2f}% is below required {threshold}%")
+              sys.exit(1)
+
+          print(f"✅ Coverage requirement met (≥ {threshold}%)")
+          PY
+
+      - name: Upload result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remission-test-results
+          path: ${{ env.TEST_RESULT_BUNDLE }}
