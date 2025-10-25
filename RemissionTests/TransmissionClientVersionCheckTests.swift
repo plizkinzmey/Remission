@@ -3,6 +3,16 @@ import Testing
 
 @testable import Remission
 
+/// Тесты версионирования Transmission RPC
+///
+/// Проверяет совместимость с версиями Transmission 3.0+ (RPC v14+).
+/// Минимальная поддерживаемая версия: Transmission 3.0 (RPC v14)
+/// Рекомендуемая версия: Transmission 4.0+ (RPC v17+)
+///
+/// **Справочные материалы:**
+/// - Transmission RPC версионирование: devdoc/TRANSMISSION_RPC_REFERENCE.md
+/// - Swift Testing: https://developer.apple.com/documentation/testing
+///
 // swiftlint:disable explicit_type_interface static_over_final_class
 /// Тесты для проверки версии Transmission через реальную реализацию TransmissionClient.
 /// Используем URLProtocol мок для подмены сетевого транспорта.

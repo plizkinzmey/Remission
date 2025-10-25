@@ -3,6 +3,21 @@ import Testing
 
 @testable import Remission
 
+/// TransmissionClient методы тестирование — Happy Path и Error scenarios
+///
+/// Используется Swift Testing фреймворк с `@Test` и `@Suite` атрибутами.
+/// Тесты покрывают все публичные методы API: torrent-get, torrent-add, torrent-start,
+/// torrent-stop, torrent-remove, torrent-set, torrent-verify, session-* методы.
+///
+/// **Справочные материалы:**
+/// - Swift Testing: https://developer.apple.com/documentation/testing
+/// - Transmission RPC: devdoc/TRANSMISSION_RPC_REFERENCE.md
+/// - TCA Testing: https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/Testing.md
+///
+/// **Используемые мок-компоненты:**
+/// - `MockURLProtocol` — перехват URLSession запросов
+/// - `TransmissionRequest`, `TransmissionResponse` — DTO парсинг
+///
 // swiftlint:disable explicit_type_interface file_length type_body_length
 @Suite("TransmissionClient Torrent Methods")
 @MainActor
