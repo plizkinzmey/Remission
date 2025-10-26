@@ -99,7 +99,7 @@ git commit --no-verify
 
 **Сборка для iOS Simulator:**
 ```bash
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16' build
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' build
 ```
 
 **Сборка для macOS:**
@@ -111,12 +111,12 @@ xcodebuild -scheme Remission -destination 'platform=macOS' build
 
 **Unit и интеграционные тесты:**
 ```bash
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 **UI-тесты:**
 ```bash
-xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 **TransmissionClient (Swift Testing) + покрытие:**
@@ -125,7 +125,7 @@ xcodebuild test \
   -project Remission.xcodeproj \
   -scheme Remission \
   -testPlan Remission \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
   -enableCodeCoverage YES \
   -resultBundlePath build/TestResults.xcresult
 ```
@@ -304,7 +304,7 @@ swiftlint lint
 
 ```bash
 # Полный набор тестов
-xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16'
+xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 ## Документация

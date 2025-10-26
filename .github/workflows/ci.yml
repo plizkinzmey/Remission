@@ -11,7 +11,7 @@ on:
 
 env:
   XCODE_SCHEME: Remission
-  XCODE_DESTINATION: platform=iOS Simulator,name=iPhone 16
+  XCODE_DESTINATION: platform=iOS Simulator,name=iPhone 17
   TEST_RESULT_BUNDLE: build/TestResults.xcresult
 
 jobs:
