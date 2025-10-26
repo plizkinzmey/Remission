@@ -51,6 +51,7 @@ jobs:
             -testPlan Remission \
             -destination "$XCODE_DESTINATION" \
             -enableCodeCoverage YES \
+            -skipPackagePluginValidation \
             -resultBundlePath "$TEST_RESULT_BUNDLE"
 
       - name: Enforce TransmissionClient coverage ≥ 60%
