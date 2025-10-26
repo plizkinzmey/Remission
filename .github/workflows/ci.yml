@@ -12,7 +12,7 @@ on:
 env:
   IDEPackageSupportUseBuiltinSCM: "YES"
   XCODE_SCHEME: Remission
-  XCODE_DESTINATION: platform=iOS Simulator,OS=26.0.1,name=iPhone 17 Pro
+  XCODE_DESTINATION: platform=iOS Simulator,OS=26.0,name=iPhone 17 Pro
   TEST_RESULT_BUNDLE: build/TestResults.xcresult
 
 jobs:
