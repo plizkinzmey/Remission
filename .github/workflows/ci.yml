@@ -86,27 +86,25 @@ jobs:
           )
           data = json.loads(result.stdout)
 
-          total_lines = 0.0
-          covered_lines = 0.0
+          stats = {"total_lines": 0.0, "covered_lines": 0.0}
 
           def visit(files):
-              nonlocal total_lines, covered_lines
               for file in files or []:
                   if "TransmissionClient" in file.get("name", ""):
                       line_count = file.get("lineCount", 0)
                       coverage = file.get("lineCoverage", 0.0)
-                      total_lines += line_count
-                      covered_lines += line_count * coverage
+                      stats["total_lines"] += line_count
+                      stats["covered_lines"] += line_count * coverage
                   visit(file.get("files"))
 
           for target in data.get("targets", []):
               visit(target.get("files"))
 
-          if total_lines == 0:
+          if stats["total_lines"] == 0:
               print("⚠️  No TransmissionClient files found in coverage report.")
               sys.exit(1)
 
-          coverage_percent = (covered_lines / total_lines) * 100
+          coverage_percent = (stats["covered_lines"] / stats["total_lines"]) * 100
           print(f"TransmissionClient aggregated coverage: {coverage_percent:.2f}%")
 
           if coverage_percent < threshold:
