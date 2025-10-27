@@ -99,7 +99,7 @@ git commit --no-verify
 
 **Сборка для iOS Simulator:**
 ```bash
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17' build
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build
 ```
 
 **Сборка для macOS:**
@@ -111,52 +111,17 @@ xcodebuild -scheme Remission -destination 'platform=macOS' build
 
 **Unit и интеграционные тесты:**
 ```bash
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
 **UI-тесты:**
 ```bash
-xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
-**TransmissionClient (Swift Testing) + покрытие:**
-```bash
-xcodebuild test \
-  -project Remission.xcodeproj \
-  -scheme Remission \
-  -testPlan Remission \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -enableCodeCoverage YES \
-  -resultBundlePath build/TestResults.xcresult
-```
+### Статус CI
 
-> Требование: суммарное покрытие TransmissionClient и связанных зависимостей ≥60%.  
-> Посмотреть отчёт локально можно командой `xcrun xccov view --report build/TestResults.xcresult`. CI публикует файл `remission-test-results` как artefact, его можно открыть в Xcode (Menu **Window → Organizer → Reports → Import**).
-
-#### Пример отчёта покрытия
-
-**Быстрый просмотр (CLI):**
-```bash
-xcrun xccov view --report build/TestResults.xcresult
-```
-
-**Фрагмент вывода:**
-```
-  Remission.app (Remission.app) : 78.1%
-    TransmissionClient.swift : 72.5%
-    TransmissionClientProtocol.swift : 68.3%
-```
-
-**Через Xcode UI:**
-1. Откройте Xcode → `Window` → `Organizer`.
-2. Перейдите во вкладку **Reports**.
-3. Нажмите **Import** и выберите `build/TestResults.xcresult`.
-4. Просмотрите графики и детализацию покрытия по файлам/строкам.
-
-**Альтернатива:** экспортируйте детальный отчёт в текст:
-```bash
-xcrun xcresulttool get --format json --path build/TestResults.xcresult > coverage.json
-```
+На текущем этапе CI-пайплайн отключён: проект поддерживается одним разработчиком, и мы временно приняли решение выполнять проверки вручную, чтобы не тратить ресурсы на автоматизацию. Перед push запускайте локальные lint/format и `xcodebuild test` — это остаётся обязательным чек-листом.
 
 ## Архитектура
 
@@ -304,7 +269,7 @@ swiftlint lint
 
 ```bash
 # Полный набор тестов
-xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
 ## Документация

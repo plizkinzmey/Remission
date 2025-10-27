@@ -24,21 +24,7 @@
   - `swift-format lint --configuration .swift-format --recursive --strict` для проверки
   - `swiftlint lint` для стиля кода (встроено в Xcode build phase)
 - **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли; поддержка как HTTP (по умолчанию для локальных серверов), так и HTTPS (опционально, с явным выбором и предупреждениями). См. [PRD.md](PRD.md) раздел "HTTP vs HTTPS политика".
-
-### CI: Swift Testing для TransmissionClient
-- **Workflow**: `.github/workflows/ci.yml` запускается на `push` в `develop/main` и на всех PR. Он фиксирует версию Xcode (16.4), выполняет `swift-format lint`, `swiftlint lint` и единый `xcodebuild test -skipPackagePluginValidation` с включённым покрытием (`-enableCodeCoverage YES`) на симуляторе iPhone 17. Результаты выгружаются как артефакт `remission-test-results`. Флаг `-skipPackagePluginValidation` обязателен для автоматического разрешения Swift Package макросов (TCA, CasePaths, Dependencies, Perception) на CI.
-- **Команда тестов**:  
-  ```bash
-  xcodebuild test \
-    -project Remission.xcodeproj \
-    -scheme Remission \
-    -testPlan Remission \
-    -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -enableCodeCoverage YES \
-  -resultBundlePath build/TestResults.xcresult
-  ```
-- **Покрытие**: минимум 60 % для TransmissionClient и связанных зависимостей. После прогона `xcodebuild test` выполняется Python-скрипт, который парсит `xccov --json` и проверяет агрегированное покрытие файлов `TransmissionClient*`. При значении <60 % job помечается как failed. Для ручной проверки используем `xcrun xccov view --report build/TestResults.xcresult`. Артефакт можно открыть в Xcode Organizer → Reports → Import.
-- **Best practices**: Используем официальные рекомендации Swift Testing по структурированию тестов и миграции с XCTest — см. [Defining Tests](https://developer.apple.com/documentation/testing/definingtests) и [Migrating from XCTest](https://developer.apple.com/documentation/testing/migratingfromxctest). Для последовательных сценариев допускается `@Suite(.serialized)`, а ожидаемые нестабильности документируются через `withKnownIssue`, что упрощает анализ падений внутри CI.
+- **CI статус**: автоматический CI пайплайн временно отключён (один разработчик, нет экономического смысла держать раннеры). Все проверки выполняем локально перед push: форматирование, линт, `xcodebuild test`.
 
 ### Модульность и декомпозиция TCA
 - **Разделение слоёв**: UI (`Views`), бизнес-логика (`Features`/редьюсеры), модели (`Models`) и инфраструктура (`DependencyClients`) оформляются отдельными таргетами/файлами. Ссылайтесь на [SwiftUI+TCA Template](https://github.com/ethanhuang13/swiftui-tca-template) как эталон.
