@@ -48,10 +48,10 @@ jobs:
           xcodebuild build-for-testing \
             -project Remission.xcodeproj \
             -scheme "$XCODE_SCHEME" \
-            -testPlan Remission \
             -destination "$XCODE_DESTINATION" \
             -derivedDataPath build/DerivedData \
-            -skipPackagePluginValidation
+            -skipPackagePluginValidation \
+            -skipMacroValidation
 
       - name: Run Swift Testing suite with coverage
         env:
@@ -62,7 +62,6 @@ jobs:
           xcodebuild test-without-building \
             -project Remission.xcodeproj \
             -scheme "$XCODE_SCHEME" \
-            -testPlan Remission \
             -destination "$XCODE_DESTINATION" \
             -enableCodeCoverage YES \
             -derivedDataPath build/DerivedData \
