@@ -26,6 +26,32 @@
 - **Безопасность**: все credentials хранятся в Keychain, никогда не логируются пароли; поддержка как HTTP (по умолчанию для локальных серверов), так и HTTPS (опционально, с явным выбором и предупреждениями). См. [PRD.md](PRD.md) раздел "HTTP vs HTTPS политика".
 - **CI статус**: автоматический CI пайплайн временно отключён (один разработчик, нет экономического смысла держать раннеры). Все проверки выполняем локально перед push: форматирование, линт, `xcodebuild test`.
 
+## TransmissionClient — ручной тест-план
+
+1. **Локальный прогон** — запустить Swift Testing свитки (TransmissionClientMethods/HappyPath/ErrorScenarios/Infrastructure) и UI smoke `RemissionUITests`:
+   ```bash
+   xcodebuild test \
+     -scheme Remission \
+     -sdk iphonesimulator \
+     -destination 'platform=iOS Simulator,name=iPhone 15' \
+     -resultBundlePath build/TestResults/Remission.xcresult \
+     -enableCodeCoverage YES
+   ```
+   Все свитки используют мок-инфраструктуру из RTC-14 (`TransmissionMockServer`, URLProtocol) и проверяют happy path + error path для handshake, torrent-команд и повторов.
+
+2. **Покрытие кода** — анализируем отчёт через `xccov`. Порог: ≥ 60% по проекту, TransmissionClient.swift должен фигурировать в отчёте.
+   ```bash
+   xcrun xccov view --report build/TestResults/Remission.xcresult
+   xcrun xccov view --report --json build/TestResults/Remission.xcresult > build/TestResults/coverage.json
+   ```
+   Последний прогон (27.10.2025) дал **77.8%** суммарного покрытия.
+
+3. **Документация/ссылки** — актуальные рекомендации по Swift Testing и TCA TestStore:
+   - Swift Testing best practices: <https://developer.apple.com/documentation/testing>
+   - TCA Testing guide: <https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/TestingTCA.md>
+
+4. **Результаты** — при завершении задачи публикуем в Linear итоговую команду запуска, путь к `.xcresult` и выдержку из `xccov` с процентажем.
+
 ### Модульность и декомпозиция TCA
 - **Разделение слоёв**: UI (`Views`), бизнес-логика (`Features`/редьюсеры), модели (`Models`) и инфраструктура (`DependencyClients`) оформляются отдельными таргетами/файлами. Ссылайтесь на [SwiftUI+TCA Template](https://github.com/ethanhuang13/swiftui-tca-template) как эталон.
 - **Структура зависимостей**: определения `@DependencyClient` и тестовых значений живут в `Remission/DependencyClients`, live-реализации и фабрики — в `Remission/DependencyClientLive`. Любые новые клиенты повторяют эту схему, чтобы тесты и прод-код использовали единый источник.

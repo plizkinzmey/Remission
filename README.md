@@ -119,6 +119,25 @@ xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iO
 xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
+**Покрытие кода (целевое значение ≥ 60%):**
+```bash
+# 1. Запускаем тесты с сохранением результата и включённым покрытием
+xcodebuild test \
+  -scheme Remission \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -resultBundlePath build/TestResults/Remission.xcresult \
+  -enableCodeCoverage YES
+
+# 2. Просматриваем отчёт о покрытии через xccov
+xcrun xccov view --report build/TestResults/Remission.xcresult
+
+# (опционально) Сохраняем отчёт в JSON для анализа/CI
+xcrun xccov view --report --json build/TestResults/Remission.xcresult > build/TestResults/coverage.json
+```
+
+Пример актуального запуска: общая доля покрытых строк составила **77.8%**, при этом `TransmissionClient.swift` и зависимые DTO полностью попали в отчёт.
+
 ### Статус CI
 
 На текущем этапе CI-пайплайн отключён: проект поддерживается одним разработчиком, и мы временно приняли решение выполнять проверки вручную, чтобы не тратить ресурсы на автоматизацию. Перед push запускайте локальные lint/format и `xcodebuild test` — это остаётся обязательным чек-листом.
