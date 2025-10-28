@@ -781,6 +781,107 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - M2.5 Добавить требование HTTPS при подключении с предупреждением для HTTP соединений в Keychain раздел PRD.
 - Проверка: модульные тесты Keychain с использованием Swift Testing (@Test) и smoke-тест подключения к локальному Transmission с авторизацией.
 
+### HTTPS/TLS политика и обработка сертификатов (RTC-40)
+- **Цели**: 
+  - Гарантировать безопасное соединение при удалённом доступе и предоставить прозрачное предупреждение при использовании HTTP.
+  - Обработать самоподписанные сертификаты без компрометации безопасности и без принудительного certificate pinning.
+- **Основные принципы**:
+  - По умолчанию `URLSession` выполняет проверку цепочки доверия сертификата. Соединения по HTTPS считаются успешными только при `SecTrustEvaluateWithError` == true.
+  - HTTP разрешён для локальных сценариев, но всегда сопровождается предупреждением (см. PRD «HTTP vs HTTPS политика»); при удалённом доступе рекомендуем HTTPS.
+- **ATS**:
+  - Не использовать `NSAllowsArbitraryLoads`. Для локальных IP/доменов допускается точечное исключение в `NSExceptionDomains` с указанием минимальной версии TLS не ниже `TLSv1.2`.
+  - Ссылки: `NSAppTransportSecurity` и настройка исключений документированы в Apple ATS руководстве.
+- **Потоки подключения**:
+  1. **Доверенный сертификат** — `URLSession` выполняет стандартную проверку, приложение продолжает подключение автоматически. UX: отображается статус «Защищенное подключение (HTTPS)». 
+  2. **Самоподписанный сертификат** — `challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust`, `SecTrustEvaluateWithError` возвращает false, но `SecTrustCopyProperties` показывает отсутствие доверенного центра. Действия:
+     - Отобразить диалог с деталями сервера (host, port, fingerprint SHA-256) и двумя опциями: «Доверять» и «Отмена». Добавить ссылку на UX требования в PRD.
+     - При подтверждении создать `URLCredential(trust:serverTrust, persistence:.forSession)` и продолжить выполнение запроса. Сохранить выбор пользователя в защищённом хранилище:
+       - ключ: `serverId = scheme://host:port`
+       - данные: SHA-256 отпечаток цепочки и дата подтверждения. Хранилище: Keychain (`kSecClassGenericPassword`, service `com.remission.tls-exceptions`).
+     - При последующих подключениях сверять новый отпечаток с сохранённым; несовпадение → запросить повторное подтверждение.
+  3. **Проверка не пройдена / отказ** — если пользователь отменил диалог или доверенный сертификат не может быть подтверждён, завершить с ошибкой `ConnectionSecurityError`. UX: показать инструкцию о необходимости обновить сертификат. Логи: `logger.error("TLS validation failed for \(host):\(port) – reason: \(error)")` без включения сертификата/отпечатка.
+- **Поток подтверждения (ASCII-диаграмма)**:
+  ```text
+  Пользователь ── запрос HTTPS ──▶ TransmissionClient
+                   │
+                   ├─ SecTrustEvaluateWithError == true ──▶ Успех (баннер «HTTPS защищён»)
+                   │
+                   └─ SecTrustEvaluateWithError == false
+                          │
+                          ▼
+              Диалог «Сертификат не доверен»
+                   ├─ Отмена ──▶ Ошибка `ConnectionSecurityError`
+                   └─ Доверять ──▶ Расчёт SHA-256 отпечатка ──▶ Сохранение в Keychain
+                                                            │
+                                                            ▼
+                                            Следующее подключение
+                                                ├─ Отпечаток совпал ─▶ Успех
+                                                └─ Отпечаток изменился ─▶ Новое подтверждение
+  ```
+- **Логирование и безопасность**:
+  - Не логировать содержимое сертификатов или секреты. Разрешено фиксировать только факт доверия и дату (например: `logger.info("User trusted self-signed certificate for serverId=...")`).
+  - Решения пользователя хранятся в Keychain и синхронизируются только на локальном устройстве (`kSecAttrSynchronizable = false`).
+  - При сбросе сохранённого сервера удалять и исключение TLS.
+- **Apple URLSessionDelegate**:
+  ```swift
+  func urlSession(
+      _ session: URLSession,
+      didReceive challenge: URLAuthenticationChallenge,
+      completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+  ) {
+      guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+            let serverTrust = challenge.protectionSpace.serverTrust
+      else {
+          completionHandler(.performDefaultHandling, nil)
+          return
+      }
+
+      let serverId = ServerID(
+          host: challenge.protectionSpace.host,
+          port: challenge.protectionSpace.port,
+          isSecure: true
+      )
+
+      if trustStore.matchesCachedFingerprint(for: serverId, serverTrust: serverTrust) {
+          completionHandler(.useCredential, URLCredential(trust: serverTrust))
+          return
+      }
+
+      pendingTrustPrompt.send(.ask(userDecision: .init(serverId: serverId, trust: serverTrust)))
+      completionHandler(.cancelAuthenticationChallenge, nil) // повторим запрос после решения пользователя
+  }
+  ```
+- **SHA-256 fingerprinting**:
+  ```swift
+  func fingerprintSHA256(for trust: SecTrust) throws -> Data {
+      guard let certificate = SecTrustGetCertificateAtIndex(trust, 0),
+            let key = SecCertificateCopyKey(certificate),
+            let representation = SecKeyCopyExternalRepresentation(key, nil) as Data?
+      else {
+          throw CertificateError.unableToExtractKey
+      }
+
+      return Data(SHA256.hash(data: representation))
+  }
+  ```
+- **Рекомендации по UX**:
+  - Диалог подтверждения должен содержать краткое объяснение рисков self-signed, кнопку для просмотра подробностей и ссылку на статью поддержки (подготовит UX).
+  - Для HTTP-соединений отображать баннер-предупреждение при каждом подключении и возможность перейти к настройкам для включения HTTPS.
+- **UISpec диалога подтверждения**:
+  - Заголовок: «Ненадёжный сертификат».
+  - Текст: предупреждение о рисках + блок с деталями (`Сервер`, `SHA-256 отпечаток`, подсказка для пользователя).
+  - Кнопки: primary `Доверять`, secondary `Отмена`, дополнительная ссылка `Подробнее…` с переходом к справке.
+  - Реализация: `AlertState` в TCA с `@Presents`, локализации RU/EN, поддержка VoiceOver (accessibilityLabel/Hint).
+- **Безопасная реализация**:
+  - Реализовать обработку через `urlSession(_:didReceive:completionHandler:)` и вызывать `completionHandler(.useCredential, credential)` только после явного подтверждения.
+  - Использовать `SecCertificateCopyKey` + `SecKeyCopyExternalRepresentation` для вычисления SHA-256 отпечатка. Хранить только хэш.
+- **Справочные материалы**:
+  - Apple: [URLSessionDelegate.urlSession(_:didReceive:completionHandler:)](https://developer.apple.com/documentation/foundation/urlsessiondelegate/1409308-urlsession)
+  - Apple: [SecTrust API Overview](https://developer.apple.com/documentation/security/sectrust)
+  - Apple: [Certificate, Key, and Trust Services](https://developer.apple.com/documentation/security/certificate_key_and_trust_services)
+  - Apple: [Handling an authentication challenge](https://developer.apple.com/documentation/foundation/handling-an-authentication-challenge)
+  - Apple: [Preventing insecure network connections](https://developer.apple.com/documentation/security/preventing-insecure-network-connections)
+
 ### Basic Auth + HTTP 409 Handshake (RTC-37)
 - TransmissionClient формирует заголовок `Authorization: Basic <base64(user:password)>` через `URLCredential(user:password:persistence:)`, что соответствует рекомендациям Apple (Context7: developer.apple.com → Handling an authentication challenge).
 - Заголовки `Authorization` и `X-Transmission-Session-Id` выставляются централизованно в `applyAuthenticationHeaders(to:)`, поэтому повторный запрос после 409 использует те же credentials и свежий session-id без дублирования кода.
