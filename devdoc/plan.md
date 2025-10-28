@@ -807,6 +807,19 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
   - Apple Keychain Services — хранение и запрос generic password (`/websites/developer_apple`, разделы *Storing keys in the keychain*, *Adding a password to the keychain*, *kSecClassGenericPassword*).
   - Best practices wrapper (`/kishikawakatsumi/keychainaccess`) — примеры конфигурации service/account и отключения синхронизации.
 
+### Credentials Repository + Audit Logging (RTC-39)
+- **Цель**: предоставить верхним слоям единый stateless API (`CredentialsRepository`) с async-методами `save/load/delete`, исключающий прямой доступ к Keychain и инкапсулирующий маскирование логов.
+- **Dependencies**:
+  - `@Dependency(\.keychainCredentials)` — низкоуровневая Keychain-обёртка (RTC-38).
+  - `@Dependency(\.credentialsAuditLogger)` — новый аудит-логгер с маскированием username (первые/последние символы) и отображением only host/port/scheme. Live-значение печатает безопасные сообщения, test/preview — `noop`.
+  - Реализация опирается на Context7 материалы по TCA Dependencies (`/pointfreeco/swift-composable-architecture`, статьи *DependencyManagement*, *GettingStarted*) и best practices secure storage (`/kishikawakatsumi/keychainaccess`, разделы *Create Keychain Instances for Application Passwords*, *Configure Keychain Accessibility Levels*).
+- **Поведение**:
+  - Успешные операции логируются как `CredentialsAuditEvent.saveSucceeded/loadSucceeded/deleteSucceeded`.
+  - Пропажи записей (`nil`) фиксируются как `loadMissing`, ошибки Keychain транслируются вверх, но дополнительно логируются как `.saveFailed/.loadFailed/.deleteFailed`.
+  - Аудит-лог содержит только endpoint (`scheme://host:port`) и маскированный username (`a•••n`), пароли/полный username никогда не попадают в сообщение.
+- **Тесты**: `CredentialsRepositoryTests` (Swift Testing) покрывают happy path сохранения, ошибку сохранения, отсутствие записи и ошибку удаления. Отдельные проверки гарантируют отсутствие сырых credentials в логах.
+- **Интеграция в TCA**: `DependencyValues.credentialsRepository` доступен фичам, для TestStore достаточно переопределить `keychainCredentials` и `credentialsAuditLogger`, чтобы получить in-memory/mocked сценарии.
+
 ## Веха 3: Доменное ядро
 - M3.1 Описать доменные модели Torrent, ServerConfig и SessionState.
 - M3.2 Настроить преобразование DTO Transmission RPC в доменные модели с валидацией полей.
