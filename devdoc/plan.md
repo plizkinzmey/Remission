@@ -788,6 +788,25 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - Логирование (`DefaultTransmissionLogger`) маскирует и Base64, и session-id; добавлены тесты на отсутствие утечки секретов.
 - Unit-тесты покрывают happy path генерации заголовка, ретрай после 409 с повторным заголовком и проверку маскировки логов (`TransmissionClientMethodsTests`, `TransmissionClientErrorScenariosTests`).
 
+### Keychain Credentials Store (RTC-38)
+- **Назначение**: безопасное хранение учетных данных Transmission в Keychain с доступом через `KeychainCredentialsDependency`.
+- **API**: 
+  - `save(_:)` — добавляет или обновляет запись `kSecClassGenericPassword` с service-id `com.remission.transmission`.
+  - `load(key:)` — возвращает пароль и метаданные сервера либо `nil`, если запись отсутствует.
+  - `delete(key:)` — удаляет запись; отсутствие элемента не считается ошибкой.
+- **Ключи**:
+  - `kSecAttrAccount = "\(username)/\(host):\(port)/\(scheme)"` (scheme = `http|https`) для гарантии уникальности.
+  - `kSecAttrService = "com.remission.transmission"`.
+  - `kSecAttrAccessible = kSecAttrAccessibleWhenUnlocked`.
+  - `kSecAttrSynchronizable = false`, `kSecUseDataProtectionKeychain = true`.
+  - Метаданные (`host`, `port`, `isSecure`, `username`) сериализуются в `kSecAttrGeneric` (JSON) для последующего восстановления ключа.
+- **Ошибки**: `OSStatus` маппится в `KeychainCredentialsStoreError` (`.notFound`, `.unexpectedItemData`, `.unexpectedPasswordEncoding`, `.osStatus(OSStatus)`), сообщения отдаются через `SecCopyErrorMessageString`.
+- **Зависимость**: `KeychainCredentialsDependency` предоставляет live/test значения через TCA `@DependencyClient`, что позволяет легко мокировать Keychain в фичах.
+- **Тесты**: `KeychainCredentialsStoreTests` покрывают happy path (insert, update, load), error path (invalid payload, update failure) и delete-сценарии с моками `SecItem*`.
+- **Справочные материалы**:
+  - Apple Keychain Services — хранение и запрос generic password (`/websites/developer_apple`, разделы *Storing keys in the keychain*, *Adding a password to the keychain*, *kSecClassGenericPassword*).
+  - Best practices wrapper (`/kishikawakatsumi/keychainaccess`) — примеры конфигурации service/account и отключения синхронизации.
+
 ## Веха 3: Доменное ядро
 - M3.1 Описать доменные модели Torrent, ServerConfig и SessionState.
 - M3.2 Настроить преобразование DTO Transmission RPC в доменные модели с валидацией полей.
