@@ -781,6 +781,13 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - M2.5 Добавить требование HTTPS при подключении с предупреждением для HTTP соединений в Keychain раздел PRD.
 - Проверка: модульные тесты Keychain с использованием Swift Testing (@Test) и smoke-тест подключения к локальному Transmission с авторизацией.
 
+### Basic Auth + HTTP 409 Handshake (RTC-37)
+- TransmissionClient формирует заголовок `Authorization: Basic <base64(user:password)>` через `URLCredential(user:password:persistence:)`, что соответствует рекомендациям Apple (Context7: developer.apple.com → Handling an authentication challenge).
+- Заголовки `Authorization` и `X-Transmission-Session-Id` выставляются централизованно в `applyAuthenticationHeaders(to:)`, поэтому повторный запрос после 409 использует те же credentials и свежий session-id без дублирования кода.
+- Session-id хранится потокобезопасно (`NSLock` + `nonisolated` поле) и обновляется только при получении нового значения от сервера.
+- Логирование (`DefaultTransmissionLogger`) маскирует и Base64, и session-id; добавлены тесты на отсутствие утечки секретов.
+- Unit-тесты покрывают happy path генерации заголовка, ретрай после 409 с повторным заголовком и проверку маскировки логов (`TransmissionClientMethodsTests`, `TransmissionClientErrorScenariosTests`).
+
 ## Веха 3: Доменное ядро
 - M3.1 Описать доменные модели Torrent, ServerConfig и SessionState.
 - M3.2 Настроить преобразование DTO Transmission RPC в доменные модели с валидацией полей.

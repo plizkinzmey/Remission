@@ -66,23 +66,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = config.requestTimeout
-
-        // Добавляем Basic Auth если нужен
-        if let username = config.username, let password = config.password {
-            let credentials: String = "\(username):\(password)"
-            let base64Credentials: String? = credentials.data(using: .utf8)?.base64EncodedString()
-            if let base64Credentials: String = base64Credentials {
-                urlRequest.setValue(
-                    "Basic \(base64Credentials)", forHTTPHeaderField: "Authorization")
-            }
-        }
-
-        // Добавляем session ID если уже есть
-        if let sessionID = getSessionID() {
-            urlRequest.setValue(sessionID, forHTTPHeaderField: "X-Transmission-Session-Id")
-        }
-
         urlRequest.httpBody = jsonData
+        applyAuthenticationHeaders(to: &urlRequest)
 
         // Логируем запрос если логирование включено
         if config.enableLogging {
@@ -213,13 +198,15 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         guard
             let sessionIDFromHeader: String =
-                httpResponse.value(forHTTPHeaderField: "X-Transmission-Session-Id")
+                httpResponse
+                .value(forHTTPHeaderField: "X-Transmission-Session-Id")
         else {
             throw APIError.sessionConflict
         }
 
         setSessionID(sessionIDFromHeader)
         request.setValue(sessionIDFromHeader, forHTTPHeaderField: "X-Transmission-Session-Id")
+        applyAuthenticationHeaders(to: &request)
         return true
     }
 
@@ -259,9 +246,48 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         self._sessionID = sessionID
     }
 
-    private func parseHandshake(from response: TransmissionResponse) throws
-        -> TransmissionHandshakeResult
-    {
+    /// Применить заголовки аутентификации (Basic Auth и session-id) к запросу.
+    private func applyAuthenticationHeaders(to request: inout URLRequest) {
+        if let authorizationHeader: String = authorizationHeaderValue() {
+            request.setValue(authorizationHeader, forHTTPHeaderField: "Authorization")
+        }
+
+        if let sessionID: String = getSessionID() {
+            request.setValue(sessionID, forHTTPHeaderField: "X-Transmission-Session-Id")
+        }
+    }
+
+    /// Сформировать значение заголовка Authorization для Basic Auth.
+    /// Использует URLCredential с persistence `.forSession` согласно рекомендациям Apple.
+    /// Context7: developer.apple.com — «Handling an authentication challenge» (URLCredential).
+    private func authorizationHeaderValue() -> String? {
+        guard let username = config.username,
+            let password = config.password,
+            username.isEmpty == false
+        else {
+            return nil
+        }
+
+        let credential: URLCredential = URLCredential(
+            user: username,
+            password: password,
+            persistence: .forSession
+        )
+
+        guard let user: String = credential.user,
+            let secret: String = credential.password
+        else {
+            return nil
+        }
+
+        let credentialsData: Data = Data("\(user):\(secret)".utf8)
+        let base64Credentials: String = credentialsData.base64EncodedString()
+        return "Basic \(base64Credentials)"
+    }
+
+    private func parseHandshake(
+        from response: TransmissionResponse
+    ) throws -> TransmissionHandshakeResult {
         guard let arguments = response.arguments,
             case .object(let dict) = arguments
         else {
@@ -279,9 +305,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         let serverVersionString: String?
-        if let versionValue = dict["version"],
-            case .string(let value) = versionValue
-        {
+        if case .string(let value)? = dict["version"] {
             serverVersionString = value
         } else {
             serverVersionString = nil

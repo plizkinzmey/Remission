@@ -3,25 +3,25 @@ import Testing
 
 @testable import Remission
 
-/// TransmissionClient успешные сценарии — с использованием фикстур
-///
-/// Интеграционные тесты, которые используют:
-/// - Mock-сервер (`TransmissionMockServer`) для эмуляции Transmission RPC (RTC-29)
-/// - Фикстуры (`TransmissionFixture`) с реальными ответами (RTC-30)
-/// - Полный цикл handshake: HTTP 409 → session-id extraction → повторный запрос
-///
-/// **Архитектура тестов:**
-/// 1. Регистрируем сценарий в mock-сервере
-/// 2. Проверяем аргументы запроса через assertions
-/// 3. Возвращаем фикстуру в качестве ответа
-/// 4. Парсим и валидируем ответ через `#expect`/`#require`
-///
-/// **Справочные материалы:**
-/// - Swift Testing: https://developer.apple.com/documentation/testing
-/// - Transmission RPC Spec: devdoc/TRANSMISSION_RPC_REFERENCE.md
-/// - Mock-сервер (RTC-29): RemissionTests/TransmissionMockServer.swift
-/// - Фикстуры (RTC-30): RemissionTests/Fixtures/TransmissionFixture.swift
-///
+// TransmissionClient успешные сценарии — с использованием фикстур
+//
+// Интеграционные тесты, которые используют:
+// - Mock-сервер (`TransmissionMockServer`) для эмуляции Transmission RPC (RTC-29)
+// - Фикстуры (`TransmissionFixture`) с реальными ответами (RTC-30)
+// - Полный цикл handshake: HTTP 409 → session-id extraction → повторный запрос
+//
+// **Архитектура тестов:**
+// 1. Регистрируем сценарий в mock-сервере
+// 2. Проверяем аргументы запроса через assertions
+// 3. Возвращаем фикстуру в качестве ответа
+// 4. Парсим и валидируем ответ через `#expect`/`#require`
+//
+// **Справочные материалы:**
+// - Swift Testing: https://developer.apple.com/documentation/testing
+// - Transmission RPC Spec: devdoc/TRANSMISSION_RPC_REFERENCE.md
+// - Mock-сервер (RTC-29): RemissionTests/TransmissionMockServer.swift
+// - Фикстуры (RTC-30): RemissionTests/Fixtures/TransmissionFixture.swift
+//
 // swiftlint:disable explicit_type_interface
 @Suite("TransmissionClient Happy Path (Fixtures)")
 @MainActor
@@ -30,6 +30,7 @@ struct TransmissionClientHappyPathFixturesTests {
 
     // MARK: - Tests
 
+    // swiftlint:disable function_body_length
     @Test("torrent-get возвращает данные из фикстуры и сохраняет session-id")
     func testTorrentGetSuccessWithFixture() async throws {
         let expectedResponse: TransmissionResponse =
@@ -46,8 +47,7 @@ struct TransmissionClientHappyPathFixturesTests {
                         sessionID: sessionID,
                         fixture: .torrentGetSingleActive,
                         assertions: [
-                            TransmissionMockAssertion("encodes ids and fields") {
-                                request, _ in
+                            TransmissionMockAssertion("encodes ids and fields") { request, _ in
                                 let arguments = try argumentsDictionary(from: request)
                                 guard
                                     arguments["ids"]
@@ -96,6 +96,9 @@ struct TransmissionClientHappyPathFixturesTests {
         try mockServer.assertAllScenariosFinished()
     }
 
+    // swiftlint:enable function_body_length
+
+    // swiftlint:disable function_body_length
     @Test("torrent-add возвращает torrent-added из фикстуры")
     func testTorrentAddSuccessWithFixture() async throws {
         let expectedResponse: TransmissionResponse =
@@ -112,8 +115,7 @@ struct TransmissionClientHappyPathFixturesTests {
                         sessionID: sessionID,
                         fixture: .torrentAddSuccessMagnet,
                         assertions: [
-                            TransmissionMockAssertion("encodes magnet payload") {
-                                request, _ in
+                            TransmissionMockAssertion("encodes magnet payload") { request, _ in
                                 let arguments = try argumentsDictionary(from: request)
                                 guard
                                     arguments["filename"]
@@ -156,6 +158,7 @@ struct TransmissionClientHappyPathFixturesTests {
 
         try mockServer.assertAllScenariosFinished()
     }
+    // swiftlint:enable function_body_length
 
     @Test("torrent-start использует session-id и возвращает success")
     func testTorrentStartSuccessWithFixture() async throws {
@@ -268,8 +271,7 @@ struct TransmissionClientHappyPathFixturesTests {
                         sessionID: sessionID,
                         fixture: fixture,
                         assertions: [
-                            TransmissionMockAssertion("validates request arguments") {
-                                request, _ in
+                            TransmissionMockAssertion("validates request arguments") { request, _ in
                                 try validateArguments(request)
                             }
                         ]
