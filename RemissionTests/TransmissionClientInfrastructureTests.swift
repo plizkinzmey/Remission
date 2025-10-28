@@ -88,6 +88,7 @@ struct TransmissionClientConfigTests {
 
 @Suite("TransmissionClientProtocol Tests")
 struct TransmissionClientProtocolTests {
+    // swiftlint:disable function_body_length
     @Test("Протокол требует всех основных методов")
     func testProtocolMethods() throws {
         // Проверяем, что протокол содержит все методы через reflection/compile-time check.
@@ -159,6 +160,7 @@ struct TransmissionClientProtocolTests {
 
         #expect(Bool(true))
     }
+    // swiftlint:enable function_body_length
 
     @Test("Протокол является Sendable")
     func testProtocolIsSendable() throws {

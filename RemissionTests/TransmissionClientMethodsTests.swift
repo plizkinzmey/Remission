@@ -3,21 +3,21 @@ import Testing
 
 @testable import Remission
 
-/// TransmissionClient методы тестирование — Happy Path и Error scenarios
-///
-/// Используется Swift Testing фреймворк с `@Test` и `@Suite` атрибутами.
-/// Тесты покрывают все публичные методы API: torrent-get, torrent-add, torrent-start,
-/// torrent-stop, torrent-remove, torrent-set, torrent-verify, session-* методы.
-///
-/// **Справочные материалы:**
-/// - Swift Testing: https://developer.apple.com/documentation/testing
-/// - Transmission RPC: devdoc/TRANSMISSION_RPC_REFERENCE.md
-/// - TCA Testing: https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/Testing.md
-///
-/// **Используемые мок-компоненты:**
-/// - `MockURLProtocol` — перехват URLSession запросов
-/// - `TransmissionRequest`, `TransmissionResponse` — DTO парсинг
-///
+// TransmissionClient методы тестирование — Happy Path и Error scenarios
+//
+// Используется Swift Testing фреймворк с `@Test` и `@Suite` атрибутами.
+// Тесты покрывают все публичные методы API: torrent-get, torrent-add, torrent-start,
+// torrent-stop, torrent-remove, torrent-set, torrent-verify, session-* методы.
+//
+// **Справочные материалы:**
+// - Swift Testing: https://developer.apple.com/documentation/testing
+// - Transmission RPC: devdoc/TRANSMISSION_RPC_REFERENCE.md
+// - TCA Testing: https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/Testing.md
+//
+// **Используемые мок-компоненты:**
+// - `MockURLProtocol` — перехват URLSession запросов
+// - `TransmissionRequest`, `TransmissionResponse` — DTO парсинг
+//
 // swiftlint:disable explicit_type_interface file_length type_body_length
 @Suite("TransmissionClient Torrent Methods")
 @MainActor
@@ -144,6 +144,89 @@ struct TransmissionClientMethodsTests {
         } catch {
             #expect(Bool(false), "Ожидалась APIError, получено \(error)")
         }
+    }
+
+    @Test("TransmissionClient добавляет Basic Auth заголовок при наличии credentials")
+    func testAuthorizationHeaderIsInjected() async throws {
+        let expectedResponse = TransmissionResponse(result: "success")
+        MockURLProtocol.setHandlers([
+            { request in
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                let data = try JSONEncoder().encode(expectedResponse)
+                return (response, data)
+            }
+        ])
+
+        let config = TransmissionClientConfig(
+            baseURL: baseURL,
+            username: "user",
+            password: "pass"
+        )
+        let client = makeClient(config: config)
+        let response = try await client.sessionStats()
+        #expect(response == expectedResponse)
+
+        let request = try #require(MockURLProtocol.requests.last)
+        let header = try #require(request.value(forHTTPHeaderField: "Authorization"))
+        let expectedHeader = "Basic \(Data("user:pass".utf8).base64EncodedString())"
+        #expect(header == expectedHeader)
+    }
+
+    @Test("Authorization сохраняется при повторе запроса после 409")
+    func testAuthorizationPersistsAfter409Retry() async throws {
+        let expectedResponse = TransmissionResponse(result: "success")
+        var recordedHeaders: [String?] = []
+
+        MockURLProtocol.setHandlers([
+            { request in
+                recordedHeaders.append(request.value(forHTTPHeaderField: "Authorization"))
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 409,
+                    httpVersion: nil,
+                    headerFields: ["X-Transmission-Session-Id": "session-42"]
+                )!
+                return (response, Data())
+            },
+            { request in
+                recordedHeaders.append(request.value(forHTTPHeaderField: "Authorization"))
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                let data = try JSONEncoder().encode(expectedResponse)
+                return (response, data)
+            }
+        ])
+
+        let config = TransmissionClientConfig(
+            baseURL: baseURL,
+            username: "alice",
+            password: "secret"
+        )
+        let client = makeClient(config: config)
+        let response = try await client.sessionGet()
+        #expect(response == expectedResponse)
+
+        #expect(recordedHeaders.count == 2)
+        let expectedHeader = "Basic \(Data("alice:secret".utf8).base64EncodedString())"
+        for header in recordedHeaders {
+            let value = try #require(header)
+            #expect(value == expectedHeader)
+        }
+
+        let requests = MockURLProtocol.requests
+        #expect(requests.count == 2)
+        let secondSessionHeader = requests.last?.value(
+            forHTTPHeaderField: "X-Transmission-Session-Id")
+        #expect(secondSessionHeader == "session-42")
     }
 
     @Test("torrent-start кодирует список идентификаторов")
