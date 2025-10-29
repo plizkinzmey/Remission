@@ -1,17 +1,21 @@
-//
-//  RemissionApp.swift
-//  Remission
-//
-//  Created by Aleksandr on 17.10.2025.
-//
-
+import ComposableArchitecture
 import SwiftUI
 
 @main
 struct RemissionApp: App {
+    @StateObject private var store: StoreOf<AppReducer>
+
+    init() {
+        _store = StateObject(
+            wrappedValue: Store(initialState: AppReducer.State()) {
+                AppReducer()
+            }
+        )
+    }
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppView(store: store)
         }
     }
 }
