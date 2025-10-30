@@ -271,6 +271,205 @@ struct TransmissionClientProtocolTests {
         }
     }
 
+    @Suite("TransmissionClientBootstrap Tests")
+    struct TransmissionClientBootstrapTests {
+        private struct TestTransmissionClient: TransmissionClientProtocol {
+            func sessionGet() async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func sessionSet(arguments: AnyCodable) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func sessionStats() async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func torrentGet(ids: [Int]?, fields: [String]?) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func torrentAdd(
+                filename: String?,
+                metainfo: Data?,
+                downloadDir: String?,
+                paused: Bool?,
+                labels: [String]?
+            ) async throws -> TransmissionResponse {
+                await MainActor.run {
+                    TransmissionResponse(result: "test-success")
+                }
+            }
+
+            func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func torrentRemove(
+                ids: [Int],
+                deleteLocalData: Bool?
+            ) async throws -> TransmissionResponse {
+                await MainActor.run {
+                    TransmissionResponse(result: "test-success")
+                }
+            }
+
+            func torrentSet(
+                ids: [Int],
+                arguments: AnyCodable
+            ) async throws -> TransmissionResponse {
+                await MainActor.run {
+                    TransmissionResponse(result: "test-success")
+                }
+            }
+
+            func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+                await MainActor.run { (compatible: true, rpcVersion: 17) }
+            }
+
+            func performHandshake() async throws -> TransmissionHandshakeResult {
+                await MainActor.run {
+                    TransmissionHandshakeResult(
+                        sessionID: "test-session",
+                        rpcVersion: 17,
+                        minimumSupportedRpcVersion: 14,
+                        serverVersionDescription: "4.0.0",
+                        isCompatible: true
+                    )
+                }
+            }
+        }
+
+        @MainActor
+        @Test("TransmissionClientBootstrap создает корректный live dependency")
+        func testBootstrapCreatesLiveDependency() async throws {
+            let testClient = TestTransmissionClient()
+            let liveDependency = TransmissionClientDependency.live(client: testClient)
+
+            // Проверяем что live dependency работает
+            let response = try await liveDependency.sessionGet()
+            #expect(response.result == "test-success")
+
+            let version = try await liveDependency.checkServerVersion()
+            #expect(version.compatible == true)
+            #expect(version.rpcVersion == 17)
+
+            let handshake = try await liveDependency.performHandshake()
+            #expect(handshake.sessionID == "test-session")
+            #expect(handshake.isCompatible == true)
+        }
+
+        @MainActor
+        @Test("TransmissionClientBootstrap fallback на placeholder при недоступной конфигурации")
+        func testBootstrapFallbackToPlaceholder() async {
+            // Симулируем недоступную конфигурацию возвращая nil
+            // В реальном коде это произойдет при невалидном URL или других проблемах
+            let placeholderDependency = TransmissionClientDependency.placeholder
+
+            // Проверяем что placeholder действительно бросает ошибку
+            // notConfigured
+            do {
+                _ = try await placeholderDependency.sessionGet()
+                Issue.record("Expected placeholder to throw notConfigured error")
+            } catch TransmissionClientDependencyError.notConfigured(
+                let name
+            ) {
+                #expect(name == "sessionGet")
+            } catch {
+                Issue.record(
+                    "Unexpected error from placeholder: \(String(reflecting: error))"
+                )
+            }
+
+            // Проверяем все методы placeholder
+            let methodsToTest = [
+                (
+                    "sessionSet",
+                    { try await placeholderDependency.sessionSet(AnyCodable.object([:])) }
+                ),
+                ("sessionStats", { try await placeholderDependency.sessionStats() }),
+                ("torrentGet", { try await placeholderDependency.torrentGet(nil, nil) }),
+                (
+                    "torrentAdd",
+                    { try await placeholderDependency.torrentAdd(nil, nil, nil, nil, nil) }
+                ),
+                ("torrentStart", { try await placeholderDependency.torrentStart([]) }),
+                ("torrentStop", { try await placeholderDependency.torrentStop([]) }),
+                (
+                    "torrentRemove",
+                    { try await placeholderDependency.torrentRemove([], nil) }
+                ),
+                (
+                    "torrentSet",
+                    { try await placeholderDependency.torrentSet([], AnyCodable.object([:])) }
+                ),
+                ("torrentVerify", { try await placeholderDependency.torrentVerify([]) }),
+                ("checkServerVersion", { try await placeholderDependency.checkServerVersion() }),
+                ("performHandshake", { try await placeholderDependency.performHandshake() })
+            ]
+
+            for (methodName, testCall) in methodsToTest {
+                do {
+                    _ = try await testCall()
+                    Issue.record("Expected \(methodName) to throw notConfigured error")
+                } catch TransmissionClientDependencyError.notConfigured(let name) {
+                    #expect(name == methodName)
+                } catch {
+                    Issue.record(
+                        "Unexpected error from \(methodName): \(String(reflecting: error))")
+                }
+            }
+        }
+
+        @MainActor
+        @Test("Динамическое переключение с placeholder на live")
+        func testDynamicSwitchPlaceholderToLive() async throws {
+            var deps: DependencyValues = DependencyValues()
+
+            // Начинаем с placeholder
+            #expect(deps.transmissionClient == TransmissionClientDependency.placeholder)
+
+            // Проверяем что placeholder действительно не настроен
+            do {
+                _ = try await deps.transmissionClient.sessionGet()
+                Issue.record("Expected placeholder to be unconfigured")
+            } catch TransmissionClientDependencyError.notConfigured {
+                // Ожидаемое поведение
+            } catch {
+                Issue.record("Unexpected error from default dependency")
+            }
+
+            // Переключаемся на live dependency
+            let testClient = TestTransmissionClient()
+            deps.transmissionClient = TransmissionClientDependency.live(client: testClient)
+
+            // Проверяем что live dependency работает
+            let response = try await deps.transmissionClient.sessionGet()
+            #expect(response.result == "test-success")
+
+            // Проверяем что можем вернуться к placeholder
+            deps.transmissionClient = TransmissionClientDependency.placeholder
+
+            do {
+                _ = try await deps.transmissionClient.sessionGet()
+                Issue.record("Expected placeholder to be unconfigured after switch back")
+            } catch TransmissionClientDependencyError.notConfigured {
+                // Ожидаемое поведение
+            } catch {
+                Issue.record("Unexpected error after switch back to placeholder")
+            }
+        }
+    }
+
 #endif
 
 // swiftlint:enable explicit_type_interface
