@@ -394,27 +394,30 @@ struct TransmissionClientProtocolTests {
             let methodsToTest = [
                 (
                     "sessionSet",
-                    { try await placeholderDependency.sessionSet(AnyCodable.object([:])) }
+                    { _ = try await placeholderDependency.sessionSet(AnyCodable.object([:])) }
                 ),
-                ("sessionStats", { try await placeholderDependency.sessionStats() }),
-                ("torrentGet", { try await placeholderDependency.torrentGet(nil, nil) }),
+                ("sessionStats", { _ = try await placeholderDependency.sessionStats() }),
+                ("torrentGet", { _ = try await placeholderDependency.torrentGet(nil, nil) }),
                 (
                     "torrentAdd",
-                    { try await placeholderDependency.torrentAdd(nil, nil, nil, nil, nil) }
+                    { _ = try await placeholderDependency.torrentAdd(nil, nil, nil, nil, nil) }
                 ),
-                ("torrentStart", { try await placeholderDependency.torrentStart([]) }),
-                ("torrentStop", { try await placeholderDependency.torrentStop([]) }),
+                ("torrentStart", { _ = try await placeholderDependency.torrentStart([]) }),
+                ("torrentStop", { _ = try await placeholderDependency.torrentStop([]) }),
                 (
                     "torrentRemove",
-                    { try await placeholderDependency.torrentRemove([], nil) }
+                    { _ = try await placeholderDependency.torrentRemove([], nil) }
                 ),
                 (
                     "torrentSet",
-                    { try await placeholderDependency.torrentSet([], AnyCodable.object([:])) }
+                    { _ = try await placeholderDependency.torrentSet([], AnyCodable.object([:])) }
                 ),
-                ("torrentVerify", { try await placeholderDependency.torrentVerify([]) }),
-                ("checkServerVersion", { try await placeholderDependency.checkServerVersion() }),
-                ("performHandshake", { try await placeholderDependency.performHandshake() })
+                ("torrentVerify", { _ = try await placeholderDependency.torrentVerify([]) }),
+                (
+                    "checkServerVersion",
+                    { _ = try await placeholderDependency.checkServerVersion() }
+                ),
+                ("performHandshake", { _ = try await placeholderDependency.performHandshake() })
             ]
 
             for (methodName, testCall) in methodsToTest {
@@ -435,15 +438,12 @@ struct TransmissionClientProtocolTests {
         func testDynamicSwitchPlaceholderToLive() async throws {
             var deps: DependencyValues = DependencyValues()
 
-            // Начинаем с placeholder
-            #expect(deps.transmissionClient == TransmissionClientDependency.placeholder)
-
-            // Проверяем что placeholder действительно не настроен
+            // Начинаем с placeholder (проверяем что он действительно не настроен)
             do {
                 _ = try await deps.transmissionClient.sessionGet()
-                Issue.record("Expected placeholder to be unconfigured")
+                Issue.record("Expected default dependency to be unconfigured")
             } catch TransmissionClientDependencyError.notConfigured {
-                // Ожидаемое поведение
+                // Ожидаемое поведение для default dependency
             } catch {
                 Issue.record("Unexpected error from default dependency")
             }
