@@ -640,7 +640,7 @@ UX и пользовательские потоки
 -----------------
 - Unit tests: TransmissionClient (моки), ViewModels.
 - Integration tests: поднять локальный экземпляр Transmission (Docker) в CI и прогонять основные сценарии (connect/add/start/stop/remove).
-- UI tests: XCUITest для основных пользовательских потоков (onboarding, add torrent, main list actions).
+- UI tests: XCUITest для основных пользовательских потоков (onboarding, add torrent, main list actions). Текущий smoke-набор покрывает пустой список серверов и навигацию к деталям сервера, используя launch-аргумент `--ui-testing-fixture=server-list-sample` для подстановки тестовых данных.
 
 Документы и артефакты
 ---------------------

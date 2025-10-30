@@ -11,7 +11,7 @@ struct RemissionApp: App {
     @StateObject var store: StoreOf<AppReducer>
 
     init() {
-        let store = Store(initialState: AppReducer.State()) {
+        let store = Store(initialState: AppBootstrap.makeInitialState()) {
             AppReducer()
         } withDependencies: { dependencies in
             dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(

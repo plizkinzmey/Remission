@@ -119,6 +119,8 @@ xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iO
 xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
+UI smoke покрывает две ключевые ветки: пустое состояние списка серверов и переход к деталям через фикстурные данные. Для сценария навигации используется launch-аргумент `--ui-testing-fixture=server-list-sample`, который подготавливает преднастроенные сервера при запуске UI-тестов.
+
 **Покрытие кода (целевое значение ≥ 60%):**
 ```bash
 # 1. Запускаем тесты с сохранением результата и включённым покрытием
