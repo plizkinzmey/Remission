@@ -2,6 +2,18 @@ import Foundation
 
 // swiftlint:disable type_body_length
 
+private actor SessionStore {
+    private var sessionID: String?
+
+    func load() -> String? {
+        sessionID
+    }
+
+    func store(_ newValue: String?) {
+        sessionID = newValue
+    }
+}
+
 /// Конкретная реализация TransmissionClientProtocol.
 /// Использует URLSession для отправки HTTP запросов к Transmission RPC API.
 /// Обрабатывает аутентификацию (Basic Auth + HTTP 409 session-id handshake),
@@ -13,11 +25,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// Конфигурация клиента (базовый URL, credentials, таймауты).
     private let config: TransmissionClientConfig
 
-    /// Lock для безопасного доступа к session ID
-    nonisolated private let sessionIDLock: NSLock = NSLock()
-
-    /// Переменная для хранения текущего session ID (защищена sessionIDLock)
-    nonisolated(unsafe) private var _sessionID: String?
+    /// Потокобезопасное хранилище session-id.
+    private let sessionStore: SessionStore = SessionStore()
 
     /// URLSession для выполнения HTTP запросов.
     private let session: URLSession
@@ -40,7 +49,6 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         self.config = config
         self.session = session
         self.clock = clock
-        self._sessionID = nil
     }
 
     /// Удобный инициализатор для использования конструктора AnyCodable из Dictionary
@@ -77,7 +85,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = config.requestTimeout
         urlRequest.httpBody = jsonData
-        applyAuthenticationHeaders(to: &urlRequest)
+        await applyAuthenticationHeaders(to: &urlRequest)
 
         // Логируем запрос если логирование включено
         if config.enableLogging {
@@ -110,7 +118,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 let (data, response): (Data, URLResponse) = try await session.data(
                     for: mutableRequest)
 
-                if let transmissionResponse = try handleResponse(
+                if let transmissionResponse = try await handleResponse(
                     data: data,
                     response: response,
                     request: &mutableRequest,
@@ -156,7 +164,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         request: inout URLRequest,
         handshakeAttempts: inout Int,
         method: String
-    ) throws -> TransmissionResponse? {
+    ) async throws -> TransmissionResponse? {
         let httpResponse: HTTPURLResponse = try requireHTTPResponse(response)
 
         // Логируем ответ если логирование включено
@@ -165,7 +173,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 method: method, statusCode: httpResponse.statusCode, responseBody: data)
         }
 
-        if try processSessionConflictIfNeeded(
+        if try await processSessionConflictIfNeeded(
             httpResponse,
             request: &request,
             handshakeAttempts: &handshakeAttempts
@@ -195,7 +203,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         _ httpResponse: HTTPURLResponse,
         request: inout URLRequest,
         handshakeAttempts: inout Int
-    ) throws -> Bool {
+    ) async throws -> Bool {
         guard httpResponse.statusCode == 409 else {
             return false
         }
@@ -213,9 +221,9 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             throw APIError.sessionConflict
         }
 
-        setSessionID(sessionIDFromHeader)
+        await sessionStore.store(sessionIDFromHeader)
         request.setValue(sessionIDFromHeader, forHTTPHeaderField: "X-Transmission-Session-Id")
-        applyAuthenticationHeaders(to: &request)
+        await applyAuthenticationHeaders(to: &request)
         return true
     }
 
@@ -241,27 +249,13 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
     }
 
-    /// Получить текущий session ID (потокобезопасно).
-    nonisolated private func getSessionID() -> String? {
-        sessionIDLock.lock()
-        defer { sessionIDLock.unlock() }
-        return _sessionID
-    }
-
-    /// Установить session ID (потокобезопасно).
-    nonisolated private func setSessionID(_ sessionID: String) {
-        sessionIDLock.lock()
-        defer { sessionIDLock.unlock() }
-        self._sessionID = sessionID
-    }
-
     /// Применить заголовки аутентификации (Basic Auth и session-id) к запросу.
-    private func applyAuthenticationHeaders(to request: inout URLRequest) {
+    private func applyAuthenticationHeaders(to request: inout URLRequest) async {
         if let authorizationHeader: String = authorizationHeaderValue() {
             request.setValue(authorizationHeader, forHTTPHeaderField: "Authorization")
         }
 
-        if let sessionID: String = getSessionID() {
+        if let sessionID: String = await sessionStore.load() {
             request.setValue(sessionID, forHTTPHeaderField: "X-Transmission-Session-Id")
         }
     }
@@ -296,7 +290,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
     private func parseHandshake(
         from response: TransmissionResponse
-    ) throws -> TransmissionHandshakeResult {
+    ) async throws -> TransmissionHandshakeResult {
         guard let arguments = response.arguments,
             case .object(let dict) = arguments
         else {
@@ -321,7 +315,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         return TransmissionHandshakeResult(
-            sessionID: getSessionID(),
+            sessionID: await sessionStore.load(),
             rpcVersion: rpcVersion,
             minimumSupportedRpcVersion: minimumRpcVersion,
             serverVersionDescription: serverVersionString,
@@ -350,7 +344,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
     public func performHandshake() async throws -> TransmissionHandshakeResult {
         let response: TransmissionResponse = try await sessionGet()
-        let handshake: TransmissionHandshakeResult = try parseHandshake(from: response)
+        let handshake: TransmissionHandshakeResult = try await parseHandshake(from: response)
 
         if config.enableLogging {
             let message: String =
@@ -366,7 +360,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         return TransmissionHandshakeResult(
-            sessionID: getSessionID(),
+            sessionID: await sessionStore.load(),
             rpcVersion: handshake.rpcVersion,
             minimumSupportedRpcVersion: handshake.minimumSupportedRpcVersion,
             serverVersionDescription: handshake.serverVersionDescription,

@@ -176,6 +176,7 @@ await testClock.advance(by: .milliseconds(2))
    - При использовании HTTPS: проверка сертификатов + поддержка самоподписанных (с явным подтверждением)
    - Предупреждение о рисках при использовании HTTP в открытых сетях (см. PRD.md раздел "HTTP vs HTTPS политика")
 4. **API клиентов**: `TransmissionClient.performHandshake()` выполняет полный цикл (409 → повтор → `session-get`) и возвращает `TransmissionHandshakeResult` с session-id, номером RPC и человекочитаемой версией. Метод автоматически бросает `APIError.versionUnsupported`, если `rpc-version < 14`.
+5. **Потокобезопасное хранение session-id**: `TransmissionClient` использует актор `SessionStore` для сериализации чтения/записи `X-Transmission-Session-Id`. Это исключает `nonisolated(unsafe)` и ручные `NSLock`, а также позволяет пройти строгую проверку `Sendable`. Все повторные запросы (после HTTP 409) повторно собирают заголовки уже из акторного хранилища.
 
 ### JSON-RPC структура
 
