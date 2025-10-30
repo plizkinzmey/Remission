@@ -8,7 +8,6 @@ import Testing
 struct TransmissionMockServerTests {
     private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
         let config: URLSessionConfiguration = server.makeEphemeralSessionConfiguration()
-        let session: URLSession = URLSession(configuration: config)
         let clientConfig: TransmissionClientConfig = TransmissionClientConfig(
             baseURL: URL(string: "https://mock.transmission/app")!,
             requestTimeout: 3,
@@ -16,7 +15,13 @@ struct TransmissionMockServerTests {
             enableLogging: false
         )
         let immediateClock = ImmediateClock()
-        return TransmissionClient(config: clientConfig, session: session, clock: immediateClock)
+        return TransmissionClient(
+            config: clientConfig,
+            sessionConfiguration: config,
+            trustStore: .inMemory(),
+            trustDecisionHandler: { _ in .trustPermanently },
+            clock: immediateClock
+        )
     }
 
     @Test("handshake + success сценарий возвращает ожидаемые данные")

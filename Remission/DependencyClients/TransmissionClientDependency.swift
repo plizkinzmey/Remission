@@ -25,6 +25,7 @@
         var torrentVerify: @Sendable ([Int]) async throws -> TransmissionResponse
         var checkServerVersion: @Sendable () async throws -> (compatible: Bool, rpcVersion: Int)
         var performHandshake: @Sendable () async throws -> TransmissionHandshakeResult
+        var setTrustDecisionHandler: @Sendable (@escaping TransmissionTrustDecisionHandler) -> Void
     }
 
     extension TransmissionClientDependency {
@@ -64,6 +65,11 @@
             },
             performHandshake: {
                 throw TransmissionClientDependencyError.notConfigured("performHandshake")
+            },
+            setTrustDecisionHandler: { _ in
+                preconditionFailure(
+                    "TransmissionClientDependency.setTrustDecisionHandler is not configured for this environment."
+                )
             }
         )
     }

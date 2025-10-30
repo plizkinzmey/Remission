@@ -918,6 +918,17 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - **UISpec диалога подтверждения**:
   - Заголовок: «Ненадёжный сертификат».
   - Текст: предупреждение о рисках + блок с деталями (`Сервер`, `SHA-256 отпечаток`, подсказка для пользователя).
+
+### Реализация доверия сертификатам (RTC-46)
+- **Хранилище отпечатков**: `TransmissionTrustStore.swift` использует Keychain (`service = com.remission.transmission.trust`). Для тестов добавлен in-memory интерфейс, повторяющий поведение SecItemAdd/Update/Copy/Delete.
+- **Проверка доверия**: `TransmissionTrustEvaluator.swift` инкапсулирует `SecTrustEvaluateWithError`, сравнение отпечатков и работу с пользователем. При обнаружении нового или изменённого отпечатка удаляет старое значение и эмитит challenge.
+- **URLSessionDelegate**: `TransmissionSessionDelegate.swift` подключён в `TransmissionClient` (кастомная `URLSession(Configuration:delegate:)`). Делегат пробрасывает `serverTrust` в evaluator и обрабатывает результат (`useCredential`/`cancel`).
+- **Промпты для UI**: `TransmissionTrustPromptCenter` публикует `AsyncStream<TransmissionTrustPrompt>` и предоставляет `makeHandler()` для регистрации в клиенте. `RemissionApp` связывает prompt-center с `TransmissionClient` через `setTrustDecisionHandler`.
+- **Ошибки**: `APIError` дополнен `.tlsTrustDeclined` и `.tlsEvaluationFailed` с отображением в `TorrentDetailFeature.userFriendlyMessage`.
+- **Тесты**:
+  - `TransmissionTrustStoreTests` проверяет сохранение, обновление и удаление отпечатков.
+  - `TransmissionTrustEvaluatorTests` покрывают доверенный сертификат (anchor), подтверждение self-signed, отказ пользователя и совпадение отпечатка (фикстура DER).
+  - `TransmissionTrustPromptCenterTests` удостоверяются, что `AsyncStream` и резолвер корректно возобновляют продолжение.
   - Кнопки: primary `Доверять`, secondary `Отмена`, дополнительная ссылка `Подробнее…` с переходом к справке.
   - Реализация: `AlertState` в TCA с `@Presents`, локализации RU/EN, поддержка VoiceOver (accessibilityLabel/Hint).
 - **Безопасная реализация**:

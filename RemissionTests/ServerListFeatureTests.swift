@@ -31,7 +31,7 @@ struct ServerListFeatureTests {
 
     @Test
     func selectingServerTriggersDelegate() async {
-        let server = ServerListReducer.State.Server(
+        let server = ServerListReducer.Server(
             id: UUID(),
             name: "Seedbox",
             address: "https://seedbox.example.com"

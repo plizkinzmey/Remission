@@ -267,7 +267,6 @@ struct TransmissionClientErrorScenariosTests {
     ) -> (client: TransmissionClient, clock: TestClock<Duration>) {
         let sessionConfiguration: URLSessionConfiguration =
             server.makeEphemeralSessionConfiguration()
-        let session: URLSession = URLSession(configuration: sessionConfiguration)
 
         let config: TransmissionClientConfig =
             configOverride
@@ -280,7 +279,9 @@ struct TransmissionClientErrorScenariosTests {
         let testClock = TestClock<Duration>()
         let client = TransmissionClient(
             config: config,
-            session: session,
+            sessionConfiguration: sessionConfiguration,
+            trustStore: .inMemory(),
+            trustDecisionHandler: { _ in .trustPermanently },
             clock: testClock
         )
         return (client, testClock)

@@ -156,6 +156,8 @@ struct TransmissionClientProtocolTests {
             func performHandshake() async throws -> TransmissionHandshakeResult {
                 throw APIError.unknown(details: "mock")
             }
+
+            func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler) {}
         }
 
         #expect(Bool(true))
@@ -241,6 +243,8 @@ struct TransmissionClientProtocolTests {
                     )
                 }
             }
+
+            func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler) {}
         }
 
         @MainActor
@@ -347,6 +351,8 @@ struct TransmissionClientProtocolTests {
                     )
                 }
             }
+
+            func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler) {}
         }
 
         @MainActor
@@ -375,61 +381,14 @@ struct TransmissionClientProtocolTests {
             // В реальном коде это произойдет при невалидном URL или других проблемах
             let placeholderDependency = TransmissionClientDependency.placeholder
 
-            // Проверяем что placeholder действительно бросает ошибку
-            // notConfigured
-            do {
+            await expectNotConfigured(method: "sessionGet") {
                 _ = try await placeholderDependency.sessionGet()
-                Issue.record("Expected placeholder to throw notConfigured error")
-            } catch TransmissionClientDependencyError.notConfigured(
-                let name
-            ) {
-                #expect(name == "sessionGet")
-            } catch {
-                Issue.record(
-                    "Unexpected error from placeholder: \(String(reflecting: error))"
-                )
             }
 
-            // Проверяем все методы placeholder
-            let methodsToTest = [
-                (
-                    "sessionSet",
-                    { _ = try await placeholderDependency.sessionSet(AnyCodable.object([:])) }
-                ),
-                ("sessionStats", { _ = try await placeholderDependency.sessionStats() }),
-                ("torrentGet", { _ = try await placeholderDependency.torrentGet(nil, nil) }),
-                (
-                    "torrentAdd",
-                    { _ = try await placeholderDependency.torrentAdd(nil, nil, nil, nil, nil) }
-                ),
-                ("torrentStart", { _ = try await placeholderDependency.torrentStart([]) }),
-                ("torrentStop", { _ = try await placeholderDependency.torrentStop([]) }),
-                (
-                    "torrentRemove",
-                    { _ = try await placeholderDependency.torrentRemove([], nil) }
-                ),
-                (
-                    "torrentSet",
-                    { _ = try await placeholderDependency.torrentSet([], AnyCodable.object([:])) }
-                ),
-                ("torrentVerify", { _ = try await placeholderDependency.torrentVerify([]) }),
-                (
-                    "checkServerVersion",
-                    { _ = try await placeholderDependency.checkServerVersion() }
-                ),
-                ("performHandshake", { _ = try await placeholderDependency.performHandshake() })
-            ]
-
-            for (methodName, testCall) in methodsToTest {
-                do {
-                    _ = try await testCall()
-                    Issue.record("Expected \(methodName) to throw notConfigured error")
-                } catch TransmissionClientDependencyError.notConfigured(let name) {
-                    #expect(name == methodName)
-                } catch {
-                    Issue.record(
-                        "Unexpected error from \(methodName): \(String(reflecting: error))")
-                }
+            for (methodName, testCall) in placeholderFailureScenarios(
+                dependency: placeholderDependency
+            ) {
+                await expectNotConfigured(method: methodName, execute: testCall)
             }
         }
 
@@ -473,3 +432,45 @@ struct TransmissionClientProtocolTests {
 #endif
 
 // swiftlint:enable explicit_type_interface
+
+private func placeholderFailureScenarios(
+    dependency: TransmissionClientDependency
+) -> [(String, () async throws -> Void)] {
+    [
+        (
+            "sessionSet",
+            { _ = try await dependency.sessionSet(AnyCodable.object([:])) }
+        ),
+        ("sessionStats", { _ = try await dependency.sessionStats() }),
+        ("torrentGet", { _ = try await dependency.torrentGet(nil, nil) }),
+        (
+            "torrentAdd",
+            { _ = try await dependency.torrentAdd(nil, nil, nil, nil, nil) }
+        ),
+        ("torrentStart", { _ = try await dependency.torrentStart([]) }),
+        ("torrentStop", { _ = try await dependency.torrentStop([]) }),
+        ("torrentRemove", { _ = try await dependency.torrentRemove([], nil) }),
+        (
+            "torrentSet",
+            { _ = try await dependency.torrentSet([], AnyCodable.object([:])) }
+        ),
+        ("torrentVerify", { _ = try await dependency.torrentVerify([]) }),
+        ("checkServerVersion", { _ = try await dependency.checkServerVersion() }),
+        ("performHandshake", { _ = try await dependency.performHandshake() })
+    ]
+}
+
+@MainActor
+private func expectNotConfigured(
+    method: String,
+    execute: () async throws -> Void
+) async {
+    do {
+        try await execute()
+        Issue.record("Expected \(method) to throw notConfigured error")
+    } catch TransmissionClientDependencyError.notConfigured(let name) {
+        #expect(name == method)
+    } catch {
+        Issue.record("Unexpected error from \(method): \(String(reflecting: error))")
+    }
+}

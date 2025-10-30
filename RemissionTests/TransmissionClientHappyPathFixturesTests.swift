@@ -277,7 +277,6 @@ struct TransmissionClientHappyPathFixturesTests {
 
     private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
         let configuration: URLSessionConfiguration = server.makeEphemeralSessionConfiguration()
-        let session: URLSession = URLSession(configuration: configuration)
         let config: TransmissionClientConfig = TransmissionClientConfig(
             baseURL: baseURL,
             requestTimeout: 5,
@@ -285,7 +284,13 @@ struct TransmissionClientHappyPathFixturesTests {
             enableLogging: false
         )
         let immediateClock = ImmediateClock()
-        return TransmissionClient(config: config, session: session, clock: immediateClock)
+        return TransmissionClient(
+            config: config,
+            sessionConfiguration: configuration,
+            trustStore: .inMemory(),
+            trustDecisionHandler: { _ in .trustPermanently },
+            clock: immediateClock
+        )
     }
 
     private func handshakeStep(

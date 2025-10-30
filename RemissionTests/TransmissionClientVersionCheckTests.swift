@@ -25,7 +25,7 @@ struct TransmissionClientVersionCheckTests {
     @Test("checkServerVersion успешно проверяет совместимую версию RPC v17")
     func testVersionCheckCompatible() async throws {
         // Arrange: создаём реальный клиент с mock URLSession
-        let mockSession: URLSession = createMockSession(
+        let sessionConfiguration: URLSessionConfiguration = createMockSessionConfiguration(
             responseJSON: """
                 {
                     "result": "success",
@@ -46,13 +46,17 @@ struct TransmissionClientVersionCheckTests {
             let immediateClock = ImmediateClock()
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: immediateClock
             )
         #else
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: ContinuousClock()
             )
         #endif
@@ -69,7 +73,7 @@ struct TransmissionClientVersionCheckTests {
     @Test("checkServerVersion выбрасывает versionUnsupported для RPC v13")
     func testVersionCheckIncompatible() async throws {
         // Arrange: старая версия (Transmission 2.x)
-        let mockSession: URLSession = createMockSession(
+        let sessionConfiguration: URLSessionConfiguration = createMockSessionConfiguration(
             responseJSON: """
                 {
                     "result": "success",
@@ -89,13 +93,17 @@ struct TransmissionClientVersionCheckTests {
             let immediateClock = ImmediateClock()
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: immediateClock
             )
         #else
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: ContinuousClock()
             )
         #endif
@@ -117,7 +125,7 @@ struct TransmissionClientVersionCheckTests {
     @Test("checkServerVersion успешно проверяет минимальную версию RPC v14")
     func testVersionCheckMinimumVersion() async throws {
         // Arrange: ровно минимальная версия RPC v14
-        let mockSession: URLSession = createMockSession(
+        let sessionConfiguration: URLSessionConfiguration = createMockSessionConfiguration(
             responseJSON: """
                 {
                     "result": "success",
@@ -136,13 +144,17 @@ struct TransmissionClientVersionCheckTests {
             let immediateClock = ImmediateClock()
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: immediateClock
             )
         #else
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: ContinuousClock()
             )
         #endif
@@ -159,7 +171,7 @@ struct TransmissionClientVersionCheckTests {
     @Test("checkServerVersion выбрасывает decodingFailed при отсутствующем rpc-version")
     func testVersionCheckMissingField() async throws {
         // Arrange: rpc-version отсутствует
-        let mockSession: URLSession = createMockSession(
+        let sessionConfiguration: URLSessionConfiguration = createMockSessionConfiguration(
             responseJSON: """
                 {
                     "result": "success",
@@ -176,13 +188,17 @@ struct TransmissionClientVersionCheckTests {
             let immediateClock = ImmediateClock()
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: immediateClock
             )
         #else
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: ContinuousClock()
             )
         #endif
@@ -204,7 +220,7 @@ struct TransmissionClientVersionCheckTests {
     @Test("checkServerVersion выбрасывает decodingFailed при некорректном типе rpc-version")
     func testVersionCheckInvalidType() async throws {
         // Arrange: rpc-version как строка вместо числа
-        let mockSession: URLSession = createMockSession(
+        let sessionConfiguration: URLSessionConfiguration = createMockSessionConfiguration(
             responseJSON: """
                 {
                     "result": "success",
@@ -223,13 +239,17 @@ struct TransmissionClientVersionCheckTests {
             let immediateClock = ImmediateClock()
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: immediateClock
             )
         #else
             let client: TransmissionClient = TransmissionClient(
                 config: config,
-                session: mockSession,
+                sessionConfiguration: sessionConfiguration,
+                trustStore: .inMemory(),
+                trustDecisionHandler: { _ in .trustPermanently },
                 clock: ContinuousClock()
             )
         #endif
@@ -250,8 +270,8 @@ struct TransmissionClientVersionCheckTests {
 
 // MARK: - URLProtocol Mock для подмены сетевого транспорта
 
-/// Создаёт URLSession с mock URLProtocol для возврата заданного JSON-ответа.
-private func createMockSession(responseJSON: String) -> URLSession {
+/// Создаёт конфигурацию URLSession с mock URLProtocol для возврата заданного JSON-ответа.
+private func createMockSessionConfiguration(responseJSON: String) -> URLSessionConfiguration {
     let config = URLSessionConfiguration.ephemeral
     config.protocolClasses = [
         VersionCheckMockURLProtocol.self
@@ -260,7 +280,7 @@ private func createMockSession(responseJSON: String) -> URLSession {
     // Сохраняем mock-ответ в статическую переменную для доступа из URLProtocol
     VersionCheckMockURLProtocol.mockResponseJSON = responseJSON
 
-    return URLSession(configuration: config)
+    return config
 }
 
 /// Mock URLProtocol для эмуляции HTTP-ответов без реальных сетевых запросов.

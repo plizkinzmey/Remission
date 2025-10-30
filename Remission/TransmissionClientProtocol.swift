@@ -94,4 +94,7 @@ public protocol TransmissionClientProtocol: Sendable {
     /// - Throws: `APIError.sessionConflict`, `APIError.versionUnsupported`,
     ///           `APIError.decodingFailed` и другие ошибки сетевого слоя.
     func performHandshake() async throws -> TransmissionHandshakeResult
+
+    /// Регистрирует обработчик доверия для self-signed / недоверенных сертификатов.
+    func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler)
 }

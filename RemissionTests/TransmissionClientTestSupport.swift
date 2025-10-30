@@ -11,12 +11,14 @@ func makeTransmissionClient(
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [MockURLProtocol.self]
     configuration.timeoutIntervalForRequest = 5
-    let session = URLSession(configuration: configuration)
     let effectiveConfig = config ?? TransmissionClientConfig(baseURL: baseURL)
     let testClock = TestClock<Duration>()
+    let trustStore = TransmissionTrustStore.inMemory()
     let client = TransmissionClient(
         config: effectiveConfig,
-        session: session,
+        sessionConfiguration: configuration,
+        trustStore: trustStore,
+        trustDecisionHandler: { _ in .trustPermanently },
         clock: testClock
     )
     return (client, testClock)

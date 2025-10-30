@@ -1,4 +1,5 @@
 import Foundation
+import Security
 
 // swiftlint:disable type_body_length
 
@@ -31,6 +32,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// URLSession для выполнения HTTP запросов.
     private let session: URLSession
 
+    /// Обработчик доверия к TLS сертификатам.
+    private let trustEvaluator: TransmissionTrustEvaluator
+
+    /// Делегат URLSession, пробрасывающий TLS события в trust evaluator.
+    private let sessionDelegate: TransmissionSessionDelegate
+
     /// Clock для инъекции время-зависимой логики (retry с задержками).
     /// Позволяет использовать TestClock в тестах для детерминированного управления временем.
     private let clock: any Clock<Duration>
@@ -39,16 +46,53 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     ///
     /// - Parameters:
     ///   - config: Конфигурация (baseURL, credentials, таймауты).
-    ///   - session: URLSession для HTTP запросов (по умолчанию `URLSession.shared`).
+    ///   - sessionConfiguration: Необязательная конфигурация URLSession (для тестов/моков).
+    ///   - trustStore: Хранилище отпечатков TLS сертификатов (по умолчанию Keychain).
+    ///   - trustDecisionHandler: Колбэк запроса доверия к self-signed сертификатам.
     ///   - clock: Clock для использования в retry логике (по умолчанию `ContinuousClock()`).
     public init(
         config: TransmissionClientConfig,
-        session: URLSession = URLSession.shared,
+        sessionConfiguration: URLSessionConfiguration? = nil,
+        trustStore: TransmissionTrustStore = TransmissionTrustStore(),
+        trustDecisionHandler: TransmissionTrustDecisionHandler? = nil,
         clock: any Clock<Duration>
     ) {
         self.config = config
-        self.session = session
         self.clock = clock
+
+        guard let host = config.baseURL.host else {
+            preconditionFailure("TransmissionClientConfig.baseURL must contain host component")
+        }
+
+        let isSecure: Bool = config.baseURL.scheme?.lowercased() == "https"
+        let defaultPort: Int = isSecure ? 443 : 80
+        let port: Int = config.baseURL.port ?? defaultPort
+
+        let identity: TransmissionServerTrustIdentity = TransmissionServerTrustIdentity(
+            host: host,
+            port: port,
+            isSecure: isSecure
+        )
+
+        let handler: TransmissionTrustDecisionHandler = trustDecisionHandler ?? { _ in .deny }
+        let evaluator = TransmissionTrustEvaluator(
+            identity: identity,
+            trustStore: trustStore,
+            decisionHandler: handler
+        )
+        self.trustEvaluator = evaluator
+
+        let delegate = TransmissionSessionDelegate(trustEvaluator: evaluator)
+        self.sessionDelegate = delegate
+
+        let configuration: URLSessionConfiguration = sessionConfiguration ?? .default
+        self.session = URLSession(
+            configuration: configuration, delegate: delegate, delegateQueue: nil)
+    }
+
+    /// Обновляет хендлер, который будет вызван при запросе доверия к сертификату.
+    public func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler) {
+        Task { await trustEvaluator.updateDecisionHandler(handler) }
     }
 
     /// Удобный инициализатор для использования конструктора AnyCodable из Dictionary
@@ -128,19 +172,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     return transmissionResponse
                 }
             } catch let urlError as URLError {
-                if config.enableLogging {
-                    config.logger.logError(method: method, error: urlError)
-                }
-                if remainingRetries > 0, shouldRetry(urlError) {
-                    let exponentialDelay: TimeInterval =
-                        config.retryDelay * pow(2.0, Double(retryAttempt))
-                    let safeDelay: TimeInterval = min(
-                        max(exponentialDelay, 0),
-                        TimeInterval(UInt64.max) / 1_000_000_000
-                    )
-                    retryAttempt += 1
-                    remainingRetries -= 1
-                    try await clock.sleep(for: .seconds(safeDelay))
+                if try await handleURLError(
+                    urlError,
+                    method: method,
+                    remainingRetries: &remainingRetries,
+                    retryAttempt: &retryAttempt
+                ) {
                     continue
                 }
                 throw APIError.mapURLError(urlError)
@@ -156,6 +193,39 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 throw APIError.unknown(details: error.localizedDescription)
             }
         }
+    }
+
+    private func handleURLError(
+        _ urlError: URLError,
+        method: String,
+        remainingRetries: inout Int,
+        retryAttempt: inout Int
+    ) async throws -> Bool {
+        if config.enableLogging {
+            config.logger.logError(method: method, error: urlError)
+        }
+        if urlError.code == .cancelled,
+            let trustError = await trustEvaluator.consumePendingError()
+        {
+            throw mapTrustError(trustError)
+        }
+        guard remainingRetries > 0, shouldRetry(urlError) else {
+            return false
+        }
+        let exponentialDelay: TimeInterval =
+            config.retryDelay
+            * pow(
+                2.0,
+                Double(retryAttempt)
+            )
+        let safeDelay: TimeInterval = min(
+            max(exponentialDelay, 0),
+            TimeInterval(UInt64.max) / 1_000_000_000
+        )
+        retryAttempt += 1
+        remainingRetries -= 1
+        try await clock.sleep(for: .seconds(safeDelay))
+        return true
     }
 
     private func handleResponse(
@@ -246,6 +316,17 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             throw apiError
         } catch {
             throw APIError.unknown(details: error.localizedDescription)
+        }
+    }
+
+    private func mapTrustError(_ error: TransmissionTrustError) -> APIError {
+        switch error {
+        case .userDeclined(let challenge):
+            return .tlsTrustDeclined(challenge: challenge)
+        case .handlerUnavailable(let challenge):
+            return .tlsTrustDeclined(challenge: challenge)
+        case .evaluationFailed(let message):
+            return .tlsEvaluationFailed(details: message)
         }
     }
 
