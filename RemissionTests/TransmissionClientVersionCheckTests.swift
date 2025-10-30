@@ -1,3 +1,4 @@
+import Clocks
 import Foundation
 import Testing
 
@@ -41,7 +42,20 @@ struct TransmissionClientVersionCheckTests {
             baseURL: URL(string: "http://localhost:9091/transmission/rpc")!,
             enableLogging: false
         )
-        let client: TransmissionClient = TransmissionClient(config: config, session: mockSession)
+        #if canImport(Clocks)
+            let immediateClock = ImmediateClock()
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: immediateClock
+            )
+        #else
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: ContinuousClock()
+            )
+        #endif
 
         // Act
         let (compatible, rpcVersion) = try await client.checkServerVersion()
@@ -71,7 +85,20 @@ struct TransmissionClientVersionCheckTests {
             baseURL: URL(string: "http://localhost:9091/transmission/rpc")!,
             enableLogging: false
         )
-        let client: TransmissionClient = TransmissionClient(config: config, session: mockSession)
+        #if canImport(Clocks)
+            let immediateClock = ImmediateClock()
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: immediateClock
+            )
+        #else
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: ContinuousClock()
+            )
+        #endif
 
         // Act & Assert
         do {
@@ -105,7 +132,20 @@ struct TransmissionClientVersionCheckTests {
             baseURL: URL(string: "http://localhost:9091/transmission/rpc")!,
             enableLogging: false
         )
-        let client: TransmissionClient = TransmissionClient(config: config, session: mockSession)
+        #if canImport(Clocks)
+            let immediateClock = ImmediateClock()
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: immediateClock
+            )
+        #else
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: ContinuousClock()
+            )
+        #endif
 
         // Act
         let (compatible, rpcVersion) = try await client.checkServerVersion()
@@ -116,16 +156,14 @@ struct TransmissionClientVersionCheckTests {
     }
 
     /// Тестирует обработку отсутствующего поля rpc-version в ответе.
-    @Test("checkServerVersion выбрасывает decodingFailed при отсутствии rpc-version")
+    @Test("checkServerVersion выбрасывает decodingFailed при отсутствующем rpc-version")
     func testVersionCheckMissingField() async throws {
-        // Arrange: ответ без rpc-version
+        // Arrange: rpc-version отсутствует
         let mockSession: URLSession = createMockSession(
             responseJSON: """
                 {
                     "result": "success",
-                    "arguments": {
-                        "version": "4.0.0"
-                    }
+                    "arguments": {}
                 }
                 """
         )
@@ -134,7 +172,20 @@ struct TransmissionClientVersionCheckTests {
             baseURL: URL(string: "http://localhost:9091/transmission/rpc")!,
             enableLogging: false
         )
-        let client: TransmissionClient = TransmissionClient(config: config, session: mockSession)
+        #if canImport(Clocks)
+            let immediateClock = ImmediateClock()
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: immediateClock
+            )
+        #else
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: ContinuousClock()
+            )
+        #endif
 
         // Act & Assert
         do {
@@ -168,7 +219,20 @@ struct TransmissionClientVersionCheckTests {
             baseURL: URL(string: "http://localhost:9091/transmission/rpc")!,
             enableLogging: false
         )
-        let client: TransmissionClient = TransmissionClient(config: config, session: mockSession)
+        #if canImport(Clocks)
+            let immediateClock = ImmediateClock()
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: immediateClock
+            )
+        #else
+            let client: TransmissionClient = TransmissionClient(
+                config: config,
+                session: mockSession,
+                clock: ContinuousClock()
+            )
+        #endif
 
         // Act & Assert
         do {

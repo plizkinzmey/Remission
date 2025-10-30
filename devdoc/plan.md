@@ -52,6 +52,52 @@
 
 4. **Результаты** — при завершении задачи публикуем в Linear итоговую команду запуска, путь к `.xcresult` и выдержку из `xccov` с процентажем.
 
+### Swift Clocks для детерминированного управления временем (RTC-44)
+
+**Контекст**: TransmissionClient использует retry-логику с exponential backoff через `Task.sleep`. Для детерминированного тестирования без реальных задержек используется library `swift-clocks` (v1.0.6+).
+
+**Архитектура решения**:
+- **Зависимость**: `swift-clocks` добавлена в проект через SPM (версия 1.0.6)
+- **Injection**: TransmissionClient инициализируется с параметром `clock: any Clock<Duration>`, по умолчанию `ContinuousClock()`
+- **Testing**: Тесты инъецируют `TestClock()` для детерминированного управления временем через `await clock.advance(by:)` и `await clock.run()`
+
+**Использование в production**:
+```swift
+// Live режим — использует системные часы (ContinuousClock)
+let client = TransmissionClient(config: config, session: session)
+```
+
+**Использование в тестах**:
+```swift
+// Test режим — полный контроль над временем
+#if canImport(Clocks)
+    let testClock = TestClock()
+    let client = TransmissionClient(config: config, session: session, clock: testClock)
+#endif
+
+// В тесте: управляем временем явно
+try await client.torrentGet() // retry без реальной задержки
+await testClock.advance(by: .milliseconds(2))
+```
+
+**Преимущества**:
+- ✅ Тесты выполняются мгновенно (нет реальных задержек)
+- ✅ Полный контроль над timing — можно тестировать exponential backoff
+- ✅ Детерминированные результаты (no flaky tests из-за timing)
+- ✅ Соответствует Swift Concurrency best practices
+
+**Справочные материалы**:
+- Swift Clocks documentation: https://github.com/pointfreeco/swift-clocks/blob/main/README.md
+- Clock protocol: Built-in Swift 5.9+ в Foundation
+- TestClock API: методы `advance(by:)`, `advance(to:)`, `run(timeout:)`
+
+**Обновлённые файлы**:
+- `Remission/TransmissionClient.swift` — добавлен параметр `clock` в инициализатор
+- `Remission/TransmissionClient.swift` (retry logic) — заменено `Task.sleep(nanoseconds:)` на `clock.sleep(for: .seconds(...))`
+- `Remission/DependencyClients/TransmissionClockClient.swift` — новый dependency client (RTC-44)
+- `Remission/DependencyClientLive/TransmissionClockDependency+Live.swift` — live реализация с ContinuousClock()
+- `RemissionTests/*.swift` — все тесты обновлены на использование TestClock()
+
 ### Модульность и декомпозиция TCA
 - **Разделение слоёв**: UI (`Views`), бизнес-логика (`Features`/редьюсеры), модели (`Models`) и инфраструктура (`DependencyClients`) оформляются отдельными таргетами/файлами. Ссылайтесь на [SwiftUI+TCA Template](https://github.com/ethanhuang13/swiftui-tca-template) как эталон.
 - **Структура зависимостей**: определения `@DependencyClient` и тестовых значений живут в `Remission/DependencyClients`, live-реализации и фабрики — в `Remission/DependencyClientLive`. Любые новые клиенты повторяют эту схему, чтобы тесты и прод-код использовали единый источник.

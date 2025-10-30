@@ -1,3 +1,4 @@
+import Clocks
 import Foundation
 import Testing
 
@@ -14,7 +15,8 @@ struct TransmissionMockServerTests {
             maxRetries: 0,
             enableLogging: false
         )
-        return TransmissionClient(config: clientConfig, session: session)
+        let immediateClock = ImmediateClock()
+        return TransmissionClient(config: clientConfig, session: session, clock: immediateClock)
     }
 
     @Test("handshake + success сценарий возвращает ожидаемые данные")

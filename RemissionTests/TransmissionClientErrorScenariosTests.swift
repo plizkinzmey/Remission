@@ -1,3 +1,4 @@
+import Clocks
 import Foundation
 import Testing
 
@@ -18,19 +19,19 @@ struct TransmissionClientErrorScenariosTests {
     private let baseURL: URL = URL(string: "https://mock.transmission/rpc")!
 
     @Test("Останавливает handshake после двух 409 и выбрасывает sessionConflict")
-    func testSessionConflictAfterExcessive409() async {
+    func testStopsHandshakeAfterTwo409Conflicts() async {
         let server: TransmissionMockServer = TransmissionMockServer()
         server.register(
             scenario: .init(
-                name: "looped-handshake",
+                name: "two-409-then-fail",
                 steps: [
                     .handshake(
-                        sessionID: "first",
+                        sessionID: "session-1",
                         followUp: .handshake(
-                            sessionID: "second",
+                            sessionID: "session-2",
                             followUp: .handshake(
-                                sessionID: "third",
-                                followUp: .rpcSuccess()
+                                sessionID: "session-3",
+                                followUp: .rpcError(result: "unexpected")
                             )
                         )
                     )
@@ -38,7 +39,7 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let client: TransmissionClient = makeClient(using: server)
+        let (client, _) = makeClient(using: server)
 
         do {
             _ = try await client.sessionGet()
@@ -70,7 +71,7 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let client: TransmissionClient = makeClient(using: server)
+        let (client, _) = makeClient(using: server)
 
         do {
             _ = try await client.performHandshake()
@@ -105,7 +106,7 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let client: TransmissionClient = makeClient(using: server)
+        let (client, _) = makeClient(using: server)
 
         do {
             _ = try await client.torrentGet(ids: nil, fields: nil)
@@ -136,7 +137,7 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let client: TransmissionClient = makeClient(using: server)
+        let (client, _) = makeClient(using: server)
 
         do {
             _ = try await client.sessionGet()
@@ -163,7 +164,7 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let client: TransmissionClient = makeClient(using: server)
+        let (client, _) = makeClient(using: server)
 
         do {
             _ = try await client.torrentGet(ids: nil, fields: nil)
@@ -208,17 +209,54 @@ struct TransmissionClientErrorScenariosTests {
             logger: logger
         )
 
-        let client: TransmissionClient = makeClient(using: server, configOverride: config)
+        let (client, _) = makeClient(using: server, configOverride: config)
         _ = try await client.torrentGet(ids: nil, fields: nil)
         try server.assertAllScenariosFinished()
 
         let joinedLogs: String = logs.messages.joined(separator: "\n")
-        // Базовая строка "user:super-secret" и её base64 не должны появиться.
         #expect(!joinedLogs.contains("super-secret"))
         #expect(!joinedLogs.contains("dXNlcjpzdXBlci1zZWNyZXQ="))
         #expect(joinedLogs.contains("Authorization: Basic dXNl...ZXQ="))
-        // Session ID логируется в маскированном виде.
         #expect(!joinedLogs.contains(sessionID))
+    }
+
+    @Test("Проверяет экспоненциальный backoff при сетевых ошибках")
+    func testExponentialBackoffOnNetworkErrors() async throws {
+        let server = TransmissionMockServer()
+        server.register(
+            scenario: .init(
+                name: "retry-with-backoff",
+                steps: [
+                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
+                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
+                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
+                    .rpcSuccess(
+                        method: "torrent-get", arguments: .object(["torrents": .array([])]))
+                ]
+            )
+        )
+
+        let config = TransmissionClientConfig(
+            baseURL: baseURL,
+            requestTimeout: 5,
+            maxRetries: 3,
+            retryDelay: 0.1
+        )
+
+        let (client, clock) = makeClient(using: server, configOverride: config)
+
+        async let response = client.torrentGet(ids: nil, fields: nil)
+
+        await clock.advance(by: .milliseconds(100))
+        await clock.run()
+        await clock.advance(by: .milliseconds(200))
+        await clock.run()
+        await clock.advance(by: .milliseconds(400))
+        await clock.run()
+
+        _ = try await response
+
+        try server.assertAllScenariosFinished()
     }
 
     // MARK: - Helpers
@@ -226,7 +264,7 @@ struct TransmissionClientErrorScenariosTests {
     private func makeClient(
         using server: TransmissionMockServer,
         configOverride: TransmissionClientConfig? = nil
-    ) -> TransmissionClient {
+    ) -> (client: TransmissionClient, clock: TestClock<Duration>) {
         let sessionConfiguration: URLSessionConfiguration =
             server.makeEphemeralSessionConfiguration()
         let session: URLSession = URLSession(configuration: sessionConfiguration)
@@ -239,7 +277,13 @@ struct TransmissionClientErrorScenariosTests {
                 maxRetries: 0,
                 enableLogging: false
             )
-        return TransmissionClient(config: config, session: session)
+        let testClock = TestClock<Duration>()
+        let client = TransmissionClient(
+            config: config,
+            session: session,
+            clock: testClock
+        )
+        return (client, testClock)
     }
 }
 

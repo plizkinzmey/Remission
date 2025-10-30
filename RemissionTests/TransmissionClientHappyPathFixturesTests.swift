@@ -1,3 +1,4 @@
+import Clocks
 import Foundation
 import Testing
 
@@ -232,7 +233,8 @@ struct TransmissionClientHappyPathFixturesTests {
             maxRetries: 0,
             enableLogging: false
         )
-        return TransmissionClient(config: config, session: session)
+        let immediateClock = ImmediateClock()
+        return TransmissionClient(config: config, session: session, clock: immediateClock)
     }
 
     private func handshakeStep(

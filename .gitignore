@@ -67,3 +67,4 @@ Icon?
 *.ipa
 *.dSYM.zip
 *.dSYM
+.gemini/settings.json

@@ -22,14 +22,24 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// URLSession для выполнения HTTP запросов.
     private let session: URLSession
 
+    /// Clock для инъекции время-зависимой логики (retry с задержками).
+    /// Позволяет использовать TestClock в тестах для детерминированного управления временем.
+    private let clock: any Clock<Duration>
+
     /// Инициализация TransmissionClient с конфигурацией.
     ///
     /// - Parameters:
     ///   - config: Конфигурация (baseURL, credentials, таймауты).
     ///   - session: URLSession для HTTP запросов (по умолчанию `URLSession.shared`).
-    public init(config: TransmissionClientConfig, session: URLSession = URLSession.shared) {
+    ///   - clock: Clock для использования в retry логике (по умолчанию `ContinuousClock()`).
+    public init(
+        config: TransmissionClientConfig,
+        session: URLSession = URLSession.shared,
+        clock: any Clock<Duration>
+    ) {
         self.config = config
         self.session = session
+        self.clock = clock
         self._sessionID = nil
     }
 
@@ -122,8 +132,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     )
                     retryAttempt += 1
                     remainingRetries -= 1
-                    let nanoseconds: UInt64 = UInt64(safeDelay * 1_000_000_000)
-                    try await Task.sleep(nanoseconds: nanoseconds)
+                    try await clock.sleep(for: .seconds(safeDelay))
                     continue
                 }
                 throw APIError.mapURLError(urlError)

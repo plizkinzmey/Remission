@@ -14,7 +14,8 @@ struct RemissionApp: App {
         let store = Store(initialState: AppReducer.State()) {
             AppReducer()
         } withDependencies: { dependencies in
-            dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency()
+            dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(
+                dependencies: dependencies)
         }
 
         _store = StateObject(wrappedValue: store)
@@ -28,13 +29,16 @@ struct RemissionApp: App {
 }
 
 extension TransmissionClientBootstrap {
-    fileprivate static func makeLiveDependency() -> TransmissionClientDependency {
+    fileprivate static func makeLiveDependency(
+        dependencies: DependencyValues
+    ) -> TransmissionClientDependency {
         guard let config = makeConfig() else {
             // TODO(RTC-43): заменить на загрузку конфигурации сервера из хранилища onboarding.
             return TransmissionClientDependency.placeholder
         }
 
-        let client = TransmissionClient(config: config)
+        let transmissionClock = dependencies[keyPath: \.transmissionClock]
+        let client = TransmissionClient(config: config, clock: transmissionClock.clock())
         return TransmissionClientDependency.live(client: client)
     }
 
