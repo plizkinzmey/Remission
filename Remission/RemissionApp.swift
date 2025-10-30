@@ -8,7 +8,7 @@ private enum TransmissionClientBootstrap {}
 
 @main
 struct RemissionApp: App {
-    @StateObject private var store: StoreOf<AppReducer>
+    @StateObject var store: StoreOf<AppReducer>
 
     init() {
         let store = Store(initialState: AppReducer.State()) {
@@ -27,8 +27,8 @@ struct RemissionApp: App {
     }
 }
 
-private extension TransmissionClientBootstrap {
-    static func makeLiveDependency() -> TransmissionClientDependency {
+extension TransmissionClientBootstrap {
+    fileprivate static func makeLiveDependency() -> TransmissionClientDependency {
         guard let config = makeConfig() else {
             // TODO(RTC-43): заменить на загрузку конфигурации сервера из хранилища onboarding.
             return TransmissionClientDependency.placeholder
@@ -38,7 +38,7 @@ private extension TransmissionClientBootstrap {
         return TransmissionClientDependency.live(client: client)
     }
 
-    static func makeConfig() -> TransmissionClientConfig? {
+    fileprivate static func makeConfig() -> TransmissionClientConfig? {
         // TODO(RTC-43): внедрить реальный источник сохранённых серверов и
         // возвращать актуальную конфигурацию Transmission.
         guard let url = URL(string: "http://localhost:9091/transmission/rpc") else {
