@@ -253,16 +253,18 @@ struct TransmissionClientVersionCheckTests {
 /// Создаёт URLSession с mock URLProtocol для возврата заданного JSON-ответа.
 private func createMockSession(responseJSON: String) -> URLSession {
     let config = URLSessionConfiguration.ephemeral
-    config.protocolClasses = [MockURLProtocol.self]
+    config.protocolClasses = [
+        VersionCheckMockURLProtocol.self
+    ]
 
     // Сохраняем mock-ответ в статическую переменную для доступа из URLProtocol
-    MockURLProtocol.mockResponseJSON = responseJSON
+    VersionCheckMockURLProtocol.mockResponseJSON = responseJSON
 
     return URLSession(configuration: config)
 }
 
 /// Mock URLProtocol для эмуляции HTTP-ответов без реальных сетевых запросов.
-private final class MockURLProtocol: URLProtocol {
+private final class VersionCheckMockURLProtocol: URLProtocol {
     nonisolated(unsafe) static var mockResponseJSON: String = ""
 
     override class func canInit(with request: URLRequest) -> Bool {
