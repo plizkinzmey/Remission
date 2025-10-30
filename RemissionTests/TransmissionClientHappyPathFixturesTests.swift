@@ -222,6 +222,57 @@ struct TransmissionClientHappyPathFixturesTests {
         )
     }
 
+    @Test("torrent-get потокобезопасно обрабатывает параллельные запросы")
+    func testTorrentGetIsThreadSafeUnderConcurrency() async throws {
+        let requestCount: Int = 8
+        let sessionID: String = "session-concurrent"
+        let mockServer: TransmissionMockServer = TransmissionMockServer()
+
+        mockServer.register(
+            scenario: TransmissionMockScenario(
+                name: "session-get handshake",
+                steps: [
+                    handshakeStep(
+                        method: "session-get",
+                        sessionID: sessionID,
+                        fixture: .sessionGetSuccessRPC17
+                    )
+                ]
+            )
+        )
+
+        let torrentGetSteps: [TransmissionMockStep] = (0..<requestCount).map { _ in
+            TransmissionMockStep(
+                matcher: .method("torrent-get"),
+                response: .custom { _, urlRequest in
+                    try assertSessionHeader(in: urlRequest, equals: sessionID)
+                    return try TransmissionMockResponsePlan.fixture(.torrentGetSingleActive)
+                }
+            )
+        }
+
+        mockServer.register(
+            scenario: TransmissionMockScenario(
+                name: "concurrent torrent-get",
+                steps: torrentGetSteps
+            )
+        )
+
+        let client: TransmissionClient = makeClient(using: mockServer)
+        _ = try await client.performHandshake()
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for index in 0..<requestCount {
+                group.addTask {
+                    _ = try await client.torrentGet(ids: [index], fields: ["id"])
+                }
+            }
+            try await group.waitForAll()
+        }
+
+        try mockServer.assertAllScenariosFinished()
+    }
+
     // MARK: - Helpers
 
     private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
@@ -241,16 +292,20 @@ struct TransmissionClientHappyPathFixturesTests {
         method: String,
         sessionID: String,
         fixture: TransmissionFixtureName,
-        assertions: [TransmissionMockAssertion] = []
+        assertions: [TransmissionMockAssertion] = [],
+        repeats: Int? = nil
     ) -> TransmissionMockStep {
-        TransmissionMockStep.handshake(
-            method: method,
-            sessionID: sessionID,
-            followUp: .custom { _, urlRequest in
-                try assertSessionHeader(in: urlRequest, equals: sessionID)
-                return try TransmissionMockResponsePlan.fixture(fixture)
-            },
-            assertions: assertions
+        TransmissionMockStep(
+            matcher: .method(method),
+            response: .handshake(
+                sessionID: sessionID,
+                followUp: .custom { _, urlRequest in
+                    try assertSessionHeader(in: urlRequest, equals: sessionID)
+                    return try TransmissionMockResponsePlan.fixture(fixture)
+                }
+            ),
+            assertions: assertions,
+            repeats: repeats
         )
     }
 
