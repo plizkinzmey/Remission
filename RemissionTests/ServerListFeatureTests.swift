@@ -10,6 +10,8 @@ struct ServerListFeatureTests {
     func addButtonShowsAlert() async {
         let store: TestStoreOf<ServerListReducer> = TestStore(initialState: .init()) {
             ServerListReducer()
+        } withDependencies: {
+            $0.transmissionClient = .testValue
         }
 
         await store.send(.addButtonTapped) {
@@ -42,6 +44,8 @@ struct ServerListFeatureTests {
             }()
         ) {
             ServerListReducer()
+        } withDependencies: {
+            $0.transmissionClient = .testValue
         }
 
         await store.send(.serverTapped(server.id))

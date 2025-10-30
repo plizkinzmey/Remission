@@ -29,6 +29,7 @@ Remission — кроссплатформенное клиентское прил
    - Добавление сервера Transmission: host, порт, proto (http или https), basic auth (username/password).
    - Проверка соединения и отображение статуса (online/offline).
    - Опция сохранения учётных данных в Keychain.
+   - Live-зависимость `TransmissionClient` настраивается при запуске приложения в `RemissionApp` через `TransmissionClientDependency.live(...)`. До появления onboarding используется временная конфигурация (`http://localhost:9091/transmission/rpc`), а превью/TestStore обязаны переопределять зависимость на `TransmissionClientDependency.testValue`, чтобы исключить сетевые вызовы.
 
 ### Поток рукопожатия Transmission RPC
 

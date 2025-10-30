@@ -27,6 +27,8 @@ struct ServerDetailView: View {
             )
         ) {
             ServerDetailReducer()
+        } withDependencies: {
+            $0.transmissionClient = .testValue
         }
     )
 }

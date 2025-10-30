@@ -21,6 +21,8 @@ struct AppFeatureTests {
             }()
         ) {
             AppReducer()
+        } withDependencies: {
+            $0.transmissionClient = .testValue
         }
         store.exhaustivity = .off
 
