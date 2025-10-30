@@ -50,6 +50,9 @@
                 },
                 performHandshake: {
                     try await client.performHandshake()
+                },
+                setTrustDecisionHandler: { handler in
+                    client.setTrustDecisionHandler(handler)
                 }
             )
         }

@@ -39,6 +39,10 @@ extension TransmissionClientBootstrap {
 
         let transmissionClock = dependencies[keyPath: \.transmissionClock]
         let client = TransmissionClient(config: config, clock: transmissionClock.clock())
+        #if canImport(ComposableArchitecture)
+            let trustPromptCenter = dependencies.transmissionTrustPromptCenter
+            client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
+        #endif
         return TransmissionClientDependency.live(client: client)
     }
 

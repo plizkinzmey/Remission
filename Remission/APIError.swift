@@ -4,6 +4,7 @@ import Foundation
 ///
 /// This enum provides a comprehensive set of error cases covering:
 /// - Network connectivity issues
+/// - TLS trust evaluation failures and user decisions
 /// - Authentication failures
 /// - Session management problems
 /// - API version incompatibilities
@@ -25,6 +26,12 @@ public enum APIError: Error, Equatable {
     /// The Transmission session ID is invalid or expired.
     /// Mapped from HTTP 409 status code. The client should refresh the session ID and retry.
     case sessionConflict
+
+    /// Пользователь отказался доверять TLS сертификату или хендлер не предоставил решение.
+    case tlsTrustDeclined(challenge: TransmissionTrustChallenge)
+
+    /// Ошибка проверки TLS сертификата (например, повреждён цепочкой доверия).
+    case tlsEvaluationFailed(details: String)
 
     /// The Transmission daemon version is unsupported.
     /// Occurs when the server version is below the minimum required version (3.0+).
@@ -155,9 +162,17 @@ extension APIError {
             .internationalRoamingOff,
             .callIsActive,
             .dataNotAllowed,
-            .secureConnectionFailed,
             .cannotLoadFromNetwork:
             return .networkUnavailable
+
+        case .secureConnectionFailed,
+            .serverCertificateUntrusted,
+            .serverCertificateHasBadDate,
+            .serverCertificateHasUnknownRoot,
+            .serverCertificateNotYetValid,
+            .clientCertificateRejected,
+            .clientCertificateRequired:
+            return .tlsEvaluationFailed(details: error.localizedDescription)
 
         default:
             return .unknown(details: "URL error: \(error.localizedDescription)")

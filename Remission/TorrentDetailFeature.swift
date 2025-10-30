@@ -383,6 +383,10 @@ extension APIError {
             return "Ошибка аутентификации"
         case .sessionConflict:
             return "Конфликт сессии"
+        case .tlsTrustDeclined:
+            return "Подключение отклонено: сертификат не доверен"
+        case .tlsEvaluationFailed(let details):
+            return "Ошибка проверки сертификата: \(details)"
         case .versionUnsupported(let version):
             return "Версия Transmission не поддерживается (\(version))"
         case .decodingFailed:

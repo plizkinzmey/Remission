@@ -8,7 +8,7 @@ import Testing
 struct AppFeatureTests {
     @Test
     func selectingServerPushesDetail() async {
-        let server = ServerListReducer.State.Server(
+        let server = ServerListReducer.Server(
             id: UUID(),
             name: "NAS",
             address: "http://nas.local:9091"
