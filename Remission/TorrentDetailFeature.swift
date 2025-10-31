@@ -50,6 +50,10 @@ struct TorrentDetailReducer {
         var errorMessage: String?
     }
 
+    private enum CancelID: Hashable {
+        case loadTorrentDetails
+    }
+
     enum Action: Equatable {
         /// Загрузить детали торрента с сервера
         case loadTorrentDetails
@@ -113,12 +117,15 @@ struct TorrentDetailReducer {
                                 ]
                             )
                         await send(.detailsLoaded(response, dateNow))
+                    } catch is CancellationError {
+                        return
                     } catch let error as APIError {
                         await send(.loadingFailed(error.userFriendlyMessage))
                     } catch {
                         await send(.loadingFailed("Неизвестная ошибка: \(error)"))
                     }
                 }
+                .cancellable(id: CancelID.loadTorrentDetails, cancelInFlight: true)
 
             case .detailsLoaded(let response, let timestamp):
                 state.isLoading = false

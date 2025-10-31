@@ -37,6 +37,8 @@ struct ServerListView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .accessibilityLabel(server.name)
+                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
             }
             .onDelete { indexSet in
                 store.send(.remove(indexSet))
@@ -57,6 +59,7 @@ struct ServerListView: View {
                 .foregroundStyle(.secondary)
             Text("Нет подключённых серверов")
                 .font(.title3)
+                .accessibilityIdentifier("server_list_empty_title")
             Text("Добавьте Transmission сервер, чтобы управлять торрентами.")
                 .font(.body)
                 .foregroundStyle(.secondary)
@@ -66,6 +69,7 @@ struct ServerListView: View {
                 Label("Добавить сервер", systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("server_list_add_button")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .multilineTextAlignment(.center)
