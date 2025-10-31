@@ -73,7 +73,7 @@ struct TorrentDetailFeatureTests {
             ])
         )
 
-        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
             var client = TransmissionClientDependency.testValue
@@ -147,7 +147,7 @@ struct TorrentDetailFeatureTests {
 
     @Test
     func loadTorrentDetailsFailure() async throws {
-        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
             var client = TransmissionClientDependency.testValue
@@ -173,7 +173,7 @@ struct TorrentDetailFeatureTests {
         let response = TransmissionResponse(result: "success")
         let store = TestStore(
             initialState: {
-                var state = TorrentDetailState(torrentId: 1)
+                var state = TorrentDetailReducer.State(torrentId: 1)
                 state.isLoading = true
                 return state
             }()
@@ -221,7 +221,7 @@ struct TorrentDetailFeatureTests {
 
         let fixedDate = Date(timeIntervalSince1970: 100)
 
-        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
             var client = TransmissionClientDependency.testValue
@@ -270,7 +270,7 @@ struct TorrentDetailFeatureTests {
 
     @Test
     func startTorrentFailure() async throws {
-        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
             var client = TransmissionClientDependency.testValue
@@ -313,7 +313,7 @@ struct TorrentDetailFeatureTests {
 
         let store = TestStore(
             initialState: {
-                var state = TorrentDetailState(torrentId: 1)
+                var state = TorrentDetailReducer.State(torrentId: 1)
                 state.downloadLimit = 256
                 state.downloadLimited = false
                 return state
@@ -356,7 +356,7 @@ struct TorrentDetailFeatureTests {
         let responseStore = ResponseStore(responses: [baseResponse, baseResponse])
         let argumentStore = ArgumentStore()
 
-        let store = TestStore(initialState: TorrentDetailState(torrentId: 1)) {
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
             var client = TransmissionClientDependency.testValue

@@ -1,89 +1,89 @@
 @preconcurrency import ComposableArchitecture
 import Foundation
 
-/// TCA Feature для отображения деталей торрента
-/// Управляет состоянием деталей, файлов, трекеров и пиров
-/// Поддерживает действия: Start, Stop, Remove, Verify, Set Priority
-@ObservableState
-struct TorrentDetailState: Equatable {
-    /// ID торрента
-    var torrentId: Int
-
-    /// Основная информация о торренте
-    var name: String = ""
-    var status: Int = 0  // 0-7 статусы Transmission
-    var percentDone: Double = 0.0  // 0.0-1.0
-    var totalSize: Int = 0
-    var downloadedEver: Int = 0
-    var uploadedEver: Int = 0
-    var eta: Int = 0  // секунды, -1 если нет
-
-    /// Статистика скоростей
-    var rateDownload: Int = 0  // bytes/sec
-    var rateUpload: Int = 0  // bytes/sec
-    var uploadRatio: Double = 0.0
-    var downloadLimit: Int = 0  // KB/s
-    var downloadLimited: Bool = false
-    var uploadLimit: Int = 0  // KB/s
-    var uploadLimited: Bool = false
-    var speedHistory: [SpeedSample] = []
-
-    /// Пиры и подключения
-    var peersConnected: Int = 0
-    var peersFrom: [PeerSource] = []  // источники пиров
-
-    /// Пути и каталоги
-    var downloadDir: String = ""
-    var dateAdded: Int = 0  // Unix timestamp
-
-    /// Файлы торрента
-    var files: [TorrentFile] = []
-
-    /// Трекеры и их статистика
-    var trackers: [TorrentTracker] = []
-    var trackerStats: [TrackerStat] = []
-
-    /// UI состояние
-    var isLoading: Bool = false
-    var errorMessage: String?
-}
-
-enum TorrentDetailAction: Equatable {
-    /// Загрузить детали торрента с сервера
-    case loadTorrentDetails
-
-    /// Результат загрузки деталей
-    case detailsLoaded(TransmissionResponse, Date)
-
-    /// Ошибка при загрузке
-    case loadingFailed(String)
-
-    /// Действия управления
-    case startTorrent
-    case stopTorrent
-    case removeTorrent(deleteData: Bool)
-    case verifyTorrent
-
-    /// Установка приоритета
-    case setPriority(fileIndices: [Int], priority: Int)
-
-    /// Управление лимитами
-    case toggleDownloadLimit(Bool)
-    case toggleUploadLimit(Bool)
-    case updateDownloadLimit(Int)
-    case updateUploadLimit(Int)
-
-    /// Результаты действий
-    case actionCompleted(String)
-    case actionFailed(String)
-
-    /// Очистка ошибки
-    case clearError
-}
-
 @Reducer
 struct TorrentDetailReducer {
-    var body: some Reducer<TorrentDetailState, TorrentDetailAction> {
+    /// TCA Feature для отображения деталей торрента
+    /// Управляет состоянием деталей, файлов, трекеров и пиров
+    /// Поддерживает действия: Start, Stop, Remove, Verify, Set Priority
+    @ObservableState
+    struct State: Equatable {
+        /// ID торрента
+        var torrentId: Int
+
+        /// Основная информация о торренте
+        var name: String = ""
+        var status: Int = 0  // 0-7 статусы Transmission
+        var percentDone: Double = 0.0  // 0.0-1.0
+        var totalSize: Int = 0
+        var downloadedEver: Int = 0
+        var uploadedEver: Int = 0
+        var eta: Int = 0  // секунды, -1 если нет
+
+        /// Статистика скоростей
+        var rateDownload: Int = 0  // bytes/sec
+        var rateUpload: Int = 0  // bytes/sec
+        var uploadRatio: Double = 0.0
+        var downloadLimit: Int = 0  // KB/s
+        var downloadLimited: Bool = false
+        var uploadLimit: Int = 0  // KB/s
+        var uploadLimited: Bool = false
+        var speedHistory: [SpeedSample] = []
+
+        /// Пиры и подключения
+        var peersConnected: Int = 0
+        var peersFrom: [PeerSource] = []  // источники пиров
+
+        /// Пути и каталоги
+        var downloadDir: String = ""
+        var dateAdded: Int = 0  // Unix timestamp
+
+        /// Файлы торрента
+        var files: [TorrentFile] = []
+
+        /// Трекеры и их статистика
+        var trackers: [TorrentTracker] = []
+        var trackerStats: [TrackerStat] = []
+
+        /// UI состояние
+        var isLoading: Bool = false
+        var errorMessage: String?
+    }
+
+    enum Action: Equatable {
+        /// Загрузить детали торрента с сервера
+        case loadTorrentDetails
+
+        /// Результат загрузки деталей
+        case detailsLoaded(TransmissionResponse, Date)
+
+        /// Ошибка при загрузке
+        case loadingFailed(String)
+
+        /// Действия управления
+        case startTorrent
+        case stopTorrent
+        case removeTorrent(deleteData: Bool)
+        case verifyTorrent
+
+        /// Установка приоритета
+        case setPriority(fileIndices: [Int], priority: Int)
+
+        /// Управление лимитами
+        case toggleDownloadLimit(Bool)
+        case toggleUploadLimit(Bool)
+        case updateDownloadLimit(Int)
+        case updateUploadLimit(Int)
+
+        /// Результаты действий
+        case actionCompleted(String)
+        case actionFailed(String)
+
+        /// Очистка ошибки
+        case clearError
+    }
+
+    var body: some Reducer<State, Action> {
         Reduce { state, action in
             @Dependency(\.transmissionClient) var transmissionClient: TransmissionClientDependency
             @Dependency(\.date) var date: DateGenerator
@@ -327,7 +327,7 @@ struct TorrentDetailReducer {
 // MARK: - Reducer helpers
 
 extension TorrentDetailReducer {
-    fileprivate func updateSpeedHistory(state: inout TorrentDetailState, timestamp: Date) {
+    fileprivate func updateSpeedHistory(state: inout State, timestamp: Date) {
         let sample: SpeedSample = SpeedSample(
             timestamp: timestamp,
             downloadRate: state.rateDownload,
@@ -340,9 +340,9 @@ extension TorrentDetailReducer {
     }
 }
 
-extension TorrentDetailState {
+extension TorrentDetailReducer.State {
     private mutating func assign<Value>(
-        _ value: Value?, to keyPath: WritableKeyPath<TorrentDetailState, Value>
+        _ value: Value?, to keyPath: WritableKeyPath<TorrentDetailReducer.State, Value>
     ) {
         guard let value else { return }
         self[keyPath: keyPath] = value

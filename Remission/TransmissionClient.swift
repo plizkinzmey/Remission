@@ -204,11 +204,13 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         if config.enableLogging {
             config.logger.logError(method: method, error: urlError)
         }
+
         if urlError.code == .cancelled,
             let trustError = await trustEvaluator.consumePendingError()
         {
             throw mapTrustError(trustError)
         }
+
         guard remainingRetries > 0, shouldRetry(urlError) else {
             return false
         }

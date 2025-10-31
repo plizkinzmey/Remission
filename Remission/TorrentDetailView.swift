@@ -76,7 +76,7 @@ struct TorrentDetailView: View {
         NavigationStack {
             TorrentDetailView(
                 store: Store(
-                    initialState: TorrentDetailState(
+                    initialState: TorrentDetailReducer.State(
                         torrentId: 1,
                         name: "Ubuntu 22.04 LTS Desktop",
                         status: 4,

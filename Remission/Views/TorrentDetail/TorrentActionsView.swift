@@ -68,7 +68,7 @@ struct TorrentActionsView: View {
         var body: some View {
             TorrentActionsView(
                 store: Store(
-                    initialState: TorrentDetailState(torrentId: 1),
+                    initialState: TorrentDetailReducer.State(torrentId: 1),
                     reducer: { TorrentDetailReducer() }
                 ),
                 showingDeleteConfirmation: $showingDelete

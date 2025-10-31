@@ -71,7 +71,7 @@ private struct TorrentFileRow: View {
     #Preview {
         TorrentFilesView(
             store: Store(
-                initialState: TorrentDetailState(
+                initialState: TorrentDetailReducer.State(
                     torrentId: 1,
                     files: [
                         TorrentFile(
