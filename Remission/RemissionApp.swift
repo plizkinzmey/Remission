@@ -9,6 +9,9 @@ private enum TransmissionClientBootstrap {}
 @main
 struct RemissionApp: App {
     @StateObject var store: StoreOf<AppReducer>
+    #if os(macOS)
+        @NSApplicationDelegateAdaptor(RemissionAppDelegate.self) var appDelegate
+    #endif
 
     init() {
         let store = Store(initialState: AppBootstrap.makeInitialState()) {
@@ -60,3 +63,18 @@ extension TransmissionClientBootstrap {
         )
     }
 }
+
+#if os(macOS)
+    import AppKit
+
+    final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_ notification: Notification) {
+            DispatchQueue.main.async {
+                NSApp.activate(ignoringOtherApps: true)
+                for window in NSApp.windows {
+                    window.makeKeyAndOrderFront(nil)
+                }
+            }
+        }
+    }
+#endif
