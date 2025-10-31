@@ -38,11 +38,11 @@ struct TorrentDetailView: View {
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .onAppear {
-            store.send(.loadTorrentDetails)
+        .task {
+            await store.send(.loadTorrentDetails).finish()
         }
         .refreshable {
-            store.send(.loadTorrentDetails)
+            await store.send(.loadTorrentDetails).finish()
         }
         .overlay {
             if store.isLoading {
