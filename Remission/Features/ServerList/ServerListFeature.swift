@@ -3,15 +3,9 @@ import Foundation
 
 @Reducer
 struct ServerListReducer {
-    struct Server: Equatable, Identifiable, Sendable {
-        var id: UUID
-        var name: String
-        var address: String
-    }
-
     @ObservableState
     struct State: Equatable {
-        var servers: IdentifiedArrayOf<Server> = []
+        var servers: IdentifiedArrayOf<ServerConfig> = []
         var isLoading: Bool = false
         @Presents var alert: AlertState<Alert>?
     }
@@ -30,7 +24,7 @@ struct ServerListReducer {
     }
 
     enum Delegate: Equatable {
-        case serverSelected(Server)
+        case serverSelected(ServerConfig)
     }
 
     var body: some Reducer<State, Action> {

@@ -8,7 +8,7 @@ struct ServerDetailView: View {
         List {
             Section("Сервер") {
                 LabeledContent("Название", value: store.server.name)
-                LabeledContent("Адрес", value: store.server.address)
+                LabeledContent("Адрес", value: store.server.displayAddress)
             }
         }
         .navigationTitle(store.server.name)
@@ -23,7 +23,7 @@ struct ServerDetailView: View {
     ServerDetailView(
         store: Store(
             initialState: ServerDetailReducer.State(
-                server: .init(id: UUID(), name: "NAS", address: "http://nas.local:9091")
+                server: ServerConfig.previewLocalHTTP
             )
         ) {
             ServerDetailReducer()

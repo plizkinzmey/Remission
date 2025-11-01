@@ -28,33 +28,50 @@ enum TorrentDetailTestHelpers {
         )
     }
 
-    static func makeParserSnapshot() -> TorrentDetailParsedSnapshot {
-        TorrentDetailParsedSnapshot(
+    static func makeParsedTorrent() -> Torrent {
+        Torrent(
+            id: .init(rawValue: 1),
             name: "Ubuntu",
-            status: 4,
-            percentDone: 0.75,
-            totalSize: 1_024,
-            downloadedEver: 768,
-            uploadedEver: 256,
-            eta: 120,
-            rateDownload: 500_000,
-            rateUpload: 100_000,
-            uploadRatio: 1.5,
-            downloadLimit: 1_500,
-            downloadLimited: true,
-            uploadLimit: 750,
-            uploadLimited: false,
-            peersConnected: 5,
-            peersFrom: [
-                PeerSource(name: "cache", count: 3),
-                PeerSource(name: "tracker", count: 2)
-            ],
-            downloadDir: "/downloads",
-            dateAdded: 123_456,
+            status: .downloading,
+            summary: parserSummary(),
+            details: parserDetails()
+        )
+    }
+
+    private static func parserSummary() -> Torrent.Summary {
+        Torrent.Summary(
+            progress: .init(
+                percentDone: 0.75,
+                totalSize: 1_024,
+                downloadedEver: 768,
+                uploadedEver: 256,
+                uploadRatio: 1.5,
+                etaSeconds: 120
+            ),
+            transfer: .init(
+                downloadRate: 500_000,
+                uploadRate: 100_000,
+                downloadLimit: .init(isEnabled: true, kilobytesPerSecond: 1_500),
+                uploadLimit: .init(isEnabled: false, kilobytesPerSecond: 750)
+            ),
+            peers: .init(
+                connected: 5,
+                sources: [
+                    PeerSource(name: "cache", count: 3),
+                    PeerSource(name: "tracker", count: 2)
+                ]
+            )
+        )
+    }
+
+    private static func parserDetails() -> Torrent.Details {
+        Torrent.Details(
+            downloadDirectory: "/downloads",
+            addedDate: Date(timeIntervalSince1970: 123_456),
             files: parserSnapshotFiles(),
             trackers: [
                 TorrentTracker(
-                    index: 0,
+                    id: 0,
                     announce: "https://tracker.example.com/announce",
                     tier: 0
                 )
@@ -67,7 +84,8 @@ enum TorrentDetailTestHelpers {
                     leecherCount: 4,
                     seederCount: 8
                 )
-            ]
+            ],
+            speedSamples: []
         )
     }
 
@@ -181,8 +199,22 @@ enum TorrentDetailTestHelpers {
 
     private static func parserSnapshotFiles() -> [TorrentFile] {
         [
-            TorrentFile(index: 0, name: "file1.iso", length: 512, bytesCompleted: 512, priority: 2),
-            TorrentFile(index: 1, name: "file2.iso", length: 512, bytesCompleted: 256, priority: 0)
+            TorrentFile(
+                index: 0,
+                name: "file1.iso",
+                length: 512,
+                bytesCompleted: 512,
+                priority: 2,
+                wanted: true
+            ),
+            TorrentFile(
+                index: 1,
+                name: "file2.iso",
+                length: 512,
+                bytesCompleted: 256,
+                priority: 0,
+                wanted: true
+            )
         ]
     }
 

@@ -26,15 +26,23 @@ enum AppBootstrap {
         switch fixture {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: [
-                .init(
+                ServerConfig(
                     id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
                     name: "UI Test NAS",
-                    address: "http://nas.local:9091"
+                    connection: .init(host: "nas.local", port: 9091),
+                    security: .http,
+                    authentication: .init(username: "admin")
                 ),
-                .init(
+                ServerConfig(
                     id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
                     name: "UI Test Seedbox",
-                    address: "https://seedbox.example.com"
+                    connection: .init(
+                        host: "seedbox.example.com",
+                        port: 443,
+                        path: "/transmission/rpc"
+                    ),
+                    security: .https(allowUntrustedCertificates: false),
+                    authentication: .init(username: "seeduser")
                 )
             ])
         }

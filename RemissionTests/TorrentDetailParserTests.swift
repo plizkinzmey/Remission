@@ -22,10 +22,10 @@ struct TorrentDetailParserTests {
     @Test
     func parseValidResponseMatchesSnapshot() throws {
         let response: TransmissionResponse = TorrentDetailTestHelpers.makeParserResponse()
-        let expected: TorrentDetailParsedSnapshot = TorrentDetailTestHelpers.makeParserSnapshot()
+        let expected: Torrent = TorrentDetailTestHelpers.makeParsedTorrent()
 
-        let snapshot: TorrentDetailParsedSnapshot = try parser.parse(response)
+        let parsed: Torrent = try parser.parse(response)
 
-        #expect(snapshot == expected)
+        #expect(parsed == expected)
     }
 }

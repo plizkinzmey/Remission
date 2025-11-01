@@ -106,12 +106,13 @@ struct TorrentDetailView: View {
                                 name: "ubuntu-22.04-desktop-amd64.iso",
                                 length: 3_500_000_000,
                                 bytesCompleted: 1_575_000_000,
-                                priority: 1
+                                priority: 1,
+                                wanted: true
                             )
                         ],
                         trackers: [
                             TorrentTracker(
-                                index: 0,
+                                id: 0,
                                 announce: "https://torrent.ubuntu.com/announce",
                                 tier: 0
                             )

@@ -164,28 +164,35 @@ struct TorrentDetailFeatureTests {
 
     @Test
     func startTorrentSuccess() async throws {
-        let snapshot = TorrentDetailParsedSnapshot(
+        let torrent = Torrent(
+            id: .init(rawValue: 1),
             name: "Updated",
-            status: 1,
-            percentDone: 0.25,
-            totalSize: 42,
-            downloadedEver: 21,
-            uploadedEver: 0,
-            eta: 10,
-            rateDownload: 100,
-            rateUpload: 50,
-            uploadRatio: 0.5,
-            downloadLimit: 200,
-            downloadLimited: true,
-            uploadLimit: 100,
-            uploadLimited: false,
-            peersConnected: 2,
-            peersFrom: [],
-            downloadDir: "/downloads",
-            dateAdded: 7,
-            files: [],
-            trackers: [],
-            trackerStats: []
+            status: .checkWaiting,
+            summary: .init(
+                progress: .init(
+                    percentDone: 0.25,
+                    totalSize: 42,
+                    downloadedEver: 21,
+                    uploadedEver: 0,
+                    uploadRatio: 0.5,
+                    etaSeconds: 10
+                ),
+                transfer: .init(
+                    downloadRate: 100,
+                    uploadRate: 50,
+                    downloadLimit: .init(isEnabled: true, kilobytesPerSecond: 200),
+                    uploadLimit: .init(isEnabled: false, kilobytesPerSecond: 100)
+                ),
+                peers: .init(connected: 2, sources: [])
+            ),
+            details: .init(
+                downloadDirectory: "/downloads",
+                addedDate: Date(timeIntervalSince1970: 7),
+                files: [],
+                trackers: [],
+                trackerStats: [],
+                speedSamples: []
+            )
         )
 
         let fixedDate = Date(timeIntervalSince1970: 100)
@@ -197,7 +204,7 @@ struct TorrentDetailFeatureTests {
             client.torrentStart = { _ in TransmissionResponse(result: "success") }
             client.torrentGet = { _, _ in TransmissionResponse(result: "success") }
             var parser = TorrentDetailParserDependency.testValue
-            parser.parse = { _ in snapshot }
+            parser.parse = { _ in torrent }
             $0.transmissionClient = client
             $0.torrentDetailParser = parser
             $0.date.now = fixedDate
@@ -254,28 +261,35 @@ struct TorrentDetailFeatureTests {
 
     @Test
     func toggleDownloadLimitSuccess() async throws {
-        let snapshot = TorrentDetailParsedSnapshot(
+        let torrent = Torrent(
+            id: .init(rawValue: 1),
             name: "Torrent",
-            status: nil,
-            percentDone: nil,
-            totalSize: nil,
-            downloadedEver: nil,
-            uploadedEver: nil,
-            eta: nil,
-            rateDownload: nil,
-            rateUpload: nil,
-            uploadRatio: nil,
-            downloadLimit: 512,
-            downloadLimited: true,
-            uploadLimit: nil,
-            uploadLimited: nil,
-            peersConnected: nil,
-            peersFrom: [],
-            downloadDir: nil,
-            dateAdded: nil,
-            files: [],
-            trackers: [],
-            trackerStats: []
+            status: .stopped,
+            summary: .init(
+                progress: .init(
+                    percentDone: 0,
+                    totalSize: 0,
+                    downloadedEver: 0,
+                    uploadedEver: 0,
+                    uploadRatio: 0,
+                    etaSeconds: 0
+                ),
+                transfer: .init(
+                    downloadRate: 0,
+                    uploadRate: 0,
+                    downloadLimit: .init(isEnabled: true, kilobytesPerSecond: 512),
+                    uploadLimit: .init(isEnabled: false, kilobytesPerSecond: 0)
+                ),
+                peers: .init(connected: 0, sources: [])
+            ),
+            details: .init(
+                downloadDirectory: "",
+                addedDate: nil,
+                files: [],
+                trackers: [],
+                trackerStats: [],
+                speedSamples: []
+            )
         )
 
         let fixedDate = Date(timeIntervalSince1970: 200)
@@ -294,7 +308,7 @@ struct TorrentDetailFeatureTests {
             client.torrentSet = { _, _ in TransmissionResponse(result: "success") }
             client.torrentGet = { _, _ in TransmissionResponse(result: "success") }
             var parser = TorrentDetailParserDependency.testValue
-            parser.parse = { _ in snapshot }
+            parser.parse = { _ in torrent }
             $0.transmissionClient = client
             $0.torrentDetailParser = parser
             $0.date.now = fixedDate
@@ -372,11 +386,24 @@ struct TorrentDetailFeatureTests {
             $0.downloadDir = "/downloads"
             $0.dateAdded = 111
             $0.files = [
-                TorrentFile(index: 0, name: "File A", length: 100, bytesCompleted: 50, priority: 1),
                 TorrentFile(
-                    index: 1, name: "File B", length: 200, bytesCompleted: 200, priority: 1)
+                    index: 0,
+                    name: "File A",
+                    length: 100,
+                    bytesCompleted: 50,
+                    priority: 1,
+                    wanted: true
+                ),
+                TorrentFile(
+                    index: 1,
+                    name: "File B",
+                    length: 200,
+                    bytesCompleted: 200,
+                    priority: 1,
+                    wanted: true
+                )
             ]
-            $0.trackers = [TorrentTracker(index: 0, announce: "https://tracker/announce", tier: 0)]
+            $0.trackers = [TorrentTracker(id: 0, announce: "https://tracker/announce", tier: 0)]
             $0.trackerStats = [
                 TrackerStat(
                     trackerId: 0,

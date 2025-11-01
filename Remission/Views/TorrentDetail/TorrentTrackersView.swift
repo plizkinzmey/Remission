@@ -10,7 +10,7 @@ struct TorrentTrackersView: View {
                 ForEach(store.trackers) { tracker in
                     let stats: TrackerStat? = store
                         .trackerStats
-                        .first { $0.trackerId == tracker.index }
+                        .first { $0.trackerId == tracker.id }
                     TorrentTrackerRow(tracker: tracker, stats: stats)
                 }
             }
@@ -61,7 +61,7 @@ private struct TorrentTrackerRow: View {
                     torrentId: 1,
                     trackers: [
                         TorrentTracker(
-                            index: 0,
+                            id: 0,
                             announce: "https://tracker.example.com/announce",
                             tier: 0
                         )

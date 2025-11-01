@@ -31,7 +31,7 @@ struct ServerListView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(server.name)
                             .font(.headline)
-                        Text(server.address)
+                        Text(server.displayAddress)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -99,8 +99,8 @@ struct ServerListView: View {
 #Preview("With Servers") {
     var state: ServerListReducer.State = .init()
     state.servers = [
-        .init(id: UUID(), name: "NAS", address: "http://nas.local:9091"),
-        .init(id: UUID(), name: "Seedbox", address: "https://seedbox.example.com")
+        ServerConfig.previewLocalHTTP,
+        ServerConfig.previewSecureSeedbox
     ]
     return ServerListView(
         store: Store(initialState: state) {

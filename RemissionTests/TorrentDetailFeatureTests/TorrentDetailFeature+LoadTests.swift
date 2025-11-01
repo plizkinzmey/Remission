@@ -9,7 +9,7 @@ struct TorrentDetailFeatureLoadTests {
     @Test
     func loadTorrentDetailsSuccess() async throws {
         let response = TorrentDetailTestHelpers.makeParserResponse()
-        let expectedSnapshot = TorrentDetailTestHelpers.makeParserSnapshot()
+        let expectedTorrent = TorrentDetailTestHelpers.makeParsedTorrent()
         let timestamp = Date(timeIntervalSince1970: 1)
 
         let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
@@ -29,27 +29,31 @@ struct TorrentDetailFeatureLoadTests {
 
         await store.receive(.detailsLoaded(response, timestamp)) { state in
             state.isLoading = false
-            state.name = expectedSnapshot.name ?? ""
-            state.status = expectedSnapshot.status ?? 0
-            state.percentDone = expectedSnapshot.percentDone ?? 0
-            state.totalSize = expectedSnapshot.totalSize ?? 0
-            state.downloadedEver = expectedSnapshot.downloadedEver ?? 0
-            state.uploadedEver = expectedSnapshot.uploadedEver ?? 0
-            state.eta = expectedSnapshot.eta ?? 0
-            state.rateDownload = expectedSnapshot.rateDownload ?? 0
-            state.rateUpload = expectedSnapshot.rateUpload ?? 0
-            state.uploadRatio = expectedSnapshot.uploadRatio ?? 0
-            state.downloadLimit = expectedSnapshot.downloadLimit ?? 0
-            state.downloadLimited = expectedSnapshot.downloadLimited ?? false
-            state.uploadLimit = expectedSnapshot.uploadLimit ?? 0
-            state.uploadLimited = expectedSnapshot.uploadLimited ?? false
-            state.peersConnected = expectedSnapshot.peersConnected ?? 0
-            state.peersFrom = expectedSnapshot.peersFrom
-            state.downloadDir = expectedSnapshot.downloadDir ?? ""
-            state.dateAdded = expectedSnapshot.dateAdded ?? 0
-            state.files = expectedSnapshot.files
-            state.trackers = expectedSnapshot.trackers
-            state.trackerStats = expectedSnapshot.trackerStats
+            state.name = expectedTorrent.name
+            state.status = expectedTorrent.status.rawValue
+            state.percentDone = expectedTorrent.summary.progress.percentDone
+            state.totalSize = expectedTorrent.summary.progress.totalSize
+            state.downloadedEver = expectedTorrent.summary.progress.downloadedEver
+            state.uploadedEver = expectedTorrent.summary.progress.uploadedEver
+            state.eta = expectedTorrent.summary.progress.etaSeconds
+            state.rateDownload = expectedTorrent.summary.transfer.downloadRate
+            state.rateUpload = expectedTorrent.summary.transfer.uploadRate
+            state.uploadRatio = expectedTorrent.summary.progress.uploadRatio
+            let downloadLimit = expectedTorrent.summary.transfer.downloadLimit
+            state.downloadLimit = downloadLimit.kilobytesPerSecond
+            state.downloadLimited = downloadLimit.isEnabled
+            let uploadLimit = expectedTorrent.summary.transfer.uploadLimit
+            state.uploadLimit = uploadLimit.kilobytesPerSecond
+            state.uploadLimited = uploadLimit.isEnabled
+            state.peersConnected = expectedTorrent.summary.peers.connected
+            state.peersFrom = expectedTorrent.summary.peers.sources
+            state.downloadDir = expectedTorrent.details?.downloadDirectory ?? ""
+            state.dateAdded = Int(
+                expectedTorrent.details?.addedDate?.timeIntervalSince1970 ?? 0
+            )
+            state.files = expectedTorrent.details?.files ?? []
+            state.trackers = expectedTorrent.details?.trackers ?? []
+            state.trackerStats = expectedTorrent.details?.trackerStats ?? []
             state.speedHistory = [
                 SpeedSample(
                     timestamp: timestamp, downloadRate: state.rateDownload,

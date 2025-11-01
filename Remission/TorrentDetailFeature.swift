@@ -130,9 +130,8 @@ struct TorrentDetailReducer {
             case .detailsLoaded(let response, let timestamp):
                 state.isLoading = false
                 do {
-                    let snapshot: TorrentDetailParsedSnapshot = try torrentDetailParser.parse(
-                        response)
-                    state.apply(snapshot)
+                    let torrent: Torrent = try torrentDetailParser.parse(response)
+                    state.apply(torrent)
                     state.errorMessage = nil
                     updateSpeedHistory(state: &state, timestamp: timestamp)
                 } catch {
@@ -348,35 +347,39 @@ extension TorrentDetailReducer {
 }
 
 extension TorrentDetailReducer.State {
-    private mutating func assign<Value>(
-        _ value: Value?, to keyPath: WritableKeyPath<TorrentDetailReducer.State, Value>
-    ) {
-        guard let value else { return }
-        self[keyPath: keyPath] = value
-    }
+    fileprivate mutating func apply(_ torrent: Torrent) {
+        name = torrent.name
+        status = torrent.status.rawValue
+        percentDone = torrent.summary.progress.percentDone
+        totalSize = torrent.summary.progress.totalSize
+        downloadedEver = torrent.summary.progress.downloadedEver
+        uploadedEver = torrent.summary.progress.uploadedEver
+        uploadRatio = torrent.summary.progress.uploadRatio
+        eta = torrent.summary.progress.etaSeconds
 
-    fileprivate mutating func apply(_ snapshot: TorrentDetailParsedSnapshot) {
-        assign(snapshot.name, to: \.name)
-        assign(snapshot.status, to: \.status)
-        assign(snapshot.percentDone, to: \.percentDone)
-        assign(snapshot.totalSize, to: \.totalSize)
-        assign(snapshot.downloadedEver, to: \.downloadedEver)
-        assign(snapshot.uploadedEver, to: \.uploadedEver)
-        assign(snapshot.eta, to: \.eta)
-        assign(snapshot.rateDownload, to: \.rateDownload)
-        assign(snapshot.rateUpload, to: \.rateUpload)
-        assign(snapshot.uploadRatio, to: \.uploadRatio)
-        assign(snapshot.downloadLimit, to: \.downloadLimit)
-        assign(snapshot.downloadLimited, to: \.downloadLimited)
-        assign(snapshot.uploadLimit, to: \.uploadLimit)
-        assign(snapshot.uploadLimited, to: \.uploadLimited)
-        assign(snapshot.peersConnected, to: \.peersConnected)
-        assign(snapshot.downloadDir, to: \.downloadDir)
-        assign(snapshot.dateAdded, to: \.dateAdded)
-        self.peersFrom = snapshot.peersFrom
-        self.files = snapshot.files
-        self.trackers = snapshot.trackers
-        self.trackerStats = snapshot.trackerStats
+        rateDownload = torrent.summary.transfer.downloadRate
+        rateUpload = torrent.summary.transfer.uploadRate
+        downloadLimit = torrent.summary.transfer.downloadLimit.kilobytesPerSecond
+        downloadLimited = torrent.summary.transfer.downloadLimit.isEnabled
+        uploadLimit = torrent.summary.transfer.uploadLimit.kilobytesPerSecond
+        uploadLimited = torrent.summary.transfer.uploadLimit.isEnabled
+
+        peersConnected = torrent.summary.peers.connected
+        peersFrom = torrent.summary.peers.sources
+
+        if let details = torrent.details {
+            downloadDir = details.downloadDirectory
+            if let addedDate = details.addedDate {
+                dateAdded = Int(addedDate.timeIntervalSince1970)
+            }
+            files = details.files
+            trackers = details.trackers
+            trackerStats = details.trackerStats
+        } else {
+            files = []
+            trackers = []
+            trackerStats = []
+        }
     }
 }
 

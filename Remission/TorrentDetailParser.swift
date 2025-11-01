@@ -9,7 +9,7 @@ import Foundation
 #if canImport(ComposableArchitecture)
     @DependencyClient
     struct TorrentDetailParserDependency: Sendable {
-        var parse: @Sendable (TransmissionResponse) throws -> TorrentDetailParsedSnapshot
+        var parse: @Sendable (TransmissionResponse) throws -> Torrent
     }
 
     extension TorrentDetailParserDependency {
@@ -46,32 +46,6 @@ import Foundation
     }
 #endif
 
-// MARK: - Parser Output
-
-struct TorrentDetailParsedSnapshot: Equatable {
-    var name: String?
-    var status: Int?
-    var percentDone: Double?
-    var totalSize: Int?
-    var downloadedEver: Int?
-    var uploadedEver: Int?
-    var eta: Int?
-    var rateDownload: Int?
-    var rateUpload: Int?
-    var uploadRatio: Double?
-    var downloadLimit: Int?
-    var downloadLimited: Bool?
-    var uploadLimit: Int?
-    var uploadLimited: Bool?
-    var peersConnected: Int?
-    var peersFrom: [PeerSource]
-    var downloadDir: String?
-    var dateAdded: Int?
-    var files: [TorrentFile]
-    var trackers: [TorrentTracker]
-    var trackerStats: [TrackerStat]
-}
-
 enum TorrentDetailParserError: Error, LocalizedError, Equatable {
     case missingTorrentData
 
@@ -86,33 +60,25 @@ enum TorrentDetailParserError: Error, LocalizedError, Equatable {
 // MARK: - Parser Implementation
 
 struct TorrentDetailParser: Sendable {
-    func parse(_ response: TransmissionResponse) throws -> TorrentDetailParsedSnapshot {
+    func parse(_ response: TransmissionResponse) throws -> Torrent {
         guard let torrentDict = extractTorrentDictionary(from: response) else {
             throw TorrentDetailParserError.missingTorrentData
         }
 
-        return TorrentDetailParsedSnapshot(
-            name: stringValue(for: "name", in: torrentDict),
-            status: intValue(for: "status", in: torrentDict),
-            percentDone: percentDoneValue(in: torrentDict),
-            totalSize: intValue(for: "totalSize", in: torrentDict),
-            downloadedEver: intValue(for: "downloadedEver", in: torrentDict),
-            uploadedEver: intValue(for: "uploadedEver", in: torrentDict),
-            eta: intValue(for: "eta", in: torrentDict),
-            rateDownload: intValue(for: "rateDownload", in: torrentDict),
-            rateUpload: intValue(for: "rateUpload", in: torrentDict),
-            uploadRatio: doubleValue(for: "uploadRatio", in: torrentDict),
-            downloadLimit: intValue(for: "downloadLimit", in: torrentDict),
-            downloadLimited: boolValue(for: "downloadLimited", in: torrentDict),
-            uploadLimit: intValue(for: "uploadLimit", in: torrentDict),
-            uploadLimited: boolValue(for: "uploadLimited", in: torrentDict),
-            peersConnected: intValue(for: "peersConnected", in: torrentDict),
-            peersFrom: parsePeers(from: torrentDict),
-            downloadDir: stringValue(for: "downloadDir", in: torrentDict),
-            dateAdded: intValue(for: "dateAdded", in: torrentDict),
-            files: parseFiles(from: torrentDict),
-            trackers: parseTrackers(from: torrentDict),
-            trackerStats: parseTrackerStats(from: torrentDict)
+        let identifier: Int = intValue(for: "id", in: torrentDict) ?? 0
+        let name: String = stringValue(for: "name", in: torrentDict) ?? ""
+        let statusValue: Int = intValue(for: "status", in: torrentDict) ?? 0
+        let status: Torrent.Status = Torrent.Status(rawValue: statusValue) ?? .stopped
+
+        let summary: Torrent.Summary = makeSummary(from: torrentDict)
+        let details: Torrent.Details = makeDetails(from: torrentDict)
+
+        return Torrent(
+            id: Torrent.Identifier(rawValue: identifier),
+            name: name,
+            status: status,
+            summary: summary,
+            details: details
         )
     }
 
@@ -175,13 +141,15 @@ struct TorrentDetailParser: Sendable {
             }
 
             let priority: Int = intValue(for: "priority", in: fileDict) ?? 1
+            let wanted: Bool = boolValue(for: "wanted", in: fileDict) ?? true
 
             return TorrentFile(
                 index: index,
                 name: name,
                 length: length,
                 bytesCompleted: completed,
-                priority: priority
+                priority: priority,
+                wanted: wanted
             )
         }
     }
@@ -192,7 +160,7 @@ struct TorrentDetailParser: Sendable {
             return []
         }
 
-        return trackersArray.enumerated().compactMap { index, trackerData in
+        return trackersArray.compactMap { trackerData in
             guard case .object(let trackerDict) = trackerData,
                 let announce = stringValue(for: "announce", in: trackerDict)
             else {
@@ -200,7 +168,11 @@ struct TorrentDetailParser: Sendable {
             }
 
             let tier: Int = intValue(for: "tier", in: trackerDict) ?? 0
-            return TorrentTracker(index: index, announce: announce, tier: tier)
+            let trackerId: Int =
+                intValue(for: "id", in: trackerDict)
+                ?? intValue(for: "trackerId", in: trackerDict)
+                ?? tier
+            return TorrentTracker(id: trackerId, announce: announce, tier: tier)
         }
     }
 
@@ -251,6 +223,54 @@ struct TorrentDetailParser: Sendable {
             return Double(intValue)
         }
         return nil
+    }
+
+    private func makeSummary(from dict: [String: AnyCodable]) -> Torrent.Summary {
+        let progress = Torrent.Progress(
+            percentDone: percentDoneValue(in: dict) ?? 0,
+            totalSize: intValue(for: "totalSize", in: dict) ?? 0,
+            downloadedEver: intValue(for: "downloadedEver", in: dict) ?? 0,
+            uploadedEver: intValue(for: "uploadedEver", in: dict) ?? 0,
+            uploadRatio: doubleValue(for: "uploadRatio", in: dict) ?? 0,
+            etaSeconds: intValue(for: "eta", in: dict) ?? 0
+        )
+
+        let transfer = Torrent.Transfer(
+            downloadRate: intValue(for: "rateDownload", in: dict) ?? 0,
+            uploadRate: intValue(for: "rateUpload", in: dict) ?? 0,
+            downloadLimit: .init(
+                isEnabled: boolValue(for: "downloadLimited", in: dict) ?? false,
+                kilobytesPerSecond: intValue(for: "downloadLimit", in: dict) ?? 0
+            ),
+            uploadLimit: .init(
+                isEnabled: boolValue(for: "uploadLimited", in: dict) ?? false,
+                kilobytesPerSecond: intValue(for: "uploadLimit", in: dict) ?? 0
+            )
+        )
+
+        let peers = Torrent.Peers(
+            connected: intValue(for: "peersConnected", in: dict) ?? 0,
+            sources: parsePeers(from: dict)
+        )
+
+        return Torrent.Summary(progress: progress, transfer: transfer, peers: peers)
+    }
+
+    private func makeDetails(from dict: [String: AnyCodable]) -> Torrent.Details {
+        let downloadDir: String = stringValue(for: "downloadDir", in: dict) ?? ""
+        let dateAddedSeconds: Int? = intValue(for: "dateAdded", in: dict)
+        let addedDate: Date? = dateAddedSeconds.map {
+            Date(timeIntervalSince1970: TimeInterval($0))
+        }
+
+        return Torrent.Details(
+            downloadDirectory: downloadDir,
+            addedDate: addedDate,
+            files: parseFiles(from: dict),
+            trackers: parseTrackers(from: dict),
+            trackerStats: parseTrackerStats(from: dict),
+            speedSamples: []
+        )
     }
 
     private func boolValue(for key: String, in dict: [String: AnyCodable]) -> Bool? {

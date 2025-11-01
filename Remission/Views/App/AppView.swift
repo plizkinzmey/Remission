@@ -46,16 +46,21 @@ struct AppView: View {
 }
 
 #Preview("AppView Sample") {
-    var state: AppReducer.State = .init()
-    state.serverList.servers = [
-        .init(id: UUID(), name: "NAS", address: "http://nas.local:9091"),
-        .init(id: UUID(), name: "Seedbox", address: "https://seedbox.example.com")
-    ]
-    return AppView(
-        store: Store(initialState: state) {
+    AppView(
+        store: Store(initialState: sampleState()) {
             AppReducer()
         } withDependencies: {
             $0.transmissionClient = .testValue
         }
     )
+}
+
+@MainActor
+private func sampleState() -> AppReducer.State {
+    var state: AppReducer.State = .init()
+    state.serverList.servers = [
+        ServerConfig.previewLocalHTTP,
+        ServerConfig.previewSecureSeedbox
+    ]
+    return state
 }

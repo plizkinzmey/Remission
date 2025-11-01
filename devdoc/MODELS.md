@@ -840,6 +840,36 @@ public struct TorrentInfo: Codable, Sendable {
 
 ---
 
+## 3. Доменные модели (Shared)
+
+### Torrent — `Remission/Domain/Torrent.swift`
+- Объединяет краткую сводку (`Summary`) и детальные данные (`Details`) торрента.
+- `Summary.progress` → Transmission поля `percentDone`, `totalSize`, `downloadedEver`, `uploadedEver`, `eta`.
+- `Summary.transfer` → `rateDownload`, `rateUpload`, `downloadLimit`, `downloadLimited`, `uploadLimit`, `uploadLimited`.
+- `Summary.peers` → коллекция источников из `peersFrom` + `peersConnected`.
+- `Details.files` → элементы массива `files` (см. также typealias в `Remission/TorrentDetailModels.swift`).
+- `Details.trackers`/`trackerStats` → поля `trackers`, `trackerStats`.
+- `Details.speedSamples` предназначены для локальной истории скоростей (формируется клиентом).
+- Фикстуры: `Torrent.previewDownloading`, `Torrent.previewCompleted`.
+
+### ServerConfig — `Remission/Domain/ServerConfig.swift`
+- Хранит соединение (`Connection` → host/port/path), безопасность (`Security`) и Basic Auth (`Authentication`).
+- `baseURL` собирает `scheme://host:port/path`, `displayAddress` используется в UI.
+- `credentialsKey` генерирует `TransmissionServerCredentialsKey` для Keychain.
+- Метод `makeTransmissionClientConfig(password:network:logger:)` создаёт `TransmissionClientConfig` без дублирования настройки таймаутов/повторов.
+- Фикстуры: `ServerConfig.previewLocalHTTP`, `ServerConfig.previewSecureSeedbox`.
+
+### SessionState — `Remission/Domain/SessionState.swift`
+- Описывает объединённые данные `session-get` и `session-stats`.
+- `rpc` → `rpc-version`, `rpc-version-minimum`, `version`.
+- `speedLimits` → глобальные лимиты (`speed-limit-*`, `alt-speed-*`).
+- `queue` → параметры очереди (`download-queue-*`, `seed-queue-*`, `queue-stalled-*`).
+- `throughput` → счётчики из `session-stats` (`activeTorrentCount`, `pausedTorrentCount`, `downloadSpeed`, `uploadSpeed`).
+- `cumulativeStats` и `currentStats` → подполя `cumulative-stats`, `current-stats`.
+- Фикстуры: `SessionState.previewActive`, `SessionState.previewLimited`.
+
+---
+
 ## Примечания и best practices
 
 ### Безопасность

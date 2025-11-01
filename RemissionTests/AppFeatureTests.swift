@@ -8,11 +8,9 @@ import Testing
 struct AppFeatureTests {
     @Test
     func selectingServerPushesDetail() async {
-        let server = ServerListReducer.Server(
-            id: UUID(),
-            name: "NAS",
-            address: "http://nas.local:9091"
-        )
+        var server = ServerConfig.previewLocalHTTP
+        let identifier = UUID()
+        server.id = identifier
         let store: TestStoreOf<AppReducer> = TestStore(
             initialState: {
                 var state: AppReducer.State = .init()
@@ -26,7 +24,7 @@ struct AppFeatureTests {
         }
         store.exhaustivity = .off
 
-        await store.send(.serverList(.serverTapped(server.id)))
+        await store.send(.serverList(.serverTapped(identifier)))
         await store.receive(.serverList(.delegate(.serverSelected(server))))
 
         #expect(store.state.path.last?.server == server)

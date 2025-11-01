@@ -5,7 +5,7 @@ import Foundation
 struct ServerDetailReducer {
     @ObservableState
     struct State: Equatable {
-        var server: ServerListReducer.Server
+        var server: ServerConfig
     }
 
     enum Action: Equatable {

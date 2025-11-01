@@ -31,11 +31,9 @@ struct ServerListFeatureTests {
 
     @Test
     func selectingServerTriggersDelegate() async {
-        let server = ServerListReducer.Server(
-            id: UUID(),
-            name: "Seedbox",
-            address: "https://seedbox.example.com"
-        )
+        var server = ServerConfig.previewSecureSeedbox
+        let identifier = UUID()
+        server.id = identifier
         let store: TestStoreOf<ServerListReducer> = TestStore(
             initialState: {
                 var state: ServerListReducer.State = .init()
@@ -48,7 +46,7 @@ struct ServerListFeatureTests {
             $0.transmissionClient = .testValue
         }
 
-        await store.send(.serverTapped(server.id))
+        await store.send(.serverTapped(identifier))
         await store.receive(.delegate(.serverSelected(server)))
     }
 }

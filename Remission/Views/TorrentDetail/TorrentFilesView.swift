@@ -79,7 +79,8 @@ private struct TorrentFileRow: View {
                             name: "ubuntu.iso",
                             length: 1_024_000,
                             bytesCompleted: 512_000,
-                            priority: 1
+                            priority: 1,
+                            wanted: true
                         )
                     ]
                 ),
