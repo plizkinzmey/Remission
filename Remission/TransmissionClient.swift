@@ -205,10 +205,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             config.logger.logError(method: method, error: urlError)
         }
 
-        if urlError.code == .cancelled,
-            let trustError = await trustEvaluator.consumePendingError()
-        {
-            throw mapTrustError(trustError)
+        if urlError.code == .cancelled {
+            if let trustError = await trustEvaluator.consumePendingError() {
+                throw mapTrustError(trustError)
+            }
         }
 
         guard remainingRetries > 0, shouldRetry(urlError) else {
