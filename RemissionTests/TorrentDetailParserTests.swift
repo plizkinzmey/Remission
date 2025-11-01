@@ -28,4 +28,27 @@ struct TorrentDetailParserTests {
 
         #expect(parsed == expected)
     }
+
+    @Test
+    func parseUnsupportedStatusProducesMappingError() {
+        let response: TransmissionResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "torrents": .array([
+                    .object([
+                        "id": .int(1),
+                        "name": .string("Broken"),
+                        "status": .int(99)
+                    ])
+                ])
+            ])
+        )
+
+        #expect(
+            throws: TorrentDetailParserError.mappingFailed(
+                .unsupportedStatus(rawValue: 99)
+            ),
+            performing: { try parser.parse(response) }
+        )
+    }
 }

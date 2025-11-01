@@ -26,6 +26,7 @@
 - Для каждого TCA reducer минимум два теста (happy path + error path); эффекты мокируются через зависимости в Environment.
 - `TransmissionClientProtocol` реализует Transmission RPC вызовы (собственный протокол поверх HTTP(S), НЕ JSON-RPC 2.0). Обработка рукопожатия (HTTP 409, session-id). Версионирование: поддержка Transmission 3.0+ (рекомендуется 4.0+). **Справочник**: `devdoc/TRANSMISSION_RPC_REFERENCE.md`. Репозитории превращают сырой RPC в доменные модели.
 - Используем async/await, Task, actors; помечаем публичные API @MainActor/@Sendable при необходимости; для детерминированных тестов времени применяем `swift-clocks`.
+- Все преобразования Transmission RPC → доменных моделей выполняем через `TransmissionDomainMapper` (см. `Remission/Domain/TransmissionDomainMapper*.swift`). В фичах и сервисах не разбираем `AnyCodable` вручную; это обеспечит единое поведение ошибок (`DomainMappingError`) и учёт допущений (например, `percentDone` трактуется как доля при значениях 0…1 и как проценты при значениях >1).
 
 ## Project Layout & Toolchain
 - `Remission/` - SwiftUI entry point (`RemissionApp.swift`), основные экраны, ресурсы (`Assets.xcassets`).

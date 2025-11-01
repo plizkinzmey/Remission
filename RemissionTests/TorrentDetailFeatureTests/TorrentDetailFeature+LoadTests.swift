@@ -27,7 +27,7 @@ struct TorrentDetailFeatureLoadTests {
             $0.errorMessage = nil
         }
 
-        await store.receive(.detailsLoaded(response, timestamp)) { state in
+        await store.receive(.detailsLoaded(expectedTorrent, timestamp)) { state in
             state.isLoading = false
             state.name = expectedTorrent.name
             state.status = expectedTorrent.status.rawValue

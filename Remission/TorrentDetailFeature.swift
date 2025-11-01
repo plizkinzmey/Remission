@@ -59,7 +59,7 @@ struct TorrentDetailReducer {
         case loadTorrentDetails
 
         /// Результат загрузки деталей
-        case detailsLoaded(TransmissionResponse, Date)
+        case detailsLoaded(Torrent, Date)
 
         /// Ошибка при загрузке
         case loadingFailed(String)
@@ -99,11 +99,13 @@ struct TorrentDetailReducer {
                 state.isLoading = true
                 state.errorMessage = nil
                 let dateNow: Date = date.now
+                let parser: TorrentDetailParserDependency = torrentDetailParser
+                let client: TransmissionClientDependency = transmissionClient
 
-                return .run { [torrentId = state.torrentId] send in
+                return .run { [torrentId = state.torrentId, dateNow, parser, client] send in
                     do {
                         let response: TransmissionResponse =
-                            try await transmissionClient.torrentGet(
+                            try await client.torrentGet(
                                 [torrentId],
                                 [
                                     "id", "name", "status", "percentDone", "totalSize",
@@ -116,27 +118,23 @@ struct TorrentDetailReducer {
                                     "files", "trackers", "trackerStats"
                                 ]
                             )
-                        await send(.detailsLoaded(response, dateNow))
+                        let torrent: Torrent = try parser.parse(response)
+                        await send(.detailsLoaded(torrent, dateNow))
                     } catch is CancellationError {
                         return
                     } catch let error as APIError {
                         await send(.loadingFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.loadingFailed("Неизвестная ошибка: \(error)"))
+                        await send(.loadingFailed(error.localizedDescription))
                     }
                 }
                 .cancellable(id: CancelID.loadTorrentDetails, cancelInFlight: true)
 
-            case .detailsLoaded(let response, let timestamp):
+            case .detailsLoaded(let torrent, let timestamp):
                 state.isLoading = false
-                do {
-                    let torrent: Torrent = try torrentDetailParser.parse(response)
-                    state.apply(torrent)
-                    state.errorMessage = nil
-                    updateSpeedHistory(state: &state, timestamp: timestamp)
-                } catch {
-                    state.errorMessage = error.localizedDescription
-                }
+                state.apply(torrent)
+                state.errorMessage = nil
+                updateSpeedHistory(state: &state, timestamp: timestamp)
                 return .none
 
             case .loadingFailed(let message):

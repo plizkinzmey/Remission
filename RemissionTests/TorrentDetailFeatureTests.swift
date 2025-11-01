@@ -83,6 +83,8 @@ struct TorrentDetailFeatureTests {
             ])
         )
 
+        let expectedTorrent: Torrent = try TorrentDetailParser().parse(response)
+
         let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
@@ -106,7 +108,7 @@ struct TorrentDetailFeatureTests {
 
         await clock.advance(by: .seconds(1))
 
-        await store.receive(.detailsLoaded(response, timestamp)) {
+        await store.receive(.detailsLoaded(expectedTorrent, timestamp)) {
             $0.isLoading = false
             $0.name = "Sequential Load"
             $0.status = 4
@@ -138,25 +140,30 @@ struct TorrentDetailFeatureTests {
     }
 
     @Test
-    func detailsLoadedParserFailure() async throws {
-        let response = TransmissionResponse(result: "success")
-        let store = TestStore(
-            initialState: {
-                var state = TorrentDetailReducer.State(torrentId: 1)
-                state.isLoading = true
-                return state
-            }()
-        ) {
+    func loadTorrentDetailsParserFailure() async throws {
+        let timestamp = Date(timeIntervalSince1970: 42)
+        let response = TorrentDetailTestHelpers.makeBasicResponse()
+
+        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
             TorrentDetailReducer()
         } withDependencies: {
+            var client = TransmissionClientDependency.testValue
+            client.torrentGet = { _, _ in response }
+            $0.transmissionClient = client
             var parser = TorrentDetailParserDependency.testValue
             parser.parse = { _ in throw TorrentDetailParserError.missingTorrentData }
             $0.torrentDetailParser = parser
+            $0.date.now = timestamp
         }
 
-        let timestamp = Date(timeIntervalSince1970: 42)
+        await store.send(.loadTorrentDetails) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
 
-        await store.send(.detailsLoaded(response, timestamp)) {
+        await store.receive(
+            .loadingFailed(TorrentDetailParserError.missingTorrentData.localizedDescription)
+        ) {
             $0.isLoading = false
             $0.errorMessage = TorrentDetailParserError.missingTorrentData.localizedDescription
         }
@@ -216,7 +223,7 @@ struct TorrentDetailFeatureTests {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), fixedDate)) {
+        await store.receive(.detailsLoaded(torrent, fixedDate)) {
             $0.isLoading = false
             $0.name = "Updated"
             $0.status = 1
@@ -322,7 +329,7 @@ struct TorrentDetailFeatureTests {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.receive(.detailsLoaded(TransmissionResponse(result: "success"), fixedDate)) {
+        await store.receive(.detailsLoaded(torrent, fixedDate)) {
             $0.isLoading = false
             $0.name = "Torrent"
             $0.downloadLimit = 512
@@ -336,6 +343,7 @@ struct TorrentDetailFeatureTests {
     @Test
     func setPriorityUpdatesIndices() async throws {
         let baseResponse = TorrentDetailTestHelpers.makeBasicResponse()
+        let expectedTorrent: Torrent = try TorrentDetailParser().parse(baseResponse)
         let responseStore = ResponseStore(responses: [baseResponse, baseResponse])
         let argumentStore = ArgumentStore()
 
@@ -365,7 +373,7 @@ struct TorrentDetailFeatureTests {
             $0.errorMessage = nil
         }
 
-        await store.receive(.detailsLoaded(baseResponse, Date(timeIntervalSince1970: 10))) {
+        await store.receive(.detailsLoaded(expectedTorrent, Date(timeIntervalSince1970: 10))) {
             $0.isLoading = false
             $0.name = "Torrent"
             $0.status = 4
@@ -429,7 +437,7 @@ struct TorrentDetailFeatureTests {
             $0.errorMessage = nil
         }
 
-        await store.receive(.detailsLoaded(baseResponse, Date(timeIntervalSince1970: 10))) {
+        await store.receive(.detailsLoaded(expectedTorrent, Date(timeIntervalSince1970: 10))) {
             $0.isLoading = false
             $0.speedHistory.append(
                 SpeedSample(

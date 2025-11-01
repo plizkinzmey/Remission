@@ -13,6 +13,7 @@
 - Тесты размещаются в `RemissionTests/` (unit) и `RemissionUITests/` (UI). В тестах используется модуль `Testing` и атрибут `@Test` (см. `RemissionTests/RemissionTests.swift`).
 - State management: проект использует единую стратегию — The Composable Architecture (TCA). Все feature-модули должны реализовываться через TCA (@ObservableState State, enum Action, Reducer). Не смешивать MVVM и TCA в одном модуле.
 - Network layer: TransmissionClient реализует Transmission RPC вызовы (собственный протокол, не JSON-RPC 2.0). Обработка аутентификации (Basic Auth + HTTP 409 handshake для session-id). Справочник: `devdoc/TRANSMISSION_RPC_REFERENCE.md`.
+- Mapping layer: любые ответы Transmission RPC переводите в доменные модели (`Torrent`, `SessionState`, `ServerConfig`) через `TransmissionDomainMapper` (файлы `Remission/Domain/TransmissionDomainMapper*.swift`). Не парсим `AnyCodable` в фичах напрямую — это гарантирует единый набор проверок и ошибок (`DomainMappingError`). Допущение по полю `percentDone`: Transmission возвращает либо double 0.0…1.0, либо Int 0…100; интеджеры >1 воспринимаются как проценты и нормализуются до долей.
 
 Сборка и тестирование (рабочие сценарии)
 - Открыть в Xcode: двойной клик по `Remission.xcodeproj` и запуск схемы `Remission` в стандартном симуляторе.

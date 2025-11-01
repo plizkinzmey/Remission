@@ -42,6 +42,63 @@
 - rpc-version (Int), rpc-version-minimum (Int)
 - download-dir, speed-limit-*
 
+## Соответствие RPC → доменные модели
+
+> Реализовано в `Remission/Domain/TransmissionDomainMapper.swift`. Все ошибки маппинга агрегируются через `DomainMappingError` (missingField, invalidType, unsupportedStatus и т.д.).
+
+### Torrent (`torrent-get`)
+
+| RPC поле | Доменное свойство | Примечания |
+|---|---|---|
+| `id` | `Torrent.id` | Обязательное поле. Отсутствие → `missingField` |
+| `name` | `Torrent.name` | Обязательное поле |
+| `status` | `Torrent.status` | Проверяется enum 0...7, неизвестные → `unsupportedStatus` |
+| `percentDone` | `Torrent.Summary.Progress.percentDone` | Значение `Int` нормализуется к 0.0...1.0 |
+| `totalSize` | `Torrent.Summary.Progress.totalSize` | Defaults to 0 если отсутствует |
+| `downloadedEver`/`uploadedEver` | `Torrent.Summary.Progress.downloadedEver` / `uploadedEver` | |
+| `uploadRatio` | `Torrent.Summary.Progress.uploadRatio` | Double, fallback 0 |
+| `eta` | `Torrent.Summary.Progress.etaSeconds` | -1 если поле отсутствует |
+| `rateDownload`/`rateUpload` | `Torrent.Summary.Transfer.downloadRate` / `uploadRate` | В байтах/секунду |
+| `downloadLimit`, `downloadLimited` | `Torrent.Summary.Transfer.downloadLimit` | kilobytesPerSecond + bool |
+| `uploadLimit`, `uploadLimited` | `Torrent.Summary.Transfer.uploadLimit` | |
+| `peersConnected` | `Torrent.Summary.Peers.connected` | |
+| `peersFrom` (dict) | `Torrent.Summary.Peers.sources` | Преобразуется в массив `PeerSource`, сортировка по count ↓ |
+| `downloadDir` | `Torrent.Details.downloadDirectory` | В деталях; пустая строка если отсутствует |
+| `dateAdded` | `Torrent.Details.addedDate` | Конвертируется в `Date` (Unix timestamp) |
+| `files[]` | `Torrent.Details.files` | Необязательное поле; отсутствующие элементы игнорируются |
+| `trackers[]` | `Torrent.Details.trackers` | Используются `announce`, `id`/`trackerId`, `tier` |
+| `trackerStats[]` | `Torrent.Details.trackerStats` | Пробрасываются основные счётчики |
+
+### Session State (`session-get` + `session-stats`)
+
+| RPC поле | Доменное свойство | Источник |
+|---|---|---|
+| `rpc-version`, `rpc-version-minimum` | `SessionState.RPC.rpcVersion`, `.rpcVersionMinimum` | `session-get` |
+| `version` | `SessionState.RPC.serverVersion` | `session-get` |
+| `speed-limit-down`, `speed-limit-down-enabled` | `SessionState.SpeedLimits.download` | `session-get` |
+| `speed-limit-up`, `speed-limit-up-enabled` | `SessionState.SpeedLimits.upload` | `session-get` |
+| `alt-speed-*` | `SessionState.SpeedLimits.alternative` | `session-get` |
+| `download-queue-*`, `seed-queue-*` | `SessionState.Queue` | `session-get` |
+| `queue-stalled-*` | `SessionState.Queue` | `session-get` |
+| `activeTorrentCount`, `pausedTorrentCount`, `torrentCount` | `SessionState.Throughput` | `session-stats` |
+| `downloadSpeed`, `uploadSpeed` | `SessionState.Throughput` | `session-stats` |
+| `cumulative-stats` object | `SessionState.cumulativeStats` | `session-stats` |
+| `current-stats` object | `SessionState.currentStats` | `session-stats` |
+
+### Server Config (Keychain + Storage)
+
+| Источник | Доменное свойство | Примечания |
+|---|---|---|
+| Stored record: `name`, `host`, `port`, `path` | `ServerConfig.name`, `.connection` | Path fallback `/transmission/rpc` |
+| Stored record: `isSecure`, `allowUntrustedCertificates` | `ServerConfig.security` | HTTPS → `.https(allowUntrustedCertificates:)` |
+| Stored record: `username` | `ServerConfig.Authentication.username` | Обязательное условие для создания auth блока |
+| Keychain: `TransmissionServerCredentials.key` | `ServerConfig.Authentication.credentialKey` | Сверяется с host/port/scheme из storage; несовпадение → `invalidValue` |
+
+Стратегия совместимости:
+- Любая ошибка структуры (`invalidType`, `missingField`) переводится в user-friendly сообщение через редьюсеры.
+- Unsupported поля/статусы логируются и приводят к `DomainMappingError`, что упрощает диагностику версионных расхождений.
+- Новые поля можно добавлять без изменения существующего API — достаточно расширить `TransmissionDomainMapper`.
+
 ## Примеры запросов/ответов
 
 ### session-get
