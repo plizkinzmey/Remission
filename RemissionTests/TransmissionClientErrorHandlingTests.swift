@@ -353,16 +353,20 @@ struct TransmissionClientErrorHandlingTests {
             maxRetries: 3,
             retryDelay: 0.001
         )
-        let (client, clock) = makeTransmissionClient(baseURL: baseURL, config: config)
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [MockURLProtocol.self]
+        configuration.timeoutIntervalForRequest = 5
+        let trustStore = TransmissionTrustStore.inMemory()
+        let client = TransmissionClient(
+            config: config,
+            sessionConfiguration: configuration,
+            trustStore: trustStore,
+            trustDecisionHandler: { _ in .trustPermanently },
+            clock: ContinuousClock()
+        )
 
         do {
             async let response = client.torrentGet(ids: nil, fields: nil)
-            await clock.advance(by: .milliseconds(1))
-            await clock.run()
-            await clock.advance(by: .milliseconds(2))
-            await clock.run()
-            await clock.advance(by: .milliseconds(4))
-            await clock.run()
             _ = try await response
             #expect(Bool(false), "Ожидалась ошибка после исчерпания ретраев")
         } catch let error as APIError {

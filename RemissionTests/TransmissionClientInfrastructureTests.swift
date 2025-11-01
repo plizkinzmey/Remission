@@ -275,6 +275,31 @@ struct TransmissionClientProtocolTests {
         }
     }
 
+    @Suite("TransmissionClientDependency LiveValue Tests")
+    struct TransmissionClientLiveValueTests {
+        @MainActor
+        @Test("TransmissionClientDependency.liveValue предоставляет рабочую реализацию")
+        func testLiveValueProvidesOperationalDependency() {
+            let dependency = TransmissionClientDependency.liveValue
+            dependency.setTrustDecisionHandler { _ in
+                .trustPermanently
+            }
+        }
+
+        @MainActor
+        @Test("Инициализация liveValue выполняется быстрее 50 мс")
+        func testLiveValueInitializationPerformance() {
+            let clock = ContinuousClock()
+            let start = clock.now
+            let dependency = TransmissionClientDependency.liveValue
+            dependency.setTrustDecisionHandler { _ in
+                .trustPermanently
+            }
+            let duration = clock.now - start
+            #expect(duration < .milliseconds(50))
+        }
+    }
+
     @Suite("TransmissionClientBootstrap Tests")
     struct TransmissionClientBootstrapTests {
         private struct TestTransmissionClient: TransmissionClientProtocol {

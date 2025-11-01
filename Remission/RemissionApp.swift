@@ -1,10 +1,11 @@
 import ComposableArchitecture
 import Foundation
+import OSLog
 import SwiftUI
 
 /// Временная фабрика конфигурации TransmissionClient. До появления onboarding
 /// возвращает тестовую локальную конфигурацию.
-private enum TransmissionClientBootstrap {}
+enum TransmissionClientBootstrap {}
 
 @main
 struct RemissionApp: App {
@@ -32,11 +33,18 @@ struct RemissionApp: App {
 }
 
 extension TransmissionClientBootstrap {
-    fileprivate static func makeLiveDependency(
+    private static let logger: Logger = Logger(
+        subsystem: "app.remission.bootstrap",
+        category: "TransmissionClient"
+    )
+
+    static func makeLiveDependency(
         dependencies: DependencyValues
     ) -> TransmissionClientDependency {
+        logger.debug("Начало инициализации live dependency TransmissionClient.")
         guard let config = makeConfig() else {
             // TODO(RTC-43): заменить на загрузку конфигурации сервера из хранилища onboarding.
+            logger.warning("Конфигурация TransmissionClient недоступна, используем placeholder.")
             return TransmissionClientDependency.placeholder
         }
 
@@ -46,10 +54,14 @@ extension TransmissionClientBootstrap {
             let trustPromptCenter = dependencies.transmissionTrustPromptCenter
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
         #endif
-        return TransmissionClientDependency.live(client: client)
+        let dependency = TransmissionClientDependency.live(client: client)
+        logger.debug(
+            "Успешно создан live dependency TransmissionClient для \(config.baseURL, privacy: .public)."
+        )
+        return dependency
     }
 
-    fileprivate static func makeConfig() -> TransmissionClientConfig? {
+    static func makeConfig() -> TransmissionClientConfig? {
         // TODO(RTC-43): внедрить реальный источник сохранённых серверов и
         // возвращать актуальную конфигурацию Transmission.
         guard let url = URL(string: "http://localhost:9091/transmission/rpc") else {

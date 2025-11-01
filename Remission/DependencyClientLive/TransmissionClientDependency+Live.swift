@@ -1,8 +1,15 @@
 #if canImport(ComposableArchitecture)
     import ComposableArchitecture
+    import Dependencies
 
     extension TransmissionClientDependency: DependencyKey {
-        static let liveValue: Self = placeholder
+        /// Возвращает рабочую live-реализацию, собранную через TransmissionClientBootstrap.
+        /// При недоступной конфигурации откатывается к безопасному placeholder.
+        static var liveValue: Self {
+            TransmissionClientBootstrap.makeLiveDependency(
+                dependencies: DependencyValues()
+            )
+        }
     }
 
     extension TransmissionClientDependency {
