@@ -989,6 +989,12 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - M3.4 Подготовить заглушки репозиториев для тестов UI и TCA.
 - Проверка: модульные тесты репозиториев с моками TransmissionClient.
 
+### Контракты репозиториев (RTC-55)
+- **TorrentRepositoryProtocol / TorrentRepository** (`Remission/TorrentRepository.swift`) — API доменного слоя для списка и деталей торрентов. Поддерживает старт/стоп/удаление/верификацию, а также обновление лимитов скоростей (`TransferSettings`) и настроек файлов (`FileSelectionUpdate`). Live-реализация будет опираться на `TransmissionClientDependency` и `TransmissionDomainMapper` для преобразования ответов RPC.
+- **SessionRepositoryProtocol / SessionRepository** (`Remission/SessionRepository.swift`) — отвечает за handshake, получение актуального `SessionState` и применение обновлений (`SessionUpdate`). Метод `checkCompatibility` инкапсулирует проверку версий RPC. Реализация планируется поверх `session-get`, `session-set` и `session-stats` Transmission.
+- **UserPreferencesRepositoryProtocol / UserPreferencesRepository** (`Remission/UserPreferencesRepository.swift`) — централизованный доступ к `UserPreferences` (polling interval, автообновление, дефолтные лимиты скоростей). Предполагаемая живая реализация сохранит данные в `UserDefaults`/Keychain в зависимости от чувствительности, с поддержкой миграций.
+- Все структуры реализуют `DependencyKey`, предоставляют `previewValue`/`testValue` и `placeholder`/`unimplemented` конфигурации, что позволяет использовать репозитории в TCA-фичах и тестах без реальной инфраструктуры.
+
 ## Веха 4: Инфраструктура TCA
 - M4.1 Подготовить общие утилиты (абстракции времени через swift-clocks, контейнер зависимостей через @Dependency, Environment setup).
 - M4.2 Определить типы AppState (@ObservableState), AppAction и приватные Reducers с @Reducer. Документировать версионирование State структур для миграций.
