@@ -83,9 +83,12 @@ private struct TorrentFileRow: View {
                             wanted: true
                         )
                     ]
-                ),
-                reducer: { TorrentDetailReducer() }
-            )
+                )
+            ) {
+                TorrentDetailReducer()
+            } withDependencies: {
+                $0 = AppDependencies.makePreview()
+            }
         )
         .padding()
     }

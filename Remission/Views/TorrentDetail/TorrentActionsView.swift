@@ -68,9 +68,12 @@ struct TorrentActionsView: View {
         var body: some View {
             TorrentActionsView(
                 store: Store(
-                    initialState: TorrentDetailReducer.State(torrentId: 1),
-                    reducer: { TorrentDetailReducer() }
-                ),
+                    initialState: TorrentDetailReducer.State(torrentId: 1)
+                ) {
+                    TorrentDetailReducer()
+                } withDependencies: {
+                    $0 = AppDependencies.makePreview()
+                },
                 showingDeleteConfirmation: $showingDelete
             )
         }

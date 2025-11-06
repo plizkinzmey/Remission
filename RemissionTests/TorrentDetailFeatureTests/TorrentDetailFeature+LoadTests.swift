@@ -13,14 +13,14 @@ struct TorrentDetailFeatureLoadTests {
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 1)
 
-        let store = TestStore(
-            initialState: TorrentDetailReducer.State(torrentId: expectedTorrent.id.rawValue)
-        ) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = timestamp
-        }
+        let store = TestStoreFactory.make(
+            initialState: TorrentDetailReducer.State(torrentId: expectedTorrent.id.rawValue),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
 
         await store.send(.loadTorrentDetails) {
             $0.isLoading = true

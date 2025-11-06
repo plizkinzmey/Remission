@@ -75,9 +75,12 @@ private struct TorrentTrackerRow: View {
                             seederCount: 25
                         )
                     ]
-                ),
-                reducer: { TorrentDetailReducer() }
-            )
+                )
+            ) {
+                TorrentDetailReducer()
+            } withDependencies: {
+                $0 = AppDependencies.makePreview()
+            }
         )
         .padding()
     }

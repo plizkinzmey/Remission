@@ -7,7 +7,7 @@
         /// При недоступной конфигурации откатывается к безопасному placeholder.
         static var liveValue: Self {
             TransmissionClientBootstrap.makeLiveDependency(
-                dependencies: DependencyValues()
+                dependencies: DependencyValues.appDefault()
             )
         }
     }

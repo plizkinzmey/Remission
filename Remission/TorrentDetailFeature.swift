@@ -90,13 +90,13 @@ struct TorrentDetailReducer {
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             @Dependency(\.torrentRepository) var torrentRepository: TorrentRepository
-            @Dependency(\.date) var date: DateGenerator
+            @Dependency(\.dateProvider) var dateProvider: DateProviderDependency
 
             switch action {
             case .loadTorrentDetails:
                 state.isLoading = true
                 state.errorMessage = nil
-                let dateNow: Date = date.now
+                let dateNow: Date = dateProvider.now()
                 let repository: TorrentRepository = torrentRepository
                 let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
 

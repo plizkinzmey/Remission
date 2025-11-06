@@ -13,12 +13,14 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.test(
             fetchDetails: { _ in throw APIError.networkUnavailable }
         )
-        let store = TestStore(initialState: .init(torrentId: 1)) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = Date(timeIntervalSince1970: 5)
-        }
+        let store = TestStoreFactory.make(
+            initialState: .init(torrentId: 1),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { Date(timeIntervalSince1970: 5) }
+            }
+        )
 
         await store.send(.loadTorrentDetails) {
             $0.isLoading = true
@@ -46,12 +48,14 @@ struct TorrentDetailFeatureTests {
         )
 
         let timestamp = Date(timeIntervalSince1970: 10)
-        let store = TestStore(initialState: .init(torrentId: torrent.id.rawValue)) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = timestamp
-        }
+        let store = TestStoreFactory.make(
+            initialState: .init(torrentId: torrent.id.rawValue),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
 
         await store.send(.loadTorrentDetails) {
             $0.isLoading = true
@@ -83,12 +87,14 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 20)
 
-        let store = TestStore(initialState: .init(torrentId: torrent.id.rawValue)) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = timestamp
-        }
+        let store = TestStoreFactory.make(
+            initialState: .init(torrentId: torrent.id.rawValue),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
 
         await store.send(.startTorrent)
         await store.receive(.actionCompleted("Торрент запущен"))
@@ -116,11 +122,13 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.test(
             start: { _ in throw APIError.networkUnavailable }
         )
-        let store = TestStore(initialState: .init(torrentId: 1)) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-        }
+        let store = TestStoreFactory.make(
+            initialState: .init(torrentId: 1),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+            }
+        )
 
         await store.send(.startTorrent)
         await store.receive(.actionFailed("Сеть недоступна"))
@@ -135,19 +143,19 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 30)
 
-        let store = TestStore(
+        let store = TestStoreFactory.make(
             initialState: {
                 var state = TorrentDetailReducer.State(torrentId: torrent.id.rawValue)
                 state.downloadLimit = 512
                 state.downloadLimited = false
                 return state
-            }()
-        ) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = timestamp
-        }
+            }(),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
 
         await store.send(.toggleDownloadLimit(true)) {
             $0.downloadLimited = true
@@ -180,12 +188,14 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 40)
 
-        let store = TestStore(initialState: .init(torrentId: torrent.id.rawValue)) {
-            TorrentDetailReducer()
-        } withDependencies: {
-            $0.torrentRepository = repository
-            $0.date.now = timestamp
-        }
+        let store = TestStoreFactory.make(
+            initialState: .init(torrentId: torrent.id.rawValue),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
 
         await store.send(.setPriority(fileIndices: [0], priority: 2))
         await store.receive(.actionCompleted("Приоритет установлен"))

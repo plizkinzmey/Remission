@@ -102,9 +102,12 @@ private struct TorrentLimitControl: View {
     #Preview {
         TorrentStatisticsView(
             store: Store(
-                initialState: TorrentDetailReducer.State(torrentId: 1),
-                reducer: { TorrentDetailReducer() }
-            )
+                initialState: TorrentDetailReducer.State(torrentId: 1)
+            ) {
+                TorrentDetailReducer()
+            } withDependencies: {
+                $0 = AppDependencies.makePreview()
+            }
         )
         .padding()
     }

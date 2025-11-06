@@ -131,6 +131,8 @@ struct TorrentDetailView: View {
                     )
                 ) {
                     TorrentDetailReducer()
+                } withDependencies: {
+                    $0 = AppDependencies.makePreview()
                 }
             )
         }

@@ -40,7 +40,7 @@ struct AppView: View {
         ) {
             AppReducer()
         } withDependencies: {
-            $0.transmissionClient = .testValue
+            $0 = AppDependencies.makePreview()
         }
     )
 }
@@ -50,7 +50,7 @@ struct AppView: View {
         store: Store(initialState: sampleState()) {
             AppReducer()
         } withDependencies: {
-            $0.transmissionClient = .testValue
+            $0 = AppDependencies.makePreview()
         }
     )
 }

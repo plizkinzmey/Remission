@@ -94,8 +94,7 @@ await testClock.advance(by: .milliseconds(2))
 **Обновлённые файлы**:
 - `Remission/TransmissionClient.swift` — добавлен параметр `clock` в инициализатор
 - `Remission/TransmissionClient.swift` (retry logic) — заменено `Task.sleep(nanoseconds:)` на `clock.sleep(for: .seconds(...))`
-- `Remission/DependencyClients/TransmissionClockClient.swift` — новый dependency client (RTC-44)
-- `Remission/DependencyClientLive/TransmissionClockDependency+Live.swift` — live реализация с ContinuousClock()
+- `Remission/DependencyClients/AppClockDependency.swift` — универсальный dependency client (RTC-57)
 - `RemissionTests/*.swift` — все тесты обновлены на использование TestClock()
 
 ### Модульность и декомпозиция TCA
@@ -1018,6 +1017,61 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - M4.4 Настроить TestStore и вспомогательные методы для тестирования редьюсеров с использованием Swift Testing (@Test). Каждый редьюсер должен иметь хотя бы happy path и error path тесты.
 - M4.5 Добавить примеры использования @Dependency для мокирования services и repositories в тестах.
 - Проверка: модульные тесты базовых редьюсеров с использованием Swift Testing @Test и TestStore с mock зависимостями.
+
+### Инфраструктура зависимостей и времени (RTC-57)
+- **Цель**: выстроить единый слой зависимостей для TCA, чтобы все фичи получали Clock, UUID, логгеры и сетевые клиенты через `@Dependency`. Текущая реализация (`TransmissionClockDependency`, `TransmissionClientBootstrap`) фокусируется на Transmission и не покрывает остальные сервисы.
+- **Работы**:
+  - Вынести `TransmissionClockDependency` в нейтральный `AppClockDependency` (поддержка `ContinuousClock`/`TestClock`), обновить клиентов Transmission и будущих polling-задач.
+  - Добавить DependencyClients для `UUIDGenerator`, `DateProvider`, `MainQueue` (используем `swift-clocks` и `DispatchQueue.main` через `clock.sleep`), чтобы исключить прямые вызовы `UUID()`/`Date()` из редьюсеров.
+  - Сформировать `AppDependencies` фабрику, возвращающую `DependencyValues` для `Store(initialState:reducer:)` (см. `RemissionApp.swift`). Фабрика должна учитывать будущие хранилища (серверы, пользовательские настройки) и проксировать существующие live/test значения.
+  - Подготовить `DependencyValues+App.swift` с convenience-методами для инициализации Store в превью/тестах (`DependencyValues.appDefault()`, `DependencyValues.appPreview()`).
+- **Рефакторинг**: удалить прямые обращения к `TransmissionClockDependency` вне Transmission-кода, обновить иерархию файлов (`DependencyClients/AppClockDependency.swift` с live/test/preview значениями).
+- **Артефакты**: новая документация в этом файле (раздел "AppDependencies"), диаграмма зависимостей (PlantUML/mermaid) опционально для PR.
+
+#### Реализация (состояние после RTC-57)
+- `DependencyClients/AppClockDependency.swift` — универсальный `AppClockDependency` c `ContinuousClock()` по умолчанию и helper `test(clock:)` для инъекции `TestClock` в Reducer тестах.
+- `DependencyClients/UUIDGeneratorDependency.swift`, `DateProviderDependency.swift`, `MainQueueDependency.swift` — клиенты для генерации UUID, получения `Date` и выполнения операций на MainActor. Live реализации используют `UUID()`, `Date()` и `Task.sleep(for:)`/`MainActor.run`, тест/preview варианты возвращают плейсхолдеры без обращения к глобальному состоянию.
+- `AppDependencies.swift`:
+  - `AppDependencies.makeLive()` формирует полный `DependencyValues` набор для `RemissionApp`, включая вызов `TransmissionClientBootstrap` (получает `appClock` вместо старого `TransmissionClockDependency`).
+  - `DependencyValues.appDefault()/appPreview()/appTest()` и `useAppDefaults()` обеспечивают единое заполнение clock/UUID/Date/MainQueue зависимостей для рабочих, превью и тестовых окружений.
+- `RemissionApp` теперь инициализирует Store через `AppDependencies.makeLive()`, а `TransmissionClientBootstrap` использует `dependencies.appClock.clock()` при создании `TransmissionClient`.
+- `TorrentDetailReducer` обновлён на `@Dependency(\.dateProvider)`; тесты `TorrentDetailFeatureTests` переключены на `dateProvider.now = { timestamp }`.
+
+### Версионирование корневого состояния и навигации (RTC-58)
+- **Цель**: зафиксировать контракт `AppReducer.State` для будущих миграций и десктоп/мобильной синхронизации.
+- **Работы**:
+  - Ввести `AppStateVersion` (enum) и хранить актуальную версию в `AppBootstrap.makeInitialState`. Версия используется для условной инициализации новых секций State.
+  - Добавить `AppStateSchema.md` в `devdoc/` с описанием разделов состояния (serverList/path) и правилами эволюции.
+  - Прописать процедуру миграции (как повышать версию, как обрабатывать старые persisted state при появлении хранения в iCloud/CoreData).
+  - Обновить `AppFeatureTests` и превью `AppView` для проверки корректной инициализации при смене версии.
+- **Рефакторинг**: выровнять навигационный стек `StackState` с версионированием (при несовпадении версии — очищать path в `AppBootstrap`).
+
+### Документация композиции редьюсеров и эффектов (RTC-59)
+- **Цель**: зафиксировать в `plan.md` и `PRD.md` правила разделения редьюсеров, работы с `.run` и зависимости эффектов от окружения.
+- **Работы**:
+  - Добавить раздел "TCA Composition Guidelines" (пример `Scope`/`forEach`, правила `.ifLet` для presentation state).
+  - Подготовить пример эффекта с `Dependency(\.appClock)` и тестом с `TestClock`, описать требования к отмене задач (`.cancellation(id:)`).
+  - Документировать паттерн делегирования (см. `ServerListReducer`) и обновить шаблон для новых фич (`Templates/FeatureChecklist.md` если появится).
+  - Перекрестные ссылки: `CONTEXT7_GUIDE.md` (раздел по TCA), `SwiftUI + TCA Template`.
+- **Артефакты**: новые подразделы документации, ссылки на файлы примеров (ServerListFeature.swift, AppFeature.swift).
+
+### Инфраструктура TestStore и вспомогательных утилит (RTC-60)
+- **Цель**: унифицировать создание `TestStore` в Swift Testing, чтобы тесты редьюсеров использовали общие фикстуры и зависимости.
+- **Работы**:
+  - Создать `RemissionTests/Support/TestStoreFactory.swift` с фабриками `makeAppTestStore`, `makeServerListTestStore` (принимают optional state/action overrides).
+  - Инкапсулировать настройку зависимостей (`appDependencies.testDefaults`) и поведение `exhaustivity`.
+  - Переписать существующие тесты (`AppFeatureTests`, `ServerListFeatureTests`) на новые фабрики, убедиться в уменьшении boilerplate.
+  - Добавить пример использования `TestClock`/`AsyncClock` в одном из тестов (подготовка к M6 polling).
+- **Рефакторинг**: удалить дублирующийся код инициализации Store в тестах.
+
+### Примеры и шаблоны мокирования зависимостей (RTC-61)
+- **Цель**: показать, как использовать `@Dependency` и override в тестах/превью.
+- **Работы**:
+  - Подготовить `RemissionTests/Support/DependencyOverrides.swift` с extension `DependencyValues.appPreview()` и примерами `withDependencies`.
+  - Добавить в `AppView`/`ServerListView` превью, демонстрирующие мок `CredentialsRepository`, `TransmissionClient`.
+  - Обновить `RemissionTests/README.md` (если отсутствует — создать) с инструкциями по override зависимостей в Swift Testing.
+  - Протестировать кейсы: happy path с `TransmissionClient.testValue`, error path через `XCTExpectFailure` или `#expect` для ошибки.
+- **Артефакты**: документированные примеры override, ссылки из `plan.md` на новые файлы, обновление чек-листа для новых фич (см. раздел "Quick Checklist").
 
 ## Веха 5: Онбординг и управление серверами
 - M5.1 Создать TCA-фичу онбординга (@Reducer с @ObservableState State, Action).

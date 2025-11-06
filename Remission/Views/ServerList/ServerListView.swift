@@ -91,7 +91,7 @@ struct ServerListView: View {
         store: Store(initialState: ServerListReducer.State()) {
             ServerListReducer()
         } withDependencies: {
-            $0.transmissionClient = .testValue
+            $0 = AppDependencies.makePreview()
         }
     )
 }
@@ -106,7 +106,7 @@ struct ServerListView: View {
         store: Store(initialState: state) {
             ServerListReducer()
         } withDependencies: {
-            $0.transmissionClient = .testValue
+            $0 = AppDependencies.makePreview()
         }
     )
 }

@@ -18,8 +18,7 @@ struct RemissionApp: App {
         let store = Store(initialState: AppBootstrap.makeInitialState()) {
             AppReducer()
         } withDependencies: { dependencies in
-            dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(
-                dependencies: dependencies)
+            dependencies = AppDependencies.makeLive()
         }
 
         _store = StateObject(wrappedValue: store)
@@ -48,8 +47,8 @@ extension TransmissionClientBootstrap {
             return TransmissionClientDependency.placeholder
         }
 
-        let transmissionClock = dependencies[keyPath: \.transmissionClock]
-        let client = TransmissionClient(config: config, clock: transmissionClock.clock())
+        let appClock = dependencies[keyPath: \.appClock]
+        let client = TransmissionClient(config: config, clock: appClock.clock())
         #if canImport(ComposableArchitecture)
             let trustPromptCenter = dependencies.transmissionTrustPromptCenter
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
