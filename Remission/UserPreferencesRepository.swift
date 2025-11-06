@@ -59,8 +59,20 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
 #if canImport(ComposableArchitecture)
     extension UserPreferencesRepository: DependencyKey {
         static let liveValue: UserPreferencesRepository = .unimplemented
-        static let previewValue: UserPreferencesRepository = .placeholder
-        static let testValue: UserPreferencesRepository = .unimplemented
+        static var previewValue: UserPreferencesRepository {
+            .inMemory(
+                store: InMemoryUserPreferencesRepositoryStore(
+                    preferences: .default
+                )
+            )
+        }
+        static var testValue: UserPreferencesRepository {
+            .inMemory(
+                store: InMemoryUserPreferencesRepositoryStore(
+                    preferences: .default
+                )
+            )
+        }
     }
 
     extension DependencyValues {

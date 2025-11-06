@@ -140,9 +140,35 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
 
 #if canImport(ComposableArchitecture)
     extension SessionRepository: DependencyKey {
-        static let liveValue: SessionRepository = .placeholder
-        static let previewValue: SessionRepository = .placeholder
-        static let testValue: SessionRepository = .unimplemented
+        static var liveValue: SessionRepository { .placeholder }
+        static var previewValue: SessionRepository {
+            let store = InMemorySessionRepositoryStore(
+                handshake: .init(
+                    sessionID: "preview-session",
+                    rpcVersion: 17,
+                    minimumSupportedRpcVersion: 14,
+                    serverVersionDescription: "Transmission 4.0",
+                    isCompatible: true
+                ),
+                state: .previewActive,
+                compatibility: .init(isCompatible: true, rpcVersion: 17)
+            )
+            return .inMemory(store: store)
+        }
+        static var testValue: SessionRepository {
+            let store = InMemorySessionRepositoryStore(
+                handshake: .init(
+                    sessionID: nil,
+                    rpcVersion: 17,
+                    minimumSupportedRpcVersion: 14,
+                    serverVersionDescription: "Transmission Test 4.0",
+                    isCompatible: true
+                ),
+                state: .previewActive,
+                compatibility: .init(isCompatible: true, rpcVersion: 17)
+            )
+            return .inMemory(store: store)
+        }
     }
 
     extension DependencyValues {

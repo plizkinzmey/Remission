@@ -8,18 +8,18 @@ import Testing
 struct TorrentDetailFeatureLoadTests {
     @Test
     func loadTorrentDetailsSuccess() async throws {
-        let response = TorrentDetailTestHelpers.makeParserResponse()
-        let expectedTorrent = TorrentDetailTestHelpers.makeParsedTorrent()
+        let expectedTorrent = DomainFixtures.torrentDownloading
+        let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [expectedTorrent])
+        let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 1)
 
-        let store = TestStore(initialState: TorrentDetailReducer.State(torrentId: 1)) {
+        let store = TestStore(
+            initialState: TorrentDetailReducer.State(torrentId: expectedTorrent.id.rawValue)
+        ) {
             TorrentDetailReducer()
         } withDependencies: {
-            var client = TransmissionClientDependency.testValue
-            client.torrentGet = { _, _ in response }
-            $0.transmissionClient = client
+            $0.torrentRepository = repository
             $0.date.now = timestamp
-            $0.torrentDetailParser = TorrentDetailTestHelpers.makeParserDependency()
         }
 
         await store.send(.loadTorrentDetails) {

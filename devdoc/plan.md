@@ -995,6 +995,22 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - **UserPreferencesRepositoryProtocol / UserPreferencesRepository** (`Remission/UserPreferencesRepository.swift`) — централизованный доступ к `UserPreferences` (polling interval, автообновление, дефолтные лимиты скоростей). Предполагаемая живая реализация сохранит данные в `UserDefaults`/Keychain в зависимости от чувствительности, с поддержкой миграций.
 - Все структуры реализуют `DependencyKey`, предоставляют `previewValue`/`testValue` и `placeholder`/`unimplemented` конфигурации, что позволяет использовать репозитории в TCA-фичах и тестах без реальной инфраструктуры.
 
+### Тестовые реализации (RTC-56)
+- **InMemory хранилища** (`Remission/InMemoryRepositories.swift`) предоставляют `actor`-бэкенды для `TorrentRepository`, `SessionRepository`, `UserPreferencesRepository`. Каждое хранилище поддерживает:
+  - настройку исходных доменных фикстур (`DomainFixtures` из `RemissionTests/Fixtures/Domain`);
+  - маркировку операций как ошибочных (например, `markFailure(.fetchDetails)`) для проверки error-path сценариев;
+  - потокобезопасные обновления состояния (включая изменение статуса торрента, обновление лимитов, модификацию файлов).
+- `DependencyValues.preview` и `DependencyValues.test` теперь используют in-memory реализации, что устраняет `notConfigured` падения в SwiftUI previews и TestStore без дополнительной настройки.
+- **Набор фикстур** (`RemissionTests/Fixtures/Domain/DomainFixtures.swift`) собирает типовые данные для торрентов, сессии и предпочтений. Служит единым источником данных для превью, тестов репозиториев и TCA сценариев.
+- **Helper для кастомных репозиториев** (`RemissionTests/TorrentRepositoryTestHelpers.swift`) позволяет создавать `TorrentRepository.test(...)` с точечными переопределениями методов — удобно для имитации долгих запросов или выброса специфичных ошибок в отдельных тестах.
+- **Примеры использования**:
+  - `RemissionTests/InMemoryRepositoryTests.swift` — happy path + failure для каждого in-memory репозитория.
+  - `RemissionTests/TorrentDetailFeatureTests.swift` — TestStore, полностью работающий через `@Dependency(\.torrentRepository)` (без прямого `TransmissionClientDependency`), охватывающий сценарии загрузки деталей, запуска торрента, переключения лимитов и установки приоритета.
+- При написании новых TCA тестов рекомендуется:
+  1. Создавать `InMemory...Store` с нужными фикстурами.
+  2. Передавать `TorrentRepository.inMemory(store:)` (или аналог для сессий/настроек) через `withDependencies`.
+  3. Для нестандартных сценариев использовать `TorrentRepository.test` и явно контролировать эффекты/ошибки.
+
 ## Веха 4: Инфраструктура TCA
 - M4.1 Подготовить общие утилиты (абстракции времени через swift-clocks, контейнер зависимостей через @Dependency, Environment setup).
 - M4.2 Определить типы AppState (@ObservableState), AppAction и приватные Reducers с @Reducer. Документировать версионирование State структур для миграций.

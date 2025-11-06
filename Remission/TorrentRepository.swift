@@ -147,9 +147,20 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
 
 #if canImport(ComposableArchitecture)
     extension TorrentRepository: DependencyKey {
-        static let liveValue: TorrentRepository = .placeholder
-        static let previewValue: TorrentRepository = .placeholder
-        static let testValue: TorrentRepository = .unimplemented
+        static var liveValue: TorrentRepository { .placeholder }
+        static var previewValue: TorrentRepository {
+            .inMemory(
+                store: InMemoryTorrentRepositoryStore(
+                    torrents: [
+                        .previewDownloading,
+                        .previewCompleted
+                    ]
+                )
+            )
+        }
+        static var testValue: TorrentRepository {
+            .inMemory(store: InMemoryTorrentRepositoryStore())
+        }
     }
 
     extension DependencyValues {

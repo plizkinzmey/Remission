@@ -9,14 +9,14 @@
     }
   ],
   "defaultOptions" : {
-    "performanceAntipatternCheckerEnabled" : true,
     "environmentVariableEntries" : [
       {
+        "isEnabled" : true,
         "key" : "ENABLE_SWIFT_TESTING",
-        "value" : "YES",
-        "isEnabled" : true
+        "value" : "YES"
       }
     ],
+    "performanceAntipatternCheckerEnabled" : true,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Remission.xcodeproj",
       "identifier" : "15AA8C3A2EA1C9360025EF81",

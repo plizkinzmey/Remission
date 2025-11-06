@@ -89,43 +89,25 @@ struct TorrentDetailReducer {
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
-            @Dependency(\.transmissionClient) var transmissionClient: TransmissionClientDependency
+            @Dependency(\.torrentRepository) var torrentRepository: TorrentRepository
             @Dependency(\.date) var date: DateGenerator
-            @Dependency(\.torrentDetailParser) var torrentDetailParser:
-                TorrentDetailParserDependency
 
             switch action {
             case .loadTorrentDetails:
                 state.isLoading = true
                 state.errorMessage = nil
                 let dateNow: Date = date.now
-                let parser: TorrentDetailParserDependency = torrentDetailParser
-                let client: TransmissionClientDependency = transmissionClient
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
 
-                return .run { [torrentId = state.torrentId, dateNow, parser, client] send in
+                return .run { [torrentIdentifier, dateNow, repository] send in
                     do {
-                        let response: TransmissionResponse =
-                            try await client.torrentGet(
-                                [torrentId],
-                                [
-                                    "id", "name", "status", "percentDone", "totalSize",
-                                    "downloadedEver", "uploadedEver", "eta",
-                                    "rateDownload", "rateUpload", "uploadRatio",
-                                    "downloadLimit", "downloadLimited",
-                                    "uploadLimit", "uploadLimited",
-                                    "peersConnected", "peersFrom",
-                                    "downloadDir", "dateAdded",
-                                    "files", "trackers", "trackerStats"
-                                ]
-                            )
-                        let torrent: Torrent = try parser.parse(response)
+                        let torrent: Torrent = try await repository.fetchDetails(torrentIdentifier)
                         await send(.detailsLoaded(torrent, dateNow))
                     } catch is CancellationError {
                         return
-                    } catch let error as APIError {
-                        await send(.loadingFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.loadingFailed(error.localizedDescription))
+                        await send(.loadingFailed(Self.errorMessage(from: error)))
                     }
                 }
                 .cancellable(id: CancelID.loadTorrentDetails, cancelInFlight: true)
@@ -143,128 +125,130 @@ struct TorrentDetailReducer {
                 return .none
 
             case .startTorrent:
-                return .run { [torrentId = state.torrentId] send in
+                let repository: TorrentRepository = torrentRepository
+                let identifiers: [Torrent.Identifier] = [
+                    Torrent.Identifier(rawValue: state.torrentId)
+                ]
+                return .run { [identifiers, repository] send in
                     do {
-                        _ = try await transmissionClient.torrentStart([torrentId])
+                        try await repository.start(identifiers)
                         await send(.actionCompleted("Торрент запущен"))
-                        // Перезагружаем детали
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при запуске: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .stopTorrent:
-                return .run { [torrentId = state.torrentId] send in
+                let repository: TorrentRepository = torrentRepository
+                let identifiers: [Torrent.Identifier] = [
+                    Torrent.Identifier(rawValue: state.torrentId)
+                ]
+                return .run { [identifiers, repository] send in
                     do {
-                        _ = try await transmissionClient.torrentStop([torrentId])
+                        try await repository.stop(identifiers)
                         await send(.actionCompleted("Торрент остановлен"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при остановке: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .removeTorrent(let deleteData):
-                return .run { [torrentId = state.torrentId] send in
+                let repository: TorrentRepository = torrentRepository
+                let identifiers: [Torrent.Identifier] = [
+                    Torrent.Identifier(rawValue: state.torrentId)
+                ]
+                return .run { [identifiers, repository, deleteData] send in
                     do {
-                        _ = try await transmissionClient.torrentRemove([torrentId], deleteData)
+                        try await repository.remove(identifiers, deleteLocalData: deleteData)
                         await send(.actionCompleted("Торрент удалён"))
-                        // Сигнализируем о завершении родительскому редьюсеру
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при удалении: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .verifyTorrent:
-                return .run { [torrentId = state.torrentId] send in
+                let repository: TorrentRepository = torrentRepository
+                let identifiers: [Torrent.Identifier] = [
+                    Torrent.Identifier(rawValue: state.torrentId)
+                ]
+                return .run { [identifiers, repository] send in
                     do {
-                        _ = try await transmissionClient.torrentVerify([torrentId])
+                        try await repository.verify(identifiers)
                         await send(.actionCompleted("Проверка целостности запущена"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при проверке: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .setPriority(let fileIndices, let priority):
-                return .run { [torrentId = state.torrentId] send in
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
+                let mappedPriority: TorrentRepository.FilePriority? = {
+                    switch priority {
+                    case 0: return .low
+                    case 1: return .normal
+                    case 2: return .high
+                    default: return nil
+                    }
+                }()
+                let updates: [TorrentRepository.FileSelectionUpdate] = fileIndices.map {
+                    TorrentRepository.FileSelectionUpdate(
+                        fileIndex: $0,
+                        priority: mappedPriority
+                    )
+                }
+                return .run { [torrentIdentifier, updates, repository] send in
                     do {
-                        var arguments: [String: AnyCodable] = ["ids": .array([.int(torrentId)])]
-
-                        // Формируем аргументы для torrent-set
-                        let priorityKey: String
-                        switch priority {
-                        case 0:
-                            priorityKey = "priority-low"
-                        case 1:
-                            priorityKey = "priority-normal"
-                        case 2:
-                            priorityKey = "priority-high"
-                        default:
-                            priorityKey = "priority-normal"
-                        }
-
-                        arguments[priorityKey] = .array(fileIndices.map { .int($0) })
-
-                        _ = try await transmissionClient.torrentSet(
-                            [torrentId],
-                            .object(arguments)
-                        )
+                        try await repository.updateFileSelection(updates, in: torrentIdentifier)
                         await send(.actionCompleted("Приоритет установлен"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при установке приоритета: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .toggleDownloadLimit(let isEnabled):
                 state.downloadLimited = isEnabled
-                let limit: Int = state.downloadLimit
-                let torrentId: Int = state.torrentId
-                let payload: [String: AnyCodable] = [
-                    "downloadLimited": .bool(isEnabled),
-                    "downloadLimit": .int(limit)
-                ]
-                return .run { send in
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
+                let transferLimit = TorrentRepository.TransferLimit(
+                    isEnabled: isEnabled,
+                    kilobytesPerSecond: state.downloadLimit
+                )
+                return .run { [repository, torrentIdentifier, transferLimit] send in
                     do {
-                        _ = try await transmissionClient.torrentSet([torrentId], .object(payload))
+                        try await repository.updateTransferSettings(
+                            .init(downloadLimit: transferLimit),
+                            for: [torrentIdentifier]
+                        )
                         await send(.actionCompleted("Настройки скоростей обновлены"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при обновлении настроек: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
             case .toggleUploadLimit(let isEnabled):
                 state.uploadLimited = isEnabled
-                let limit: Int = state.uploadLimit
-                let torrentId: Int = state.torrentId
-                let payload: [String: AnyCodable] = [
-                    "uploadLimited": .bool(isEnabled),
-                    "uploadLimit": .int(limit)
-                ]
-                return .run { send in
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
+                let transferLimit = TorrentRepository.TransferLimit(
+                    isEnabled: isEnabled,
+                    kilobytesPerSecond: state.uploadLimit
+                )
+                return .run { [repository, torrentIdentifier, transferLimit] send in
                     do {
-                        _ = try await transmissionClient.torrentSet([torrentId], .object(payload))
+                        try await repository.updateTransferSettings(
+                            .init(uploadLimit: transferLimit),
+                            for: [torrentIdentifier]
+                        )
                         await send(.actionCompleted("Настройки скоростей обновлены"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при обновлении настроек: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
@@ -274,20 +258,22 @@ struct TorrentDetailReducer {
                 guard state.downloadLimited else {
                     return .none
                 }
-                let torrentId: Int = state.torrentId
-                let payload: [String: AnyCodable] = [
-                    "downloadLimited": .bool(true),
-                    "downloadLimit": .int(bounded)
-                ]
-                return .run { send in
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
+                let transferLimit = TorrentRepository.TransferLimit(
+                    isEnabled: true,
+                    kilobytesPerSecond: bounded
+                )
+                return .run { [repository, torrentIdentifier, transferLimit] send in
                     do {
-                        _ = try await transmissionClient.torrentSet([torrentId], .object(payload))
+                        try await repository.updateTransferSettings(
+                            .init(downloadLimit: transferLimit),
+                            for: [torrentIdentifier]
+                        )
                         await send(.actionCompleted("Настройки скоростей обновлены"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при обновлении настроек: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
@@ -297,20 +283,22 @@ struct TorrentDetailReducer {
                 guard state.uploadLimited else {
                     return .none
                 }
-                let torrentId: Int = state.torrentId
-                let payload: [String: AnyCodable] = [
-                    "uploadLimited": .bool(true),
-                    "uploadLimit": .int(bounded)
-                ]
-                return .run { send in
+                let repository: TorrentRepository = torrentRepository
+                let torrentIdentifier = Torrent.Identifier(rawValue: state.torrentId)
+                let transferLimit = TorrentRepository.TransferLimit(
+                    isEnabled: true,
+                    kilobytesPerSecond: bounded
+                )
+                return .run { [repository, torrentIdentifier, transferLimit] send in
                     do {
-                        _ = try await transmissionClient.torrentSet([torrentId], .object(payload))
+                        try await repository.updateTransferSettings(
+                            .init(uploadLimit: transferLimit),
+                            for: [torrentIdentifier]
+                        )
                         await send(.actionCompleted("Настройки скоростей обновлены"))
                         await send(.loadTorrentDetails)
-                    } catch let error as APIError {
-                        await send(.actionFailed(error.userFriendlyMessage))
                     } catch {
-                        await send(.actionFailed("Ошибка при обновлении настроек: \(error)"))
+                        await send(.actionFailed(Self.errorMessage(from: error)))
                     }
                 }
 
@@ -341,6 +329,13 @@ extension TorrentDetailReducer {
         if state.speedHistory.count > 20 {
             state.speedHistory.removeFirst(state.speedHistory.count - 20)
         }
+    }
+
+    fileprivate static func errorMessage(from error: Error) -> String {
+        if let apiError = error as? APIError {
+            return apiError.userFriendlyMessage
+        }
+        return error.localizedDescription
     }
 }
 

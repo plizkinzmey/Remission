@@ -21,6 +21,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("Останавливает handshake после двух 409 и выбрасывает sessionConflict")
     func testStopsHandshakeAfterTwo409Conflicts() async {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         server.register(
             scenario: .init(
                 name: "two-409-then-fail",
@@ -54,6 +55,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("performHandshake выбрасывает versionUnsupported при rpc-version < 14")
     func testPerformHandshakeVersionUnsupported() async {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         server.register(
             scenario: .init(
                 name: "unsupported-version",
@@ -90,6 +92,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("Некорректный JSON приводит к APIError.decodingFailed")
     func testInvalidJSONResponseTriggersDecodingFailed() async {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         server.register(
             scenario: .init(
                 name: "invalid-json",
@@ -125,6 +128,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("HTTP 500 мапится в APIError.unknown")
     func testHttp500MapsToUnknown() async {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         server.register(
             scenario: .init(
                 name: "http-500",
@@ -152,6 +156,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("URLError(.cannotConnectToHost) превращается в networkUnavailable")
     func testNetworkFailureMapsToNetworkUnavailable() async {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         server.register(
             scenario: .init(
                 name: "network-failure",
@@ -179,6 +184,7 @@ struct TransmissionClientErrorScenariosTests {
     @Test("Логирование маскирует Basic Auth и session-id")
     func testLoggingMasksSecretsDuringHandshake() async throws {
         let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
         let sessionID: String = "VERY-SECRET-SESSION-ID"
         server.register(
             scenario: .init(
@@ -220,9 +226,11 @@ struct TransmissionClientErrorScenariosTests {
         #expect(!joinedLogs.contains(sessionID))
     }
 
-    @Test("Проверяет экспоненциальный backoff при сетевых ошибках")
+    @Test("Проверяет экспоненциальный backoff при сетевых ошибках", .timeLimit(.minutes(1)))
     func testExponentialBackoffOnNetworkErrors() async throws {
         let server = TransmissionMockServer()
+        defer { cleanupMockServer() }
+
         server.register(
             scenario: .init(
                 name: "retry-with-backoff",
@@ -243,23 +251,48 @@ struct TransmissionClientErrorScenariosTests {
             retryDelay: 0.1
         )
 
-        let (client, clock) = makeClient(using: server, configOverride: config)
+        let sessionConfiguration: URLSessionConfiguration =
+            server.makeEphemeralSessionConfiguration()
+        let baseClock = TestClock<Duration>()
+        let recordingClock = RecordingClock(base: baseClock)
+        let client = TransmissionClient(
+            config: config,
+            sessionConfiguration: sessionConfiguration,
+            trustStore: .inMemory(),
+            trustDecisionHandler: { _ in .trustPermanently },
+            clock: recordingClock
+        )
 
         async let response = client.torrentGet(ids: nil, fields: nil)
 
-        await clock.advance(by: .milliseconds(100))
-        await clock.run()
-        await clock.advance(by: .milliseconds(200))
-        await clock.run()
-        await clock.advance(by: .milliseconds(400))
-        await clock.run()
+        let retryDelays: [Duration] = [
+            .milliseconds(100),
+            .milliseconds(200),
+            .milliseconds(400)
+        ]
+        for delay in retryDelays {
+            await baseClock.advance(by: delay)
+            await baseClock.run()
+        }
 
         _ = try await response
 
         try server.assertAllScenariosFinished()
+
+        let recordedSeconds: [Double] = recordingClock.sleepHistory.map(durationInSeconds)
+        #expect(recordedSeconds.count == 3)
+        #expect(abs(recordedSeconds[0] - 0.1) < 0.0001)
+        #expect(abs(recordedSeconds[1] - 0.2) < 0.0001)
+        #expect(abs(recordedSeconds[2] - 0.4) < 0.0001)
     }
 
     // MARK: - Helpers
+
+    private func cleanupMockServer() {
+        TransmissionMockServer.activeServerLock.lock()
+        TransmissionMockServer.activeServer = nil
+        TransmissionMockServer.activeServerLock.unlock()
+    }
 
     private func makeClient(
         using server: TransmissionMockServer,
@@ -303,4 +336,37 @@ private final class TransmissionLogCollector: @unchecked Sendable {
         defer { lock.unlock() }
         return storage
     }
+}
+
+private final class RecordingClock: Clock, @unchecked Sendable {
+    typealias Duration = Swift.Duration
+    typealias Instant = TestClock<Duration>.Instant
+
+    private let base: TestClock<Duration>
+    private(set) var sleepHistory: [Duration] = []
+
+    init(base: TestClock<Duration>) {
+        self.base = base
+    }
+
+    var now: Instant { base.now }
+    var minimumResolution: Duration { base.minimumResolution }
+
+    func sleep(until deadline: Instant, tolerance: Duration? = nil) async throws {
+        let interval = base.now.duration(to: deadline)
+        sleepHistory.append(interval)
+        try await base.sleep(until: deadline, tolerance: tolerance)
+    }
+
+    func sleep(for duration: Duration, tolerance: Duration? = nil) async throws {
+        sleepHistory.append(duration)
+        try await base.sleep(for: duration, tolerance: tolerance)
+    }
+}
+
+private func durationInSeconds(_ duration: Swift.Duration) -> Double {
+    let components = duration.components
+    let seconds = Double(components.seconds)
+    let attoseconds = Double(components.attoseconds) / 1_000_000_000_000_000_000
+    return seconds + attoseconds
 }
