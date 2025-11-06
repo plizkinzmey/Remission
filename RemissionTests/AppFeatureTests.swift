@@ -30,4 +30,31 @@ struct AppFeatureTests {
         #expect(store.state.path.last?.server == server)
         #expect(store.state.path.count == 1)
     }
+
+    @Test
+    func bootstrapStateResetsLegacyPathBeforeReducerStarts() {
+        var serverList = ServerListReducer.State()
+        serverList.servers = [ServerConfig.previewLocalHTTP]
+        let detailState = ServerDetailReducer.State(server: .previewLocalHTTP)
+        let legacyState = AppReducer.State(
+            version: .legacy,
+            serverList: serverList,
+            path: StackState([detailState])
+        )
+
+        let initialState = AppBootstrap.makeInitialState(
+            arguments: [],
+            targetVersion: .latest,
+            existingState: legacyState
+        )
+
+        let store: TestStoreOf<AppReducer> = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { AppReducer() }
+        )
+
+        #expect(store.state.version == .latest)
+        #expect(store.state.path.isEmpty)
+        #expect(store.state.serverList.servers == serverList.servers)
+    }
 }

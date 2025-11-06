@@ -5,8 +5,19 @@ import Foundation
 struct AppReducer {
     @ObservableState
     struct State: Equatable {
-        var serverList: ServerListReducer.State = .init()
-        var path: StackState<ServerDetailReducer.State> = .init()
+        var version: AppStateVersion
+        var serverList: ServerListReducer.State
+        var path: StackState<ServerDetailReducer.State>
+
+        init(
+            version: AppStateVersion = .latest,
+            serverList: ServerListReducer.State = .init(),
+            path: StackState<ServerDetailReducer.State> = .init()
+        ) {
+            self.version = version
+            self.serverList = serverList
+            self.path = path
+        }
     }
 
     enum Action: Equatable {

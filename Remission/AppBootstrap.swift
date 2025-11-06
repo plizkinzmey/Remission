@@ -12,17 +12,58 @@ enum AppBootstrap {
     }
 
     /// Возвращает стартовое состояние приложения, учитывая аргументы процесса.
-    static func makeInitialState(processInfo: ProcessInfo = .processInfo) -> AppReducer.State {
-        makeInitialState(arguments: processInfo.arguments)
+    static func makeInitialState(
+        processInfo: ProcessInfo = .processInfo,
+        targetVersion: AppStateVersion = .latest,
+        existingState: AppReducer.State? = nil
+    ) -> AppReducer.State {
+        makeInitialState(
+            arguments: processInfo.arguments,
+            targetVersion: targetVersion,
+            existingState: existingState
+        )
     }
 
     /// Возвращает стартовое состояние приложения, учитывая переданные аргументы.
-    static func makeInitialState(arguments: [String]) -> AppReducer.State {
-        var state: AppReducer.State = .init()
+    static func makeInitialState(
+        arguments: [String],
+        targetVersion: AppStateVersion = .latest,
+        existingState: AppReducer.State? = nil
+    ) -> AppReducer.State {
+        var state = existingState ?? AppReducer.State()
+        migrate(&state, to: targetVersion)
         guard let fixture = parseFixture(from: arguments) else {
             return state
         }
 
+        applyFixture(fixture, to: &state)
+        return state
+    }
+
+    private static func parseFixture(from arguments: [String]) -> UITestingFixture? {
+        guard let raw = arguments.first(where: { $0.hasPrefix(fixtureArgumentPrefix) }) else {
+            return nil
+        }
+        let value = String(raw.dropFirst(fixtureArgumentPrefix.count))
+        return UITestingFixture(rawValue: value)
+    }
+
+    private static func migrate(_ state: inout AppReducer.State, to targetVersion: AppStateVersion)
+    {
+        guard state.version != targetVersion else { return }
+        state.version = targetVersion
+        state.path = .init()
+
+        switch targetVersion {
+        case .legacy:
+            break
+        case .v1:
+            break
+        }
+    }
+
+    private static func applyFixture(_ fixture: UITestingFixture, to state: inout AppReducer.State)
+    {
         switch fixture {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: [
@@ -46,15 +87,5 @@ enum AppBootstrap {
                 )
             ])
         }
-
-        return state
-    }
-
-    private static func parseFixture(from arguments: [String]) -> UITestingFixture? {
-        guard let raw = arguments.first(where: { $0.hasPrefix(fixtureArgumentPrefix) }) else {
-            return nil
-        }
-        let value = String(raw.dropFirst(fixtureArgumentPrefix.count))
-        return UITestingFixture(rawValue: value)
     }
 }

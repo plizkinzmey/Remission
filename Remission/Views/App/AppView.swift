@@ -55,6 +55,16 @@ struct AppView: View {
     )
 }
 
+#Preview("AppView Legacy Migration") {
+    AppView(
+        store: Store(initialState: migratedLegacyState()) {
+            AppReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makePreview()
+        }
+    )
+}
+
 @MainActor
 private func sampleState() -> AppReducer.State {
     var state: AppReducer.State = .init()
@@ -63,4 +73,23 @@ private func sampleState() -> AppReducer.State {
         ServerConfig.previewSecureSeedbox
     ]
     return state
+}
+
+@MainActor
+private func migratedLegacyState() -> AppReducer.State {
+    var serverList = ServerListReducer.State()
+    serverList.servers = [
+        ServerConfig.previewLocalHTTP
+    ]
+    let legacyDetailState = ServerDetailReducer.State(server: .previewLocalHTTP)
+    let legacyState = AppReducer.State(
+        version: .legacy,
+        serverList: serverList,
+        path: StackState([legacyDetailState])
+    )
+    return AppBootstrap.makeInitialState(
+        arguments: [],
+        targetVersion: .latest,
+        existingState: legacyState
+    )
 }
