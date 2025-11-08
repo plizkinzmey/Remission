@@ -1053,13 +1053,54 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - `AppBootstrapTests` покрывают сценарии миграции legacy-state и проверяют присвоение текущей версии. Превью `AppView` используют обновлённый state builder (без дополнительной логики).
 
 ### Документация композиции редьюсеров и эффектов (RTC-59)
-- **Цель**: зафиксировать в `plan.md` и `PRD.md` правила разделения редьюсеров, работы с `.run` и зависимости эффектов от окружения.
+- **Цель**: зафиксировать в `plan.md` и `PRD.md` правила разделения редьюсеров, работы с `.run` и зависимости эффектов от окружения, чтобы новые фичи применяли единый подход.
 - **Работы**:
-  - Добавить раздел "TCA Composition Guidelines" (пример `Scope`/`forEach`, правила `.ifLet` для presentation state).
-  - Подготовить пример эффекта с `Dependency(\.appClock)` и тестом с `TestClock`, описать требования к отмене задач (`.cancellation(id:)`).
-  - Документировать паттерн делегирования (см. `ServerListReducer`) и обновить шаблон для новых фич (`Templates/FeatureChecklist.md` если появится).
+  - Добавить подраздел «TCA Composition Guidelines» с конкретными примерами из `AppFeature.swift`/`ServerListReducer.swift`, объяснить, как использовать `Scope`, `forEach`, `Delegation` и `.ifLet` для presentation state.
+  - Подготовить пример эффекта, который берёт `@Dependency(\.appClock)` и делает периодический запрос, фиксировать требования к отмене (`.cancellation(id:)`) и retry-логике.
+  - Подготовить тестовую стратегию для эффектов с таймером (используя `TestClock` и `TestStore`) и описать, как проверять отмену цепочек.
+  - Обновить шаблон для новых фич (`Templates/FeatureChecklist.md`) и quick-check лист в AGENTS, чтобы вся команда ссылалась на новый гайд.
   - Перекрестные ссылки: `CONTEXT7_GUIDE.md` (раздел по TCA), `SwiftUI + TCA Template`.
-- **Артефакты**: новые подразделы документации, ссылки на файлы примеров (ServerListFeature.swift, AppFeature.swift).
+- **Артефакты**: новый подраздел документации, кодовые примеры (AppFeature.swift, ServerListFeature.swift), шаблон фичи, ссылка в AGENTS quick checklist.
+
+#### Руководство по композиции
+- **Составные редьюсеры**: корневой редьюсер (`AppFeature`) использует `Scope(state:action:)` для выделенных фич и `forEach(\.path, action: \.path)` для стековых навигационных сценариев, чтобы делегировать действия дочерним редьюсерам и делить `State`.
+- **Presentation state**: чтобы не засорять `Reduce`, `@Presents` описывает опциональные блоки (alerts/sheets) и осуществляется через `.ifLet(\.$alert, action: \.alert)` (см. `ServerListReducer.Alert`). Каждая презентация должна иметь отдельный `PresentationAction`.
+- **Делегирование**: дочерние reducers отправляют `delegate`-действия вверх, как в `ServerListReducer` (`.delegate(.serverSelected(server))`), а родитель обрабатывает их в `Reduce` и инжектирует через `Scope`/`forEach`.
+- **Модули без состояния**: если View действительно не хранит состояние, допускается простая SwiftUI View, но документировать это отклонение.
+
+#### Пример эффекта с `AppClockDependency`
+
+```swift
+@Dependency(\.appClock) var appClock
+@Dependency(\.torrentRepository) var repository
+
+private enum CancelID: Hashable {
+    case polling
+}
+
+case startPolling
+case pollingResponse(Result<[Torrent], TorrentRepository.Error>)
+
+return .run { [repository, clock = appClock.clock()] send in
+    while true {
+        try await clock.sleep(for: .seconds(30))
+        let torrents = try await repository.fetchList()
+        await send(.pollingResponse(.success(torrents)))
+    }
+}
+.cancellable(id: CancelID.polling, cancelInFlight: true)
+```
+
+Каждый `run`-эффект, который сам инициирует асинхронные операции, оборачивается в `.cancellable(id:, cancelInFlight:)` и сохраняет `CancelID` внутри reducer. Важно: `cancelInFlight` уничтожает предыдущие задачи при повторном диспатче (например, при смене фильтра).
+
+#### Тестирование эффектов с таймером
+- В `TestStore` замените зависимость: `store.dependencies.appClock = .test(clock: TestClock())`.
+- После `store.send(.startPolling)` вызовите `await clock.advance(by: .seconds(30))`, затем `await store.receive(.pollingResponse(.success(...)))`.
+- Убедитесь, что `.cancellation` вызывает `store.receive(.cancellation)` (или эквивалентное действие) при `clock.cancel()`/`store.send(.stopPolling)`; если используется `.cancellable`, проверяйте, что отмена выполняется до отправки новых `send`.
+
+#### Чеклист и шаблон
+- Новые фичи должны пройти `Templates/FeatureChecklist.md`, где отражены требования по композиции, `.ifLet`, `.run` и отменам.
+- Quick checklist в `AGENTS.md` должен ссылаться на шаблон и гайд, чтобы любой разработчик мог быстро найти правила.
 
 ### Инфраструктура TestStore и вспомогательных утилит (RTC-60)
 - **Цель**: унифицировать создание `TestStore` в Swift Testing, чтобы тесты редьюсеров использовали общие фикстуры и зависимости.

@@ -288,6 +288,7 @@ xcodebuild test -scheme Remission -sdk macosx
 - [ ] **PR:** ссылка на Linear task (RTC-N), доказательство прогона тестов
 - [ ] **Никаких credentials в логах:** пароли, session-id, API keys НЕ логируются
 - [ ] **Keychain для секретов:** все credentials сохраняются в Keychain, не в UserDefaults
+- [ ] **TCA-композиция:** пройти `Templates/FeatureChecklist.md` и убедиться, что фича соответствует гайду из `devdoc/plan.md` (раздел RTC-59).
 
 **Перед push запустите:**
 ```bash
