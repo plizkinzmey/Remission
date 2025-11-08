@@ -4,6 +4,7 @@ import Testing
 @testable import Remission
 
 // swiftlint:disable explicit_type_interface
+// swiftlint:disable file_length
 
 @Suite("TransmissionClientConfig Tests")
 struct TransmissionClientConfigTests {
@@ -452,11 +453,124 @@ struct TransmissionClientProtocolTests {
                 Issue.record("Unexpected error after switch back to placeholder")
             }
         }
+
+        @MainActor
+        @Test("TransmissionClientBootstrap.makeConfig возвращает nil без сохранённых серверов")
+        func testMakeConfigWithoutServers() async throws {
+            let tempURL = try makeTemporaryStorageURL()
+            defer { try? FileManager.default.removeItem(at: tempURL.deletingLastPathComponent()) }
+
+            let credentialsStore = KeychainCredentialsDependency(
+                save: { _ in },
+                load: { _ in nil },
+                delete: { _ in }
+            )
+
+            let config = TransmissionClientBootstrap.makeConfig(
+                credentialsStore: credentialsStore,
+                fileURL: tempURL
+            )
+            #expect(config == nil)
+        }
+
+        @MainActor
+        @Test(
+            "TransmissionClientBootstrap.makeConfig использует последний сохранённый сервер и пароль"
+        )
+        func testMakeConfigLoadsLatestServer() async throws {
+            let tempURL = try makeTemporaryStorageURL()
+            defer { try? FileManager.default.removeItem(at: tempURL.deletingLastPathComponent()) }
+
+            let records: [StoredServerConfigRecord] = [
+                StoredServerConfigRecord(
+                    id: UUID(),
+                    name: "Первый NAS",
+                    host: "nas.local",
+                    port: 9091,
+                    path: nil,
+                    isSecure: false,
+                    allowUntrustedCertificates: false,
+                    username: "admin",
+                    createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+                ),
+                StoredServerConfigRecord(
+                    id: UUID(),
+                    name: "Seedbox",
+                    host: "seedbox.example.com",
+                    port: 443,
+                    path: "/transmission/rpc",
+                    isSecure: true,
+                    allowUntrustedCertificates: false,
+                    username: "seeduser",
+                    createdAt: Date(timeIntervalSince1970: 1_800_000_000)
+                )
+            ]
+
+            try write(records: records, to: tempURL)
+
+            let capturedKey = LockedValue<TransmissionServerCredentialsKey?>(nil)
+            let credentialsStore = KeychainCredentialsDependency(
+                save: { _ in },
+                load: { key in
+                    capturedKey.set(key)
+                    return TransmissionServerCredentials(key: key, password: "secret")
+                },
+                delete: { _ in }
+            )
+
+            let config = TransmissionClientBootstrap.makeConfig(
+                credentialsStore: credentialsStore,
+                fileURL: tempURL
+            )
+            #expect(
+                config?.baseURL.absoluteString == "https://seedbox.example.com:443/transmission/rpc"
+            )
+            #expect(capturedKey.value?.username == "seeduser")
+        }
+
+        private func makeTemporaryStorageURL() throws -> URL {
+            let directory = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true)
+            return directory.appendingPathComponent("servers.json", isDirectory: false)
+        }
+
+        private func write(
+            records: [StoredServerConfigRecord],
+            to url: URL
+        ) throws {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(records)
+            try data.write(to: url, options: .atomic)
+        }
     }
 
 #endif
 
 // swiftlint:enable explicit_type_interface
+
+private final class LockedValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: Value
+
+    init(_ value: Value) {
+        self.storage = value
+    }
+
+    func set(_ newValue: Value) {
+        lock.lock()
+        storage = newValue
+        lock.unlock()
+    }
+
+    var value: Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+}
 
 private func placeholderFailureScenarios(
     dependency: TransmissionClientDependency
@@ -499,3 +613,5 @@ private func expectNotConfigured(
         Issue.record("Unexpected error from \(method): \(String(reflecting: error))")
     }
 }
+
+// swiftlint:enable file_length

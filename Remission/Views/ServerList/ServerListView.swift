@@ -21,6 +21,11 @@ struct ServerListView: View {
         .alert(
             $store.scope(state: \.alert, action: \.alert)
         )
+        .sheet(
+            store: store.scope(state: \.$onboarding, action: \.onboarding)
+        ) { onboardingStore in
+            OnboardingView(store: onboardingStore)
+        }
     }
 
     private var serverList: some View {

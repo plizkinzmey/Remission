@@ -24,16 +24,20 @@ final class RemissionUITests: XCTestCase {
     @MainActor
     func testSelectingServerOpensDetailScreen() {
         let app = launchApp(arguments: ["--ui-testing-fixture=server-list-sample"])
-
+        let identifier = "server_list_item_11111111-1111-1111-1111-111111111111"
         #if os(macOS)
-            let serverCell = app.descendants(matching: .any)[
-                "server_list_item_11111111-1111-1111-1111-111111111111"
-            ]
-            XCTAssertTrue(serverCell.waitForExistence(timeout: 5))
+            var serverCell = app.buttons[identifier]
+            if serverCell.exists == false {
+                serverCell = app.staticTexts["UI Test NAS"]
+            }
         #else
-            let serverCell = app.buttons["server_list_item_11111111-1111-1111-1111-111111111111"]
-            XCTAssertTrue(serverCell.waitForExistence(timeout: 5))
+            let serverCell = app.buttons[identifier]
         #endif
+        let exists = serverCell.waitForExistence(timeout: 5)
+        if exists == false {
+            XCTFail("Server cell not found. Tree: \(app.debugDescription)")
+            return
+        }
         serverCell.tap()
 
         #if os(macOS)
@@ -68,6 +72,27 @@ final class RemissionUITests: XCTestCase {
                 app.typeKey("n", modifierFlags: .command)
             }
         #endif
+        dismissOnboardingIfNeeded(app)
         return app
+    }
+
+    @MainActor
+    private func dismissOnboardingIfNeeded(_ app: XCUIApplication) {
+        let cancelButton = app.buttons["onboarding_cancel_button"]
+        if cancelButton.waitForExistence(timeout: 2) {
+            cancelButton.tap()
+            _ = cancelButton.waitForDisappearance(timeout: 1)
+        }
+    }
+}
+
+@MainActor
+extension XCUIElement {
+    fileprivate func waitForDisappearance(timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while exists && Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+        }
+        return exists == false
     }
 }

@@ -31,7 +31,7 @@ enum DomainMappingError: Error, Equatable, LocalizedError {
 }
 
 /// Сырые данные сохранённого сервера Transmission из слоя хранения.
-struct StoredServerConfigRecord: Equatable, Sendable {
+struct StoredServerConfigRecord: Equatable, Sendable, Codable {
     var id: UUID
     var name: String
     var host: String

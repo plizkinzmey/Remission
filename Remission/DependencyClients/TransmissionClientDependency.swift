@@ -66,11 +66,7 @@
             performHandshake: {
                 throw TransmissionClientDependencyError.notConfigured("performHandshake")
             },
-            setTrustDecisionHandler: { _ in
-                preconditionFailure(
-                    "TransmissionClientDependency.setTrustDecisionHandler is not configured for this environment."
-                )
-            }
+            setTrustDecisionHandler: { _ in }
         )
     }
 

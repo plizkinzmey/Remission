@@ -41,8 +41,11 @@ extension TransmissionClientBootstrap {
         dependencies: DependencyValues
     ) -> TransmissionClientDependency {
         logger.debug("Начало инициализации live dependency TransmissionClient.")
-        guard let config = makeConfig() else {
-            // TODO(RTC-43): заменить на загрузку конфигурации сервера из хранилища onboarding.
+        guard
+            let config = makeConfig(
+                credentialsStore: dependencies.keychainCredentials
+            )
+        else {
             logger.warning("Конфигурация TransmissionClient недоступна, используем placeholder.")
             return TransmissionClientDependency.placeholder
         }
@@ -60,18 +63,46 @@ extension TransmissionClientBootstrap {
         return dependency
     }
 
-    static func makeConfig() -> TransmissionClientConfig? {
-        // TODO(RTC-43): внедрить реальный источник сохранённых серверов и
-        // возвращать актуальную конфигурацию Transmission.
-        guard let url = URL(string: "http://localhost:9091/transmission/rpc") else {
+    static func makeConfig(
+        credentialsStore: KeychainCredentialsDependency,
+        fileURL: URL = ServerConfigStoragePaths.defaultURL()
+    ) -> TransmissionClientConfig? {
+        let records = ServerConfigStoragePaths.loadSnapshot(fileURL: fileURL)
+        guard let record = mostRecentRecord(in: records) else {
             return nil
         }
 
-        return TransmissionClientConfig(
-            baseURL: url,
-            enableLogging: true,
+        let mapper = TransmissionDomainMapper()
+        guard let server = try? mapper.mapServerConfig(record: record, credentials: nil) else {
+            logger.error("Не удалось преобразовать сохранённую конфигурацию сервера.")
+            return nil
+        }
+
+        let password: String? = {
+            guard let credentialsKey = server.credentialsKey else { return nil }
+            do {
+                return try credentialsStore.load(credentialsKey)?.password
+            } catch {
+                logger.error(
+                    "Не удалось загрузить пароль из Keychain: \(error.localizedDescription)")
+                return nil
+            }
+        }()
+
+        return server.makeTransmissionClientConfig(
+            password: password,
+            network: .default,
             logger: DefaultTransmissionLogger()
         )
+    }
+
+    private static func mostRecentRecord(
+        in records: [StoredServerConfigRecord]
+    ) -> StoredServerConfigRecord? {
+        records.sorted { lhs, rhs in
+            (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
+        }
+        .first
     }
 }
 

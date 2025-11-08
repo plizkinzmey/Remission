@@ -48,8 +48,10 @@ enum AppBootstrap {
         return UITestingFixture(rawValue: value)
     }
 
-    private static func migrate(_ state: inout AppReducer.State, to targetVersion: AppStateVersion)
-    {
+    private static func migrate(
+        _ state: inout AppReducer.State,
+        to targetVersion: AppStateVersion
+    ) {
         guard state.version != targetVersion else { return }
         state.version = targetVersion
         state.path = .init()
@@ -62,8 +64,10 @@ enum AppBootstrap {
         }
     }
 
-    private static func applyFixture(_ fixture: UITestingFixture, to state: inout AppReducer.State)
-    {
+    private static func applyFixture(
+        _ fixture: UITestingFixture,
+        to state: inout AppReducer.State
+    ) {
         switch fixture {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: [
@@ -86,6 +90,7 @@ enum AppBootstrap {
                     authentication: .init(username: "seeduser")
                 )
             ])
+            state.serverList.shouldLoadServersFromRepository = false
         }
     }
 }

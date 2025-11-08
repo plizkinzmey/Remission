@@ -270,8 +270,9 @@ struct TransmissionClientErrorScenariosTests {
             .milliseconds(200),
             .milliseconds(400)
         ]
-        let totalDelay: Duration = retryDelays.reduce(into: .zero, +=)
-        await baseClock.advance(by: totalDelay)
+        for delay in retryDelays {
+            await baseClock.advance(by: delay)
+        }
         await baseClock.run()
 
         _ = try await response

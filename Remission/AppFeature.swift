@@ -32,6 +32,10 @@ struct AppReducer {
                 state.path.append(ServerDetailReducer.State(server: server))
                 return .none
 
+            case .serverList(.delegate(.serverCreated(let server))):
+                state.path.append(ServerDetailReducer.State(server: server))
+                return .none
+
             case .serverList:
                 return .none
 
