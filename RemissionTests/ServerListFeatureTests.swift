@@ -8,11 +8,9 @@ import Testing
 struct ServerListFeatureTests {
     @Test
     func addButtonShowsAlert() async {
-        let store: TestStoreOf<ServerListReducer> = TestStore(initialState: .init()) {
-            ServerListReducer()
-        } withDependencies: {
-            $0.transmissionClient = .testValue
-        }
+        let store = TestStoreFactory.makeServerListTestStore(configure: { dependencies in
+            dependencies.transmissionClient = .testValue
+        })
 
         await store.send(.addButtonTapped) {
             $0.alert = AlertState {
@@ -34,17 +32,15 @@ struct ServerListFeatureTests {
         var server = ServerConfig.previewSecureSeedbox
         let identifier = UUID()
         server.id = identifier
-        let store: TestStoreOf<ServerListReducer> = TestStore(
+        let store = TestStoreFactory.makeServerListTestStore(
             initialState: {
                 var state: ServerListReducer.State = .init()
                 state.servers = [server]
                 return state
-            }()
-        ) {
-            ServerListReducer()
-        } withDependencies: {
-            $0.transmissionClient = .testValue
-        }
+            }(),
+            configure: { dependencies in
+                dependencies.transmissionClient = .testValue
+            })
 
         await store.send(.serverTapped(identifier))
         await store.receive(.delegate(.serverSelected(server)))

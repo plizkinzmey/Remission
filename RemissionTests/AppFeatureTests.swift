@@ -11,18 +11,16 @@ struct AppFeatureTests {
         var server = ServerConfig.previewLocalHTTP
         let identifier = UUID()
         server.id = identifier
-        let store: TestStoreOf<AppReducer> = TestStore(
+        let store = TestStoreFactory.makeAppTestStore(
             initialState: {
                 var state: AppReducer.State = .init()
                 state.serverList.servers = [server]
                 return state
-            }()
-        ) {
-            AppReducer()
-        } withDependencies: {
-            $0.transmissionClient = .testValue
-        }
-        store.exhaustivity = .off
+            }(),
+            configure: { dependencies in
+                dependencies.transmissionClient = .testValue
+            }
+        )
 
         await store.send(.serverList(.serverTapped(identifier)))
         await store.receive(.serverList(.delegate(.serverSelected(server))))
@@ -48,9 +46,8 @@ struct AppFeatureTests {
             existingState: legacyState
         )
 
-        let store: TestStoreOf<AppReducer> = TestStoreFactory.make(
-            initialState: initialState,
-            reducer: { AppReducer() }
+        let store = TestStoreFactory.makeAppTestStore(
+            initialState: initialState
         )
 
         #expect(store.state.version == .latest)
