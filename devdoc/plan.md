@@ -642,7 +642,7 @@ try server.assertAllScenariosFinished()
   2. Happy-pathы torrent-get/add/start/stop/remove.
   3. Ошибки: rate limit, unauthorized, invalid JSON (→ `APIError.decodingFailed`).
   4. Некорректная структура `session-get` (`arguments` не объект) для smoke-проверки `decodingFailed`.
-- **Правила обновления** описаны в `RemissionTests/Fixtures/README.md` (структура, формат, smoke-tests).
+- **Правила обновления** описаны в `RemissionTests/Fixtures/README-fixtures.md` (структура, формат, smoke-tests).
 
 ### TransmissionClient error-path тесты (RTC-32)
 - **Расположение**: `RemissionTests/TransmissionClientErrorScenariosTests.swift`.

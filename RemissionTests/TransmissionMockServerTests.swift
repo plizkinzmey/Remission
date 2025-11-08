@@ -73,7 +73,7 @@ struct TransmissionMockServerTests {
         } catch let apiError as APIError {
             switch apiError {
             case .unknown:
-                #expect(true)
+                #expect(Bool(true))
             default:
                 #expect(Bool(false), "Ожидалась APIError.unknown, получено \(apiError)")
             }
@@ -86,7 +86,7 @@ struct TransmissionMockServerTests {
             #expect(Bool(false), "assertAllScenariosFinished должен сообщить об оставшихся шагах")
         } catch let error as TransmissionMockError {
             if case .unexpectedRequest = error {
-                #expect(true)
+                #expect(Bool(true))
             } else {
                 #expect(
                     Bool(false),

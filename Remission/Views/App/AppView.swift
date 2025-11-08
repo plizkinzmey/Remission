@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Dependencies
 import SwiftUI
 
 struct AppView: View {
@@ -40,7 +41,7 @@ struct AppView: View {
         ) {
             AppReducer()
         } withDependencies: {
-            $0 = AppDependencies.makePreview()
+            $0 = previewDependencies()
         }
     )
 }
@@ -50,7 +51,7 @@ struct AppView: View {
         store: Store(initialState: sampleState()) {
             AppReducer()
         } withDependencies: {
-            $0 = AppDependencies.makePreview()
+            $0 = previewDependencies()
         }
     )
 }
@@ -60,7 +61,7 @@ struct AppView: View {
         store: Store(initialState: migratedLegacyState()) {
             AppReducer()
         } withDependencies: {
-            $0 = AppDependencies.makePreview()
+            $0 = previewDependencies()
         }
     )
 }
@@ -92,4 +93,12 @@ private func migratedLegacyState() -> AppReducer.State {
         targetVersion: .latest,
         existingState: legacyState
     )
+}
+
+@MainActor
+private func previewDependencies() -> DependencyValues {
+    var dependencies = AppDependencies.makePreview()
+    dependencies.credentialsRepository = .previewMock()
+    dependencies.transmissionClient = .previewMock()
+    return dependencies
 }

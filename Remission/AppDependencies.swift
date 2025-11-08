@@ -65,3 +65,48 @@ extension DependencyValues {
         uuidGenerator = UUIDGeneratorDependency.liveValue
     }
 }
+
+extension TransmissionServerCredentialsKey {
+    static var preview: TransmissionServerCredentialsKey {
+        TransmissionServerCredentialsKey(
+            host: "preview.remote",
+            port: 9091,
+            isSecure: false,
+            username: "remission-preview"
+        )
+    }
+}
+
+extension TransmissionServerCredentials {
+    static var preview: TransmissionServerCredentials {
+        TransmissionServerCredentials(
+            key: .preview,
+            password: "preview-password"
+        )
+    }
+}
+
+extension CredentialsRepository {
+    static func previewMock(
+        load:
+            @Sendable @escaping (TransmissionServerCredentialsKey) async throws ->
+            TransmissionServerCredentials? = { _ in .preview },
+        save: @Sendable @escaping (TransmissionServerCredentials) async throws -> Void = { _ in },
+        delete: @Sendable @escaping (TransmissionServerCredentialsKey) async throws -> Void = { _ in
+        }
+    ) -> CredentialsRepository {
+        CredentialsRepository(save: save, load: load, delete: delete)
+    }
+}
+
+extension TransmissionClientDependency {
+    static func previewMock(
+        sessionGet: @Sendable @escaping () async throws -> TransmissionResponse = {
+            TransmissionResponse(result: "success")
+        }
+    ) -> TransmissionClientDependency {
+        var dependency = TransmissionClientDependency.placeholder
+        dependency.sessionGet = sessionGet
+        return dependency
+    }
+}

@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Dependencies
 import SwiftUI
 
 #if os(macOS)
@@ -92,6 +93,8 @@ struct ServerListView: View {
             ServerListReducer()
         } withDependencies: {
             $0 = AppDependencies.makePreview()
+            $0.credentialsRepository = .previewMock()
+            $0.transmissionClient = .previewMock()
         }
     )
 }
@@ -107,6 +110,8 @@ struct ServerListView: View {
             ServerListReducer()
         } withDependencies: {
             $0 = AppDependencies.makePreview()
+            $0.credentialsRepository = .previewMock()
+            $0.transmissionClient = .previewMock()
         }
     )
 }

@@ -289,6 +289,7 @@ xcodebuild test -scheme Remission -sdk macosx
 - [ ] **Никаких credentials в логах:** пароли, session-id, API keys НЕ логируются
 - [ ] **Keychain для секретов:** все credentials сохраняются в Keychain, не в UserDefaults
 - [ ] **TCA-композиция:** пройти `Templates/FeatureChecklist.md` и убедиться, что фича соответствует гайду из `devdoc/plan.md` (раздел RTC-59).
+- [ ] **Dependency overrides:** используйте `RemissionTests/Support/DependencyOverrides.swift` и `RemissionTests/README.md` для примеров `withDependencies` и моков.
 
 **Перед push запустите:**
 ```bash
