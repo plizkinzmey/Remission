@@ -93,6 +93,20 @@ extension ServerConfig {
         return "\(scheme)://\(connection.host):\(connection.port)"
     }
 
+    /// Уникальный fingerprint, используемый для хранения настроек предупреждений HTTP.
+    var httpWarningFingerprint: String {
+        Self.makeFingerprint(
+            host: connection.host,
+            port: connection.port,
+            username: authentication?.username ?? ""
+        )
+    }
+
+    /// Возвращает `true`, если сервер использует HTTP.
+    var usesInsecureTransport: Bool {
+        isSecure == false
+    }
+
     /// Собирает `TransmissionClientConfig`, инкапсулируя знание о сетевых настройках.
     /// - Parameters:
     ///   - password: Пароль из Keychain (если настроен Basic Auth).
@@ -113,6 +127,12 @@ extension ServerConfig {
             enableLogging: network.enableLogging,
             logger: logger
         )
+    }
+}
+
+extension ServerConfig {
+    static func makeFingerprint(host: String, port: Int, username: String) -> String {
+        "\(host.lowercased()):\(port):\(username.lowercased())"
     }
 }
 

@@ -31,10 +31,10 @@ struct OnboardingView: View {
                     .accessibilityIdentifier("onboarding_cancel_button")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Подключиться") {
+                    Button("Сохранить сервер") {
                         store.send(.connectButtonTapped)
                     }
-                    .disabled(store.isConnectButtonDisabled)
+                    .disabled(store.isSaveButtonDisabled)
                     .accessibilityIdentifier("onboarding_submit_button")
                 }
             }
@@ -42,6 +42,11 @@ struct OnboardingView: View {
         .alert(
             $store.scope(state: \.alert, action: \.alert)
         )
+        .sheet(
+            store: store.scope(state: \.$trustPrompt, action: \.trustPrompt)
+        ) { promptStore in
+            TransmissionTrustPromptView(store: promptStore)
+        }
     }
 
     private var connectionSection: some View {
@@ -117,6 +122,15 @@ struct OnboardingView: View {
 
     private var statusSection: some View {
         Section("Статус подключения") {
+            Button {
+                store.send(.checkConnectionButtonTapped)
+            } label: {
+                Label("Проверить подключение", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(store.connectionStatus == .testing || store.isFormValid == false)
+            .accessibilityIdentifier("onboarding_connection_check_button")
+
             switch store.connectionStatus {
             case .idle:
                 Text("Проверка не выполнялась")
@@ -128,6 +142,19 @@ struct OnboardingView: View {
                     Text("Проверяем соединение…")
                 }
                 .accessibilityIdentifier("onboarding_connection_testing")
+
+            case .success(let handshake):
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Соединение подтверждено", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text(
+                        handshake.serverVersionDescription
+                            ?? "RPC \(handshake.rpcVersion)"
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                }
+                .accessibilityIdentifier("onboarding_connection_success")
 
             case .failed(let message):
                 Text(message)

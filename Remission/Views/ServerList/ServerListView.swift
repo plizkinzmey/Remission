@@ -34,14 +34,28 @@ struct ServerListView: View {
                 Button {
                     store.send(.serverTapped(server.id))
                 } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(server.name)
-                            .font(.headline)
-                        Text(server.displayAddress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(server.name)
+                                .font(.headline)
+                            Text(server.displayAddress)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if server.usesInsecureTransport {
+                            Label("HTTP", systemImage: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(
+                                    Capsule()
+                                        .fill(Color.orange.opacity(0.2))
+                                )
+                                .foregroundStyle(.orange)
+                                .accessibilityLabel("Небезопасный сервер")
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .accessibilityLabel(server.name)
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")

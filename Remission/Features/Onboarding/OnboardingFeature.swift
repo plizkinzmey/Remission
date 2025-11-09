@@ -6,6 +6,7 @@ struct OnboardingReducer {
     enum ConnectionStatus: Equatable {
         case idle
         case testing
+        case success(TransmissionHandshakeResult)
         case failed(String)
     }
 
@@ -38,7 +39,9 @@ struct OnboardingReducer {
         var pendingWarningFingerprint: String?
         var connectionStatus: ConnectionStatus = .idle
         var pendingSubmission: SubmissionContext?
+        var verifiedSubmission: SubmissionContext?
         @Presents var alert: AlertState<AlertAction>?
+        @Presents var trustPrompt: TrustPromptReducer.State?
 
         var trimmedHost: String {
             host.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -59,18 +62,31 @@ struct OnboardingReducer {
             trimmedHost.isEmpty == false && portValue != nil
         }
 
-        var isConnectButtonDisabled: Bool {
-            isFormValid == false || isSubmitting || connectionStatus == .testing
+        var isSaveButtonDisabled: Bool {
+            isFormValid == false || verifiedSubmission == nil || isSubmitting
+                || connectionStatus == .testing
+        }
+
+        var insecureFingerprint: String? {
+            guard let port = portValue else { return nil }
+            return ServerConfig.makeFingerprint(
+                host: trimmedHost.isEmpty ? host : trimmedHost,
+                port: port,
+                username: username
+            )
         }
     }
 
     enum Action: BindableAction, Equatable {
         case binding(BindingAction<State>)
+        case checkConnectionButtonTapped
         case connectButtonTapped
         case cancelButtonTapped
         case submissionFinished(Result<ServerConfig, SubmissionError>)
         case connectionTestFinished(ConnectionTestResult)
         case alert(PresentationAction<AlertAction>)
+        case trustPromptReceived(TransmissionTrustPrompt)
+        case trustPrompt(PresentationAction<TrustPromptReducer.Action>)
         case delegate(Delegate)
     }
 
@@ -81,7 +97,7 @@ struct OnboardingReducer {
     }
 
     enum ConnectionTestResult: Equatable {
-        case success
+        case success(TransmissionHandshakeResult)
         case failure(String)
     }
 
@@ -98,24 +114,38 @@ struct OnboardingReducer {
     @Dependency(\.uuidGenerator) var uuidGenerator
     @Dependency(\.dateProvider) var dateProvider
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
-    @Dependency(\.transmissionConnectionTester) var transmissionConnectionTester
+    @Dependency(\.serverConnectionProbe) var serverConnectionProbe
+    @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
+    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
 
     var body: some Reducer<State, Action> {
         BindingReducer()
 
         Reduce { state, action in
             switch action {
-            case .binding:
+            case .binding(\.transport):
                 state.validationError = nil
                 if state.transport == .https {
                     state.suppressInsecureWarning = false
-                }
-                if state.transport == .https {
                     state.pendingWarningFingerprint = nil
+                    return .none
+                }
+                return presentInsecureTransportWarning(state: &state)
+
+            case .binding(\.suppressInsecureWarning):
+                if let fingerprint = state.insecureFingerprint {
+                    httpWarningPreferencesStore.setSuppressed(
+                        fingerprint,
+                        state.suppressInsecureWarning
+                    )
                 }
                 return .none
 
-            case .connectButtonTapped:
+            case .binding:
+                state.validationError = nil
+                return .none
+
+            case .checkConnectionButtonTapped:
                 guard state.connectionStatus != .testing else { return .none }
                 guard
                     let context = prepareSubmission(
@@ -125,10 +155,24 @@ struct OnboardingReducer {
                 else {
                     return .none
                 }
-                return startConnectionTest(state: &state, context: context)
+                return startConnectionProbe(state: &state, context: context)
+
+            case .connectButtonTapped:
+                guard let context = state.verifiedSubmission else {
+                    state.validationError = "Сначала выполните проверку соединения."
+                    return .none
+                }
+                return persistSubmission(state: &state, context: context)
 
             case .cancelButtonTapped:
-                return .send(.delegate(.cancelled))
+                state.pendingSubmission = nil
+                state.verifiedSubmission = nil
+                state.connectionStatus = .idle
+                return .merge(
+                    .cancel(id: OnboardingCancellationID.connectionProbe),
+                    .cancel(id: OnboardingCancellationID.trustPrompts),
+                    .send(.delegate(.cancelled))
+                )
 
             case .submissionFinished(.success(let server)):
                 state.isSubmitting = false
@@ -154,7 +198,7 @@ struct OnboardingReducer {
                     forceAllowInsecureTransport: true
                 ) {
                     state.pendingWarningFingerprint = nil
-                    return startConnectionTest(state: &state, context: context)
+                    return startConnectionProbe(state: &state, context: context)
                 }
                 return .none
 
@@ -171,21 +215,48 @@ struct OnboardingReducer {
             case .alert(.dismiss):
                 return .none
 
-            case .connectionTestFinished(.success):
-                state.connectionStatus = .idle
-                guard let context = state.pendingSubmission else { return .none }
+            case .connectionTestFinished(.success(let handshake)):
+                state.connectionStatus = .success(handshake)
+                state.verifiedSubmission = state.pendingSubmission
                 state.pendingSubmission = nil
-                return persistSubmission(state: &state, context: context)
+                return .merge(
+                    .cancel(id: OnboardingCancellationID.connectionProbe),
+                    .cancel(id: OnboardingCancellationID.trustPrompts)
+                )
 
             case .connectionTestFinished(.failure(let message)):
                 state.connectionStatus = .failed(message)
                 state.pendingSubmission = nil
-                state.isSubmitting = false
+                state.verifiedSubmission = nil
+                return .merge(
+                    .cancel(id: OnboardingCancellationID.connectionProbe),
+                    .cancel(id: OnboardingCancellationID.trustPrompts)
+                )
+
+            case .trustPromptReceived(let prompt):
+                state.trustPrompt = TrustPromptReducer.State(prompt: prompt)
+                return .none
+
+            case .trustPrompt(.presented(.trustConfirmed)):
+                state.trustPrompt?.prompt.resolve(with: .trustPermanently)
+                state.trustPrompt = nil
+                return .none
+
+            case .trustPrompt(.presented(.cancelled)):
+                state.trustPrompt?.prompt.resolve(with: .deny)
+                state.trustPrompt = nil
+                return .none
+
+            case .trustPrompt(.dismiss):
+                state.trustPrompt = nil
                 return .none
 
             case .delegate:
                 return .none
             }
+        }
+        .ifLet(\.$trustPrompt, action: \.trustPrompt) {
+            TrustPromptReducer()
         }
     }
 }
@@ -196,25 +267,71 @@ extension OnboardingReducer {
         var password: String?
         var insecureFingerprint: String?
     }
+
+    @Reducer
+    struct TrustPromptReducer {
+        @ObservableState
+        struct State: Equatable {
+            var prompt: TransmissionTrustPrompt
+        }
+
+        enum Action: Equatable {
+            case trustConfirmed
+            case cancelled
+        }
+
+        var body: some Reducer<State, Action> {
+            Reduce { _, action in
+                switch action {
+                case .trustConfirmed, .cancelled:
+                    return .none
+                }
+            }
+        }
+    }
+}
+
+private enum OnboardingCancellationID: Hashable {
+    case connectionProbe
+    case trustPrompts
 }
 
 extension OnboardingReducer {
-    fileprivate func startConnectionTest(
+    fileprivate func startConnectionProbe(
         state: inout State,
         context: SubmissionContext
     ) -> Effect<Action> {
         state.pendingSubmission = context
         state.connectionStatus = .testing
-        return .run { [context] send in
-            do {
-                try await transmissionConnectionTester.test(context.server, context.password)
-                await send(.connectionTestFinished(.success))
-            } catch {
-                await send(
-                    .connectionTestFinished(.failure(describe(error)))
-                )
+        state.verifiedSubmission = nil
+        return .merge(
+            .run { [context] send in
+                do {
+                    let result = try await serverConnectionProbe.run(
+                        .init(server: context.server, password: context.password),
+                        trustPromptCenter.makeHandler()
+                    )
+                    await send(.connectionTestFinished(.success(result.handshake)))
+                } catch let probeError as ServerConnectionProbe.ProbeError {
+                    await send(
+                        .connectionTestFinished(.failure(probeError.displayMessage))
+                    )
+                } catch {
+                    await send(.connectionTestFinished(.failure(describe(error))))
+                }
+            }
+            .cancellable(id: OnboardingCancellationID.connectionProbe, cancelInFlight: true),
+            listenForTrustPrompts()
+        )
+    }
+
+    private func listenForTrustPrompts() -> Effect<Action> {
+        .run { send in
+            for await prompt in trustPromptCenter.prompts {
+                await send(.trustPromptReceived(prompt))
             }
         }
+        .cancellable(id: OnboardingCancellationID.trustPrompts, cancelInFlight: true)
     }
 
     fileprivate func persistSubmission(
@@ -235,9 +352,6 @@ extension OnboardingReducer {
                     }
                 }
                 onboardingProgressRepository.setCompletedOnboarding(true)
-                if let fingerprint = context.insecureFingerprint {
-                    onboardingProgressRepository.acknowledgeInsecureWarning(fingerprint)
-                }
                 await send(.submissionFinished(.success(context.server)))
             } catch {
                 await send(
@@ -265,33 +379,20 @@ extension OnboardingReducer {
         )
 
         if context.server.usesInsecureTransport {
-            if forceAllowInsecureTransport == false {
-                let fingerprint = context.insecureFingerprint ?? ""
-                let isSuppressed =
-                    onboardingProgressRepository
-                    .isInsecureWarningAcknowledged(fingerprint)
-                if state.suppressInsecureWarning {
-                    onboardingProgressRepository.acknowledgeInsecureWarning(fingerprint)
-                } else if isSuppressed == false {
+            let fingerprint = context.insecureFingerprint ?? ""
+            if state.suppressInsecureWarning {
+                httpWarningPreferencesStore.setSuppressed(fingerprint, true)
+            }
+
+            if forceAllowInsecureTransport {
+                httpWarningPreferencesStore.setSuppressed(fingerprint, true)
+            } else {
+                let isSuppressed = httpWarningPreferencesStore.isSuppressed(fingerprint)
+                if isSuppressed == false {
                     state.pendingWarningFingerprint = fingerprint
-                    state.alert = AlertState {
-                        TextState("Небезопасное подключение")
-                    } actions: {
-                        ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                            TextState("Продолжить")
-                        }
-                        ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                            TextState("Отмена")
-                        }
-                    } message: {
-                        TextState(
-                            "HTTP соединения не шифруются. Продолжайте только если доверяете сети."
-                        )
-                    }
+                    state.alert = makeInsecureTransportAlert()
                     return nil
                 }
-            } else if let fingerprint = context.insecureFingerprint {
-                onboardingProgressRepository.acknowledgeInsecureWarning(fingerprint)
             }
         }
 
@@ -331,30 +432,61 @@ extension OnboardingReducer {
         let password = state.password.isEmpty ? nil : state.password
         let fingerprint: String? =
             server.usesInsecureTransport
-            ? Self.makeFingerprint(host: host, port: port, username: state.username)
+            ? ServerConfig.makeFingerprint(host: host, port: port, username: state.username)
             : nil
 
         return SubmissionContext(
             server: server, password: password, insecureFingerprint: fingerprint)
     }
 
-    fileprivate static func makeFingerprint(host: String, port: Int, username: String) -> String {
-        "\(host.lowercased()):\(port):\(username.lowercased())"
+    private func presentInsecureTransportWarning(
+        state: inout State
+    ) -> Effect<Action> {
+        guard state.transport == .http else { return .none }
+        guard let fingerprint = state.insecureFingerprint else { return .none }
+        if httpWarningPreferencesStore.isSuppressed(fingerprint) {
+            return .none
+        }
+        state.pendingWarningFingerprint = fingerprint
+        state.alert = makeInsecureTransportAlert()
+        return .none
+    }
+
+    private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
+        AlertState {
+            TextState("Небезопасное подключение")
+        } actions: {
+            ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
+                TextState("Продолжить")
+            }
+            ButtonState(role: .cancel, action: .insecureTransportCancelled) {
+                TextState("Отмена")
+            }
+        } message: {
+            TextState(
+                "Соединение без шифрования. Логин и пароль могут быть перехвачены. Продолжить?"
+            )
+        }
     }
 
     fileprivate func describe(_ error: Error) -> String {
         let nsError = error as NSError
-        return nsError.localizedDescription.isEmpty
+        let rawMessage =
+            nsError.localizedDescription.isEmpty
             ? String(describing: error)
             : nsError.localizedDescription
+        return localizeConnectionMessage(rawMessage)
     }
-}
 
-extension ServerConfig {
-    fileprivate var usesInsecureTransport: Bool {
-        if case .http = security {
-            return true
+    private func localizeConnectionMessage(_ message: String) -> String {
+        let lowercased = message.lowercased()
+        if lowercased.contains("timeout") || lowercased.contains("timed out") {
+            return
+                "Истекло время ожидания подключения. Проверьте сеть или сервер и попробуйте снова."
         }
-        return false
+        if lowercased.contains("cancelled") || lowercased.contains("canceled") {
+            return "Проверка подключения была отменена. Попробуйте ещё раз."
+        }
+        return message
     }
 }

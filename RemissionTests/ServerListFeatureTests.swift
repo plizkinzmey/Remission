@@ -13,9 +13,7 @@ struct ServerListFeatureTests {
             dependencies.serverConfigRepository = .inMemory(initial: [])
             dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                 hasCompletedOnboarding: { true },
-                setCompletedOnboarding: { _ in },
-                isInsecureWarningAcknowledged: { _ in true },
-                acknowledgeInsecureWarning: { _ in }
+                setCompletedOnboarding: { _ in }
             )
         })
 
@@ -44,9 +42,7 @@ struct ServerListFeatureTests {
                 dependencies.serverConfigRepository = .inMemory(initial: [server])
                 dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                     hasCompletedOnboarding: { true },
-                    setCompletedOnboarding: { _ in },
-                    isInsecureWarningAcknowledged: { _ in true },
-                    acknowledgeInsecureWarning: { _ in }
+                    setCompletedOnboarding: { _ in }
                 )
             })
 
@@ -69,9 +65,7 @@ struct ServerListFeatureTests {
             )
             dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                 hasCompletedOnboarding: { true },
-                setCompletedOnboarding: { _ in },
-                isInsecureWarningAcknowledged: { _ in true },
-                acknowledgeInsecureWarning: { _ in }
+                setCompletedOnboarding: { _ in }
             )
         })
 
@@ -111,9 +105,7 @@ struct ServerListFeatureTests {
                 )
                 dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                     hasCompletedOnboarding: { true },
-                    setCompletedOnboarding: { _ in },
-                    isInsecureWarningAcknowledged: { _ in true },
-                    acknowledgeInsecureWarning: { _ in }
+                    setCompletedOnboarding: { _ in }
                 )
             })
 

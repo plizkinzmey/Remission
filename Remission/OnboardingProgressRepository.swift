@@ -4,13 +4,10 @@ import Foundation
     import ComposableArchitecture
 #endif
 
-/// Репозиторий, отвечающий за хранение состояния онбординга и пользовательских решений
-/// относительно предупреждений безопасности.
+/// Репозиторий, отвечающий за хранение состояния прохождения онбординга.
 struct OnboardingProgressRepository: Sendable {
     var hasCompletedOnboarding: @Sendable () -> Bool
     var setCompletedOnboarding: @Sendable (Bool) -> Void
-    var isInsecureWarningAcknowledged: @Sendable (String) -> Bool
-    var acknowledgeInsecureWarning: @Sendable (String) -> Void
 }
 
 #if canImport(ComposableArchitecture)
@@ -31,14 +28,12 @@ struct OnboardingProgressRepository: Sendable {
 extension OnboardingProgressRepository {
     private enum Keys {
         static let completed: String = "onboarding.completed"
-        static let warningPrefix: String = "onboarding.warning."
     }
 
     /// Реализация поверх `UserDefaults`, используемая в live/preview окружениях.
     static func userDefaults(
         defaults: UserDefaults = .standard,
-        completedKey: String = Keys.completed,
-        warningPrefix: String = Keys.warningPrefix
+        completedKey: String = Keys.completed
     ) -> OnboardingProgressRepository {
         let storage = UserDefaultsBox(defaults: defaults)
         return OnboardingProgressRepository(
@@ -47,12 +42,6 @@ extension OnboardingProgressRepository {
             },
             setCompletedOnboarding: { isCompleted in
                 storage.defaults.set(isCompleted, forKey: completedKey)
-            },
-            isInsecureWarningAcknowledged: { fingerprint in
-                storage.defaults.bool(forKey: warningPrefix + fingerprint)
-            },
-            acknowledgeInsecureWarning: { fingerprint in
-                storage.defaults.set(true, forKey: warningPrefix + fingerprint)
             }
         )
     }
@@ -67,12 +56,6 @@ extension OnboardingProgressRepository {
             },
             setCompletedOnboarding: { isCompleted in
                 store.completed = isCompleted
-            },
-            isInsecureWarningAcknowledged: { fingerprint in
-                store.fingerprints.contains(fingerprint)
-            },
-            acknowledgeInsecureWarning: { fingerprint in
-                store.fingerprints.insert(fingerprint)
             }
         )
     }
@@ -81,7 +64,6 @@ extension OnboardingProgressRepository {
 private final class OnboardingProgressMemoryStore: @unchecked Sendable {
     private let lock = NSLock()
     private var _completed: Bool = false
-    private var _fingerprints: Set<String> = []
 
     var completed: Bool {
         get {
@@ -92,19 +74,6 @@ private final class OnboardingProgressMemoryStore: @unchecked Sendable {
         set {
             lock.lock()
             _completed = newValue
-            lock.unlock()
-        }
-    }
-
-    var fingerprints: Set<String> {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return _fingerprints
-        }
-        set {
-            lock.lock()
-            _fingerprints = newValue
             lock.unlock()
         }
     }

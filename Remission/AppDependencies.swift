@@ -43,6 +43,9 @@ extension DependencyValues {
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder
         dependencies.uuidGenerator = .placeholder
+        dependencies.httpWarningPreferencesStore = .inMemory()
+        dependencies.transmissionTrustStoreClient = .placeholder
+        dependencies.serverConnectionProbe = .placeholder
         return dependencies
     }
 
@@ -54,6 +57,9 @@ extension DependencyValues {
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder
         dependencies.uuidGenerator = .placeholder
+        dependencies.httpWarningPreferencesStore = .inMemory()
+        dependencies.transmissionTrustStoreClient = .placeholder
+        dependencies.serverConnectionProbe = .placeholder
         return dependencies
     }
 

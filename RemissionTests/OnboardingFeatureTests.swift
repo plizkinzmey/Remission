@@ -23,9 +23,7 @@ struct OnboardingFeatureTests {
 
         let onboardingProgress = OnboardingProgressRepository(
             hasCompletedOnboarding: { onboardingCompleted.value },
-            setCompletedOnboarding: { onboardingCompleted.set($0) },
-            isInsecureWarningAcknowledged: { _ in true },
-            acknowledgeInsecureWarning: { _ in }
+            setCompletedOnboarding: { onboardingCompleted.set($0) }
         )
 
         let fixedUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000111")!
@@ -52,6 +50,14 @@ struct OnboardingFeatureTests {
             insecureFingerprint: nil
         )
 
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "abc",
+            rpcVersion: 20,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0",
+            isCompatible: true
+        )
+
         let store = TestStore(
             initialState: initialState
         ) {
@@ -62,20 +68,27 @@ struct OnboardingFeatureTests {
             dependencies.onboardingProgressRepository = onboardingProgress
             dependencies.uuidGenerator = UUIDGeneratorDependency(generate: { fixedUUID })
             dependencies.dateProvider = DateProviderDependency(now: { fixedDate })
-            dependencies.transmissionConnectionTester = TransmissionConnectionTester(
-                test: { _, _ in }
+            dependencies.serverConnectionProbe = ServerConnectionProbe(
+                run: { _, _ in
+                    .init(handshake: handshake)
+                }
             )
         }
 
-        await store.send(.connectButtonTapped) {
+        await store.send(.checkConnectionButtonTapped) {
             $0.validationError = nil
             $0.pendingSubmission = expectedContext
             $0.connectionStatus = .testing
+            $0.verifiedSubmission = nil
         }
 
-        await store.receive(.connectionTestFinished(.success)) {
-            $0.connectionStatus = .idle
+        await store.receive(.connectionTestFinished(.success(handshake))) {
+            $0.connectionStatus = .success(handshake)
             $0.pendingSubmission = nil
+            $0.verifiedSubmission = expectedContext
+        }
+
+        await store.send(.connectButtonTapped) {
             $0.isSubmitting = true
         }
 
@@ -96,13 +109,13 @@ struct OnboardingFeatureTests {
             delete: { _ in }
         )
 
-        var initialState = OnboardingReducer.State()
-        initialState.host = "seedbox.example.com"
-        initialState.port = "80"
-        initialState.transport = .http
-
         let store = TestStore(
-            initialState: initialState
+            initialState: {
+                var state = OnboardingReducer.State()
+                state.host = "seedbox.example.com"
+                state.port = "80"
+                return state
+            }()
         ) {
             OnboardingReducer()
         } withDependencies: { dependencies in
@@ -110,16 +123,13 @@ struct OnboardingFeatureTests {
             dependencies.credentialsRepository = noopCredentialsRepository
             dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                 hasCompletedOnboarding: { false },
-                setCompletedOnboarding: { _ in },
-                isInsecureWarningAcknowledged: { _ in false },
-                acknowledgeInsecureWarning: { _ in }
+                setCompletedOnboarding: { _ in }
             )
-            dependencies.transmissionConnectionTester = TransmissionConnectionTester(
-                test: { _, _ in }
-            )
+            dependencies.httpWarningPreferencesStore = HttpWarningPreferencesStore.inMemory()
         }
 
-        await store.send(OnboardingReducer.Action.connectButtonTapped) {
+        await store.send(.binding(.set(\.transport, .http))) {
+            $0.transport = .http
             $0.pendingWarningFingerprint = "seedbox.example.com:80:"
             $0.alert = AlertState<AlertAction> {
                 TextState("Небезопасное подключение")
@@ -131,7 +141,9 @@ struct OnboardingFeatureTests {
                     TextState("Отмена")
                 }
             } message: {
-                TextState("HTTP соединения не шифруются. Продолжайте только если доверяете сети.")
+                TextState(
+                    "Соединение без шифрования. Логин и пароль могут быть перехвачены. Продолжить?"
+                )
             }
         }
 
@@ -143,6 +155,150 @@ struct OnboardingFeatureTests {
             $0.alert = nil
             $0.pendingWarningFingerprint = nil
             $0.transport = .https
+        }
+    }
+
+    @Test("Неуспешная проверка соединения отображает ошибку")
+    func connectionFailureShowsError() async {
+        let fixedUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000222")!
+        let fixedDate = Date(timeIntervalSince1970: 1_700_100_000)
+
+        var state = OnboardingReducer.State()
+        state.host = "nas.local"
+        state.port = "9091"
+
+        let expectedServer = ServerConfig(
+            id: fixedUUID,
+            name: "nas.local",
+            connection: .init(host: "nas.local", port: 9091, path: "/transmission/rpc"),
+            security: .https(allowUntrustedCertificates: false),
+            authentication: nil,
+            createdAt: fixedDate
+        )
+        let expectedContext = OnboardingReducer.SubmissionContext(
+            server: expectedServer,
+            password: nil,
+            insecureFingerprint: nil
+        )
+
+        let store = TestStore(initialState: state) {
+            OnboardingReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.uuidGenerator = UUIDGeneratorDependency(generate: { fixedUUID })
+            dependencies.dateProvider = DateProviderDependency(now: { fixedDate })
+            dependencies.serverConnectionProbe = ServerConnectionProbe(
+                run: { _, _ in
+                    throw ServerConnectionProbe.ProbeError.handshakeFailed("timeout")
+                }
+            )
+        }
+
+        await store.send(.checkConnectionButtonTapped) {
+            $0.pendingSubmission = expectedContext
+            $0.connectionStatus = .testing
+        }
+
+        let timeoutMessage =
+            "Истекло время ожидания подключения. Проверьте сеть или сервер и попробуйте снова."
+
+        await store.receive(.connectionTestFinished(.failure(timeoutMessage))) {
+            $0.connectionStatus = .failed(timeoutMessage)
+            $0.pendingSubmission = nil
+            $0.verifiedSubmission = nil
+        }
+    }
+
+    @Test("Self-signed сертификат можно подтвердить и завершить проверку")
+    func acceptsSelfSignedCertificate() async {
+        let trustCenter = TransmissionTrustPromptCenter()
+        let fixedUUID = UUID(uuidString: "00000000-0000-0000-0000-000000000333")!
+        let fixedDate = Date(timeIntervalSince1970: 1_700_200_000)
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "trusted-session",
+            rpcVersion: 20,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0",
+            isCompatible: true
+        )
+
+        let challenge = TransmissionTrustChallenge(
+            identity: .init(host: "nas.local", port: 9091, isSecure: true),
+            reason: .untrustedCertificate,
+            certificate: .init(
+                commonName: "NAS Root",
+                organization: "Home",
+                validFrom: Date(),
+                validUntil: Date().addingTimeInterval(86_400),
+                sha256Fingerprint: Data(repeating: 0xAB, count: 32)
+            )
+        )
+
+        var initialState = OnboardingReducer.State()
+        initialState.host = "nas.local"
+        initialState.port = "9091"
+
+        let expectedServer = ServerConfig(
+            id: fixedUUID,
+            name: "nas.local",
+            connection: .init(host: "nas.local", port: 9091, path: "/transmission/rpc"),
+            security: .https(allowUntrustedCertificates: false),
+            authentication: nil,
+            createdAt: fixedDate
+        )
+        let expectedContext = OnboardingReducer.SubmissionContext(
+            server: expectedServer,
+            password: nil,
+            insecureFingerprint: nil
+        )
+
+        let store = TestStore(initialState: initialState) {
+            OnboardingReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.transmissionTrustPromptCenter = trustCenter
+            dependencies.uuidGenerator = UUIDGeneratorDependency(generate: { fixedUUID })
+            dependencies.dateProvider = DateProviderDependency(now: { fixedDate })
+            dependencies.serverConnectionProbe = ServerConnectionProbe(
+                run: { request, handler in
+                    guard let handler else {
+                        return .init(handshake: handshake)
+                    }
+                    let decision = await handler(challenge)
+                    switch decision {
+                    case .trustPermanently:
+                        return .init(handshake: handshake)
+                    case .deny:
+                        throw ServerConnectionProbe.ProbeError.handshakeFailed(
+                            "Пользователь отказался доверять сертификату"
+                        )
+                    }
+                }
+            )
+        }
+
+        await store.send(.checkConnectionButtonTapped) {
+            $0.pendingSubmission = expectedContext
+            $0.connectionStatus = .testing
+        }
+
+        let expectedPrompt = TransmissionTrustPrompt(
+            challenge: challenge,
+            resolver: { _ in }
+        )
+
+        await store.receive(.trustPromptReceived(expectedPrompt)) {
+            $0.trustPrompt = .init(prompt: expectedPrompt)
+        }
+
+        await store.send(.trustPrompt(.presented(.trustConfirmed))) {
+            $0.trustPrompt = nil
+        }
+
+        await store.receive(.connectionTestFinished(.success(handshake))) {
+            $0.connectionStatus = .success(handshake)
+            $0.pendingSubmission = nil
+            $0.verifiedSubmission = expectedContext
         }
     }
 }
