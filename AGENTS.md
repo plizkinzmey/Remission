@@ -19,7 +19,20 @@
 - Базовая архитектура: **TCA (The Composable Architecture)** для всех feature-модулей + слои network/domain/persistence; бизнес-логика не живёт во View.
 - **The Composable Architecture (TCA)** для feature-модулей: обязательный паттерн для управления состоянием (исключение: только тривиальные View без состояния).
   - Структура: `@ObservableState struct State`, `enum Action`, `Reducer` с `var body`, store инициализируется с `Store(initialState:, reducer:)`.
-  - State sharing: используйте `@Presents` для опциональных состояний (sheets, alerts) и `IdentifiedArrayOf` для коллекций.
+  - State sharing: используйте `@Presents` для опциональных состояний (sheets, alerts, navigation stacks) и `IdentifiedArrayOf` для коллекций.
+    - **@Presents использовать для:**
+      - Alerts: `@Presents var alert: AlertState<AlertAction>?`
+      - Modals/Sheets: `@Presents var editor: ServerEditorReducer.State?`
+      - Navigation с tree-based routing (будущая веха)
+    - **Пример (RTC-67)**:
+      ```swift
+      @ObservableState
+      struct State: Equatable {
+          var server: ServerConfig
+          @Presents var alert: AlertState<AlertAction>?  // Alert state
+          @Presents var editor: ServerEditorReducer.State?  // Modal
+      }
+      ```
   - Effects: все побочные эффекты инкапсулируются через `.run { send in ... }` блоки в reducer.
   - Navigation: используйте SwiftUI's `NavigationStack` с TCA state-driven подходом.
   - Тестирование: используйте `TestStore` для exhaustive тестирования reducers и effects (все mutations и side effects проверяются).
@@ -30,6 +43,11 @@
 
 ## Project Layout & Toolchain
 - `Remission/` - SwiftUI entry point (`RemissionApp.swift`), основные экраны, ресурсы (`Assets.xcassets`).
+  - **Размещение зависимостей и фабрик:**
+    - **Простые DependencyClient**: размещайте в `Remission/DependencyClients/` (например, `UserPreferencesClient.swift`, `ClockClient.swift`)
+    - **Сложные фабрики**: размещайте в корне `Remission/` как отдельные файлы (например, `ServerConnectionEnvironmentFactory.swift` для RTC-67). Фабрика должна быть видна всем reducers
+    - **Правило**: Если factory создаёт per-context сервисы (per-server, per-workspace), размещайте в `Remission/` и регистрируйте в `AppDependencies.swift`
+    - **Environment структуры**: размещайте рядом с фабриками (например, `ServerConnectionEnvironment.swift` рядом с фабрикой)
 - `RemissionTests/` - Тесты на Swift Testing фреймворке; именуйте файлы в паре с production-модулями.
 - `RemissionUITests/` - XCUITest сценарии и smoke-проверки.
 - `devdoc/PRD.md` - PRD, обязательное обновление при функциональных изменениях.
@@ -61,6 +79,95 @@
   - Параметризованные тесты поддерживают аргументы, что снижает дублирование кода.
   - Conditional traits (`@Test(.enabled(if:))`, `@Suite(.serialized)`) управляют выполнением тестов.
 - Unit-тесты: сетевой слой (TransmissionClientProtocol), репозитории, TCA редьюсеры с TestStore. Все тесты используют Swift Testing фреймворк и мокируют зависимости через @Dependency DI.
+
+### Пример: Тестирование TCA reducer с TestStore и мокированием зависимостей (RTC-67+)
+
+```swift
+@Test
+func serverDetailConnectionSuccess() async {
+    let server = ServerConfig.previewLocalHTTP
+    let handshake = TransmissionHandshakeResult(
+        sessionID: "session-1",
+        rpcVersion: 20,
+        minimumSupportedRpcVersion: 14,
+        serverVersionDescription: "Transmission 4.0.3",
+        isCompatible: true
+    )
+    let environment = ServerConnectionEnvironment.testEnvironment(
+        server: server,
+        handshake: handshake
+    )
+
+    let store = TestStore(
+        initialState: ServerDetailReducer.State(server: server)
+    ) {
+        ServerDetailReducer()
+    } withDependencies: { dependencies in
+        // Переопределить зависимости для теста
+        dependencies = AppDependencies.makeTestDefaults()
+        dependencies.serverConnectionEnvironmentFactory = .mock(environment: environment)
+    }
+
+    // Отправить действие и проверить state mutations
+    await store.send(.task) {
+        $0.connectionState.phase = .connecting
+    }
+
+    // Проверить эффект (асинхронный результат)
+    await store.receive(
+        .connectionResponse(
+            .success(
+                ServerDetailReducer.ConnectionResponse(
+                    environment: environment,
+                    handshake: handshake
+                )
+            )
+        )
+    ) {
+        $0.connectionEnvironment = environment
+        $0.connectionState.phase = .ready(
+            .init(fingerprint: environment.fingerprint, handshake: handshake)
+        )
+    }
+}
+
+@Test
+func serverConnectionFailureShowsAlert() async {
+    let server = ServerConfig.previewSecureSeedbox
+    let expectedError = ServerConnectionEnvironmentFactoryError.missingCredentials
+
+    let store = TestStore(
+        initialState: ServerDetailReducer.State(server: server)
+    ) {
+        ServerDetailReducer()
+    } withDependencies: { dependencies in
+        dependencies = AppDependencies.makeTestDefaults()
+        // Мокировать factory с ошибкой
+        dependencies.serverConnectionEnvironmentFactory = .init { _ in
+            throw expectedError
+        }
+    }
+
+    await store.send(.task) {
+        $0.connectionState.phase = .connecting
+    }
+
+    // Проверить error path
+    await store.receive(.connectionResponse(.failure(expectedError))) {
+        $0.connectionEnvironment = nil
+        $0.connectionState.phase = .failed(.init(message: expectedError.errorDescription ?? ""))
+        $0.alert = .connectionFailure(message: expectedError.errorDescription ?? "")
+    }
+}
+```
+
+**Ключевые моменты**:
+- `withDependencies` блок для переопределения всех зависимостей
+- `await store.send(...)` для диспатча действия с проверкой state mutations
+- `await store.receive(...)` для проверки эффектов (асинхронных результатов)
+- Happy path и error path тестируются отдельно
+- Используйте `LockedValue` для thread-safe проверки побочных эффектов в сложных тестах
+
 - Integration: поднятие Transmission через Docker-compose в CI, прогон сценариев connect/add/start/stop/remove.
 - UI: XCUITest для onboarding, списка и добавления торрента (Given/When/Then комментарии).
 - Цель покрытия >=60% на ключевых компонентах; отчёты прикладываем к PR.

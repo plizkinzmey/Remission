@@ -97,6 +97,119 @@ await testClock.advance(by: .milliseconds(2))
 - `Remission/DependencyClients/AppClockDependency.swift` — универсальный dependency client (RTC-57)
 - `RemissionTests/*.swift` — все тесты обновлены на использование TestClock()
 
+### Фабрики и динамические per-context зависимости (RTC-67)
+
+**Контекст**: когда приложению требуется создавать несколько независимых контекстов (например, per-server TransmissionClient, per-workspace environment, per-user session), используется паттерн **Factory через DependencyKey**. Это обеспечивает изоляцию состояния, параллелизм и чистоту ресурсов.
+
+**Когда использовать фабрики:**
+- Нужно создать multiple экземпляры сервиса с разными конфигурациями
+- Сервис зависит от других dependencies (CredentialsRepository, Clock, Mapper и др.)
+- Нужно кэшировать состояние окружения на уровне Feature (не глобально)
+- Требуется асинхронная инициализация (загрузка credentials, handshake, проверка версии)
+
+**Примеры**: `ServerConnectionEnvironmentFactory` для per-server Transmission клиентов (RTC-67).
+
+**Архитектура решения**:
+
+```swift
+// 1. Определить фабрику как DependencyKey
+struct ServerConnectionEnvironmentFactory: Sendable {
+    var make: @Sendable (_ server: ServerConfig) async throws -> ServerConnectionEnvironment
+    
+    func callAsFunction(_ server: ServerConfig) async throws -> ServerConnectionEnvironment {
+        try await make(server)
+    }
+}
+
+// 2. Реализовать liveValue (production), previewValue, testValue
+extension ServerConnectionEnvironmentFactory: DependencyKey {
+    static var liveValue: Self {
+        @Dependency(\.credentialsRepository) var credentialsRepository
+        @Dependency(\.appClock) var appClock
+        
+        return Self { server in
+            let password = try await credentialsRepository.load(key: server.credentialsKey)
+            let config = server.makeTransmissionClientConfig(password: password, ...)
+            let client = TransmissionClient(config: config, clock: appClock.clock())
+            // ... инициализировать все зависимости окружения
+            return ServerConnectionEnvironment(serverID: server.id, dependencies: ...)
+        }
+    }
+    
+    static var previewValue: Self {
+        Self { server in ServerConnectionEnvironment.preview(server: server) }
+    }
+    
+    static var testValue: Self {
+        Self { _ in throw ServerConnectionEnvironmentFactoryError.notConfigured }
+    }
+}
+
+// 3. Зарегистрировать в DependencyValues
+extension DependencyValues {
+    var serverConnectionEnvironmentFactory: ServerConnectionEnvironmentFactory {
+        get { self[ServerConnectionEnvironmentFactory.self] }
+        set { self[ServerConnectionEnvironmentFactory.self] = newValue }
+    }
+}
+
+// 4. Использовать в reducer через @Dependency
+@Reducer
+struct ServerDetailReducer {
+    @Dependency(\.serverConnectionEnvironmentFactory) var factory
+    
+    var body: some Reducer<State, Action> {
+        Reduce { state, action in
+            case .task:
+                return .run { send in
+                    do {
+                        let environment = try await factory.make(state.server)
+                        await send(.connectionResponse(.success(environment)))
+                    } catch {
+                        await send(.connectionResponse(.failure(error)))
+                    }
+                }
+                .cancellable(id: ConnectionCancellationID.connection, cancelInFlight: true)
+        }
+    }
+}
+
+// 5. Тестирование: override через withDependencies
+@Test
+func serverConnectionSuccess() async {
+    let mockEnv = ServerConnectionEnvironment.testEnvironment(server: .previewLocalHTTP)
+    
+    let store = TestStore(
+        initialState: ServerDetailReducer.State(server: .previewLocalHTTP)
+    ) {
+        ServerDetailReducer()
+    } withDependencies: { dependencies in
+        dependencies.serverConnectionEnvironmentFactory = .init { _ in mockEnv }
+    }
+    
+    await store.send(.task) { $0.connectionState.phase = .connecting }
+    await store.receive(.connectionResponse(.success(mockEnv))) { ... }
+}
+```
+
+**Преимущества паттерна**:
+- ✅ **Изоляция**: каждый контекст (сервер) имеет независимые credentials, session-id, кеш
+- ✅ **Тестируемость**: фабрика мокируется через `.mock()` без реальной инициализации
+- ✅ **Параллелизм**: допускается работа с несколькими контекстами одновременно
+- ✅ **Ленивая инициализация**: окружение создаётся только при запросе, не при старте приложения
+- ✅ **Композируемость**: фабрика может использовать другие зависимости через `@Dependency`
+
+**Файлы реализации**:
+- `Remission/ServerConnectionEnvironment.swift` — Environment структура и factory (RTC-67)
+- `Remission/ServerDetailFeature.swift` — Reducer используя factory
+- `RemissionTests/ServerDetailFeatureTests.swift` — TestStore примеры с factory mocking
+
+**Документирование фабрик при добавлении новых**: 
+- Всегда включайте `.previewValue` и `.testValue`
+- Документируйте возможные ошибки и их обработку
+- Добавляйте примеры использования в TestStore примеры
+- Обновляйте раздел Project Layout в AGENTS.md с правилами размещения
+
 ### Модульность и декомпозиция TCA
 - **Разделение слоёв**: UI (`Views`), бизнес-логика (`Features`/редьюсеры), модели (`Models`) и инфраструктура (`DependencyClients`) оформляются отдельными таргетами/файлами. Ссылайтесь на [SwiftUI+TCA Template](https://github.com/ethanhuang13/swiftui-tca-template) как эталон.
 - **Структура зависимостей**: определения `@DependencyClient` и тестовых значений живут в `Remission/DependencyClients`, live-реализации и фабрики — в `Remission/DependencyClientLive`. Любые новые клиенты повторяют эту схему, чтобы тесты и прод-код использовали единый источник.
@@ -1178,11 +1291,22 @@ return .run { [repository, clock = appClock.clock()] send in
 - **Артефакты**: документированные примеры override, ссылки из `plan.md` на новые файлы, обновление чек-листа для новых фич (см. раздел "Quick Checklist").
 
 ## Веха 5: Онбординг и управление серверами
-- M5.1 Создать TCA-фичу онбординга (@Reducer с @ObservableState State, Action).
-- M5.2 Реализовать SwiftUI-экраны ввода host, port, протокола и учетных данных используя @Bindable для состояния.
-- M5.3 Добавить проверку соединения и отображение статуса пользователю через асинхронные эффекты в редьюсере.
-- M5.4 Сохранить конфигурации серверов и реализовать редактирование и удаление.
-- Проверка: сквозной UI-тест онбординга и модульные тесты редьюсера с TestStore.
+### Функциональный объём
+- M5.1 **OnboardingReducer**: отдельная TCA-фича с `@ObservableState`, `Action`, `Reducer` и `@Presents` для предупреждений HTTP и trust prompts. Состояние хранит форму (`ServerConnectionFormState`), статус проверки (`idle/testing/success/failed`) и контексты сохранения сервера.
+- M5.2 **OnboardingView**: SwiftUI форма с `@Bindable` доступом к состоянию редьюсера. Поля: имя, host, port, path, transport (HTTP/HTTPS), allow untrusted, username/password. Кнопка «Проверить подключение» диспатчит `checkConnectionButtonTapped`, «Сохранить сервер» — `connectButtonTapped`.
+- M5.3 **Валидация и предупреждения**: обязательный алерт при переходе на HTTP, trust prompt для self-signed сертификатов через `TransmissionTrustPromptCenter`. Ошибки отображаются в секции статуса.
+- M5.4 **Сохранение серверов**: успешный онбординг добавляет запись в `ServerConfigRepository`, сохраняет пароль через `CredentialsRepository` и выставляет флаг `onboardingProgressRepository.setCompleted(true)`. ServerListReducer реагирует на `delegate(.didCreate)` и открывает детали сервера.
+- M5.5 **Инфраструктура UI-тестов**: приложение читает аргумент `--ui-testing-scenario=onboarding-flow` и подставляет in-memory зависимости (репозитории, Keychain, HTTP warning store, ServerConnectionProbe). Это даёт детерминированный сценарий без файловой системы и Keychain.
+
+### Тестирование и QA
+- **Unit**: `RemissionTests/OnboardingFeatureTests.swift` (happy path — сохранение сервера и пароля; error path — таймаут проверки; HTTP предупреждение — отмена возвращает HTTPS). Используется `TestStore` + моковые зависимости.
+- **UI**: `RemissionUITests/RemissionUITests.swift::testOnboardingFlowAddsServer` покрывает полный флоу: автозапуск онбординга, заполнение формы, обработка HTTP предупреждения, мок-проверка соединения, сохранение и переход в детали. Есть вспомогательные методы (`clearAndTypeText`, `waitUntil`, скриншоты предупреждений и trust prompt).
+- **Документация**: `RemissionTests/README.md` обновлена разделом «Запуск тестов», описывающим новый сценарий и команды. В репозитории хранится `QA_REPORT_RTC66.md` (артефакт проверки вехи: описание сценариев, команды, ссылки на скриншоты/xcresult).
+
+### Проверка готовности
+- Запустить локально: `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`, `swiftlint lint`, затем `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15,OS=26.0' -only-testing:RemissionUITests/RemissionUITests::testOnboardingFlowAddsServer -quiet`.
+- Убедиться, что onboarding flow возможен без мануального ввода (тестовая форма) и сервер автоматически открывается в `ServerDetailView` после сохранения.
+- QA-скрытие: приложить скриншоты HTTP предупреждения и trust prompt, сохранить лог прогона в Linear.
 
 ## Веха 6: Список торрентов
 - M6.1 Описать TCA-состояние списка (@ObservableState: элементы как IdentifiedArray, фильтры, сортировка, флаги загрузки) и действия через enum Action.

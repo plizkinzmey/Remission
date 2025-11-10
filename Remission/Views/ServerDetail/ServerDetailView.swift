@@ -6,6 +6,7 @@ struct ServerDetailView: View {
 
     var body: some View {
         List {
+            connectionSection
             serverSection
             securitySection
             trustSection
@@ -37,6 +38,48 @@ struct ServerDetailView: View {
             LabeledContent("Адрес", value: store.server.displayAddress)
             LabeledContent("Протокол") {
                 securityBadge
+            }
+        }
+    }
+
+    private var connectionSection: some View {
+        Section("Подключение") {
+            switch store.connectionState.phase {
+            case .idle:
+                Text("Ожидаем начало подключения.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+            case .connecting:
+                HStack(spacing: 12) {
+                    ProgressView()
+                    Text("Подключаемся к серверу…")
+                }
+
+            case .ready(let ready):
+                Label("Подключено", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                if let description = ready.handshake.serverVersionDescription,
+                    description.isEmpty == false
+                {
+                    Text(description)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Text("RPC v\(ready.handshake.rpcVersion)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+            case .failed(let failure):
+                Label("Ошибка подключения", systemImage: "xmark.octagon.fill")
+                    .foregroundStyle(.red)
+                Text(failure.message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button("Повторить подключение") {
+                    store.send(.retryConnectionButtonTapped)
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
     }

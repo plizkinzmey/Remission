@@ -63,6 +63,75 @@ Remission — кроссплатформенное клиентское прил
 [^transmission-session]: [Transmission RPC session fields](https://transmission-rpc.readthedocs.io/en/v7.0.11/session) — описывает `rpc_version`, `rpc_version_minimum` и `version`, используемые для проверки совместимости.
 [^tca-alert]: [TCA migration guide — alert API](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/MigrationGuides/MigratingTo1.7.md) — пример использования `.alert($store.scope(state: \.alert, action: \.alert))`.
 
+### Жизненный цикл подключения сервера (RTC-67+)
+
+Когда пользователь выбирает или добавляет сервер, приложение создаёт **изолированное окружение per-server** с собственным `TransmissionClient`, сессией RPC и состоянием подключения. Это обеспечивает:
+
+1. **Изоляция** — каждый сервер имеет независимые credentials, session-id, и кеш состояния.
+2. **Параллелизм** — допускается подключение к нескольким серверам одновременно без конфликтов.
+3. **Чистота ресурсов** — при удалении сервера или переключении все временные ресурсы (socket, session-id) освобождаются.
+
+#### Инициализация окружения
+
+При переходе на экран `ServerDetailView`:
+1. Получить сохранённый `ServerConfig` (host, port, proto, credentials key).
+2. Загрузить пароль из Keychain через `CredentialsRepository`.
+3. Создать конфигурацию для `TransmissionClient` (endpoint, auth headers, timeout).
+4. Инициализировать `ServerConnectionEnvironment` с клиентом, репозиториями (TorrentRepository, SessionRepository) и другими зависимостями.
+5. Выполнить первичное рукопожатие (HTTP 409 handshake, проверка версии).
+
+**Паттерн**: использовать `ServerConnectionEnvironmentFactory` (DependencyKey) для создания per-context окружений:
+
+```swift
+@Dependency(\.serverConnectionEnvironmentFactory) var factory
+let environment = try await factory.make(serverConfig)
+```
+
+#### Жизненный цикл состояния
+
+- **Idle** — сервер загружен из хранилища, но подключение не инициировано.
+- **Connecting** — идёт попытка рукопожатия. UI показывает прогресс.
+- **Ready** — handshake успешен, session-id получен, UI готово к командам (start/pause/remove).
+- **Failed** — рукопожатие завершилось ошибкой (401, 409, network error). UI показывает ошибку и кнопку Retry.
+
+Переходы:
+```
+Idle → Connecting (user tap или .task при загрузке)
+Connecting → Ready (handshake success)
+Connecting → Failed (handshake error)
+Failed → Connecting (user tap Retry)
+Ready → Idle (disconnect / switch server)
+```
+
+#### Очистка ресурсов
+
+При выходе с экрана сервера или удалении сервера:
+1. Отменить активные сетевые запросы через `.cancellable(id:, cancelInFlight:)`.
+2. Очистить session-id из памяти или Keychain.
+3. Закрыть socket/URLSession if needed.
+
+**TCA паттерн**: использовать `onDisappear` или `.task` с `Task.cancel(id:)` для cleanup.
+
+#### Примеры ошибок и обработка
+
+| Ошибка | Причина | UX |
+|--------|--------|-----|
+| HTTP 401 | Неверный пароль | «Неверный логин или пароль» + кнопка «Изменить учётные данные» |
+| HTTP 409 (повторный) | Не удалось получить session-id | «Не удалось завершить рукопожатие» + Retry |
+| HTTP 500 | Ошибка сервера Transmission | «Ошибка сервера» + Retry |
+| RPC version < 14 | Версия Transmission < 3.0 | «Требуется Transmission 3.0+» + ссылка на документацию |
+| Network timeout | Сеть недоступна | «Не удалось подключиться» + Retry |
+
+#### Хранение и повторное подключение
+
+После успешного подключения `ServerConfig` сохраняется в `ServerConfigRepository` (файл JSON или UserDefaults). При перезапуске приложения:
+1. Загрузить сохранённые серверы.
+2. На экране `ServerDetailView` автоматически инициировать подключение (Idle → Connecting).
+3. Если подключение успешно — показать состояние (Ready, торренты загружены).
+4. Если ошибка — показать Failed UI с опцией Retry.
+
+**Ссылки на реализацию**: `ServerDetailFeature` (RTC-67), `ServerDetailReducer.swift`, `ServerConnectionEnvironment.swift`, `ServerConnectionEnvironmentFactory`.
+
 2. Список торрентов
    - Отображение списка торрентов с полями: id, name, status, progress (%), downloadRate, uploadRate, peers.
    - Сортировка и фильтрация (по статусу, по имени, по прогрессу).

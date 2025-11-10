@@ -67,6 +67,149 @@ struct MyFeatureView: View {
 
 - Swift 6 toolchain: если необходим preview toolchain, добавьте шаг в CI для установки требуемого toolchain.
 
+## Фабрики и динамические зависимости per-context
+
+При работе с несколькими контекстами (например, несколько серверов Transmission с разными клиентами) создавайте **фабрики** через `DependencyKey`:
+
+### Когда использовать фабрики:
+- Нужно создать multiple экземпляры сервиса с разными конфигурациями
+- Сервис зависит от других dependencies (CredentialsRepository, Clock, Mapper, etc.)
+- Нужно кэшировать состояние окружения на уровне Feature (не глобально)
+
+### Пример: ServerConnectionEnvironmentFactory (RTC-67)
+
+```swift
+struct ServerConnectionEnvironmentFactory: Sendable {
+    var make: @Sendable (_ server: ServerConfig) async throws -> ServerConnectionEnvironment
+
+    func callAsFunction(_ server: ServerConfig) async throws -> ServerConnectionEnvironment {
+        try await make(server)
+    }
+}
+
+extension ServerConnectionEnvironmentFactory: DependencyKey {
+    static var liveValue: Self {
+        @Dependency(\.credentialsRepository) var credentialsRepository
+        @Dependency(\.appClock) var appClock
+        @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
+
+        return Self { server in
+            // Загрузить пароль из Keychain
+            let password = try await credentialsRepository.load(key: server.credentialsKey)
+
+            // Создать client специфичный для этого сервера
+            let config = server.makeTransmissionClientConfig(
+                password: password,
+                network: .default,
+                logger: DefaultTransmissionLogger()
+            )
+            let client = TransmissionClient(config: config, clock: appClock.clock())
+            client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
+
+            // Вернуть окружение с изолированными зависимостями
+            return ServerConnectionEnvironment(
+                serverID: server.id,
+                fingerprint: server.connectionFingerprint,
+                dependencies: .init(
+                    transmissionClient: TransmissionClientDependency.live(client: client),
+                    torrentRepository: .placeholder,
+                    sessionRepository: .placeholder
+                )
+            )
+        }
+    }
+
+    static var previewValue: Self {
+        Self { server in
+            ServerConnectionEnvironment.preview(server: server)
+        }
+    }
+
+    static var testValue: Self {
+        Self { _ in
+            throw ServerConnectionEnvironmentFactoryError.notConfigured("testValue")
+        }
+    }
+}
+
+extension DependencyValues {
+    var serverConnectionEnvironmentFactory: ServerConnectionEnvironmentFactory {
+        get { self[ServerConnectionEnvironmentFactory.self] }
+        set { self[ServerConnectionEnvironmentFactory.self] = newValue }
+    }
+}
+```
+
+### Использование в reducer'е:
+```swift
+@Reducer
+struct ServerDetailReducer {
+    @ObservableState
+    struct State: Equatable {
+        var server: ServerConfig
+        var connectionEnvironment: ServerConnectionEnvironment?
+        var connectionState: ConnectionState = .init()
+    }
+
+    @Dependency(\.serverConnectionEnvironmentFactory) var factory
+
+    var body: some Reducer<State, Action> {
+        Reduce { state, action in
+            case .task:
+                return startConnectionIfNeeded(state: &state)
+            // ... остальные cases
+        }
+    }
+
+    private func connect(server: ServerConfig) -> Effect<Action> {
+        .run { send in
+            await send(
+                .connectionResponse(
+                    TaskResult {
+                        let environment = try await factory.make(server)
+                        let handshake = try await environment.dependencies.transmissionClient.performHandshake()
+                        return ConnectionResponse(environment: environment, handshake: handshake)
+                    }
+                )
+            )
+        }
+        .cancellable(id: ConnectionCancellationID.connection, cancelInFlight: true)
+    }
+}
+```
+
+### Тестирование фабрик с TestStore:
+```swift
+@Test
+func serverConnectionSuccess() async {
+    let server = ServerConfig.previewLocalHTTP
+    let mockEnv = ServerConnectionEnvironment.testEnvironment(server: server)
+
+    let store = TestStore(
+        initialState: ServerDetailReducer.State(server: server)
+    ) {
+        ServerDetailReducer()
+    } withDependencies: { dependencies in
+        dependencies = AppDependencies.makeTestDefaults()
+        dependencies.serverConnectionEnvironmentFactory = .mock(environment: mockEnv)
+    }
+
+    await store.send(.task) {
+        $0.connectionState.phase = .connecting
+    }
+
+    await store.receive(.connectionResponse(.success(...))) {
+        $0.connectionEnvironment = mockEnv
+        $0.connectionState.phase = .ready(...)
+    }
+}
+```
+
+**Справочные файлы:**
+- `Remission/ServerConnectionEnvironment.swift` — полная реализация фабрики (RTC-67)
+- `RemissionTests/ServerDetailFeatureTests.swift` — примеры тестирования
+- `devdoc/FACTORY_PATTERNS.md` — полная справка по паттернам фабрик
+
 ## Важно про Transmission RPC
 
 - **Собственный формат** (не JSON-RPC 2.0): используются `method`, `arguments`, `tag` в запросе; ответ содержит `result: "success"` или строку-ошибку

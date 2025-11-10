@@ -17,6 +17,7 @@ enum AppDependencies {
         var dependencies = DependencyValues.appPreview()
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
+        dependencies.serverConnectionEnvironmentFactory = .previewValue
         return dependencies
     }
 
@@ -25,6 +26,7 @@ enum AppDependencies {
         var dependencies = DependencyValues.appTest()
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
+        dependencies.serverConnectionEnvironmentFactory = .previewValue
         return dependencies
     }
 
@@ -36,6 +38,7 @@ enum AppDependencies {
         dependencies.serverConfigRepository = .inMemory(initial: [])
         dependencies.onboardingProgressRepository = .inMemory()
         dependencies.httpWarningPreferencesStore = .inMemory()
+        dependencies.serverConnectionEnvironmentFactory = .previewValue
 
         switch scenario {
         case .onboardingFlow:

@@ -9,6 +9,8 @@ struct ServerDetailReducer {
         @Presents var alert: AlertState<AlertAction>?
         @Presents var editor: ServerEditorReducer.State?
         var isDeleting: Bool = false
+        var connectionState: ConnectionState = .init()
+        var connectionEnvironment: ServerConnectionEnvironment?
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
@@ -27,6 +29,8 @@ struct ServerDetailReducer {
         case resetTrustButtonTapped
         case resetTrustSucceeded
         case resetTrustFailed(String)
+        case retryConnectionButtonTapped
+        case connectionResponse(TaskResult<ConnectionResponse>)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
@@ -54,16 +58,52 @@ struct ServerDetailReducer {
         case failure(DeletionError)
     }
 
+    struct ConnectionState: Equatable {
+        struct Ready: Equatable {
+            var fingerprint: String
+            var handshake: TransmissionHandshakeResult
+        }
+
+        struct Failure: Equatable {
+            var message: String
+        }
+
+        enum Phase: Equatable {
+            case idle
+            case connecting
+            case ready(Ready)
+            case failed(Failure)
+        }
+
+        var phase: Phase = .idle
+
+        var failureMessage: String? {
+            if case .failed(let failure) = phase {
+                return failure.message
+            }
+            return nil
+        }
+    }
+
+    struct ConnectionResponse: Equatable {
+        var environment: ServerConnectionEnvironment
+        var handshake: TransmissionHandshakeResult
+    }
+
     @Dependency(\.credentialsRepository) var credentialsRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
+    @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
-                return .none
+                return startConnectionIfNeeded(state: &state)
+
+            case .retryConnectionButtonTapped:
+                return startConnection(state: &state, force: true)
 
             case .editButtonTapped:
                 state.editor = ServerEditorReducer.State(server: state.server)
@@ -75,7 +115,10 @@ struct ServerDetailReducer {
 
             case .deleteCompleted(.success):
                 state.isDeleting = false
-                return .send(.delegate(.serverDeleted(state.server.id)))
+                return .merge(
+                    .cancel(id: ConnectionCancellationID.connection),
+                    .send(.delegate(.serverDeleted(state.server.id)))
+                )
 
             case .deleteCompleted(.failure(let error)):
                 state.isDeleting = false
@@ -169,10 +212,35 @@ struct ServerDetailReducer {
             case .alert(.dismiss):
                 return .none
 
+            case .connectionResponse(.success(let response)):
+                state.connectionEnvironment = response.environment
+                state.connectionState.phase = .ready(
+                    .init(
+                        fingerprint: response.environment.fingerprint,
+                        handshake: response.handshake
+                    )
+                )
+                return .none
+
+            case .connectionResponse(.failure(let error)):
+                state.connectionEnvironment = nil
+                let message = describe(error)
+                state.connectionState.phase = .failed(.init(message: message))
+                state.alert = AlertState.connectionFailure(message: message)
+                return .none
+
             case .editor(.presented(.delegate(.didUpdate(let server)))):
+                let shouldReconnect =
+                    state.server.connectionFingerprint != server.connectionFingerprint
                 state.server = server
                 state.editor = nil
-                return .send(.delegate(.serverUpdated(server)))
+                let connectionEffect =
+                    shouldReconnect
+                    ? startConnection(state: &state, force: true) : .none
+                return .merge(
+                    connectionEffect,
+                    .send(.delegate(.serverUpdated(server)))
+                )
 
             case .editor(.presented(.delegate(.cancelled))):
                 state.editor = nil
@@ -189,6 +257,53 @@ struct ServerDetailReducer {
         .ifLet(\.$editor, action: \.editor) {
             ServerEditorReducer()
         }
+    }
+
+    private enum ConnectionCancellationID {
+        case connection
+    }
+
+    private func startConnectionIfNeeded(
+        state: inout State
+    ) -> Effect<Action> {
+        let fingerprint = state.server.connectionFingerprint
+        if case .ready(let ready) = state.connectionState.phase,
+            ready.fingerprint == fingerprint,
+            state.connectionEnvironment?.isValid(for: state.server) == true
+        {
+            return .none
+        }
+        return startConnection(state: &state, force: false)
+    }
+
+    private func startConnection(
+        state: inout State,
+        force: Bool
+    ) -> Effect<Action> {
+        if case .connecting = state.connectionState.phase,
+            force == false
+        {
+            return .none
+        }
+        state.connectionEnvironment = nil
+        state.connectionState.phase = .connecting
+        return connect(server: state.server)
+    }
+
+    private func connect(server: ServerConfig) -> Effect<Action> {
+        .run { send in
+            await send(
+                .connectionResponse(
+                    TaskResult {
+                        let environment = try await serverConnectionEnvironmentFactory.make(server)
+                        let handshake = try await environment.dependencies.transmissionClient
+                            .performHandshake()
+                        return ConnectionResponse(environment: environment, handshake: handshake)
+                    }
+                )
+            )
+        }
+        .cancellable(id: ConnectionCancellationID.connection, cancelInFlight: true)
     }
 
     private func performTrustReset(for server: ServerConfig) -> Effect<Action> {
@@ -242,6 +357,32 @@ struct ServerDetailReducer {
             }
         } message: {
             TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
+        }
+    }
+}
+
+private func describe(_ error: Error) -> String {
+    if let localized = error as? LocalizedError,
+        let description = localized.errorDescription,
+        description.isEmpty == false
+    {
+        return description
+    }
+    let nsError = error as NSError
+    let description = nsError.localizedDescription
+    return description.isEmpty ? String(describing: error) : description
+}
+
+extension AlertState where Action == ServerDetailReducer.AlertAction {
+    static func connectionFailure(message: String) -> Self {
+        AlertState {
+            TextState("Не удалось подключиться")
+        } actions: {
+            ButtonState(role: .cancel, action: .dismiss) {
+                TextState("Понятно")
+            }
+        } message: {
+            TextState(message)
         }
     }
 }
