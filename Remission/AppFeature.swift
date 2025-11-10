@@ -36,7 +36,22 @@ struct AppReducer {
                 state.path.append(ServerDetailReducer.State(server: server))
                 return .none
 
+            case .serverList(.delegate(.serverEditRequested(let server))):
+                state.path.append(ServerDetailReducer.State(server: server, startEditing: true))
+                return .none
+
             case .serverList:
+                return .none
+
+            case .path(.element(id: _, action: .delegate(.serverUpdated(let server)))):
+                if let index = state.serverList.servers.index(id: server.id) {
+                    state.serverList.servers[index] = server
+                }
+                return .none
+
+            case .path(.element(id: let id, action: .delegate(.serverDeleted(let serverID)))):
+                state.path[id: id] = nil
+                state.serverList.servers.remove(id: serverID)
                 return .none
 
             case .path:

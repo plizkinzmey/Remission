@@ -1039,10 +1039,20 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 
 ### Keychain lifecycle
 - Добавление сервера (онбординг или UI) → `CredentialsRepository.save` вызывается до `serverConfigRepository.upsert`.
-- Удаление сервера (`ServerListReducer.remove`) обязано:
-  1. Собрать `credentialsKey` из удаляемых записей и вызвать `credentialsRepository.delete`.
-  2. Только после успешного удаления пароля вызвать `serverConfigRepository.delete`.
-- Это предотвращает утечки паролей в Keychain после удаления сервера из UI.
+- Удаление сервера (через `ServerListReducer` или `ServerDetailReducer`) всегда подтверждается пользователем и выполняет последовательность:
+  1. Собирает `credentialsKey` у выбранного сервера и вызывает `credentialsRepository.delete`.
+  2. Сбрасывает предупреждения HTTP через `HttpWarningPreferencesStore.reset` и отпечаток в `TransmissionTrustStore`.
+  3. После успешной очистки секретов вызывает `serverConfigRepository.delete`.
+- Такой порядок гарантирует, что Keychain и решения доверия не «подвисают» после удаления сервера и что UI/репозиторий остаются консистентными.
+
+### Редактирование и безопасность серверов (RTC-65)
+- Добавлен общий `ServerConnectionFormState` + `ServerConnectionFormFields`, которые переиспользуются онбордингом и редактором.
+- `ServerEditorReducer` отвечает за валидацию, предупреждение при переключении на HTTP, сохранение изменений (включая Keychain) и уведомление `ServerDetailReducer` через delegate.
+- `ServerDetailReducer` теперь открывает редактор (sheet), прокидывает delegate вверх в `AppReducer`, а также содержит отдельные действия:
+  - «Сбросить доверие сертификату» — очищает только `TransmissionTrustStore`.
+  - «Сбросить предупреждения HTTP» — очищает только `HttpWarningPreferencesStore`.
+  - «Удалить сервер» — подтверждает, чистит Keychain/Trust/HTTP и уведомляет корневой Store.
+- `ServerListView` отображает бейдж безопасности (HTTPS/HTTP), предоставляет swipe/context действия «Изменить» и «Удалить» и маршрутизирует все операции через Reducer + репозиторий.
 
 ### Покрытие тестами
 - `RemissionTests/ServerConfigRepositoryTests.swift`
@@ -1050,7 +1060,8 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
   - file-based happy-path (upsert → snapshot → delete).
   - failure-path (ошибка записи в недоступный файл → `ServerConfigRepositoryError.failedToPersist`).
 - `AppBootstrapTests.loadsPersistedServersFromStorage` — создаёт временный `servers.json`, запускает `AppBootstrap.makeInitialState` и проверяет, что серверы подхватываются и `shouldLoadServersFromRepository` обнуляется.
-- `ServerListFeatureTests.removeDeletesServerViaRepository` дополняется Keychain cleanup (через мок `CredentialsRepository`).
+- `ServerListFeatureTests.deleteRequiresConfirmationBeforeRemoving` проверяет, что swipe-delete показывает подтверждение, чистит Keychain и вызывает `serverConfigRepository.delete`.
+- `ServerDetailFeatureTests` покрывают редактирование (delegate `.serverUpdated`) и оба сценария удаления (подтверждение/отмена + очистку секретов).
 
 ### Документация и операции
 - README содержит раздел «Сохранение серверов и резервные копии» с инструкциями, как скопировать `servers.json` и экспортировать соответствующие записи Keychain.

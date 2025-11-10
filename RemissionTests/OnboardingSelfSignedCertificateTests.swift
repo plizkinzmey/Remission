@@ -27,8 +27,8 @@ struct OnboardingSelfSignedCertificateTests {
         )
 
         var initialState = OnboardingReducer.State()
-        initialState.host = "nas.local"
-        initialState.port = "9091"
+        initialState.form.host = "nas.local"
+        initialState.form.port = "9091"
 
         let expectedServer = ServerConfig(
             id: fixedUUID,
@@ -143,8 +143,8 @@ struct OnboardingSelfSignedCertificateTests {
         )
 
         var initialState = OnboardingReducer.State()
-        initialState.host = "nas.local"
-        initialState.port = "9091"
+        initialState.form.host = "nas.local"
+        initialState.form.port = "9091"
 
         let expectedServer = ServerConfig(
             id: fixedUUID,
@@ -241,8 +241,8 @@ struct OnboardingSelfSignedCertificateTests {
         )
 
         var initialState = OnboardingReducer.State()
-        initialState.host = "nas.local"
-        initialState.port = "9091"
+        initialState.form.host = "nas.local"
+        initialState.form.port = "9091"
 
         let expectedServer = ServerConfig(
             id: fixedUUID,

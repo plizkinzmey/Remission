@@ -9,6 +9,7 @@ struct ServerDetailView: View {
             serverSection
             securitySection
             trustSection
+            actionsSection
         }
         .navigationTitle(store.server.name)
         #if !os(macOS)
@@ -16,12 +17,27 @@ struct ServerDetailView: View {
         #endif
         .task { await store.send(.task).finish() }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .sheet(
+            store: store.scope(state: \.$editor, action: \.editor)
+        ) { editorStore in
+            ServerEditorView(store: editorStore)
+        }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Изменить") {
+                    store.send(.editButtonTapped)
+                }
+            }
+        }
     }
 
     private var serverSection: some View {
         Section("Сервер") {
             LabeledContent("Название", value: store.server.name)
             LabeledContent("Адрес", value: store.server.displayAddress)
+            LabeledContent("Протокол") {
+                securityBadge
+            }
         }
     }
 
@@ -45,12 +61,52 @@ struct ServerDetailView: View {
         }
     }
 
+    private var securityBadge: some View {
+        Group {
+            if store.server.isSecure {
+                Label("HTTPS", systemImage: "lock.fill")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.green.opacity(0.15)))
+                    .foregroundStyle(.green)
+            } else {
+                Label("HTTP", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(Color.orange.opacity(0.15)))
+                    .foregroundStyle(.orange)
+            }
+        }
+        .accessibilityLabel(
+            store.server.isSecure
+                ? "Безопасное подключение"
+                : "Небезопасное подключение"
+        )
+    }
+
     private var trustSection: some View {
         Section("Доверие") {
             Button(role: .destructive) {
                 store.send(.resetTrustButtonTapped)
             } label: {
                 Label("Сбросить доверие", systemImage: "arrow.counterclockwise")
+            }
+            Button {
+                store.send(.httpWarningResetButtonTapped)
+            } label: {
+                Label("Сбросить предупреждения HTTP", systemImage: "exclamationmark.shield")
+            }
+        }
+    }
+
+    private var actionsSection: some View {
+        Section("Действия") {
+            Button(role: .destructive) {
+                store.send(.deleteButtonTapped)
+            } label: {
+                Label("Удалить сервер", systemImage: "trash")
             }
         }
     }

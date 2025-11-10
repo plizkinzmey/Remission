@@ -21,6 +21,9 @@ struct ServerListView: View {
         .alert(
             $store.scope(state: \.alert, action: \.alert)
         )
+        .confirmationDialog(
+            $store.scope(state: \.deleteConfirmation, action: \.deleteConfirmation)
+        )
         .sheet(
             store: store.scope(state: \.$onboarding, action: \.onboarding)
         ) { onboardingStore in
@@ -43,25 +46,32 @@ struct ServerListView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        if server.usesInsecureTransport {
-                            Label("HTTP", systemImage: "exclamationmark.triangle.fill")
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Capsule()
-                                        .fill(Color.orange.opacity(0.2))
-                                )
-                                .foregroundStyle(.orange)
-                                .accessibilityLabel("Небезопасный сервер")
-                        }
+                        securityBadge(for: server)
                     }
                 }
                 .accessibilityLabel(server.name)
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
-            }
-            .onDelete { indexSet in
-                store.send(.remove(indexSet))
+                #if os(iOS)
+                    .swipeActions(edge: .trailing) {
+                        Button("Удалить", role: .destructive) {
+                            store.send(.deleteButtonTapped(server.id))
+                        }
+                        Button("Изменить") {
+                            store.send(.editButtonTapped(server.id))
+                        }
+                        .tint(.blue)
+                    }
+                #endif
+                #if os(macOS)
+                    .contextMenu {
+                        Button("Изменить") {
+                            store.send(.editButtonTapped(server.id))
+                        }
+                        Button("Удалить", role: .destructive) {
+                            store.send(.deleteButtonTapped(server.id))
+                        }
+                    }
+                #endif
             }
         }
         #if os(macOS)
@@ -103,6 +113,34 @@ struct ServerListView: View {
         #else
             Color(.systemGroupedBackground)
         #endif
+    }
+
+    private func securityBadge(for server: ServerConfig) -> some View {
+        Group {
+            if server.isSecure {
+                Label("HTTPS", systemImage: "lock.fill")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.green.opacity(0.2))
+                    )
+                    .foregroundStyle(.green)
+                    .accessibilityLabel("Безопасный сервер")
+            } else {
+                Label("HTTP", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.orange.opacity(0.2))
+                    )
+                    .foregroundStyle(.orange)
+                    .accessibilityLabel("Небезопасный сервер")
+            }
+        }
     }
 }
 

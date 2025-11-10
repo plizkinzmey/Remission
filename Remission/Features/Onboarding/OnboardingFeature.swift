@@ -10,30 +10,9 @@ struct OnboardingReducer {
         case failed(String)
     }
 
-    enum Transport: String, CaseIterable, Hashable, Sendable {
-        case https
-        case http
-
-        var title: String {
-            switch self {
-            case .https: return "HTTPS"
-            case .http: return "HTTP"
-            }
-        }
-    }
-
     @ObservableState
     struct State: Equatable {
-
-        var name: String = ""
-        var host: String = ""
-        var port: String = "9091"
-        var path: String = "/transmission/rpc"
-        var transport: Transport = .https
-        var allowUntrustedCertificates: Bool = false
-        var username: String = ""
-        var password: String = ""
-        var suppressInsecureWarning: Bool = false
+        var form: ServerConnectionFormState = .init()
         var validationError: String?
         var isSubmitting: Bool = false
         var pendingWarningFingerprint: String?
@@ -42,38 +21,9 @@ struct OnboardingReducer {
         var verifiedSubmission: SubmissionContext?
         @Presents var alert: AlertState<AlertAction>?
         @Presents var trustPrompt: TrustPromptReducer.State?
-
-        var trimmedHost: String {
-            host.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        var normalizedPath: String {
-            let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard trimmed.isEmpty == false else { return "/transmission/rpc" }
-            return trimmed.hasPrefix("/") ? trimmed : "/\(trimmed)"
-        }
-
-        var portValue: Int? {
-            guard let value = Int(port), (1...65535).contains(value) else { return nil }
-            return value
-        }
-
-        var isFormValid: Bool {
-            trimmedHost.isEmpty == false && portValue != nil
-        }
-
         var isSaveButtonDisabled: Bool {
-            isFormValid == false || verifiedSubmission == nil || isSubmitting
+            form.isFormValid == false || verifiedSubmission == nil || isSubmitting
                 || connectionStatus == .testing
-        }
-
-        var insecureFingerprint: String? {
-            guard let port = portValue else { return nil }
-            return ServerConfig.makeFingerprint(
-                host: trimmedHost.isEmpty ? host : trimmedHost,
-                port: port,
-                username: username
-            )
         }
     }
 
@@ -123,20 +73,20 @@ struct OnboardingReducer {
 
         Reduce { state, action in
             switch action {
-            case .binding(\.transport):
+            case .binding(\.form.transport):
                 state.validationError = nil
-                if state.transport == .https {
-                    state.suppressInsecureWarning = false
+                if state.form.transport == .https {
+                    state.form.suppressInsecureWarning = false
                     state.pendingWarningFingerprint = nil
                     return .none
                 }
                 return presentInsecureTransportWarning(state: &state)
 
-            case .binding(\.suppressInsecureWarning):
-                if let fingerprint = state.insecureFingerprint {
+            case .binding(\.form.suppressInsecureWarning):
+                if let fingerprint = state.form.insecureFingerprint {
                     httpWarningPreferencesStore.setSuppressed(
                         fingerprint,
-                        state.suppressInsecureWarning
+                        state.form.suppressInsecureWarning
                     )
                 }
                 return .none
@@ -205,7 +155,7 @@ struct OnboardingReducer {
             case .alert(.presented(.insecureTransportCancelled)):
                 state.alert = nil
                 state.pendingWarningFingerprint = nil
-                state.transport = .https
+                state.form.transport = .https
                 return .none
 
             case .alert(.presented(.errorDismissed)):
@@ -342,20 +292,16 @@ extension OnboardingReducer {
         state: inout State,
         forceAllowInsecureTransport: Bool
     ) -> SubmissionContext? {
-        guard state.isFormValid, let port = state.portValue else {
+        guard state.form.isFormValid, state.form.portValue != nil else {
             state.validationError = "Заполните хост и корректный порт."
             return nil
         }
 
-        let context = makeSubmissionContext(
-            state: state,
-            host: state.trimmedHost,
-            port: port
-        )
+        let context = makeSubmissionContext(state: state)
 
         if context.server.usesInsecureTransport {
             let fingerprint = context.insecureFingerprint ?? ""
-            if state.suppressInsecureWarning {
+            if state.form.suppressInsecureWarning {
                 httpWarningPreferencesStore.setSuppressed(fingerprint, true)
             }
 
@@ -377,37 +323,20 @@ extension OnboardingReducer {
     }
 
     fileprivate func makeSubmissionContext(
-        state: State,
-        host: String,
-        port: Int
+        state: State
     ) -> SubmissionContext {
         let id = uuidGenerator.generate()
         let date = dateProvider.now()
-        let name = state.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let connection = ServerConfig.Connection(host: host, port: port, path: state.normalizedPath)
-        let security: ServerConfig.Security =
-            state.transport == .https
-            ? .https(allowUntrustedCertificates: state.allowUntrustedCertificates)
-            : .http
+        let server = state.form.makeServerConfig(id: id, createdAt: date)
 
-        var authentication: ServerConfig.Authentication?
-        if state.username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false {
-            authentication = ServerConfig.Authentication(username: state.username)
-        }
-
-        let server = ServerConfig(
-            id: id,
-            name: name.isEmpty ? host : name,
-            connection: connection,
-            security: security,
-            authentication: authentication,
-            createdAt: date
-        )
-
-        let password = state.password.isEmpty ? nil : state.password
+        let password = state.form.password.isEmpty ? nil : state.form.password
         let fingerprint: String? =
             server.usesInsecureTransport
-            ? ServerConfig.makeFingerprint(host: host, port: port, username: state.username)
+            ? ServerConfig.makeFingerprint(
+                host: server.connection.host,
+                port: server.connection.port,
+                username: state.form.username
+            )
             : nil
 
         return SubmissionContext(
@@ -417,8 +346,8 @@ extension OnboardingReducer {
     private func presentInsecureTransportWarning(
         state: inout State
     ) -> Effect<Action> {
-        guard state.transport == .http else { return .none }
-        guard let fingerprint = state.insecureFingerprint else { return .none }
+        guard state.form.transport == .http else { return .none }
+        guard let fingerprint = state.form.insecureFingerprint else { return .none }
         if httpWarningPreferencesStore.isSuppressed(fingerprint) {
             return .none
         }

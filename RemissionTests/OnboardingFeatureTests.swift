@@ -29,11 +29,11 @@ struct OnboardingFeatureTests {
         let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
 
         var initialState = OnboardingReducer.State()
-        initialState.name = "NAS"
-        initialState.host = "nas.local"
-        initialState.port = "9091"
-        initialState.username = "admin"
-        initialState.password = "secret"
+        initialState.form.name = "NAS"
+        initialState.form.host = "nas.local"
+        initialState.form.port = "9091"
+        initialState.form.username = "admin"
+        initialState.form.password = "secret"
 
         let expectedServer = ServerConfig(
             id: fixedUUID,
@@ -112,8 +112,8 @@ struct OnboardingFeatureTests {
         let store = TestStore(
             initialState: {
                 var state = OnboardingReducer.State()
-                state.host = "seedbox.example.com"
-                state.port = "80"
+                state.form.host = "seedbox.example.com"
+                state.form.port = "80"
                 return state
             }()
         ) {
@@ -128,8 +128,8 @@ struct OnboardingFeatureTests {
             dependencies.httpWarningPreferencesStore = HttpWarningPreferencesStore.inMemory()
         }
 
-        await store.send(.binding(.set(\.transport, .http))) {
-            $0.transport = .http
+        await store.send(.binding(.set(\.form.transport, .http))) {
+            $0.form.transport = .http
             $0.pendingWarningFingerprint = "seedbox.example.com:80:"
             $0.alert = AlertState<AlertAction> {
                 TextState("Небезопасное подключение")
@@ -154,7 +154,7 @@ struct OnboardingFeatureTests {
         ) {
             $0.alert = nil
             $0.pendingWarningFingerprint = nil
-            $0.transport = .https
+            $0.form.transport = .https
         }
     }
 
@@ -164,8 +164,8 @@ struct OnboardingFeatureTests {
         let fixedDate = Date(timeIntervalSince1970: 1_700_100_000)
 
         var state = OnboardingReducer.State()
-        state.host = "nas.local"
-        state.port = "9091"
+        state.form.host = "nas.local"
+        state.form.port = "9091"
 
         let expectedServer = ServerConfig(
             id: fixedUUID,

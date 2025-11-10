@@ -8,16 +8,20 @@ struct ServerListReducer {
         var servers: IdentifiedArrayOf<ServerConfig> = []
         var isLoading: Bool = false
         @Presents var alert: AlertState<Alert>?
+        @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var onboarding: OnboardingReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
+        var pendingDeletion: ServerConfig?
     }
 
     enum Action: Equatable {
         case task
         case addButtonTapped
         case serverTapped(UUID)
-        case remove(IndexSet)
+        case editButtonTapped(UUID)
+        case deleteButtonTapped(UUID)
+        case deleteConfirmation(PresentationAction<DeleteConfirmationAction>)
         case alert(PresentationAction<Alert>)
         case onboarding(PresentationAction<OnboardingReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
@@ -26,16 +30,25 @@ struct ServerListReducer {
 
     enum Alert: Equatable {
         case comingSoon
+        case dismiss
+    }
+
+    enum DeleteConfirmationAction: Equatable {
+        case confirm
+        case cancel
     }
 
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
+        case serverEditRequested(ServerConfig)
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
     @Dependency(\.credentialsRepository) var credentialsRepository
+    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
+    @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -69,38 +82,40 @@ struct ServerListReducer {
                 }
                 return .send(.delegate(.serverSelected(server)))
 
-            case .remove(let indexSet):
-                let serversToRemove: [ServerConfig] = indexSet.compactMap { index in
-                    guard state.servers.indices.contains(index) else { return nil }
-                    return state.servers[index]
+            case .editButtonTapped(let id):
+                guard let server = state.servers[id: id] else {
+                    return .none
                 }
-                state.servers.remove(atOffsets: indexSet)
-                guard serversToRemove.isEmpty == false else { return .none }
+                return .send(.delegate(.serverEditRequested(server)))
 
-                let credentialsRepository = credentialsRepository
-                let serverConfigRepository = serverConfigRepository
-                return .run { send in
-                    do {
-                        for server in serversToRemove {
-                            if let key = server.credentialsKey {
-                                try await credentialsRepository.delete(key: key)
-                            }
-                        }
+            case .deleteButtonTapped(let id):
+                guard let server = state.servers[id: id] else { return .none }
+                state.pendingDeletion = server
+                state.deleteConfirmation = makeDeleteConfirmation(for: server)
+                return .none
 
-                        let ids = serversToRemove.map(\.id)
-                        await send(
-                            .serverRepositoryResponse(
-                                TaskResult {
-                                    try await serverConfigRepository.delete(ids)
-                                }
-                            )
-                        )
-                    } catch {
-                        await send(.serverRepositoryResponse(.failure(error)))
-                    }
-                }
+            case .alert(.presented(.dismiss)):
+                state.alert = nil
+                return .none
 
             case .alert:
+                return .none
+
+            case .deleteConfirmation(.presented(.confirm)):
+                guard let server = state.pendingDeletion else {
+                    state.deleteConfirmation = nil
+                    return .none
+                }
+                state.pendingDeletion = nil
+                state.deleteConfirmation = nil
+                return deleteServer(server)
+
+            case .deleteConfirmation(.presented(.cancel)):
+                state.pendingDeletion = nil
+                state.deleteConfirmation = nil
+                return .none
+
+            case .deleteConfirmation:
                 return .none
 
             case .onboarding(.presented(.delegate(.didCreate(let server)))):
@@ -145,7 +160,7 @@ struct ServerListReducer {
                 state.alert = AlertState {
                     TextState("Не удалось обновить список серверов")
                 } actions: {
-                    ButtonState(role: .cancel) {
+                    ButtonState(role: .cancel, action: .dismiss) {
                         TextState("Понятно")
                     }
                 } message: {
@@ -158,8 +173,47 @@ struct ServerListReducer {
             }
         }
         .ifLet(\.$alert, action: \.alert)
+        .ifLet(\.$deleteConfirmation, action: \.deleteConfirmation)
         .ifLet(\.$onboarding, action: \.onboarding) {
             OnboardingReducer()
+        }
+    }
+
+    private func deleteServer(_ server: ServerConfig) -> Effect<Action> {
+        .run { send in
+            do {
+                if let key = server.credentialsKey {
+                    try await credentialsRepository.delete(key: key)
+                }
+                httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
+                let identity = TransmissionServerTrustIdentity(
+                    host: server.connection.host,
+                    port: server.connection.port,
+                    isSecure: server.isSecure
+                )
+                try transmissionTrustStoreClient.deleteFingerprint(identity)
+                let updated = try await serverConfigRepository.delete([server.id])
+                await send(.serverRepositoryResponse(.success(updated)))
+            } catch {
+                await send(.serverRepositoryResponse(.failure(error)))
+            }
+        }
+    }
+
+    private func makeDeleteConfirmation(for server: ServerConfig) -> ConfirmationDialogState<
+        DeleteConfirmationAction
+    > {
+        ConfirmationDialogState {
+            TextState("Удалить «\(server.name)»?")
+        } actions: {
+            ButtonState(role: .destructive, action: .confirm) {
+                TextState("Удалить")
+            }
+            ButtonState(role: .cancel, action: .cancel) {
+                TextState("Отмена")
+            }
+        } message: {
+            TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
         }
     }
 }

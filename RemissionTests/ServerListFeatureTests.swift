@@ -4,6 +4,8 @@ import Testing
 
 @testable import Remission
 
+// swiftlint:disable function_body_length
+
 @MainActor
 struct ServerListFeatureTests {
     @Test
@@ -79,7 +81,7 @@ struct ServerListFeatureTests {
     }
 
     @Test
-    func removeDeletesServerViaRepository() async {
+    func deleteRequiresConfirmationBeforeRemoving() async {
         let server: ServerConfig = {
             var value = ServerConfig.previewLocalHTTP
             value.id = UUID()
@@ -117,14 +119,58 @@ struct ServerListFeatureTests {
                 )
             })
 
-        await store.send(.remove(IndexSet(integer: 0))) {
-            $0.servers = []
+        await store.send(.deleteButtonTapped(server.id)) {
+            $0.pendingDeletion = server
+            $0.deleteConfirmation = ConfirmationDialogState {
+                TextState("Удалить «\(server.name)»?")
+            } actions: {
+                ButtonState(role: .destructive, action: .confirm) {
+                    TextState("Удалить")
+                }
+                ButtonState(role: .cancel, action: .cancel) {
+                    TextState("Отмена")
+                }
+            } message: {
+                TextState(
+                    "Сервер и сохранённые креды будут удалены без "
+                        + "возможности восстановления."
+                )
+            }
         }
+
+        await store.send(.deleteConfirmation(.presented(.confirm))) {
+            $0.pendingDeletion = nil
+            $0.deleteConfirmation = nil
+        }
+
         await store.receive(.serverRepositoryResponse(.success([]))) {
             $0.isLoading = false
+            $0.servers = []
         }
         #expect(removedIDs.value == [server.id])
         #expect(deletedCredentialKeys.value == [server.credentialsKey].compactMap { $0 })
+    }
+
+    @Test
+    func editActionNotifiesDelegate() async {
+        let server = ServerConfig.previewSecureSeedbox
+        let store = TestStoreFactory.makeServerListTestStore(
+            initialState: {
+                var state: ServerListReducer.State = .init()
+                state.servers = [server]
+                return state
+            }(),
+            configure: { dependencies in
+                dependencies.transmissionClient = .testValue
+                dependencies.serverConfigRepository = .inMemory(initial: [server])
+                dependencies.onboardingProgressRepository = OnboardingProgressRepository(
+                    hasCompletedOnboarding: { true },
+                    setCompletedOnboarding: { _ in }
+                )
+            })
+
+        await store.send(.editButtonTapped(server.id))
+        await store.receive(.delegate(.serverEditRequested(server)))
     }
 }
 
@@ -142,9 +188,17 @@ private final class LockedValue<Value>: @unchecked Sendable {
         lock.unlock()
     }
 
+    func withValue(_ update: (inout Value) -> Void) {
+        lock.lock()
+        update(&storage)
+        lock.unlock()
+    }
+
     var value: Value {
         lock.lock()
         defer { lock.unlock() }
         return storage
     }
 }
+
+// swiftlint:enable function_body_length
