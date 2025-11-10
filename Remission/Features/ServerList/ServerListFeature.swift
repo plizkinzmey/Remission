@@ -35,6 +35,7 @@ struct ServerListReducer {
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
+    @Dependency(\.credentialsRepository) var credentialsRepository
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -69,20 +70,34 @@ struct ServerListReducer {
                 return .send(.delegate(.serverSelected(server)))
 
             case .remove(let indexSet):
-                let ids: [UUID] = indexSet.compactMap { index in
+                let serversToRemove: [ServerConfig] = indexSet.compactMap { index in
                     guard state.servers.indices.contains(index) else { return nil }
-                    return state.servers[index].id
+                    return state.servers[index]
                 }
                 state.servers.remove(atOffsets: indexSet)
-                guard ids.isEmpty == false else { return .none }
+                guard serversToRemove.isEmpty == false else { return .none }
+
+                let credentialsRepository = credentialsRepository
+                let serverConfigRepository = serverConfigRepository
                 return .run { send in
-                    await send(
-                        .serverRepositoryResponse(
-                            TaskResult {
-                                try await serverConfigRepository.delete(ids)
+                    do {
+                        for server in serversToRemove {
+                            if let key = server.credentialsKey {
+                                try await credentialsRepository.delete(key: key)
                             }
+                        }
+
+                        let ids = serversToRemove.map(\.id)
+                        await send(
+                            .serverRepositoryResponse(
+                                TaskResult {
+                                    try await serverConfigRepository.delete(ids)
+                                }
+                            )
                         )
-                    )
+                    } catch {
+                        await send(.serverRepositoryResponse(.failure(error)))
+                    }
                 }
 
             case .alert:

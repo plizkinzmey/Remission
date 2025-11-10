@@ -1010,6 +1010,52 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
   2. Передавать `TorrentRepository.inMemory(store:)` (или аналог для сессий/настроек) через `withDependencies`.
   3. Для нестандартных сценариев использовать `TorrentRepository.test` и явно контролировать эффекты/ошибки.
 
+## RTC-64: Server Persistence & Recovery
+
+### Storage format и расположение
+- Публичные параметры сервера (host/port/path/security/username) сохраняются в `servers.json` по пути `~/Library/Application Support/Remission/servers.json`.
+- Формат — массив `StoredServerConfigRecord` с ISO8601 датами:
+  ```json
+  [
+    {
+      "id": "UUID",
+      "name": "NAS",
+      "host": "nas.local",
+      "port": 9091,
+      "path": "/transmission/rpc",
+      "isSecure": true,
+      "allowUntrustedCertificates": false,
+      "username": "admin",
+      "createdAt": "2025-11-10T10:00:00Z"
+    }
+  ]
+  ```
+- Пароли хранятся отдельно в Keychain под ключом `transmission-credentials-{host}:{port}:{username}`.
+
+### Bootstrap и восстановление
+- `AppBootstrap.makeInitialState(arguments:storageFileURL:)` синхронно читает snapshot через `ServerConfigStoragePaths.loadSnapshot`, мапит записи через `TransmissionDomainMapper` и заполняет `ServerListReducer.State` до запуска TCA окружения.
+- При удачном восстановлении `serverList.shouldLoadServersFromRepository` переводится в `false`, чтобы избежать повторной загрузки тех же данных.
+- `TransmissionClientBootstrap.makeConfig` использует тот же snapshot + Keychain для построения `TransmissionClientConfig` до показа UI.
+
+### Keychain lifecycle
+- Добавление сервера (онбординг или UI) → `CredentialsRepository.save` вызывается до `serverConfigRepository.upsert`.
+- Удаление сервера (`ServerListReducer.remove`) обязано:
+  1. Собрать `credentialsKey` из удаляемых записей и вызвать `credentialsRepository.delete`.
+  2. Только после успешного удаления пароля вызвать `serverConfigRepository.delete`.
+- Это предотвращает утечки паролей в Keychain после удаления сервера из UI.
+
+### Покрытие тестами
+- `RemissionTests/ServerConfigRepositoryTests.swift`
+  - in-memory CRUD happy-path.
+  - file-based happy-path (upsert → snapshot → delete).
+  - failure-path (ошибка записи в недоступный файл → `ServerConfigRepositoryError.failedToPersist`).
+- `AppBootstrapTests.loadsPersistedServersFromStorage` — создаёт временный `servers.json`, запускает `AppBootstrap.makeInitialState` и проверяет, что серверы подхватываются и `shouldLoadServersFromRepository` обнуляется.
+- `ServerListFeatureTests.removeDeletesServerViaRepository` дополняется Keychain cleanup (через мок `CredentialsRepository`).
+
+### Документация и операции
+- README содержит раздел «Сохранение серверов и резервные копии» с инструкциями, как скопировать `servers.json` и экспортировать соответствующие записи Keychain.
+- При релизах проверяем, что формат `StoredServerConfigRecord` обратнос совместим; изменения должны сопровождаться миграцией (см. `AppStateVersion`).
+
 ## Веха 4: Инфраструктура TCA
 - M4.1 Подготовить общие утилиты (абстракции времени через swift-clocks, контейнер зависимостей через @Dependency, Environment setup).
 - M4.2 Определить типы AppState (@ObservableState), AppAction и приватные Reducers с @Reducer. Документировать версионирование State структур для миграций.

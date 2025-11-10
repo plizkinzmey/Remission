@@ -86,6 +86,7 @@ struct ServerListFeatureTests {
             return value
         }()
         let removedIDs = LockedValue<[UUID]>([])
+        let deletedCredentialKeys = LockedValue<[TransmissionServerCredentialsKey]>([])
 
         let store = TestStoreFactory.makeServerListTestStore(
             initialState: {
@@ -103,6 +104,13 @@ struct ServerListFeatureTests {
                         return []
                     }
                 )
+                dependencies.credentialsRepository = CredentialsRepository.previewMock(
+                    delete: { key in
+                        var collected = deletedCredentialKeys.value
+                        collected.append(key)
+                        deletedCredentialKeys.set(collected)
+                    }
+                )
                 dependencies.onboardingProgressRepository = OnboardingProgressRepository(
                     hasCompletedOnboarding: { true },
                     setCompletedOnboarding: { _ in }
@@ -116,6 +124,7 @@ struct ServerListFeatureTests {
             $0.isLoading = false
         }
         #expect(removedIDs.value == [server.id])
+        #expect(deletedCredentialKeys.value == [server.credentialsKey].compactMap { $0 })
     }
 }
 

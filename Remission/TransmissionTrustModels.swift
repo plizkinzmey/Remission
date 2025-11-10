@@ -48,6 +48,14 @@ public struct TransmissionCertificateInfo: Equatable, Sendable {
     }
 }
 
+/// Делает сравнение сертификатов устойчивым к незначительным расхождениям дат.
+/// Для целей UX и тестов достаточно сравнивать стабильные поля: имя/организацию и отпечаток.
+public func == (lhs: TransmissionCertificateInfo, rhs: TransmissionCertificateInfo) -> Bool {
+    lhs.commonName == rhs.commonName
+        && lhs.organization == rhs.organization
+        && lhs.sha256Fingerprint == rhs.sha256Fingerprint
+}
+
 /// Причина, по которой требуется решение пользователя относительно доверия сертификату.
 public enum TransmissionTrustChallengeReason: Equatable, Sendable {
     /// Сертификат не доверен системой и отпечаток отсутствует в локальном хранилище.

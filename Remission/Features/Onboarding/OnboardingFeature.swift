@@ -262,33 +262,8 @@ struct OnboardingReducer {
 }
 
 extension OnboardingReducer {
-    struct SubmissionContext: Equatable, Sendable {
-        var server: ServerConfig
-        var password: String?
-        var insecureFingerprint: String?
-    }
-
-    @Reducer
-    struct TrustPromptReducer {
-        @ObservableState
-        struct State: Equatable {
-            var prompt: TransmissionTrustPrompt
-        }
-
-        enum Action: Equatable {
-            case trustConfirmed
-            case cancelled
-        }
-
-        var body: some Reducer<State, Action> {
-            Reduce { _, action in
-                switch action {
-                case .trustConfirmed, .cancelled:
-                    return .none
-                }
-            }
-        }
-    }
+    typealias SubmissionContext = OnboardingSubmissionContext
+    typealias TrustPromptReducer = OnboardingTrustPromptReducer
 }
 
 private enum OnboardingCancellationID: Hashable {
@@ -488,5 +463,33 @@ extension OnboardingReducer {
             return "Проверка подключения была отменена. Попробуйте ещё раз."
         }
         return message
+    }
+}
+
+struct OnboardingSubmissionContext: Equatable, Sendable {
+    var server: ServerConfig
+    var password: String?
+    var insecureFingerprint: String?
+}
+
+@Reducer
+struct OnboardingTrustPromptReducer {
+    @ObservableState
+    struct State: Equatable {
+        var prompt: TransmissionTrustPrompt
+    }
+
+    enum Action: Equatable {
+        case trustConfirmed
+        case cancelled
+    }
+
+    var body: some Reducer<State, Action> {
+        Reduce { _, action in
+            switch action {
+            case .trustConfirmed, .cancelled:
+                return .none
+            }
+        }
     }
 }

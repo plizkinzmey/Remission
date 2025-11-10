@@ -44,4 +44,40 @@ struct AppBootstrapTests {
         #expect(migrated.path.isEmpty)
         #expect(migrated.serverList.servers == legacy.serverList.servers)
     }
+
+    @Test
+    func loadsPersistedServersFromStorage() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("app-bootstrap-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fileURL = directory.appendingPathComponent("servers.json", isDirectory: false)
+        let server = ServerConfig.previewSecureSeedbox
+        let record = StoredServerConfigRecord(
+            id: server.id,
+            name: server.name,
+            host: server.connection.host,
+            port: server.connection.port,
+            path: server.connection.path == "/transmission/rpc" ? nil : server.connection.path,
+            isSecure: server.isSecure,
+            allowUntrustedCertificates: {
+                if case .https(let allow) = server.security { return allow }
+                return false
+            }(),
+            username: server.authentication?.username,
+            createdAt: server.createdAt
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode([record])
+        try data.write(to: fileURL, options: .atomic)
+
+        let state = AppBootstrap.makeInitialState(arguments: [], storageFileURL: fileURL)
+
+        #expect(state.serverList.servers.count == 1)
+        #expect(state.serverList.servers.first?.id == server.id)
+        #expect(state.serverList.shouldLoadServersFromRepository == false)
+    }
 }
