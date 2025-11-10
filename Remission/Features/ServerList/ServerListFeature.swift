@@ -49,6 +49,7 @@ struct ServerListReducer {
     @Dependency(\.credentialsRepository) var credentialsRepository
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
+    @Dependency(\.serverConnectionProbe) var serverConnectionProbe
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in

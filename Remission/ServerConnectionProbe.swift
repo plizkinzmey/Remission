@@ -105,6 +105,26 @@ extension ServerConnectionProbe {
             }
         }
     }
+
+    /// Предсказуемый мок для UI-тестов онбординга.
+    /// В UI-тестах сценарий онбординга должен работать без лишних модальных окон,
+    /// поэтому мок игнорирует trustHandler и просто имитирует успешное подключение.
+    static func uiTestOnboardingMock() -> ServerConnectionProbe {
+        ServerConnectionProbe { _, _ in
+            // Имитация минимальной задержки для реалистичности (50ms вместо 100ms)
+            try? await Task.sleep(nanoseconds: 50_000_000)
+
+            return Result(
+                handshake: TransmissionHandshakeResult(
+                    sessionID: "uitest-session-\(UUID().uuidString)",
+                    rpcVersion: 22,
+                    minimumSupportedRpcVersion: 14,
+                    serverVersionDescription: "Transmission 4.0 (UI Tests)",
+                    isCompatible: true
+                )
+            )
+        }
+    }
 }
 
 extension ServerConnectionProbe.ProbeError {
@@ -155,4 +175,20 @@ extension ServerConnectionProbe {
             return Double(components.seconds) + attoseconds
         }
     }
+}
+
+extension TransmissionCertificateInfo {
+    fileprivate static let uiTestSelfSigned: TransmissionCertificateInfo = {
+        let fingerprint: [UInt8] = [
+            0xde, 0xad, 0xbe, 0xef, 0xca, 0xfe, 0xba, 0xbe,
+            0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef
+        ]
+        return TransmissionCertificateInfo(
+            commonName: "UITest NAS",
+            organization: "Remission QA",
+            validFrom: nil,
+            validUntil: nil,
+            sha256Fingerprint: Data(fingerprint)
+        )
+    }()
 }

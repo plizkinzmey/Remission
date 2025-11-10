@@ -15,10 +15,18 @@ struct RemissionApp: App {
     #endif
 
     init() {
-        let store = Store(initialState: AppBootstrap.makeInitialState()) {
+        let arguments = ProcessInfo.processInfo.arguments
+        let scenario = AppBootstrap.parseUITestScenario(arguments: arguments)
+        let initialState = AppBootstrap.makeInitialState(arguments: arguments)
+
+        let store = Store(initialState: initialState) {
             AppReducer()
         } withDependencies: { dependencies in
-            dependencies = AppDependencies.makeLive()
+            if let scenario {
+                dependencies = AppDependencies.makeUITest(scenario: scenario)
+            } else {
+                dependencies = AppDependencies.makeLive()
+            }
         }
 
         _store = StateObject(wrappedValue: store)

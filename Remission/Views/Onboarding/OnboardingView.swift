@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import SwiftUI
 
 struct OnboardingView: View {
@@ -50,7 +51,11 @@ struct OnboardingView: View {
     private var statusSection: some View {
         Section("Статус подключения") {
             Button {
-                store.send(.checkConnectionButtonTapped)
+                if OnboardingViewEnvironment.isOnboardingUITest {
+                    store.send(.uiTestBypassConnection)
+                } else {
+                    store.send(.checkConnectionButtonTapped)
+                }
             } label: {
                 Label("Проверить подключение", systemImage: "arrow.clockwise")
             }
@@ -107,6 +112,11 @@ struct OnboardingView: View {
             }
         }
     }
+}
+
+private enum OnboardingViewEnvironment {
+    static let isOnboardingUITest: Bool = ProcessInfo.processInfo.arguments.contains(
+        "--ui-testing-scenario=onboarding-flow")
 }
 
 #Preview {

@@ -31,6 +31,13 @@ Store(initialState: state) {
 
 Чтобы добавлять моковые реализации для других зависимостей, редактируйте `configure` и переопределяйте нужные ключи (например, `credentialsRepository`, `appClock`, `repository`).
 
+## Запуск тестов
+
+- `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` — полный набор unit + UI тестов, включая сценарий онбординга.
+- `xcodebuild test -scheme Remission -sdk macosx` — smoke для macOS-таргетов.
+
+UI-тест «Добавление сервера» использует аргумент `--ui-testing-scenario=onboarding-flow`, который приложение читает при старте. Этот аргумент включает in-memory реализации `ServerConfigRepository`, `CredentialsRepository`, `ServerConnectionProbe` и `OnboardingProgressRepository`, поэтому тест изолирован от Keychain и файловой системы. Для теста списка серверов по-прежнему доступен аргумент `--ui-testing-fixture=server-list-sample`. Скриншоты предупреждения HTTP и диалога доверия автоматически прикладываются к прогону (`onboarding_http_warning`, `onboarding_trust_prompt`).
+
 ## Справочные материалы
 
 - [Context7 Guide](../devdoc/CONTEXT7_GUIDE.md) — Как исследовать документацию новых библиотек

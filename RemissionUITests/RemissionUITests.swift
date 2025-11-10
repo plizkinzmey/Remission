@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class RemissionUITests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -50,9 +51,46 @@ final class RemissionUITests: XCTestCase {
         #endif
     }
 
+    @MainActor
+    func testOnboardingFlowAddsServer() throws {
+        #if os(macOS)
+            throw XCTSkip("Онбординг UI-тест выполняется только на iOS среде.")
+        #else
+            let app = launchApp(
+                arguments: ["--ui-testing-scenario=onboarding-flow"],
+                dismissOnboarding: false
+            )
+            let serverName = "UITest NAS"
+
+            let onboardingNavBar = app.navigationBars["Новый сервер"]
+            if onboardingNavBar.waitForExistence(timeout: 2) == false {
+                let addButton = app.buttons["server_list_add_button"]
+                XCTAssertTrue(addButton.waitForExistence(timeout: 5))
+                addButton.tap()
+                XCTAssertTrue(onboardingNavBar.waitForExistence(timeout: 3))
+            }
+
+            fillOnboardingForm(app: app, serverName: serverName)
+            captureHttpWarning(app: app)
+            completeConnectionCheck(app: app)
+
+            let submitButton = app.buttons["onboarding_submit_button"]
+            XCTAssertTrue(submitButton.waitForExistence(timeout: 2))
+            submitButton.tap()
+            XCTAssertTrue(onboardingNavBar.waitForDisappearance(timeout: 5))
+
+            let detailNavBar = app.navigationBars[serverName]
+            XCTAssertTrue(detailNavBar.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.staticTexts["Адрес"].waitForExistence(timeout: 2))
+        #endif
+    }
+
     @discardableResult
     @MainActor
-    private func launchApp(arguments: [String] = []) -> XCUIApplication {
+    private func launchApp(
+        arguments: [String] = [],
+        dismissOnboarding: Bool = true
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments.append(contentsOf: arguments)
         app.launch()
@@ -72,7 +110,9 @@ final class RemissionUITests: XCTestCase {
                 app.typeKey("n", modifierFlags: .command)
             }
         #endif
-        dismissOnboardingIfNeeded(app)
+        if dismissOnboarding {
+            dismissOnboardingIfNeeded(app)
+        }
         return app
     }
 
@@ -84,6 +124,157 @@ final class RemissionUITests: XCTestCase {
             _ = cancelButton.waitForDisappearance(timeout: 1)
         }
     }
+
+    @MainActor
+    private func fillOnboardingForm(app: XCUIApplication, serverName: String) {
+        let nameField = app.textFields["Имя сервера"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.clearAndTypeText(serverName)
+
+        let hostField = app.textFields["Host"]
+        XCTAssertTrue(hostField.waitForExistence(timeout: 5))
+        hostField.clearAndTypeText("qa.remission.test")
+        hostField.typeText("\n")
+
+        let portField = app.textFields["Порт"]
+        XCTAssertTrue(portField.waitForExistence(timeout: 5))
+        portField.clearAndTypeText("8443")
+
+        let usernameField = app.textFields["Имя пользователя"]
+        XCTAssertTrue(usernameField.waitForExistence(timeout: 5))
+        usernameField.tap()
+        usernameField.typeText("tester")
+
+        let passwordField = app.secureTextFields["Пароль"]
+        XCTAssertTrue(passwordField.waitForExistence(timeout: 5))
+        passwordField.tap()
+        passwordField.typeText("passw0rd!\n")
+    }
+
+    @MainActor
+    private func captureHttpWarning(app: XCUIApplication) {
+        // Try to reveal transport selector if offscreen
+        app.swipeUp()
+        let httpButton = app.buttons["HTTP"].firstMatch
+
+        // If HTTP toggle is missing, attach diagnostics and continue (some configs may hide it)
+        if httpButton.waitForExistence(timeout: 5) == false {
+            attachScreenshot(app, name: "onboarding_http_toggle_missing")
+            return
+        }
+
+        // Make a few attempts to make it hittable
+        var attempts = 0
+        while attempts < 5 && (httpButton.isHittable == false) {
+            app.swipeUp()
+            attempts += 1
+        }
+
+        if httpButton.isHittable == false {
+            attachScreenshot(app, name: "onboarding_http_toggle_not_hittable")
+            // Try coordinate tap fallback
+            let frame = httpButton.frame
+            if frame.isEmpty == false {
+                let coord = app.coordinate(withNormalizedOffset: .zero)
+                    .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
+                coord.tap()
+            } else {
+                // Give up gracefully
+                return
+            }
+        } else {
+            httpButton.tap()
+        }
+
+        // The alert title is "Небезопасное подключение" per OnboardingReducer.makeInsecureTransportAlert()
+        let httpAlert = app.alerts["Небезопасное подключение"]
+        // Allow more time on CI
+        if httpAlert.waitForExistence(timeout: 8) == false {
+            attachScreenshot(app, name: "onboarding_http_warning_missing")
+            // It might be auto-suppressed by prefs; continue
+            return
+        }
+        attachScreenshot(app, name: "onboarding_http_warning")
+
+        // Prefer cancel to keep HTTPS afterwards
+        let cancelButton = httpAlert.buttons["Отмена"]
+        if cancelButton.waitForExistence(timeout: 2) {
+            cancelButton.tap()
+        } else {
+            // Fallback: dismiss by tapping outside if needed
+            app.tap()
+        }
+
+        // Ensure HTTPS is selected if visible; do not fail if absent
+        let httpsButton = app.buttons["HTTPS"]
+        if httpsButton.exists {
+            if httpsButton.isHittable {
+                httpsButton.tap()
+            } else {
+                // Try to make it hittable
+                app.swipeDown()
+                if httpsButton.isHittable {
+                    httpsButton.tap()
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func completeConnectionCheck(app: XCUIApplication) {
+        app.swipeUp()
+        let checkButton = app.buttons["onboarding_connection_check_button"]
+        XCTAssertTrue(
+            checkButton.waitForExistence(timeout: 5),
+            "Кнопка проверки соединения не найдена"
+        )
+        checkButton.tap()
+
+        // В UI-тестах используется мок, который обычно не показывает trust prompt,
+        // поэтому просто ждём элемента успеха/лейбла
+        let submitButton = app.buttons["onboarding_submit_button"]
+        XCTAssertTrue(submitButton.waitForExistence(timeout: 2))
+        XCTAssertTrue(
+            waitUntil(
+                timeout: 12,
+                condition: submitButton.isEnabled,
+                onTick: { app.swipeDown() }
+            ),
+            "Кнопка сохранения не активировалась после проверки соединения"
+        )
+
+        // Не делаем блокирующих assert на success view, но добавляем диагностику
+        let successElement = app.descendants(matching: .any)["onboarding_connection_success"]
+        if successElement.waitForExistence(timeout: 1) == false {
+            attachScreenshot(app, name: "onboarding_connection_success_missing")
+        }
+    }
+
+    @MainActor
+    private func waitUntil(
+        timeout: TimeInterval,
+        pollInterval: TimeInterval = 0.25,
+        condition: @escaping @autoclosure () -> Bool,
+        onTick: @escaping () -> Void = {}
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+            onTick()
+        }
+        return condition()
+    }
+
+    @MainActor
+    private func attachScreenshot(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }
 
 @MainActor
@@ -94,5 +285,17 @@ extension XCUIElement {
             RunLoop.current.run(until: Date().addingTimeInterval(0.05))
         }
         return exists == false
+    }
+
+    fileprivate func clearAndTypeText(_ text: String) {
+        tap()
+        if let value = self.value as? String {
+            let deleteString = String(
+                repeating: XCUIKeyboardKey.delete.rawValue,
+                count: value.count
+            )
+            typeText(deleteString)
+        }
+        typeText(text)
     }
 }

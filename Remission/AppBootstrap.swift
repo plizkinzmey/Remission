@@ -5,10 +5,17 @@ import Foundation
 enum AppBootstrap {
     /// Аргумент запуска, активирующий загрузку специальной фикстуры.
     private static let fixtureArgumentPrefix: String = "--ui-testing-fixture="
+    /// Аргумент, включающий специализированный сценарий UI-тестов (например, онбординг).
+    private static let scenarioArgumentPrefix: String = "--ui-testing-scenario="
 
     /// Поддерживаемые UI фикстуры.
     enum UITestingFixture: String {
         case serverListSample = "server-list-sample"
+    }
+
+    /// Набор предустановленных сценариев для UI-тестов.
+    enum UITestingScenario: String {
+        case onboardingFlow = "onboarding-flow"
     }
 
     /// Возвращает стартовое состояние приложения, учитывая аргументы процесса.
@@ -40,11 +47,9 @@ enum AppBootstrap {
             existingState: existingState,
             storageFileURL: storageFileURL
         )
-        guard let fixture = parseFixture(from: arguments) else {
-            return state
+        if let fixture = parseFixture(from: arguments) {
+            applyFixture(fixture, to: &state)
         }
-
-        applyFixture(fixture, to: &state)
         return state
     }
 
@@ -54,6 +59,18 @@ enum AppBootstrap {
         }
         let value = String(raw.dropFirst(fixtureArgumentPrefix.count))
         return UITestingFixture(rawValue: value)
+    }
+
+    static func parseUITestScenario(arguments: [String]) -> UITestingScenario? {
+        parseScenario(from: arguments)
+    }
+
+    private static func parseScenario(from arguments: [String]) -> UITestingScenario? {
+        guard let raw = arguments.first(where: { $0.hasPrefix(scenarioArgumentPrefix) }) else {
+            return nil
+        }
+        let value = String(raw.dropFirst(scenarioArgumentPrefix.count))
+        return UITestingScenario(rawValue: value)
     }
 
     private static func migrate(

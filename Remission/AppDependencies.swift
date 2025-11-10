@@ -27,6 +27,23 @@ enum AppDependencies {
         dependencies.credentialsRepository = .previewMock()
         return dependencies
     }
+
+    /// Набор зависимостей для UI-тестов с управляемыми сценариями.
+    static func makeUITest(scenario: AppBootstrap.UITestingScenario) -> DependencyValues {
+        var dependencies = DependencyValues.appTest()
+        dependencies.transmissionClient = .placeholder
+        dependencies.credentialsRepository = CredentialsRepository.uiTestInMemory()
+        dependencies.serverConfigRepository = .inMemory(initial: [])
+        dependencies.onboardingProgressRepository = .inMemory()
+        dependencies.httpWarningPreferencesStore = .inMemory()
+
+        switch scenario {
+        case .onboardingFlow:
+            dependencies.serverConnectionProbe = .uiTestOnboardingMock()
+        }
+
+        return dependencies
+    }
 }
 
 extension DependencyValues {
@@ -91,6 +108,40 @@ extension TransmissionServerCredentials {
             key: .preview,
             password: "preview-password"
         )
+    }
+}
+
+extension CredentialsRepository {
+    /// In-memory реализация для UI-тестов, исключающая обращения к Keychain.
+    static func uiTestInMemory() -> CredentialsRepository {
+        let store = UITestCredentialsStore()
+        return CredentialsRepository(
+            save: { credentials in
+                await store.save(credentials)
+            },
+            load: { key in
+                await store.load(key)
+            },
+            delete: { key in
+                await store.delete(key)
+            }
+        )
+    }
+}
+
+private actor UITestCredentialsStore {
+    private var storage: [TransmissionServerCredentialsKey: TransmissionServerCredentials] = [:]
+
+    func save(_ credentials: TransmissionServerCredentials) {
+        storage[credentials.key] = credentials
+    }
+
+    func load(_ key: TransmissionServerCredentialsKey) -> TransmissionServerCredentials? {
+        storage[key]
+    }
+
+    func delete(_ key: TransmissionServerCredentialsKey) {
+        storage[key] = nil
     }
 }
 

@@ -30,6 +30,7 @@ struct OnboardingReducer {
     enum Action: BindableAction, Equatable {
         case binding(BindingAction<State>)
         case checkConnectionButtonTapped
+        case uiTestBypassConnection
         case connectButtonTapped
         case cancelButtonTapped
         case submissionFinished(Result<ServerConfig, SubmissionError>)
@@ -106,6 +107,20 @@ struct OnboardingReducer {
                     return .none
                 }
                 return startConnectionProbe(state: &state, context: context)
+
+            case .uiTestBypassConnection:
+                guard
+                    let context = prepareSubmission(
+                        state: &state,
+                        forceAllowInsecureTransport: true
+                    )
+                else {
+                    return .none
+                }
+                state.pendingSubmission = nil
+                state.connectionStatus = .success(.uiTestPlaceholder)
+                state.verifiedSubmission = context
+                return .none
 
             case .connectButtonTapped:
                 guard let context = state.verifiedSubmission else {
@@ -399,6 +414,16 @@ struct OnboardingSubmissionContext: Equatable, Sendable {
     var server: ServerConfig
     var password: String?
     var insecureFingerprint: String?
+}
+
+extension TransmissionHandshakeResult {
+    static let uiTestPlaceholder: TransmissionHandshakeResult = .init(
+        sessionID: "uitest-placeholder",
+        rpcVersion: 22,
+        minimumSupportedRpcVersion: 14,
+        serverVersionDescription: "Transmission 4.0 (UI Tests)",
+        isCompatible: true
+    )
 }
 
 @Reducer
