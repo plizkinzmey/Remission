@@ -15,12 +15,14 @@ enum AppBootstrap {
     static func makeInitialState(
         processInfo: ProcessInfo = .processInfo,
         targetVersion: AppStateVersion = .latest,
-        existingState: AppReducer.State? = nil
+        existingState: AppReducer.State? = nil,
+        storageFileURL: URL = ServerConfigStoragePaths.defaultURL()
     ) -> AppReducer.State {
         makeInitialState(
             arguments: processInfo.arguments,
             targetVersion: targetVersion,
-            existingState: existingState
+            existingState: existingState,
+            storageFileURL: storageFileURL
         )
     }
 
@@ -28,10 +30,16 @@ enum AppBootstrap {
     static func makeInitialState(
         arguments: [String],
         targetVersion: AppStateVersion = .latest,
-        existingState: AppReducer.State? = nil
+        existingState: AppReducer.State? = nil,
+        storageFileURL: URL = ServerConfigStoragePaths.defaultURL()
     ) -> AppReducer.State {
         var state = existingState ?? AppReducer.State()
         migrate(&state, to: targetVersion)
+        preloadPersistedServersIfNeeded(
+            &state,
+            existingState: existingState,
+            storageFileURL: storageFileURL
+        )
         guard let fixture = parseFixture(from: arguments) else {
             return state
         }
@@ -62,6 +70,25 @@ enum AppBootstrap {
         case .v1:
             break
         }
+    }
+
+    private static func preloadPersistedServersIfNeeded(
+        _ state: inout AppReducer.State,
+        existingState: AppReducer.State?,
+        storageFileURL: URL
+    ) {
+        guard existingState == nil else { return }
+        let records = ServerConfigStoragePaths.loadSnapshot(fileURL: storageFileURL)
+        guard records.isEmpty == false else { return }
+
+        let mapper = TransmissionDomainMapper()
+        let servers: [ServerConfig] = records.compactMap { record in
+            try? mapper.mapServerConfig(record: record, credentials: nil)
+        }
+
+        guard servers.isEmpty == false else { return }
+        state.serverList.servers = IdentifiedArrayOf(uniqueElements: servers)
+        state.serverList.shouldLoadServersFromRepository = false
     }
 
     private static func applyFixture(

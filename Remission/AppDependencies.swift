@@ -16,6 +16,7 @@ enum AppDependencies {
     static func makePreview() -> DependencyValues {
         var dependencies = DependencyValues.appPreview()
         dependencies.transmissionClient = .placeholder
+        dependencies.credentialsRepository = .previewMock()
         return dependencies
     }
 
@@ -23,6 +24,7 @@ enum AppDependencies {
     static func makeTestDefaults() -> DependencyValues {
         var dependencies = DependencyValues.appTest()
         dependencies.transmissionClient = .placeholder
+        dependencies.credentialsRepository = .previewMock()
         return dependencies
     }
 }

@@ -153,6 +153,27 @@ xcrun xccov view --report --json build/TestResults/Remission.xcresult > build/Te
 - **Async/await** для асинхронного программирования
 - **Keychain** для безопасного хранения учётных данных
 
+## Сохранение серверов и резервные копии
+
+- Список серверов хранится в файле `~/Library/Application Support/Remission/servers.json` (для iOS Simulator путь будет внутри контейнера приложения, но структура совпадает).
+- Каждый сервер сериализуется в `StoredServerConfigRecord` (id, host, port, путь, настройки HTTPS, имя пользователя и дата создания).
+- Пароли **никогда** не попадают в `servers.json` — они лежат в Keychain под ключом `transmission-credentials-{host}-{port}-{username}`.
+
+### Как сделать резервную копию
+1. Закройте приложение Remission (чтобы файл не перезаписывался).
+2. Скопируйте `servers.json` в безопасное место, например:
+   ```bash
+   mkdir -p ~/Backups/remission
+   cp ~/Library/Application\ Support/Remission/servers.json \
+      ~/Backups/remission/servers-$(date +%Y%m%d).json
+   ```
+3. Экспортируйте связанные записи Keychain через стандартное приложение «Связка ключей» или команду `security export` (фильтр по `transmission-credentials`), чтобы сохранить пароли.
+
+### Восстановление
+1. Скопируйте нужную версию `servers.json` обратно в `~/Library/Application Support/Remission/`.
+2. Импортируйте соответствующие элементы Keychain (если они отсутствуют).
+3. Запустите приложение — серверы будут подхвачены автоматически при старте.
+
 ### Структура проекта
 
 ```

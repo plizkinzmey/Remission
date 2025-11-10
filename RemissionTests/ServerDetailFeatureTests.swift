@@ -29,20 +29,7 @@ struct ServerDetailFeatureTests {
         }
 
         await store.send(.resetTrustButtonTapped) {
-            $0.alert = AlertState {
-                TextState("Сбросить доверие?")
-            } actions: {
-                ButtonState(role: .destructive, action: .confirmReset) {
-                    TextState("Сбросить")
-                }
-                ButtonState(role: .cancel, action: .cancelReset) {
-                    TextState("Отмена")
-                }
-            } message: {
-                TextState(
-                    "Удалим сохранённые отпечатки сертификатов и решения \"Не предупреждать\"."
-                )
-            }
+            $0.alert = .resetTrustConfirmation
         }
 
         await store.send(.alert(.presented(.confirmReset))) {
@@ -50,15 +37,7 @@ struct ServerDetailFeatureTests {
         }
 
         await store.receive(.resetTrustSucceeded) {
-            $0.alert = AlertState {
-                TextState("Доверие сброшено")
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Готово")
-                }
-            } message: {
-                TextState("При следующем подключении мы снова спросим подтверждение.")
-            }
+            $0.alert = .resetTrustCompletion
         }
 
         #expect(fingerprint.value == server.httpWarningFingerprint)
@@ -90,5 +69,34 @@ private final class LockedValue<Value>: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage
+    }
+}
+
+extension AlertState where Action == ServerDetailReducer.AlertAction {
+    fileprivate static var resetTrustConfirmation: Self {
+        AlertState {
+            TextState("Сбросить доверие?")
+        } actions: {
+            ButtonState(role: .destructive, action: .confirmReset) {
+                TextState("Сбросить")
+            }
+            ButtonState(role: .cancel, action: .cancelReset) {
+                TextState("Отмена")
+            }
+        } message: {
+            TextState("Удалим сохранённые отпечатки сертификатов и решения \"Не предупреждать\".")
+        }
+    }
+
+    fileprivate static var resetTrustCompletion: Self {
+        AlertState {
+            TextState("Доверие сброшено")
+        } actions: {
+            ButtonState(role: .cancel, action: .dismiss) {
+                TextState("Готово")
+            }
+        } message: {
+            TextState("При следующем подключении мы снова спросим подтверждение.")
+        }
     }
 }
