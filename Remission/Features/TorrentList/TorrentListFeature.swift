@@ -217,8 +217,9 @@ struct TorrentListReducer {
                 return fetchTorrents(state: &state, trigger: .initial)
 
             case .userPreferencesResponse(.failure(let error)):
+                let effect = fetchTorrents(state: &state, trigger: .initial)
                 state.alert = .preferencesError(message: describe(error))
-                return fetchTorrents(state: &state, trigger: .initial)
+                return effect
 
             case .torrentsResponse(.success(let torrents)):
                 state.phase = .loaded
@@ -232,6 +233,9 @@ struct TorrentListReducer {
                 return schedulePolling(after: state.pollingInterval)
 
             case .torrentsResponse(.failure(let error)):
+                if error is CancellationError {
+                    return .none
+                }
                 let message = describe(error)
                 state.isRefreshing = false
                 state.failedAttempts += 1

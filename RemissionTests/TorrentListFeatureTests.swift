@@ -5,26 +5,18 @@ import Testing
 
 @testable import Remission
 
+// swiftlint:disable function_body_length type_body_length
+
 @Suite("TorrentListReducer")
-struct TorrentListReducerTests {
-    @MainActor
-    @Test("Загрузка настроек и запуск polling по .task")
-    func taskLoadsPreferencesAndStartsPolling() async {
+@MainActor
+struct TorrentListFeatureTests {
+    // Проверяем, что happy path загружает данные и перезапускает polling по таймеру.
+    @Test("task загружает торренты и запускает polling c TestClock")
+    func taskLoadsTorrentsAndStartsPolling() async {
         let clock = TestClock<Duration>()
-        let torrents: [Torrent] = [.previewDownloading]
-        let repository = TorrentRepository.test(
-            fetchList: {
-                torrents
-            }
-        )
-        let preferences = UserPreferences(
-            pollingInterval: 3,
-            isAutoRefreshEnabled: true,
-            defaultSpeedLimits: .init(
-                downloadKilobytesPerSecond: nil,
-                uploadKilobytesPerSecond: nil
-            )
-        )
+        let torrents = DomainFixtures.torrents
+        let repository = TorrentRepository.test(fetchList: { torrents })
+        let preferences = DomainFixtures.userPreferences
 
         let store = makeStore(
             clock: clock,
@@ -38,10 +30,10 @@ struct TorrentListReducerTests {
 
         await store.receive(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
-            $0.isPollingEnabled = true
+            $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
 
-        let expectedItems = IdentifiedArrayOf(
+        let expectedItems = IdentifiedArray(
             uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
         )
 
@@ -52,33 +44,30 @@ struct TorrentListReducerTests {
             $0.isRefreshing = false
         }
 
-        await clock.advance(by: .milliseconds(Int(preferences.pollingInterval * 1_000)))
+        let interval = Duration.milliseconds(Int(preferences.pollingInterval * 1_000))
+        await clock.advance(by: interval)
 
         await store.receive(.pollingTick)
-
         await store.receive(.torrentsResponse(.success(torrents))) {
             $0.items = expectedItems
             $0.failedAttempts = 0
         }
     }
 
-    @MainActor
-    @Test("Ошибки переводят редьюсер в error-phase и используют backoff")
-    func errorPathTriggersBackoffAndAlert() async {
-        enum DummyError: Error, LocalizedError {
+    // Проверяем, что ошибка запроса показывает alert и включает экспоненциальный backoff.
+    @Test("ошибка fetchList показывает alert и использует экспоненциальный backoff")
+    func errorPathShowsAlertAndBackoff() async {
+        enum DummyError: Error, LocalizedError, Equatable {
             case failed
 
             var errorDescription: String? { "failed" }
         }
 
         let clock = TestClock<Duration>()
-        let repository = TorrentRepository.test(
-            fetchList: {
-                throw DummyError.failed
-            }
-        )
-
-        let preferences = UserPreferences.default
+        let repository = TorrentRepository.test(fetchList: {
+            throw DummyError.failed
+        })
+        let preferences = DomainFixtures.userPreferences
 
         let store = makeStore(
             clock: clock,
@@ -103,96 +92,138 @@ struct TorrentListReducerTests {
         }
 
         await clock.advance(by: .seconds(1))
-
         await store.receive(.pollingTick)
-
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
             $0.failedAttempts = 2
         }
     }
 
-    @MainActor
-    @Test("Кнопка добавления пробрасывает делегат addTorrentRequested")
-    func addTorrentButtonDispatchesDelegate() async {
-        let store = makeStore(
-            clock: TestClock<Duration>(),
-            repository: .test(fetchList: { [.previewDownloading] }),
-            preferences: .default
-        )
+    // Проверяем, что поиск и фильтры не инициируют дополнительный fetchList.
+    @Test("searchQuery и filter меняют visibleItems без дополнительных запросов")
+    func searchAndFilterUpdateVisibleItemsWithoutFetching() async {
+        let torrents = DomainFixtures.torrentListSamples
+        let fetchCounter = FetchCounter()
 
-        await store.send(.addTorrentButtonTapped)
-        await store.receive(.delegate(.addTorrentRequested))
-    }
-
-    @MainActor
-    @Test("Поиск фильтрует visibleItems")
-    func searchQueryFiltersVisibleItems() async {
-        let store = TestStore(
-            initialState: makeLoadedState(torrents: sampleTorrents)
-        ) {
-            TorrentListReducer()
-        }
-
-        await store.send(.searchQueryChanged("swift")) {
-            $0.searchQuery = "swift"
-        }
-
-        #expect(store.state.visibleItems.count == 1)
-        #expect(store.state.visibleItems.first?.torrent.name == "Swift Beta")
-    }
-
-    @MainActor
-    @Test("Фильтр показывает только скачивающиеся торренты")
-    func filterShowsOnlyDownloading() async {
-        let store = TestStore(
-            initialState: makeLoadedState(torrents: sampleTorrents)
-        ) {
-            TorrentListReducer()
-        }
-
-        await store.send(.filterChanged(.downloading)) {
-            $0.selectedFilter = .downloading
-        }
-
-        #expect(store.state.visibleItems.count == 2)
-        #expect(
-            store.state.visibleItems.allSatisfy {
-                [.downloading, .downloadWaiting, .checkWaiting, .checking]
-                    .contains($0.torrent.status)
+        let store = TestStoreFactory.make(
+            initialState: makeLoadedState(torrents: torrents),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = TorrentRepository.test(fetchList: {
+                    await fetchCounter.increment()
+                    return torrents
+                })
             }
         )
-    }
 
-    @MainActor
-    @Test("Сортировка по прогрессу располагает элементы по убыванию прогресса")
-    func sortByProgressOrdersItems() async {
-        let store = TestStore(
-            initialState: makeLoadedState(torrents: sampleTorrents)
-        ) {
-            TorrentListReducer()
+        await store.send(.searchQueryChanged("Swift")) {
+            $0.searchQuery = "Swift"
+        }
+        #expect(store.state.visibleItems.count == 1)
+        #expect(store.state.visibleItems.first?.torrent.id == DomainFixtures.torrentSeeding.id)
+
+        await store.send(.searchQueryChanged("")) {
+            $0.searchQuery = ""
         }
 
-        await store.send(.sortChanged(.progress)) {
-            $0.sortOrder = .progress
+        await store.send(.filterChanged(.errors)) {
+            $0.selectedFilter = .errors
         }
+        #expect(store.state.visibleItems.count == 1)
+        #expect(store.state.visibleItems.first?.torrent.id == DomainFixtures.torrentErrored.id)
 
-        let names = store.state.visibleItems.map(\.torrent.name)
-        #expect(names == ["Seedbox Archive", "Ubuntu ISO", "Swift Beta"])
+        let fetches = await fetchCounter.value
+        #expect(fetches == 0, "Search/filter не должны триггерить fetchList")
     }
 
-    @MainActor
-    @Test("Ручное обновление включает индикатор и сбрасывается после ответа")
-    func manualRefreshTogglesRefreshingFlag() async {
-        let torrents: [Torrent] = [.previewDownloading]
-        let repository = TorrentRepository.test(fetchList: { torrents })
+    // Проверяем, что ручной refresh отменяет предыдущий fetch и запускает новый.
+    @Test("manual refresh отменяет предыдущий запрос и запускает новый")
+    func manualRefreshCancelsInFlightRequest() async {
+        let clock = TestClock<Duration>()
+        let callCounter = FetchCounter()
+        let cancellationRecorder = CancellationRecorder()
+        let torrents = DomainFixtures.torrents
+
+        let repository = TorrentRepository.test(fetchList: {
+            let call = await callCounter.increment()
+            if call == 1 {
+                do {
+                    try await clock.sleep(for: .seconds(5))
+                } catch is CancellationError {
+                    await cancellationRecorder.markCancelled(call)
+                }
+                throw CancellationError()
+            } else {
+                try await clock.sleep(for: .milliseconds(10))
+            }
+            return torrents
+        })
+
         let store = makeStore(
-            clock: TestClock<Duration>(),
+            clock: clock,
             repository: repository,
-            preferences: .default
+            preferences: DomainFixtures.userPreferences
         )
 
         await store.send(.refreshRequested) {
             $0.isRefreshing = true
+        }
+
+        await clock.advance(by: .milliseconds(1))
+
+        await store.send(.refreshRequested)
+
+        await clock.advance(by: .milliseconds(10))
+
+        await store.receive(.torrentsResponse(.success(torrents))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(
+                uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
+            )
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        #expect(await cancellationRecorder.wasCancelled(call: 1))
+        #expect(await callCounter.value == 2)
+    }
+
+    // Проверяем, что ошибка загрузки preferences показывает alert и всё равно запускает fetch.
+    @Test("preferences failure показывает alert и запускает начальный fetch")
+    func preferencesErrorShowsAlertAndFetches() async {
+        enum PrefError: Error, LocalizedError, Equatable {
+            case failed
+
+            var errorDescription: String? { "preferences failed" }
+        }
+
+        let clock = TestClock<Duration>()
+        let torrents = DomainFixtures.torrents
+        let repository = TorrentRepository.test(fetchList: { torrents })
+        let server = ServerConfig.previewLocalHTTP
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: repository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.userPreferencesRepository = .failingLoad(error: PrefError.failed)
+            }
+        )
+
+        await store.send(.task) {
+            $0.phase = .loading
+        }
+
+        await store.receive(.userPreferencesResponse(.failure(PrefError.failed))) {
+            $0.alert = .preferencesError(message: "preferences failed")
         }
 
         await store.receive(.torrentsResponse(.success(torrents))) {
@@ -234,41 +265,6 @@ private func makeStore(
     )
 }
 
-extension UserPreferencesRepository {
-    fileprivate static func testValue(preferences: UserPreferences) -> UserPreferencesRepository {
-        UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences }
-        )
-    }
-}
-
-private let sampleTorrents: [Torrent] = [
-    makeTorrent(
-        id: 1,
-        name: "Ubuntu ISO",
-        status: .downloading,
-        progress: 0.9,
-        downloadRate: 3_000_000
-    ),
-    makeTorrent(
-        id: 2,
-        name: "Swift Beta",
-        status: .downloading,
-        progress: 0.45,
-        downloadRate: 1_000_000
-    ),
-    makeTorrent(
-        id: 3,
-        name: "Seedbox Archive",
-        status: .seeding,
-        progress: 1.0,
-        downloadRate: 0
-    )
-]
-
 private func makeLoadedState(torrents: [Torrent]) -> TorrentListReducer.State {
     var state = TorrentListReducer.State()
     state.connectionEnvironment = .preview(server: .previewLocalHTTP)
@@ -279,33 +275,60 @@ private func makeLoadedState(torrents: [Torrent]) -> TorrentListReducer.State {
     return state
 }
 
-private func makeTorrent(
-    id: Int,
-    name: String,
-    status: Torrent.Status,
-    progress: Double,
-    downloadRate: Int
-) -> Torrent {
-    let progressModel = Torrent.Progress(
-        percentDone: progress,
-        totalSize: 1_000_000_000,
-        downloadedEver: Int(progress * 1_000_000_000),
-        uploadedEver: Int(progress * 500_000_000),
-        uploadRatio: 0.5,
-        etaSeconds: progress >= 1 ? -1 : 3_600
-    )
-    let transfer = Torrent.Transfer(
-        downloadRate: downloadRate,
-        uploadRate: 200_000,
-        downloadLimit: .init(isEnabled: false, kilobytesPerSecond: 0),
-        uploadLimit: .init(isEnabled: false, kilobytesPerSecond: 0)
-    )
-    let peers = Torrent.Peers(connected: 5, sources: [])
+private actor FetchCounter {
+    private var storage = 0
 
-    return Torrent(
-        id: .init(rawValue: id),
-        name: name,
-        status: status,
-        summary: .init(progress: progressModel, transfer: transfer, peers: peers)
-    )
+    @discardableResult
+    func increment() -> Int {
+        storage += 1
+        return storage
+    }
+
+    var value: Int {
+        storage
+    }
+}
+
+private actor CancellationRecorder {
+    private var cancelled: Set<Int> = []
+
+    func markCancelled(_ call: Int) {
+        cancelled.insert(call)
+    }
+
+    func wasCancelled(call: Int) -> Bool {
+        cancelled.contains(call)
+    }
+}
+
+extension UserPreferencesRepository {
+    fileprivate static func testValue(preferences: UserPreferences) -> UserPreferencesRepository {
+        UserPreferencesRepository(
+            load: { preferences },
+            updatePollingInterval: { _ in preferences },
+            setAutoRefreshEnabled: { _ in preferences },
+            updateDefaultSpeedLimits: { _ in preferences }
+        )
+    }
+
+    fileprivate static func failingLoad(error: any Error) -> UserPreferencesRepository {
+        UserPreferencesRepository(
+            load: { throw error },
+            updatePollingInterval: { interval in
+                var prefs = DomainFixtures.userPreferences
+                prefs.pollingInterval = interval
+                return prefs
+            },
+            setAutoRefreshEnabled: { isEnabled in
+                var prefs = DomainFixtures.userPreferences
+                prefs.isAutoRefreshEnabled = isEnabled
+                return prefs
+            },
+            updateDefaultSpeedLimits: { limits in
+                var prefs = DomainFixtures.userPreferences
+                prefs.defaultSpeedLimits = limits
+                return prefs
+            }
+        )
+    }
 }

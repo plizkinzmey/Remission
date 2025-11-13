@@ -35,6 +35,9 @@ Store(initialState: state) {
 
 - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` — полный набор unit + UI тестов, включая сценарий онбординга.
 - `xcodebuild test -scheme Remission -sdk macosx` — smoke для macOS-таргетов.
+- Для точечной проверки редьюсера списка торрентов используйте
+  `xcodebuild test -scheme Remission -destination 'platform=macOS,arch=arm64' -only-testing:RemissionTests/TorrentListFeatureTests`.
+  Файл `TorrentListFeatureTests.swift` покрывает happy/error path, поиск/фильтры без сетевых запросов и ручной refresh с `TestClock`.
 
 UI-тест «Добавление сервера» использует аргумент `--ui-testing-scenario=onboarding-flow`, который приложение читает при старте. Этот аргумент включает in-memory реализации `ServerConfigRepository`, `CredentialsRepository`, `ServerConnectionProbe` и `OnboardingProgressRepository`, поэтому тест изолирован от Keychain и файловой системы. Для теста списка серверов по-прежнему доступен аргумент `--ui-testing-fixture=server-list-sample`. Скриншоты предупреждения HTTP и диалога доверия автоматически прикладываются к прогону (`onboarding_http_warning`, `onboarding_trust_prompt`).
 

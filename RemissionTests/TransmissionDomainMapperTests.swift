@@ -69,7 +69,7 @@ struct TransmissionDomainMapperTests {
         #expect(torrent.details == nil)
     }
 
-    @Test("mapTorrentList корректно обрабатывает пустой массив")
+    @Test("mapTorrentList допускает пустой массив (RTC-68)")
     func mapTorrentListEmpty() throws {
         let response: TransmissionResponse = TransmissionResponse(
             result: "success",

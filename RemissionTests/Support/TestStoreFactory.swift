@@ -13,6 +13,11 @@ enum TestStoreFactory {
     }
 
     /// Универсальный билд `TestStore` для любого редьюсера проекта.
+    ///
+    /// `configure` поддерживает оба подхода TCA 1.x:
+    /// 1. Точечные переопределения `dependencies.someClient = ...`
+    /// 2. Полная подмена `dependencies = .testDependenciesWithOverrides { ... }`
+    /// поэтому можно выбирать удобный стиль без дополнительных обёрток.
     static func make<R: Reducer>(
         initialState: @autoclosure () -> R.State,
         reducer: @escaping () -> R,

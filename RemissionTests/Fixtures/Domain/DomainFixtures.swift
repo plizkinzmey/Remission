@@ -8,18 +8,52 @@ enum DomainFixtures {
     static let torrentDownloading: Torrent = {
         var torrent = Torrent.previewDownloading
         torrent.id = .init(rawValue: 10)
+        torrent.name = "Ubuntu ISO"
         return torrent
     }()
 
     static let torrentCompleted: Torrent = {
         var torrent = Torrent.previewCompleted
         torrent.id = .init(rawValue: 11)
+        torrent.name = "Seedbox Archive"
+        return torrent
+    }()
+
+    static let torrentSeeding: Torrent = {
+        var torrent = Torrent.previewCompleted
+        torrent.id = .init(rawValue: 12)
+        torrent.status = .seeding
+        torrent.name = "Swift Beta Seed"
+        return torrent
+    }()
+
+    static let torrentWaitingVerification: Torrent = {
+        var torrent = Torrent.previewDownloading
+        torrent.id = .init(rawValue: 13)
+        torrent.status = .checkWaiting
+        torrent.name = "Verification Pending"
+        torrent.summary.progress.percentDone = 0.4
+        return torrent
+    }()
+
+    static let torrentErrored: Torrent = {
+        var torrent = Torrent.previewDownloading
+        torrent.id = .init(rawValue: 14)
+        torrent.status = .isolated
+        torrent.name = "Tracker Failure"
         return torrent
     }()
 
     static let torrents: [Torrent] = [
         torrentDownloading,
         torrentCompleted
+    ]
+
+    static let torrentListSamples: [Torrent] = [
+        torrentDownloading,
+        torrentWaitingVerification,
+        torrentSeeding,
+        torrentErrored
     ]
 
     static func makeTorrentStore(
