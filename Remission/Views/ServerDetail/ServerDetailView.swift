@@ -7,7 +7,9 @@ struct ServerDetailView: View {
     var body: some View {
         List {
             connectionSection
-            torrentsSection
+            if store.connectionEnvironment != nil {
+                torrentsSection
+            }
             serverSection
             securitySection
             trustSection
@@ -23,9 +25,6 @@ struct ServerDetailView: View {
             store: store.scope(state: \.$editor, action: \.editor)
         ) { editorStore in
             ServerEditorView(store: editorStore)
-        }
-        .refreshable {
-            await store.send(.torrentList(.refreshRequested)).finish()
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

@@ -269,6 +269,10 @@ struct ServerDetailReducer {
             case .torrentList(.delegate(.openTorrent(let id))):
                 return .send(.delegate(.torrentSelected(id)))
 
+            case .torrentList(.delegate(.addTorrentRequested)):
+                state.alert = makeAddTorrentPlaceholderAlert()
+                return .none
+
             case .torrentList:
                 return .none
 
@@ -384,6 +388,18 @@ struct ServerDetailReducer {
             }
         } message: {
             TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
+        }
+    }
+
+    private func makeAddTorrentPlaceholderAlert() -> AlertState<AlertAction> {
+        AlertState {
+            TextState("Добавление торрента")
+        } actions: {
+            ButtonState(role: .cancel, action: .dismiss) {
+                TextState("Готово")
+            }
+        } message: {
+            TextState("Экран добавления пока не реализован. Сообщим, как только появится.")
         }
     }
 }

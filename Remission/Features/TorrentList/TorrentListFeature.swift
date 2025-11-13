@@ -59,6 +59,7 @@ struct TorrentListReducer {
         case filterChanged(Filter)
         case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
+        case addTorrentButtonTapped
         case pollingTick
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentsResponse(TaskResult<[Torrent]>)
@@ -72,6 +73,7 @@ struct TorrentListReducer {
 
     enum Delegate: Equatable {
         case openTorrent(Torrent.Identifier)
+        case addTorrentRequested
     }
 
     enum Filter: String, Equatable, CaseIterable, Hashable, Sendable {
@@ -202,6 +204,9 @@ struct TorrentListReducer {
 
             case .rowTapped(let id):
                 return .send(.delegate(.openTorrent(id)))
+
+            case .addTorrentButtonTapped:
+                return .send(.delegate(.addTorrentRequested))
 
             case .pollingTick:
                 return fetchTorrents(state: &state, trigger: .polling)

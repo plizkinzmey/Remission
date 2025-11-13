@@ -104,6 +104,34 @@ struct ServerDetailFeatureTests {
     }
 
     @Test
+    func addTorrentRequestShowsPlaceholderAlert() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: {
+                var state = ServerDetailReducer.State(server: server)
+                state.torrentList.connectionEnvironment = .preview(server: server)
+                return state
+            }()
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.torrentList(.delegate(.addTorrentRequested))) {
+            $0.alert = AlertState {
+                TextState("Добавление торрента")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Готово")
+                }
+            } message: {
+                TextState("Экран добавления пока не реализован. Сообщим, как только появится.")
+            }
+        }
+    }
+
+    @Test
     func serverUpdateReinitializesConnection() async {
         var initialServer = ServerConfig.previewLocalHTTP
         initialServer.name = "NAS"

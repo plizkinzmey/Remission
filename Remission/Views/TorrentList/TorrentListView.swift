@@ -6,17 +6,50 @@ struct TorrentListView: View {
 
     var body: some View {
         Section("Торренты") {
-            if store.connectionEnvironment == nil {
-                disconnectedView
-            } else {
-                controls
-                content
-                if store.isPollingEnabled == false {
-                    Text("Автообновление отключено в настройках.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                }
+            content
+            if store.connectionEnvironment != nil,
+                store.isPollingEnabled == false
+            {
+                Text("Автообновление отключено в настройках.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+            }
+        }
+        .searchable(
+            text: searchBinding,
+            placement: .automatic,
+            prompt: Text("Поиск по названию или ETA")
+        ) {
+            ForEach(searchSuggestions, id: \.self) { suggestion in
+                Text(suggestion)
+                    .searchCompletion(suggestion)
+            }
+        }
+        #if os(iOS)
+            .refreshable {
+                await store.send(.refreshRequested).finish()
+            }
+        #endif
+        .toolbar {
+            if store.connectionEnvironment != nil {
+                #if os(macOS)
+                    ToolbarItemGroup {
+                        filterPicker
+                        sortPicker
+                    }
+                    ToolbarItem {
+                        refreshButton
+                    }
+                #else
+                    ToolbarItemGroup(placement: .secondaryAction) {
+                        filterMenu
+                        sortMenu
+                    }
+                    ToolbarItem(placement: .secondaryAction) {
+                        refreshButton
+                    }
+                #endif
             }
         }
         .alert($store.scope(state: \.alert, action: \.alert))
@@ -24,32 +57,58 @@ struct TorrentListView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch store.phase {
-        case .idle:
-            EmptyView()
+        if store.connectionEnvironment == nil {
+            disconnectedView
+        } else {
+            switch store.phase {
+            case .idle:
+                EmptyView()
 
-        case .loading:
-            if store.isRefreshing == false {
-                loadingView
+            case .loading:
+                if store.isRefreshing == false {
+                    loadingView
+                }
+
+            case .loaded:
+                if store.visibleItems.isEmpty {
+                    emptyStateView
+                } else {
+                    torrentRows
+                }
+
+            case .error(let message):
+                errorView(message: message)
             }
-
-        case .loaded:
-            if store.visibleItems.isEmpty {
-                emptyStateView
-            } else {
-                torrentRows
-            }
-
-        case .error(let message):
-            errorView(message: message)
         }
+    }
+
+    private var searchBinding: Binding<String> {
+        Binding(
+            get: { store.searchQuery },
+            set: { store.send(.searchQueryChanged($0)) }
+        )
+    }
+
+    private var searchSuggestions: [String] {
+        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Array(
+            store.items
+                .map(\.torrent.name)
+                .filter { name in
+                    guard query.isEmpty == false else { return true }
+                    return name.localizedCaseInsensitiveContains(query) == false
+                }
+                .prefix(5)
+        )
     }
 
     private var loadingView: some View {
         HStack(spacing: 12) {
             ProgressView()
             Text("Загружаем торренты…")
+                .font(.callout)
         }
+        .accessibilityIdentifier("torrent_list_loading")
     }
 
     private var disconnectedView: some View {
@@ -64,18 +123,29 @@ struct TorrentListView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Торренты отсутствуют")
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Нет активных торрентов")
                 .font(.subheadline)
                 .bold()
-            Text("Добавьте .torrent или magnet, либо измените фильтры выше.")
+            Text("Импортируйте .torrent/magnet или измените фильтры выше.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button("Обновить") {
-                store.send(.refreshRequested)
+            HStack(spacing: 12) {
+                Button("Обновить") {
+                    store.send(.refreshRequested)
+                }
+                .buttonStyle(.bordered)
+
+                Button("Добавить торрент") {
+                    store.send(.addTorrentButtonTapped)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("torrent_list_empty_add_button")
             }
-            .buttonStyle(.bordered)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 8)
+        .accessibilityIdentifier("torrent_list_empty_state")
     }
 
     private func errorView(message: String) -> some View {
@@ -89,54 +159,36 @@ struct TorrentListView: View {
                 store.send(.refreshRequested)
             }
             .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("torrent_list_error_retry")
         }
+        .padding(.vertical, 8)
     }
 
-    private var controls: some View {
-        Group {
-            #if os(macOS)
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    searchField
-                        .frame(maxWidth: 260)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Фильтр")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        filterPicker
-                            .frame(maxWidth: 240)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Сортировка")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        sortPicker
-                            .frame(maxWidth: 180)
-                    }
+    private var torrentRows: some View {
+        LazyVStack(spacing: 12) {
+            ForEach(store.visibleItems) { item in
+                Button {
+                    store.send(.rowTapped(item.id))
+                } label: {
+                    TorrentRowView(item: item)
                 }
-            #else
-                VStack(spacing: 12) {
-                    searchField
-                    filterPicker
-                    sortPicker
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            #endif
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+            }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 
-    private var searchField: some View {
-        TextField(
-            "Поиск по названию или ETA",
-            text: Binding(
-                get: { store.searchQuery },
-                set: { store.send(.searchQueryChanged($0)) }
-            )
-        )
-        .textFieldStyle(.roundedBorder)
-        .accessibilityIdentifier("torrentlist_search_field")
+    private func rowBackground(for item: TorrentListItem.State) -> some View {
+        let color: Color =
+            item.torrent.status == .isolated
+            ? Color.red.opacity(0.08)
+            : Color.clear
+
+        return RoundedRectangle(cornerRadius: 8)
+            .fill(color)
     }
 
     private var filterPicker: some View {
@@ -151,8 +203,9 @@ struct TorrentListView: View {
                 Text(filter.title).tag(filter)
             }
         }
-        .pickerStyle(.segmented)
         .accessibilityIdentifier("torrentlist_filter_picker")
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 240)
     }
 
     private var sortPicker: some View {
@@ -167,19 +220,59 @@ struct TorrentListView: View {
                 Text(sort.title).tag(sort)
             }
         }
-        .pickerStyle(.menu)
         .accessibilityIdentifier("torrentlist_sort_picker")
+        .pickerStyle(.menu)
+        .frame(maxWidth: 180)
     }
 
-    private var torrentRows: some View {
-        ForEach(store.visibleItems) { item in
-            Button {
-                store.send(.rowTapped(item.id))
-            } label: {
-                TorrentRowView(item: item)
+    private var filterMenu: some View {
+        Menu {
+            Picker(
+                "Фильтр",
+                selection: Binding(
+                    get: { store.selectedFilter },
+                    set: { store.send(.filterChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.Filter.allCases, id: \.self) { filter in
+                    Text(filter.title).tag(filter)
+                }
             }
-            .buttonStyle(.plain)
+        } label: {
+            Label(
+                "Фильтр: \(store.selectedFilter.title)",
+                systemImage: "line.3.horizontal.decrease.circle"
+            )
         }
+        .accessibilityIdentifier("torrentlist_filter_menu")
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Picker(
+                "Сортировка",
+                selection: Binding(
+                    get: { store.sortOrder },
+                    set: { store.send(.sortChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
+                    Text(sort.title).tag(sort)
+                }
+            }
+        } label: {
+            Label("Сортировка: \(store.sortOrder.title)", systemImage: "arrow.up.arrow.down")
+        }
+        .accessibilityIdentifier("torrentlist_sort_menu")
+    }
+
+    private var refreshButton: some View {
+        Button {
+            store.send(.refreshRequested)
+        } label: {
+            Label("Обновить список", systemImage: "arrow.clockwise")
+        }
+        .accessibilityIdentifier("torrentlist_refresh_button")
     }
 }
 
@@ -188,50 +281,74 @@ private struct TorrentRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(item.torrent.name)
                     .font(.headline)
                     .lineLimit(2)
-                Spacer()
+                Spacer(minLength: 8)
                 statusBadge
             }
 
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
 
-            HStack {
-                Text(item.metrics.progressText)
+            HStack(spacing: 12) {
+                Label(item.metrics.progressText, systemImage: "circle.dashed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+
                 if let etaText = item.metrics.etaText {
-                    Text(etaText)
+                    Label(etaText, systemImage: "clock")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text(item.metrics.speedSummary)
+
+                Spacer(minLength: 8)
+
+                Label(item.metrics.speedSummary, systemImage: "speedometer")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            HStack(spacing: 12) {
+                Label(
+                    peersText,
+                    systemImage: "person.2"
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Text("ID \(item.id.rawValue)")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+    }
+
+    private var peersText: String {
+        "\(item.torrent.summary.peers.connected) peers"
     }
 
     private var statusBadge: some View {
         Text(statusTitle)
             .font(.caption)
             .padding(.horizontal, 8)
-            .padding(.vertical, 2)
+            .padding(.vertical, 3)
             .background(
                 Capsule()
                     .fill(statusColor.opacity(0.15))
             )
             .foregroundStyle(statusColor)
+            .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
     private var statusTitle: String {
         switch item.torrent.status {
-        case .stopped: return "Остановлен"
+        case .stopped: return "Пауза"
         case .checkWaiting: return "Ожидает проверку"
         case .checking: return "Проверка"
         case .downloadWaiting: return "В очереди"
@@ -256,4 +373,50 @@ private struct TorrentRowView: View {
     private var progressColor: Color {
         statusColor
     }
+}
+
+#Preview("Torrent list") {
+    NavigationStack {
+        List {
+            TorrentListView(
+                store: Store(
+                    initialState: {
+                        var state = TorrentListReducer.State()
+                        state.connectionEnvironment = ServerConnectionEnvironment.preview(
+                            server: .previewLocalHTTP
+                        )
+                        state.phase = .loaded
+                        state.items = IdentifiedArray(
+                            uniqueElements: [
+                                TorrentListItem.State(torrent: .previewDownloading),
+                                {
+                                    var torrent = Torrent.previewDownloading
+                                    torrent.id = .init(rawValue: 2)
+                                    torrent.name = "Swift 6 GM Seed"
+                                    torrent.status = .seeding
+                                    torrent.summary = .init(
+                                        progress: .init(
+                                            percentDone: 1,
+                                            totalSize: 8_000_000_000,
+                                            downloadedEver: 8_000_000_000,
+                                            uploadedEver: 4_200_000_000,
+                                            uploadRatio: 2.0,
+                                            etaSeconds: -1
+                                        ),
+                                        transfer: torrent.summary.transfer,
+                                        peers: .init(connected: 3, sources: [])
+                                    )
+                                    return TorrentListItem.State(torrent: torrent)
+                                }()
+                            ]
+                        )
+                        return state
+                    }()
+                ) {
+                    TorrentListReducer()
+                }
+            )
+        }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
 }
