@@ -4,7 +4,7 @@ import Testing
 
 @testable import Remission
 
-// swiftlint:disable function_body_length
+// swiftlint:disable function_body_length type_body_length
 
 @MainActor
 struct ServerDetailFeatureTests {
@@ -50,6 +50,15 @@ struct ServerDetailFeatureTests {
             $0.connectionState.phase = .ready(
                 .init(fingerprint: environment.fingerprint, handshake: handshake)
             )
+        }
+        await store.receive(.torrentList(.connectionAvailable(environment))) {
+            $0.torrentList.connectionEnvironment = environment
+            $0.torrentList.isLoading = true
+            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+            $0.torrentList.isLoading = false
+            $0.torrentList.torrents = []
         }
     }
 
@@ -145,6 +154,15 @@ struct ServerDetailFeatureTests {
                 .init(fingerprint: firstEnvironment.fingerprint, handshake: firstHandshake)
             )
         }
+        await store.receive(.torrentList(.connectionAvailable(firstEnvironment))) {
+            $0.torrentList.connectionEnvironment = firstEnvironment
+            $0.torrentList.isLoading = true
+            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+            $0.torrentList.isLoading = false
+            $0.torrentList.torrents = []
+        }
 
         #expect(invocationCount.value == 1)
 
@@ -178,6 +196,15 @@ struct ServerDetailFeatureTests {
             $0.connectionState.phase = .ready(
                 .init(fingerprint: secondEnvironment.fingerprint, handshake: secondHandshake)
             )
+        }
+        await store.receive(.torrentList(.connectionAvailable(secondEnvironment))) {
+            $0.torrentList.connectionEnvironment = secondEnvironment
+            $0.torrentList.isLoading = true
+            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+            $0.torrentList.isLoading = false
+            $0.torrentList.torrents = []
         }
 
         #expect(invocationCount.value == 2)
@@ -477,23 +504,4 @@ extension AlertState where Action == ServerDetailReducer.AlertAction {
     }
 }
 
-extension ServerConnectionEnvironment {
-    static func testEnvironment(
-        server: ServerConfig,
-        handshake: TransmissionHandshakeResult
-    ) -> ServerConnectionEnvironment {
-        var client = TransmissionClientDependency.placeholder
-        client.performHandshake = { handshake }
-        return ServerConnectionEnvironment(
-            serverID: server.id,
-            fingerprint: server.connectionFingerprint,
-            dependencies: .init(
-                transmissionClient: client,
-                torrentRepository: .placeholder,
-                sessionRepository: .placeholder
-            )
-        )
-    }
-}
-
-// swiftlint:enable function_body_length
+// swiftlint:enable function_body_length type_body_length

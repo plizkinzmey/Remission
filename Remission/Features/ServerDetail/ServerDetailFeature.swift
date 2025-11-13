@@ -1,6 +1,8 @@
 import ComposableArchitecture
 import Foundation
 
+// swiftlint:disable nesting type_body_length
+
 @Reducer
 struct ServerDetailReducer {
     @ObservableState
@@ -11,6 +13,7 @@ struct ServerDetailReducer {
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
+        var torrentList: TorrentListReducer.State = .init()
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
@@ -31,6 +34,7 @@ struct ServerDetailReducer {
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
         case connectionResponse(TaskResult<ConnectionResponse>)
+        case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
@@ -47,6 +51,7 @@ struct ServerDetailReducer {
     enum Delegate: Equatable {
         case serverUpdated(ServerConfig)
         case serverDeleted(UUID)
+        case torrentSelected(Torrent.Identifier)
     }
 
     struct DeletionError: Equatable, Error {
@@ -220,13 +225,16 @@ struct ServerDetailReducer {
                         handshake: response.handshake
                     )
                 )
-                return .none
+                return .send(.torrentList(.connectionAvailable(response.environment)))
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil
                 let message = describe(error)
                 state.connectionState.phase = .failed(.init(message: message))
                 state.alert = AlertState.connectionFailure(message: message)
+                if state.torrentList.connectionEnvironment != nil {
+                    return .send(.torrentList(.connectionLost))
+                }
                 return .none
 
             case .editor(.presented(.delegate(.didUpdate(let server)))):
@@ -249,6 +257,12 @@ struct ServerDetailReducer {
             case .editor:
                 return .none
 
+            case .torrentList(.delegate(.torrentSelected(let id))):
+                return .send(.delegate(.torrentSelected(id)))
+
+            case .torrentList:
+                return .none
+
             case .delegate:
                 return .none
             }
@@ -256,6 +270,9 @@ struct ServerDetailReducer {
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$editor, action: \.editor) {
             ServerEditorReducer()
+        }
+        Scope(state: \.torrentList, action: \.torrentList) {
+            TorrentListReducer()
         }
     }
 
@@ -273,6 +290,7 @@ struct ServerDetailReducer {
         {
             return .none
         }
+
         return startConnection(state: &state, force: false)
     }
 
@@ -285,6 +303,7 @@ struct ServerDetailReducer {
         {
             return .none
         }
+
         state.connectionEnvironment = nil
         state.connectionState.phase = .connecting
         return connect(server: state.server)
@@ -368,6 +387,7 @@ private func describe(_ error: Error) -> String {
     {
         return description
     }
+
     let nsError = error as NSError
     let description = nsError.localizedDescription
     return description.isEmpty ? String(describing: error) : description
@@ -386,3 +406,5 @@ extension AlertState where Action == ServerDetailReducer.AlertAction {
         }
     }
 }
+
+// swiftlint:enable nesting type_body_length

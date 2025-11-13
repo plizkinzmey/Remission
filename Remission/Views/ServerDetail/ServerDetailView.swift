@@ -7,6 +7,7 @@ struct ServerDetailView: View {
     var body: some View {
         List {
             connectionSection
+            torrentsSection
             serverSection
             securitySection
             trustSection
@@ -66,6 +67,7 @@ struct ServerDetailView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+
                 Text("RPC v\(ready.handshake.rpcVersion)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -152,6 +154,12 @@ struct ServerDetailView: View {
                 Label("Удалить сервер", systemImage: "trash")
             }
         }
+    }
+
+    private var torrentsSection: some View {
+        TorrentListView(
+            store: store.scope(state: \.torrentList, action: \.torrentList)
+        )
     }
 }
 

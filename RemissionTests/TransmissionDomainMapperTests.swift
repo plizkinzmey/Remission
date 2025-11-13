@@ -69,6 +69,33 @@ struct TransmissionDomainMapperTests {
         #expect(torrent.details == nil)
     }
 
+    @Test("mapTorrentList корректно обрабатывает пустой массив")
+    func mapTorrentListEmpty() throws {
+        let response: TransmissionResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object(["torrents": .array([])])
+        )
+
+        let torrents: [Torrent] = try mapper.mapTorrentList(from: response)
+
+        #expect(torrents.isEmpty)
+    }
+
+    @Test("mapTorrentList выбрасывает rpcError при ответе result != success")
+    func mapTorrentListRpcError() {
+        let response: TransmissionResponse = TransmissionResponse(result: "error: unauthorized")
+
+        #expect(
+            throws: DomainMappingError.rpcError(
+                result: "error: unauthorized",
+                context: "torrent-get"
+            ),
+            performing: {
+                _ = try mapper.mapTorrentList(from: response)
+            }
+        )
+    }
+
     @Test("mapSessionState объединяет данные session-get и session-stats")
     func mapSessionStateSuccess() throws {
         let sessionResponse: TransmissionResponse = Self.makeSessionGetResponse()

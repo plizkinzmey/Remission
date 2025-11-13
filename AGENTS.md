@@ -43,12 +43,48 @@
 
 ## Project Layout & Toolchain
 - `Remission/` - SwiftUI entry point (`RemissionApp.swift`), основные экраны, ресурсы (`Assets.xcassets`).
+  - **Модульная структура:**
+    - `Remission/Features/<FeatureName>/` — TCA Reducers для feature-модулей
+      - `Onboarding/` — онбординг и первичная настройка
+      - `ServerList/` — список серверов
+      - `ServerDetail/` — детали сервера и управление подключением
+      - `ServerEditor/` — создание/редактирование конфигурации сервера
+    - `Remission/Views/<FeatureName>/` — SwiftUI View компоненты
+      - `App/` — корневой AppView
+      - `Onboarding/`, `ServerList/`, `ServerDetail/`, `ServerEditor/` — Views для соответствующих features
+      - `TorrentDetail/` — компоненты детального просмотра торрента
+      - `Shared/` — переиспользуемые UI компоненты
+    - `Remission/Domain/` — доменные модели и маппинг из RPC
+      - `ServerConfig.swift`, `Torrent.swift`, `SessionState.swift`, `UserPreferences.swift`
+      - `TransmissionDomainMapper*.swift` — маппинг RPC ответов в доменные модели
+    - `Remission/DependencyClients/` — определения dependency clients (протоколы и placeholder реализации)
+      - `AppClockDependency.swift`, `TransmissionClientDependency.swift`, `KeychainCredentialsDependency.swift`, и т.д.
+    - `Remission/DependencyClientLive/` — live-реализации зависимостей для production
+      - `TransmissionClientDependency+Live.swift`, `KeychainCredentialsDependency+Live.swift`
+    - `Remission/Shared/` — общие утилиты и типы
+      - `ServerConnectionFormState.swift` — переиспользуемые состояния и модели
+    - **Корневые файлы** — репозитории, сервисы, фабрики окружений:
+      - Repositories: `TorrentRepository.swift`, `SessionRepository.swift`, `CredentialsRepository.swift`, `ServerConfigRepository.swift`, `UserPreferencesRepository.swift`, `OnboardingProgressRepository.swift`
+      - Network: `TransmissionClient.swift`, `TransmissionClientConfig.swift`, `TransmissionClientProtocol.swift`
+      - Trust & Security: `TransmissionTrustStore.swift`, `TransmissionTrustPromptCenter.swift`, `KeychainCredentialsStore.swift`
+      - Factories: `ServerConnectionEnvironment.swift` — фабрика per-server окружений
+      - Bootstrap: `AppBootstrap.swift`, `AppDependencies.swift`, `AppFeature.swift`
   - **Размещение зависимостей и фабрик:**
     - **Простые DependencyClient**: размещайте в `Remission/DependencyClients/` (например, `UserPreferencesClient.swift`, `ClockClient.swift`)
-    - **Сложные фабрики**: размещайте в корне `Remission/` как отдельные файлы (например, `ServerConnectionEnvironmentFactory.swift` для RTC-67). Фабрика должна быть видна всем reducers
+    - **Сложные фабрики**: размещайте в корне `Remission/` как отдельные файлы (например, `ServerConnectionEnvironment.swift` для RTC-67). Фабрика должна быть видна всем reducers
     - **Правило**: Если factory создаёт per-context сервисы (per-server, per-workspace), размещайте в `Remission/` и регистрируйте в `AppDependencies.swift`
     - **Environment структуры**: размещайте рядом с фабриками (например, `ServerConnectionEnvironment.swift` рядом с фабрикой)
 - `RemissionTests/` - Тесты на Swift Testing фреймворке; именуйте файлы в паре с production-модулями.
+  - `RemissionTests/Support/` — вспомогательные утилиты для тестов
+    - `DependencyOverrides.swift` — шаблоны переопределения зависимостей для TestStore
+    - `TestStoreFactory.swift` — фабрики TestStore с преднастроенными зависимостями
+  - `RemissionTests/Fixtures/` — тестовые данные и фикстуры
+    - `Transmission/` — JSON-фикстуры ответов Transmission RPC
+    - `Domain/` — фикстуры доменных моделей
+    - `TransmissionFixture.swift` — загрузчик фикстур
+    - `README-fixtures.md` — документация по использованию фикстур
+  - Тесты фич: `OnboardingFeatureTests.swift`, `ServerListFeatureTests.swift`, `ServerDetailFeatureTests.swift`, и т.д.
+  - Тесты инфраструктуры: `TransmissionClient*Tests.swift`, `TransmissionDomainMapperTests.swift`
 - `RemissionUITests/` - XCUITest сценарии и smoke-проверки.
 - `devdoc/PRD.md` - PRD, обязательное обновление при функциональных изменениях.
 
@@ -62,7 +98,31 @@
   - `open Remission.xcodeproj` - запуск Xcode (схема `Remission`).
   - `xcodebuild -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15' build` - CLI-сборка.
   - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` - unit + UI тесты; запускайте перед любым PR.
-- Воспользуйтесь SwiftUI previews (`ContentView.swift`) для быстрой итерации UI.
+
+**VS Code Tasks (рекомендуется для AI-агентов):**
+Проект настроен с готовыми tasks в `.vscode/tasks.json`. Используйте их через Command Palette (`Cmd+Shift+P` → "Tasks: Run Task"):
+
+- `SwiftLint (run)` — запуск линтера с JSON-репортером
+- `Run Unit Tests` — запуск unit-тестов для macOS (быстрее, чем симулятор)
+- `Xcode Build (Debug)` — сборка Debug конфигурации (зависит от SwiftLint и тестов)
+- `Run App` — открыть собранное приложение
+- `Archive (Release)` — создание Release-архива с автоинкрементом версии
+- `Export App (IPA)` — экспорт IPA из архива
+- `Archive & Export (Personal Team)` — полный цикл: increment version → archive → export
+
+Для запуска task из командной строки или в агентских сценариях:
+```bash
+# Запуск линтера
+swiftlint lint --quiet --reporter json
+
+# Запуск тестов на macOS (быстрее)
+xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64' | xcbeautify
+
+# Полная сборка с проверками
+xcodebuild -scheme Remission -configuration Debug build | xcbeautify
+```
+
+- Воспользуйтесь SwiftUI previews (см. примеры в `Remission/Views/App/AppView.swift`) для быстрой итерации UI.
 - Форматирование и стиль: `swift-format` (обязательно в pre-commit/CI) и `swiftlint`. Следуйте Swift 6 API Design Guidelines (4 пробела, PascalCase типов, camelCase членов, noun-based протоколы).
 - Извлекайте переиспользуемые SwiftUI компоненты в отдельные файлы после ~150 строк; ассеты именуем в snake_case (`icon_start`).
 

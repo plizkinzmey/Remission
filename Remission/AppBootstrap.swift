@@ -16,6 +16,7 @@ enum AppBootstrap {
     /// Набор предустановленных сценариев для UI-тестов.
     enum UITestingScenario: String {
         case onboardingFlow = "onboarding-flow"
+        case serverListSample = "server-list-sample"
     }
 
     /// Возвращает стартовое состояние приложения, учитывая аргументы процесса.
@@ -27,6 +28,7 @@ enum AppBootstrap {
     ) -> AppReducer.State {
         makeInitialState(
             arguments: processInfo.arguments,
+            environment: processInfo.environment,
             targetVersion: targetVersion,
             existingState: existingState,
             storageFileURL: storageFileURL
@@ -36,6 +38,7 @@ enum AppBootstrap {
     /// Возвращает стартовое состояние приложения, учитывая переданные аргументы.
     static func makeInitialState(
         arguments: [String],
+        environment: [String: String] = ProcessInfo.processInfo.environment,
         targetVersion: AppStateVersion = .latest,
         existingState: AppReducer.State? = nil,
         storageFileURL: URL = ServerConfigStoragePaths.defaultURL()
@@ -47,10 +50,23 @@ enum AppBootstrap {
             existingState: existingState,
             storageFileURL: storageFileURL
         )
-        if let fixture = parseFixture(from: arguments) {
+        if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
             applyFixture(fixture, to: &state)
         }
         return state
+    }
+
+    static func parseUITestFixture(
+        arguments: [String],
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> UITestingFixture? {
+        if let fixture = parseFixture(from: arguments) {
+            return fixture
+        }
+        if let envValue = environment["UI_TESTING_FIXTURE"] {
+            return UITestingFixture(rawValue: envValue)
+        }
+        return nil
     }
 
     private static func parseFixture(from arguments: [String]) -> UITestingFixture? {
@@ -114,27 +130,31 @@ enum AppBootstrap {
     ) {
         switch fixture {
         case .serverListSample:
-            state.serverList.servers = IdentifiedArrayOf(uniqueElements: [
-                ServerConfig(
-                    id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
-                    name: "UI Test NAS",
-                    connection: .init(host: "nas.local", port: 9091),
-                    security: .http,
-                    authentication: .init(username: "admin")
-                ),
-                ServerConfig(
-                    id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
-                    name: "UI Test Seedbox",
-                    connection: .init(
-                        host: "seedbox.example.com",
-                        port: 443,
-                        path: "/transmission/rpc"
-                    ),
-                    security: .https(allowUntrustedCertificates: false),
-                    authentication: .init(username: "seeduser")
-                )
-            ])
+            state.serverList.servers = IdentifiedArrayOf(uniqueElements: serverListSampleServers())
             state.serverList.shouldLoadServersFromRepository = false
         }
+    }
+
+    static func serverListSampleServers() -> [ServerConfig] {
+        [
+            ServerConfig(
+                id: UUID(uuidString: "11111111-1111-1111-1111-111111111111") ?? UUID(),
+                name: "UI Test NAS",
+                connection: .init(host: "nas.local", port: 9091),
+                security: .http,
+                authentication: .init(username: "admin")
+            ),
+            ServerConfig(
+                id: UUID(uuidString: "22222222-2222-2222-2222-222222222222") ?? UUID(),
+                name: "UI Test Seedbox",
+                connection: .init(
+                    host: "seedbox.example.com",
+                    port: 443,
+                    path: "/transmission/rpc"
+                ),
+                security: .https(allowUntrustedCertificates: false),
+                authentication: .init(username: "seeduser")
+            )
+        ]
     }
 }

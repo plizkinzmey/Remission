@@ -21,7 +21,7 @@ extension TransmissionDomainMapper {
         }
 
         guard items.isEmpty == false else {
-            throw DomainMappingError.emptyCollection(context: "torrent-get")
+            return []
         }
 
         return try items.enumerated().map { index, item in

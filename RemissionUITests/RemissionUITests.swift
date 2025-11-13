@@ -24,10 +24,15 @@ final class RemissionUITests: XCTestCase {
 
     @MainActor
     func testSelectingServerOpensDetailScreen() {
-        let app = launchApp(arguments: ["--ui-testing-fixture=server-list-sample"])
+        let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ]
+        )
         let identifier = "server_list_item_11111111-1111-1111-1111-111111111111"
         #if os(macOS)
-            var serverCell = app.buttons[identifier]
+            var serverCell = app.buttons.matching(identifier: identifier).firstMatch
             if serverCell.exists == false {
                 serverCell = app.staticTexts["UI Test NAS"]
             }
@@ -92,22 +97,34 @@ final class RemissionUITests: XCTestCase {
         dismissOnboarding: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments.append(contentsOf: arguments)
+        app.terminate()
+        var launchArgs = app.launchArguments
+        launchArgs.append(contentsOf: arguments)
+        app.launchArguments = launchArgs
+        if let fixtureArg = arguments.first(where: { $0.hasPrefix("--ui-testing-fixture=") }) {
+            let value = String(fixtureArg.dropFirst("--ui-testing-fixture=".count))
+            app.launchEnvironment["UI_TESTING_FIXTURE"] = value
+        }
         app.launch()
+        addTeardownBlock {
+            app.terminate()
+        }
         #if os(macOS)
             app.activate()
             _ = app.wait(for: .runningForeground, timeout: 5)
-            let fileMenu = app.menuBars.menuBarItems["File"]
-            if fileMenu.waitForExistence(timeout: 2) {
-                fileMenu.click()
-                let newWindowItem = fileMenu.menus.menuItems["New Window"]
-                if newWindowItem.waitForExistence(timeout: 1) {
-                    newWindowItem.click()
+            if app.windows.allElementsBoundByIndex.isEmpty {
+                let fileMenu = app.menuBars.menuBarItems["File"]
+                if fileMenu.waitForExistence(timeout: 2) {
+                    fileMenu.click()
+                    let newWindowItem = fileMenu.menus.menuItems["New Window"]
+                    if newWindowItem.waitForExistence(timeout: 1) {
+                        newWindowItem.click()
+                    } else {
+                        app.typeKey("n", modifierFlags: .command)
+                    }
                 } else {
                     app.typeKey("n", modifierFlags: .command)
                 }
-            } else {
-                app.typeKey("n", modifierFlags: .command)
             }
         #endif
         if dismissOnboarding {
@@ -118,10 +135,11 @@ final class RemissionUITests: XCTestCase {
 
     @MainActor
     private func dismissOnboardingIfNeeded(_ app: XCUIApplication) {
-        let cancelButton = app.buttons["onboarding_cancel_button"]
-        if cancelButton.waitForExistence(timeout: 2) {
-            cancelButton.tap()
-            _ = cancelButton.waitForDisappearance(timeout: 1)
+        let cancelButton = app.buttons["onboarding_cancel_button"].firstMatch
+        guard cancelButton.waitForExistence(timeout: 6) else { return }
+        cancelButton.tap()
+        if cancelButton.waitForDisappearance(timeout: 3) == false {
+            attachScreenshot(app, name: "onboarding_cancel_sticky")
         }
     }
 

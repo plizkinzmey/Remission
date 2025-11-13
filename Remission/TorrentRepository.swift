@@ -147,7 +147,10 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
 
 #if canImport(ComposableArchitecture)
     extension TorrentRepository: DependencyKey {
-        static var liveValue: TorrentRepository { .placeholder }
+        static var liveValue: TorrentRepository {
+            @Dependency(\.transmissionClient) var transmissionClient
+            return .live(transmissionClient: transmissionClient)
+        }
         static var previewValue: TorrentRepository {
             .inMemory(
                 store: InMemoryTorrentRepositoryStore(
@@ -167,6 +170,30 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         var torrentRepository: TorrentRepository {
             get { self[TorrentRepository.self] }
             set { self[TorrentRepository.self] = newValue }
+        }
+    }
+
+    extension TorrentRepository {
+        static func live(
+            transmissionClient: TransmissionClientDependency,
+            mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
+            fields: [String] = TorrentListFields.summary
+        ) -> TorrentRepository {
+            let base = TorrentRepository.placeholder
+
+            return TorrentRepository(
+                fetchList: {
+                    let response = try await transmissionClient.torrentGet(nil, fields)
+                    return try mapper.mapTorrentList(from: response)
+                },
+                fetchDetails: base.fetchDetailsClosure,
+                start: base.startClosure,
+                stop: base.stopClosure,
+                remove: base.removeClosure,
+                verify: base.verifyClosure,
+                updateTransferSettings: base.updateTransferSettingsClosure,
+                updateFileSelection: base.updateFileSelectionClosure
+            )
         }
     }
 #endif

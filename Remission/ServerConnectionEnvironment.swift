@@ -61,12 +61,13 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
 
             let dependency = TransmissionClientDependency.live(client: client)
+            let torrentRepository = TorrentRepository.live(transmissionClient: dependency)
             return ServerConnectionEnvironment(
                 serverID: server.id,
                 fingerprint: server.connectionFingerprint,
                 dependencies: .init(
                     transmissionClient: dependency,
-                    torrentRepository: .placeholder,
+                    torrentRepository: torrentRepository,
                     sessionRepository: .placeholder
                 )
             )
@@ -149,9 +150,44 @@ extension ServerConnectionEnvironment {
             fingerprint: server.connectionFingerprint,
             dependencies: .init(
                 transmissionClient: client,
-                torrentRepository: .placeholder,
+                torrentRepository: .previewValue,
                 sessionRepository: .placeholder
             )
+        )
+    }
+
+    static func testEnvironment(
+        server: ServerConfig,
+        transmissionClient: TransmissionClientDependency = .placeholder,
+        torrentRepository: TorrentRepository = .testValue,
+        sessionRepository: SessionRepository = .placeholder
+    ) -> ServerConnectionEnvironment {
+        ServerConnectionEnvironment(
+            serverID: server.id,
+            fingerprint: server.connectionFingerprint,
+            dependencies: .init(
+                transmissionClient: transmissionClient,
+                torrentRepository: torrentRepository,
+                sessionRepository: sessionRepository
+            )
+        )
+    }
+
+    static func testEnvironment(
+        server: ServerConfig,
+        handshake: TransmissionHandshakeResult,
+        torrentRepository: TorrentRepository = .testValue,
+        sessionRepository: SessionRepository = .placeholder
+    ) -> ServerConnectionEnvironment {
+        var client = TransmissionClientDependency.placeholder
+        client.performHandshake = {
+            handshake
+        }
+        return testEnvironment(
+            server: server,
+            transmissionClient: client,
+            torrentRepository: torrentRepository,
+            sessionRepository: sessionRepository
         )
     }
 }

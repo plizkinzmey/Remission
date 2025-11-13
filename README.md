@@ -180,21 +180,79 @@ xcrun xccov view --report --json build/TestResults/Remission.xcresult > build/Te
 Remission/
 ├── Remission/              # Основное приложение (SwiftUI)
 │   ├── RemissionApp.swift  # @main App struct
-│   ├── ContentView.swift   # Главное окно
-│   ├── DependencyClients/  # Определения @DependencyClient и тестовые значения
-│   │   └── TransmissionClientDependency.swift
+│   ├── Features/           # TCA Reducers для feature-модулей
+│   │   ├── Onboarding/     # Онбординг
+│   │   ├── ServerList/     # Список серверов
+│   │   ├── ServerDetail/   # Детали сервера
+│   │   └── ServerEditor/   # Редактирование сервера
+│   ├── Views/              # SwiftUI View компоненты
+│   │   ├── App/            # Корневой AppView
+│   │   ├── Onboarding/     # Views онбординга
+│   │   ├── ServerList/     # Views списка серверов
+│   │   ├── ServerDetail/   # Views деталей сервера
+│   │   ├── ServerEditor/   # Views редактора сервера
+│   │   ├── TorrentDetail/  # Views деталей торрента
+│   │   └── Shared/         # Переиспользуемые компоненты
+│   ├── Domain/             # Доменные модели и маппинг RPC
+│   │   ├── ServerConfig.swift
+│   │   ├── Torrent.swift
+│   │   ├── SessionState.swift
+│   │   └── TransmissionDomainMapper*.swift
+│   ├── DependencyClients/  # Определения @DependencyClient
+│   │   ├── TransmissionClientDependency.swift
+│   │   ├── AppClockDependency.swift
+│   │   └── KeychainCredentialsDependency.swift
 │   ├── DependencyClientLive/  # Live-реализации зависимостей
-│   │   └── TransmissionClientDependency+Live.swift
-│   └── Assets.xcassets/    # Ресурсы (иконки, цвета и т.д.)
-├── RemissionTests/         # Unit-тесты
+│   │   ├── TransmissionClientDependency+Live.swift
+│   │   └── KeychainCredentialsDependency+Live.swift
+│   ├── Shared/             # Общие утилиты
+│   ├── Assets.xcassets/    # Ресурсы (иконки, цвета и т.д.)
+│   └── [корневые файлы]    # Repositories, Network, Bootstrap
+├── RemissionTests/         # Unit-тесты (Swift Testing)
+│   ├── Support/            # Утилиты для тестов
+│   │   ├── DependencyOverrides.swift
+│   │   └── TestStoreFactory.swift
+│   └── Fixtures/           # Фикстуры и тестовые данные
+│       ├── Transmission/   # JSON-фикстуры Transmission RPC
+│       ├── Domain/         # Доменные фикстуры
+│       └── TransmissionFixture.swift
 ├── RemissionUITests/       # UI-тесты
 ├── devdoc/
-│   └── PRD.md             # Product Requirements Document
-├── AGENTS.md              # Справочник для AI-агентов и разработчиков
-└── README.md              # Этот файл
+│   ├── PRD.md              # Product Requirements Document
+│   ├── plan.md             # Архитектура и roadmap
+│   ├── CONTEXT7_GUIDE.md   # Гайд по исследованию документации
+│   └── TRANSMISSION_RPC_REFERENCE.md
+├── AGENTS.md               # Справочник для AI-агентов и разработчиков
+└── README.md               # Этот файл
 ```
 
 ## Разработка
+
+### VS Code Tasks
+
+Проект включает готовые задачи в `.vscode/tasks.json` для упрощения разработки и CI/CD процессов:
+
+- **SwiftLint (run)** — запуск линтера с JSON-репортером
+- **Run Unit Tests** — запуск unit-тестов для macOS (быстрее симулятора)
+- **Xcode Build (Debug)** — Debug сборка с автоматическим запуском линтера и тестов
+- **Run App** — открытие собранного приложения
+- **Archive (Release)** — создание Release-архива с автоинкрементом версии
+- **Export App (IPA)** — экспорт IPA из архива
+- **Archive & Export (Personal Team)** — полный цикл релиза
+
+Запуск через VS Code Command Palette: `Cmd+Shift+P` → "Tasks: Run Task"
+
+Или из командной строки:
+```bash
+# Запуск линтера
+swiftlint lint --quiet --reporter json
+
+# Запуск тестов (macOS быстрее симулятора)
+xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64' | xcbeautify
+
+# Полная сборка
+xcodebuild -scheme Remission -configuration Debug build | xcbeautify
+```
 
 ### Форматирование кода
 

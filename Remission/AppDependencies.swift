@@ -27,11 +27,12 @@ enum AppDependencies {
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
+        dependencies.torrentListPollingInterval = nil
         return dependencies
     }
 
     /// Набор зависимостей для UI-тестов с управляемыми сценариями.
-    static func makeUITest(scenario: AppBootstrap.UITestingScenario) -> DependencyValues {
+    static func makeUITest(scenario: AppBootstrap.UITestingScenario?) -> DependencyValues {
         var dependencies = DependencyValues.appTest()
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = CredentialsRepository.uiTestInMemory()
@@ -43,6 +44,16 @@ enum AppDependencies {
         switch scenario {
         case .onboardingFlow:
             dependencies.serverConnectionProbe = .uiTestOnboardingMock()
+        case .serverListSample:
+            dependencies.serverConfigRepository = .inMemory(
+                initial: AppBootstrap.serverListSampleServers()
+            )
+            dependencies.onboardingProgressRepository = OnboardingProgressRepository(
+                hasCompletedOnboarding: { true },
+                setCompletedOnboarding: { _ in }
+            )
+        case .none:
+            break
         }
 
         return dependencies
