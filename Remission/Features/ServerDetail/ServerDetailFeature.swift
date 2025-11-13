@@ -225,27 +225,36 @@ struct ServerDetailReducer {
                         handshake: response.handshake
                     )
                 )
-                return .send(.torrentList(.connectionAvailable(response.environment)))
+                state.torrentList.connectionEnvironment = response.environment
+                return .send(.torrentList(.task))
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil
                 let message = describe(error)
                 state.connectionState.phase = .failed(.init(message: message))
                 state.alert = AlertState.connectionFailure(message: message)
-                if state.torrentList.connectionEnvironment != nil {
-                    return .send(.torrentList(.connectionLost))
-                }
-                return .none
+                let teardown: Effect<Action> =
+                    state.torrentList.connectionEnvironment != nil
+                    ? .send(.torrentList(.teardown))
+                    : .none
+                state.torrentList = .init()
+                return teardown
 
             case .editor(.presented(.delegate(.didUpdate(let server)))):
                 let shouldReconnect =
                     state.server.connectionFingerprint != server.connectionFingerprint
                 state.server = server
                 state.editor = nil
+                let teardownEffect: Effect<Action> =
+                    shouldReconnect ? .send(.torrentList(.teardown)) : .none
+                if shouldReconnect {
+                    state.torrentList = .init()
+                }
                 let connectionEffect =
                     shouldReconnect
                     ? startConnection(state: &state, force: true) : .none
                 return .merge(
+                    teardownEffect,
                     connectionEffect,
                     .send(.delegate(.serverUpdated(server)))
                 )
@@ -257,7 +266,7 @@ struct ServerDetailReducer {
             case .editor:
                 return .none
 
-            case .torrentList(.delegate(.torrentSelected(let id))):
+            case .torrentList(.delegate(.openTorrent(let id))):
                 return .send(.delegate(.torrentSelected(id)))
 
             case .torrentList:
@@ -284,29 +293,28 @@ struct ServerDetailReducer {
         state: inout State
     ) -> Effect<Action> {
         let fingerprint = state.server.connectionFingerprint
-        if case .ready(let ready) = state.connectionState.phase,
+        guard case .ready(let ready) = state.connectionState.phase,
             ready.fingerprint == fingerprint,
             state.connectionEnvironment?.isValid(for: state.server) == true
-        {
-            return .none
+        else {
+            return startConnection(state: &state, force: false)
         }
-
-        return startConnection(state: &state, force: false)
+        return .none
     }
 
     private func startConnection(
         state: inout State,
         force: Bool
     ) -> Effect<Action> {
-        if case .connecting = state.connectionState.phase,
+        guard case .connecting = state.connectionState.phase,
             force == false
-        {
-            return .none
+        else {
+            state.connectionEnvironment = nil
+            state.connectionState.phase = .connecting
+            return connect(server: state.server)
         }
 
-        state.connectionEnvironment = nil
-        state.connectionState.phase = .connecting
-        return connect(server: state.server)
+        return .none
     }
 
     private func connect(server: ServerConfig) -> Effect<Action> {
@@ -381,11 +389,12 @@ struct ServerDetailReducer {
 }
 
 private func describe(_ error: Error) -> String {
-    if let localized = error as? LocalizedError,
-        let description = localized.errorDescription,
-        description.isEmpty == false
-    {
-        return description
+    if let localized = error as? LocalizedError {
+        if let description = localized.errorDescription {
+            if description.isEmpty == false {
+                return description
+            }
+        }
     }
 
     let nsError = error as NSError

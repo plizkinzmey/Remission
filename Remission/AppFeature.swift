@@ -54,6 +54,9 @@ struct AppReducer {
                 state.serverList.servers.remove(id: serverID)
                 return .none
 
+            case .path(.element(id: _, action: .delegate(.torrentSelected))):
+                return .none
+
             case .path:
                 return .none
             }

@@ -27,7 +27,6 @@ enum AppDependencies {
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
-        dependencies.torrentListPollingInterval = nil
         return dependencies
     }
 

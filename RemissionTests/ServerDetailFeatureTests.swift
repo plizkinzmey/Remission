@@ -23,6 +23,15 @@ struct ServerDetailFeatureTests {
             handshake: handshake
         )
 
+        let preferences = UserPreferences(
+            pollingInterval: 5,
+            isAutoRefreshEnabled: false,
+            defaultSpeedLimits: .init(
+                downloadKilobytesPerSecond: nil,
+                uploadKilobytesPerSecond: nil
+            )
+        )
+
         let store = TestStore(
             initialState: ServerDetailReducer.State(server: server)
         ) {
@@ -30,6 +39,7 @@ struct ServerDetailFeatureTests {
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
             dependencies.serverConnectionEnvironmentFactory = .mock(environment: environment)
+            dependencies.userPreferencesRepository = .testValue(preferences: preferences)
         }
 
         await store.send(.task) {
@@ -50,15 +60,19 @@ struct ServerDetailFeatureTests {
             $0.connectionState.phase = .ready(
                 .init(fingerprint: environment.fingerprint, handshake: handshake)
             )
-        }
-        await store.receive(.torrentList(.connectionAvailable(environment))) {
             $0.torrentList.connectionEnvironment = environment
-            $0.torrentList.isLoading = true
-            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.task)) {
+            $0.torrentList.phase = .loading
+        }
+        await store.receive(.torrentList(.userPreferencesResponse(.success(preferences)))) {
+            $0.torrentList.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
+            $0.torrentList.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
         await store.receive(.torrentList(.torrentsResponse(.success([])))) {
-            $0.torrentList.isLoading = false
-            $0.torrentList.torrents = []
+            $0.torrentList.phase = .loaded
+            $0.torrentList.items = []
+            $0.torrentList.failedAttempts = 0
         }
     }
 
@@ -122,6 +136,15 @@ struct ServerDetailFeatureTests {
 
         let invocationCount = LockedValue(0)
 
+        let preferences = UserPreferences(
+            pollingInterval: 5,
+            isAutoRefreshEnabled: false,
+            defaultSpeedLimits: .init(
+                downloadKilobytesPerSecond: nil,
+                uploadKilobytesPerSecond: nil
+            )
+        )
+
         let store = TestStore(
             initialState: ServerDetailReducer.State(server: initialServer)
         ) {
@@ -133,6 +156,7 @@ struct ServerDetailFeatureTests {
                 invocationCount.withValue { $0 += 1 }
                 return index == 0 ? firstEnvironment : secondEnvironment
             }
+            dependencies.userPreferencesRepository = .testValue(preferences: preferences)
         }
 
         await store.send(.task) {
@@ -153,15 +177,18 @@ struct ServerDetailFeatureTests {
             $0.connectionState.phase = .ready(
                 .init(fingerprint: firstEnvironment.fingerprint, handshake: firstHandshake)
             )
-        }
-        await store.receive(.torrentList(.connectionAvailable(firstEnvironment))) {
             $0.torrentList.connectionEnvironment = firstEnvironment
-            $0.torrentList.isLoading = true
-            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.task)) {
+            $0.torrentList.phase = .loading
+        }
+        await store.receive(.torrentList(.userPreferencesResponse(.success(preferences)))) {
+            $0.torrentList.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
+            $0.torrentList.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
         await store.receive(.torrentList(.torrentsResponse(.success([])))) {
-            $0.torrentList.isLoading = false
-            $0.torrentList.torrents = []
+            $0.torrentList.phase = .loaded
+            $0.torrentList.items = []
         }
 
         #expect(invocationCount.value == 1)
@@ -178,7 +205,10 @@ struct ServerDetailFeatureTests {
             $0.editor = nil
             $0.connectionEnvironment = nil
             $0.connectionState.phase = .connecting
+            $0.torrentList = TorrentListReducer.State()
         }
+
+        await store.receive(.torrentList(.teardown))
 
         await store.receive(.delegate(.serverUpdated(updatedServer)))
 
@@ -196,15 +226,18 @@ struct ServerDetailFeatureTests {
             $0.connectionState.phase = .ready(
                 .init(fingerprint: secondEnvironment.fingerprint, handshake: secondHandshake)
             )
-        }
-        await store.receive(.torrentList(.connectionAvailable(secondEnvironment))) {
             $0.torrentList.connectionEnvironment = secondEnvironment
-            $0.torrentList.isLoading = true
-            $0.torrentList.errorMessage = nil
+        }
+        await store.receive(.torrentList(.task)) {
+            $0.torrentList.phase = .loading
+        }
+        await store.receive(.torrentList(.userPreferencesResponse(.success(preferences)))) {
+            $0.torrentList.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
+            $0.torrentList.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
         await store.receive(.torrentList(.torrentsResponse(.success([])))) {
-            $0.torrentList.isLoading = false
-            $0.torrentList.torrents = []
+            $0.torrentList.phase = .loaded
+            $0.torrentList.items = []
         }
 
         #expect(invocationCount.value == 2)
@@ -418,6 +451,17 @@ struct ServerDetailFeatureTests {
         await store.send(.editor(.presented(.delegate(.cancelled)))) {
             $0.editor = nil
         }
+    }
+}
+
+extension UserPreferencesRepository {
+    fileprivate static func testValue(preferences: UserPreferences) -> UserPreferencesRepository {
+        UserPreferencesRepository(
+            load: { preferences },
+            updatePollingInterval: { _ in preferences },
+            setAutoRefreshEnabled: { _ in preferences },
+            updateDefaultSpeedLimits: { _ in preferences }
+        )
     }
 }
 

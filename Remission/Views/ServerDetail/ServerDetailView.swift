@@ -24,6 +24,9 @@ struct ServerDetailView: View {
         ) { editorStore in
             ServerEditorView(store: editorStore)
         }
+        .refreshable {
+            await store.send(.torrentList(.refreshRequested)).finish()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Изменить") {
@@ -60,12 +63,12 @@ struct ServerDetailView: View {
             case .ready(let ready):
                 Label("Подключено", systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
-                if let description = ready.handshake.serverVersionDescription,
-                    description.isEmpty == false
-                {
-                    Text(description)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if let description = ready.handshake.serverVersionDescription {
+                    if description.isEmpty == false {
+                        Text(description)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Text("RPC v\(ready.handshake.rpcVersion)")

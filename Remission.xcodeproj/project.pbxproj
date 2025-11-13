@@ -231,6 +231,9 @@
 			alwaysOutOfDate = 1;
 			inputPaths = (
 				"$(SRCROOT)/.swiftlint.yml",
+				"$(SRCROOT)/Remission",
+				"$(SRCROOT)/RemissionTests",
+				"$(SRCROOT)/RemissionUITests",
 			);
 			outputPaths = (
 				"$(TEMP_DIR)/SwiftLintDone",
@@ -245,9 +248,11 @@
 				"then",
 				"    cd \"${SRCROOT}\"",
 				"    swiftlint lint --reporter xcode || true",
-				"else",
+				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
+			"else",
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
-				"fi",
+				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
+			"fi",
 				"",
 				"",
 				"",
