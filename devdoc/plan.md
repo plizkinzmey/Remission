@@ -1352,7 +1352,7 @@ return .run { [repository, clock = appClock.clock()] send in
 
 ### Тестирование и QA
 - Unit: `RemissionTests/TorrentListFeatureTests.swift` покрывает happy path (получение списка, сортировки, polling) и error path (backoff, alerts) через `TestStore` + `TestClock`.
-- UI: `RemissionUITests/RemissionUITests.swift::testTorrentListSearchAndRefresh` (iOS). Использует launch-аргументы `--ui-testing-fixture=torrent-list-sample` + `--ui-testing-scenario=torrent-list-sample`; проверяет загрузку фикстурных торрентов, поиск, фильтры, скриншоты.
+- UI: `RemissionUITests/RemissionUITests.swift::testTorrentListSearchAndRefresh` (iOS). Использует launch-аргументы `--ui-testing-fixture=torrent-list-sample` + `--ui-testing-scenario=torrent-list-sample`; проверяет загрузку фикстурных торрентов, поиск, фильтры, скриншоты. На вехе RTC-77 тест входит в обязательный scope (не переносится на RTC-78).
 - Dev tooling: `--ui-testing-fixture=torrent-list-sample` активирует серверную фикстуру при старте приложения (см. `AppBootstrap`). Инструкции и smoke-шаги описаны в `README.md`, `RemissionTests/README.md` и `devdoc/QA_REPORT_RTC70+.md`.
 
 ### Проверка готовности
