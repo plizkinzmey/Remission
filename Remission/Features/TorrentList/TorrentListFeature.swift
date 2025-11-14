@@ -32,6 +32,8 @@ struct TorrentListReducer {
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
+            // NOTE: при списках 1000+ элементов стоит кешировать результаты фильтра/сортировки,
+            // чтобы избежать постоянных O(n log n) пересчётов на каждом обновлении UI.
             let filtered = items.filter {
                 selectedFilter.matches($0) && matchesSearch($0, query: query)
             }
@@ -381,6 +383,8 @@ struct TorrentListReducer {
         items: IdentifiedArrayOf<TorrentListItem.State>,
         with torrents: [Torrent]
     ) -> IdentifiedArrayOf<TorrentListItem.State> {
+        // Поддерживаем «живой» список: обновляем существующие элементы, чтобы сохранить
+        // анимации/привязки SwiftUI, и добавляем новые торренты без полной пересборки.
         var updated: IdentifiedArrayOf<TorrentListItem.State> = []
         updated.reserveCapacity(torrents.count)
 
@@ -397,6 +401,8 @@ struct TorrentListReducer {
     }
 
     private func backoffDelay(for failures: Int) -> Duration {
+        // Экспоненциальный backoff, который снижает нагрузку на RPC при каскаде ошибок.
+        // Задержка растёт до 30 c и не увеличивается далее, чтобы не блокировать UI.
         guard failures > 0 else { return .seconds(1) }
         let values: [Duration] = [
             .seconds(1),

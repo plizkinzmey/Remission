@@ -1341,7 +1341,7 @@ return .run { [repository, clock = appClock.clock()] send in
   - Данных достаточно для расчёта `TorrentListItem.Metrics` (progress, скорости, ETA). Mapper обрабатывает значения percentDone как долю (0...1) или проценты (>1) согласно `TransmissionDomainMapper`.
 
 ### UI/UX обязательства
-- `TorrentListView` использует `visibleItems` и:
+- `TorrentListView` (`Remission/Views/TorrentList/TorrentListView.swift`) использует `visibleItems`, покрыт SwiftUI-превью с состояниями loading/empty/error и:
   - отображает прогресс (бар + проценты), черезцветные индикаторы скоростей (`speedSummary` с `↓`/`↑`), статус.
   - предоставляет `searchable(text: $store.searchQuery)` и segmented control с фильтрами; сортировка через `Picker`.
   - пустые состояния:
