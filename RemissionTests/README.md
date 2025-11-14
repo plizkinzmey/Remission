@@ -48,6 +48,8 @@ Store(initialState: state) {
 
 Эти аргументы активируют in-memory `ServerConnectionEnvironment` с фикстурными торрентовыми данными (downloading/seeding/error) и гарантируют, что polling и поиск будут выполняться без реального Transmission.
 
+Фикстурные данные описаны в `RemissionTests/Fixtures/Transmission/Torrents/torrent-list-sample.json` и преобразуются в доменные модели через `TorrentFixture`. Один и тот же набор используется и в unit-тестах (`TorrentListFeatureTests`), и в UI-сценарии, что делает результаты воспроизводимыми.
+
 UI-тест «Добавление сервера» использует аргумент `--ui-testing-scenario=onboarding-flow`, который приложение читает при старте. Этот аргумент включает in-memory реализации `ServerConfigRepository`, `CredentialsRepository`, `ServerConnectionProbe` и `OnboardingProgressRepository`, поэтому тест изолирован от Keychain и файловой системы. Для теста списка серверов доступен аргумент `--ui-testing-fixture=server-list-sample`. Скриншоты предупреждения HTTP и диалога доверия автоматически прикладываются к прогону (`onboarding_http_warning`, `onboarding_trust_prompt`). Для торрентов UI-тест прикладывает `torrent_list_fixture` и `torrent_list_search_result`.
 
 ## Troubleshooting

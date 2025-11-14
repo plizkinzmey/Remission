@@ -14,7 +14,8 @@ struct TorrentListFeatureTests {
     @Test("task загружает торренты и запускает polling c TestClock")
     func taskLoadsTorrentsAndStartsPolling() async {
         let clock = TestClock<Duration>()
-        let torrents = DomainFixtures.torrents
+        let torrents = TorrentFixture.torrentListSample
+        #expect(torrents.isEmpty == false)
         let repository = TorrentRepository.test(fetchList: { torrents })
         let preferences = DomainFixtures.userPreferences
 
@@ -109,7 +110,8 @@ struct TorrentListFeatureTests {
         let clock = TestClock<Duration>()
         let defaultRepositoryCalls = FetchCounter()
         let scopedRepositoryCalls = FetchCounter()
-        let torrents = DomainFixtures.torrents
+        let torrents = TorrentFixture.torrentListSample
+        #expect(torrents.isEmpty == false)
         let preferences = DomainFixtures.userPreferences
 
         let defaultRepository = TorrentRepository.test(fetchList: {
@@ -352,7 +354,8 @@ struct TorrentListFeatureTests {
     @Test("обновление настроек пересчитывает интервал и перезапускает fetch")
     func preferencesUpdateRestartsPolling() async {
         let clock = TestClock<Duration>()
-        let torrents = DomainFixtures.torrents
+        let torrents = TorrentFixture.torrentListSample
+        #expect(torrents.isEmpty == false)
         let callCounter = FetchCounter()
         var continuation: AsyncStream<UserPreferences>.Continuation!
         let basePreferences = DomainFixtures.userPreferences
@@ -522,32 +525,6 @@ private func makeLoadedState(torrents: [Torrent]) -> TorrentListReducer.State {
         uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
     )
     return state
-}
-
-private actor FetchCounter {
-    private var storage = 0
-
-    @discardableResult
-    func increment() -> Int {
-        storage += 1
-        return storage
-    }
-
-    var value: Int {
-        storage
-    }
-}
-
-private actor CancellationRecorder {
-    private var cancelled: Set<Int> = []
-
-    func markCancelled(_ call: Int) {
-        cancelled.insert(call)
-    }
-
-    func wasCancelled(call: Int) -> Bool {
-        cancelled.contains(call)
-    }
 }
 
 private final class RecordingClock: Clock, @unchecked Sendable {

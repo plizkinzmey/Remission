@@ -13,7 +13,7 @@
 1. Установить инструменты качества: `brew install swift-format swiftlint xcbeautify`.
 2. Синхронизировать зависимости Xcode, убедиться, что выбран `Xcode 15+/Swift 6`.
 3. Очистить предыдущие установки приложения (опционально): `xcrun simctl uninstall booted com.remission.app`.
-4. Собрать фикстурные данные: никаких дополнительных действий не требуется — `--ui-testing-fixture=torrent-list-sample` создаёт in-memory `TorrentRepository` и окружение.
+4. Собрать фикстурные данные: никаких дополнительных действий не требуется — `--ui-testing-fixture=torrent-list-sample` создаёт in-memory `TorrentRepository` и окружение. Сырые данные описаны в `RemissionTests/Fixtures/Transmission/Torrents/torrent-list-sample.json` и через `TorrentFixture` используются как в unit-, так и UI-тестах.
 
 ## Команды проверки
 

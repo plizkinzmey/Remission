@@ -9,6 +9,7 @@ enum TransmissionFixtureName: String, CaseIterable, Sendable {
     case sessionGetInvalidArguments = "Transmission/Session/session-get.invalid.arguments"
 
     case torrentGetSingleActive = "Transmission/Torrents/torrent-get.success.single"
+    case torrentListSample = "Transmission/Torrents/torrent-list-sample"
     case torrentAddSuccessMagnet = "Transmission/Torrents/torrent-add.success.magnet"
     case torrentStartSuccess = "Transmission/Torrents/torrent-start.success"
     case torrentStopSuccess = "Transmission/Torrents/torrent-stop.success"

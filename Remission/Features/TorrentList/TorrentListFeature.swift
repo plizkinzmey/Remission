@@ -33,7 +33,8 @@ struct TorrentListReducer {
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
             // NOTE: при списках 1000+ элементов стоит кешировать результаты фильтра/сортировки,
-            // чтобы избежать постоянных O(n log n) пересчётов на каждом обновлении UI.
+            // сохраняя их в State и инвалидации через DiffID. Это избавит от лишних O(n log n)
+            // пересчётов при каждом `body` и заметно разгрузит UI при больших библиотеках.
             let filtered = items.filter {
                 selectedFilter.matches($0) && matchesSearch($0, query: query)
             }
@@ -316,6 +317,8 @@ struct TorrentListReducer {
     private func observePreferences() -> Effect<Action> {
         .run { send in
             let stream = userPreferencesRepository.observe()
+            // AsyncStream может завершиться (например, если storage выгружен). Тогда цикл завершится,
+            // и редьюсер больше не увидит обновлений до повторного вызова .observePreferences().
             for await preferences in stream {
                 await send(.userPreferencesResponse(.success(preferences)))
             }
@@ -329,6 +332,8 @@ struct TorrentListReducer {
         trigger: FetchTrigger
     ) -> Effect<Action> {
         guard let environment = state.connectionEnvironment else {
+            // Edge case: сервер ещё не прошёл handshake — сеть не готова. Просто очищаем UI-флажки
+            // и ждём, пока ServerDetailReducer передаст окружение.
             state.isRefreshing = false
             return .none
         }
