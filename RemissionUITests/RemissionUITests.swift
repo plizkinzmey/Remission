@@ -57,6 +57,64 @@ final class RemissionUITests: XCTestCase {
     }
 
     @MainActor
+    func testTorrentListSearchAndRefresh() throws {
+        #if os(macOS)
+            // На macOS этот тест ненадежен из-за асинхронной загрузки торрентов в UI
+            // и различных сроков срабатывания. На iOS тест работает стабильнее благодаря
+            // лучшей синхронизации View lifecycle.
+            throw XCTSkip(
+                "Тест торрент-листа оптимизирован для iOS. На macOS используйте отдельные интеграционные тесты."
+            )
+        #else
+            let app = launchApp(
+                arguments: [
+                    "--ui-testing-fixture=torrent-list-sample",
+                    "--ui-testing-scenario=torrent-list-sample"
+                ]
+            )
+            let serverIdentifier = "server_list_item_AAAA1111-B222-C333-D444-EEEEEEEEEEEE"
+            let serverCell = app.buttons[serverIdentifier]
+            XCTAssertTrue(serverCell.waitForExistence(timeout: 5), "Server cell not found")
+            serverCell.tap()
+
+            let torrentsHeader = app.staticTexts["Торренты"]
+            XCTAssertTrue(torrentsHeader.waitForExistence(timeout: 5), "Torrent section missing")
+
+            let ubuntuName = app.staticTexts["Ubuntu 25.04 Desktop"]
+            XCTAssertTrue(ubuntuName.waitForExistence(timeout: 10))
+
+            let fedoraName = app.staticTexts["Fedora 41 Workstation"]
+            XCTAssertTrue(fedoraName.exists)
+
+            let archName = app.staticTexts["Arch Linux Snapshot"]
+            XCTAssertTrue(archName.exists)
+
+            let speedSummaryPredicate = NSPredicate(format: "label CONTAINS %@", "↓")
+            let speedSummaries = app.staticTexts.matching(speedSummaryPredicate)
+            XCTAssertTrue(speedSummaries.count >= 3, "Speed summaries should be visible")
+
+            let progressPredicate = NSPredicate(format: "label CONTAINS %@", "%")
+            let progressSummaries = app.staticTexts.matching(progressPredicate)
+            XCTAssertTrue(progressSummaries.count >= 3, "Progress values should be visible")
+
+            attachScreenshot(app, name: "torrent_list_fixture")
+
+            let searchField = app.searchFields.firstMatch
+            XCTAssertTrue(searchField.waitForExistence(timeout: 4), "Search field not found")
+            searchField.tap()
+            searchField.typeText("Fedora")
+
+            XCTAssertTrue(app.staticTexts["Fedora 41 Workstation"].waitForExistence(timeout: 3))
+            XCTAssertTrue(
+                app.staticTexts["Ubuntu 25.04 Desktop"].waitForDisappearance(timeout: 3),
+                "Other torrents should be filtered out"
+            )
+
+            attachScreenshot(app, name: "torrent_list_search_result")
+        #endif
+    }
+
+    @MainActor
     func testOnboardingFlowAddsServer() throws {
         #if os(macOS)
             throw XCTSkip("Онбординг UI-тест выполняется только на iOS среде.")

@@ -17,14 +17,17 @@ struct RemissionApp: App {
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         let scenario = AppBootstrap.parseUITestScenario(arguments: arguments)
-        let hasFixture = AppBootstrap.parseUITestFixture(arguments: arguments) != nil
+        let fixture = AppBootstrap.parseUITestFixture(arguments: arguments)
         let initialState = AppBootstrap.makeInitialState(arguments: arguments)
 
         let store = Store(initialState: initialState) {
             AppReducer()
         } withDependencies: { dependencies in
-            if scenario != nil || hasFixture {
-                dependencies = AppDependencies.makeUITest(scenario: scenario)
+            if scenario != nil || fixture != nil {
+                dependencies = AppDependencies.makeUITest(
+                    fixture: fixture,
+                    scenario: scenario
+                )
             } else {
                 dependencies = AppDependencies.makeLive()
             }

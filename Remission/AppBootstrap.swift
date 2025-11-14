@@ -11,12 +11,14 @@ enum AppBootstrap {
     /// Поддерживаемые UI фикстуры.
     enum UITestingFixture: String {
         case serverListSample = "server-list-sample"
+        case torrentListSample = "torrent-list-sample"
     }
 
     /// Набор предустановленных сценариев для UI-тестов.
     enum UITestingScenario: String {
         case onboardingFlow = "onboarding-flow"
         case serverListSample = "server-list-sample"
+        case torrentListSample = "torrent-list-sample"
     }
 
     /// Возвращает стартовое состояние приложения, учитывая аргументы процесса.
@@ -132,6 +134,11 @@ enum AppBootstrap {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: serverListSampleServers())
             state.serverList.shouldLoadServersFromRepository = false
+        case .torrentListSample:
+            state.serverList.servers = IdentifiedArrayOf(
+                uniqueElements: [torrentListSampleServer()]
+            )
+            state.serverList.shouldLoadServersFromRepository = false
         }
     }
 
@@ -156,5 +163,50 @@ enum AppBootstrap {
                 authentication: .init(username: "seeduser")
             )
         ]
+    }
+
+    static func torrentListSampleServer() -> ServerConfig {
+        var server = ServerConfig(
+            name: "UI Torrent Fixture",
+            connection: .init(
+                host: "fixture.remission.test",
+                port: 443,
+                path: "/transmission/rpc"
+            ),
+            security: .https(allowUntrustedCertificates: true),
+            authentication: .init(username: "uitester")
+        )
+        server.id = UUID(uuidString: "AAAA1111-B222-C333-D444-EEEEEEEEEEEE") ?? server.id
+        server.createdAt = Date(timeIntervalSince1970: 1_704_000_000)
+        return server
+    }
+
+    static func torrentListSampleTorrents() -> [Torrent] {
+        var downloading = Torrent.previewDownloading
+        downloading.id = .init(rawValue: 1_001)
+        downloading.name = "Ubuntu 25.04 Desktop"
+        downloading.status = .downloading
+        downloading.summary.progress.percentDone = 0.58
+        downloading.summary.progress.downloadedEver = 9_100_000_000
+        downloading.summary.progress.etaSeconds = 2_400
+        downloading.summary.transfer.downloadRate = 3_500_000
+        downloading.summary.transfer.uploadRate = 420_000
+
+        var seeding = Torrent.previewCompleted
+        seeding.id = .init(rawValue: 1_002)
+        seeding.name = "Fedora 41 Workstation"
+        seeding.status = .seeding
+        seeding.summary.transfer.uploadRate = 620_000
+
+        var paused = Torrent.previewDownloading
+        paused.id = .init(rawValue: 1_003)
+        paused.name = "Arch Linux Snapshot"
+        paused.status = .stopped
+        paused.summary.progress.percentDone = 0.12
+        paused.summary.transfer.downloadRate = 0
+        paused.summary.transfer.uploadRate = 0
+        paused.summary.progress.etaSeconds = -1
+
+        return [downloading, seeding, paused]
     }
 }

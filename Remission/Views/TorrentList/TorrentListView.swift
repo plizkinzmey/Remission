@@ -16,6 +16,13 @@ struct TorrentListView: View {
                     .accessibilityIdentifier("torrentlist_autorefresh_disabled")
             }
         }
+        .safeAreaInset(edge: .top) {
+            if store.isRefreshing {
+                refreshIndicator
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 16)
+            }
+        }
         .searchable(
             text: searchBinding,
             placement: .automatic,
@@ -276,6 +283,19 @@ struct TorrentListView: View {
     }
 }
 
+extension TorrentListView {
+    private var refreshIndicator: some View {
+        HStack(spacing: 8) {
+            ProgressView()
+            Text("Обновляем список…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .accessibilityIdentifier("torrent_list_refresh_indicator")
+    }
+
+}
+
 private struct TorrentRowView: View {
     var item: TorrentListItem.State
 
@@ -285,17 +305,20 @@ private struct TorrentRowView: View {
                 Text(item.torrent.name)
                     .font(.headline)
                     .lineLimit(2)
+                    .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                 Spacer(minLength: 8)
                 statusBadge
             }
 
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
+                .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
 
             HStack(spacing: 12) {
                 Label(item.metrics.progressText, systemImage: "circle.dashed")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
 
                 if let etaText = item.metrics.etaText {
                     Label(etaText, systemImage: "clock")
@@ -308,6 +331,7 @@ private struct TorrentRowView: View {
                 Label(item.metrics.speedSummary, systemImage: "speedometer")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
             }
 
             HStack(spacing: 12) {
@@ -327,6 +351,7 @@ private struct TorrentRowView: View {
             }
         }
         .padding(.vertical, 6)
+        .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
     }
 
     private var peersText: String {

@@ -226,7 +226,16 @@ struct ServerDetailReducer {
                     )
                 )
                 state.torrentList.connectionEnvironment = response.environment
-                return .send(.torrentList(.task))
+                var effects: Effect<Action> = .send(.torrentList(.task))
+                if ProcessInfo.processInfo.arguments.contains(
+                    "--ui-testing-fixture=torrent-list-sample")
+                {
+                    effects = .merge(
+                        effects,
+                        .send(.torrentList(.refreshRequested))
+                    )
+                }
+                return effects
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil

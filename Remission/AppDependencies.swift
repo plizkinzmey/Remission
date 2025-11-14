@@ -1,3 +1,4 @@
+import Clocks
 import ComposableArchitecture
 import Dependencies
 import Foundation
@@ -30,8 +31,11 @@ enum AppDependencies {
         return dependencies
     }
 
-    /// Набор зависимостей для UI-тестов с управляемыми сценариями.
-    static func makeUITest(scenario: AppBootstrap.UITestingScenario?) -> DependencyValues {
+    /// Набор зависимостей для UI-тестов с управляемыми сценарием/фикстурой.
+    static func makeUITest(
+        fixture: AppBootstrap.UITestingFixture?,
+        scenario: AppBootstrap.UITestingScenario?
+    ) -> DependencyValues {
         var dependencies = DependencyValues.appTest()
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = CredentialsRepository.uiTestInMemory()
@@ -40,7 +44,21 @@ enum AppDependencies {
         dependencies.httpWarningPreferencesStore = .inMemory()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
 
-        switch scenario {
+        let resolvedScenario: AppBootstrap.UITestingScenario?
+        if let scenario {
+            resolvedScenario = scenario
+        } else {
+            switch fixture {
+            case .serverListSample:
+                resolvedScenario = .serverListSample
+            case .torrentListSample:
+                resolvedScenario = .torrentListSample
+            case .none:
+                resolvedScenario = nil
+            }
+        }
+
+        switch resolvedScenario {
         case .onboardingFlow:
             dependencies.serverConnectionProbe = .uiTestOnboardingMock()
         case .serverListSample:
@@ -51,6 +69,84 @@ enum AppDependencies {
                 hasCompletedOnboarding: { true },
                 setCompletedOnboarding: { _ in }
             )
+        case .torrentListSample:
+            let server = AppBootstrap.torrentListSampleServer()
+            dependencies.serverConfigRepository = .inMemory(initial: [server])
+            dependencies.onboardingProgressRepository = OnboardingProgressRepository(
+                hasCompletedOnboarding: { true },
+                setCompletedOnboarding: { _ in }
+            )
+            if let key = server.credentialsKey {
+                let credentials = TransmissionServerCredentials(
+                    key: key,
+                    password: "torrent-fixture-password"
+                )
+                dependencies.credentialsRepository = .uiTestInMemory(
+                    initialCredentials: [key: credentials]
+                )
+            }
+            let torrentStore = InMemoryTorrentRepositoryStore(
+                torrents: AppBootstrap.torrentListSampleTorrents()
+            )
+            let baseRepository = TorrentRepository.inMemory(store: torrentStore)
+            let fixtureRepository = TorrentRepository(
+                fetchList: {
+                    try await Task.sleep(nanoseconds: 1_200_000_000)
+                    return try await baseRepository.fetchList()
+                },
+                fetchDetails: { id in try await baseRepository.fetchDetails(id) },
+                start: { ids in try await baseRepository.start(ids) },
+                stop: { ids in try await baseRepository.stop(ids) },
+                remove: { ids, delete in
+                    try await baseRepository.remove(ids, deleteLocalData: delete)
+                },
+                verify: { ids in try await baseRepository.verify(ids) },
+                updateTransferSettings: { settings, ids in
+                    try await baseRepository.updateTransferSettings(settings, for: ids)
+                },
+                updateFileSelection: { updates, id in
+                    try await baseRepository.updateFileSelection(updates, in: id)
+                }
+            )
+            dependencies.torrentRepository = fixtureRepository
+            let preferencesStore = InMemoryUserPreferencesRepositoryStore(
+                preferences: UserPreferences(
+                    pollingInterval: 2,
+                    isAutoRefreshEnabled: true,
+                    defaultSpeedLimits: .init(
+                        downloadKilobytesPerSecond: nil,
+                        uploadKilobytesPerSecond: nil
+                    )
+                )
+            )
+            dependencies.userPreferencesRepository = .inMemory(store: preferencesStore)
+            let testClock = TestClock<Duration>()
+            dependencies.appClock = .test(clock: testClock)
+            dependencies.serverConnectionEnvironmentFactory = .init { targetServer in
+                guard targetServer.id == server.id else {
+                    return try await ServerConnectionEnvironmentFactory.previewValue
+                        .make(targetServer)
+                }
+                var transmissionClient = TransmissionClientDependency.placeholder
+                transmissionClient.performHandshake = {
+                    TransmissionHandshakeResult(
+                        sessionID: "ui-fixture-session",
+                        rpcVersion: 20,
+                        minimumSupportedRpcVersion: 14,
+                        serverVersionDescription: "Transmission 4.0.3 (UI Fixture)",
+                        isCompatible: true
+                    )
+                }
+                return ServerConnectionEnvironment(
+                    serverID: targetServer.id,
+                    fingerprint: targetServer.connectionFingerprint,
+                    dependencies: .init(
+                        transmissionClient: transmissionClient,
+                        torrentRepository: fixtureRepository,
+                        sessionRepository: .placeholder
+                    )
+                )
+            }
         case .none:
             break
         }
@@ -126,8 +222,10 @@ extension TransmissionServerCredentials {
 
 extension CredentialsRepository {
     /// In-memory реализация для UI-тестов, исключающая обращения к Keychain.
-    static func uiTestInMemory() -> CredentialsRepository {
-        let store = UITestCredentialsStore()
+    static func uiTestInMemory(
+        initialCredentials: [TransmissionServerCredentialsKey: TransmissionServerCredentials] = [:]
+    ) -> CredentialsRepository {
+        let store = UITestCredentialsStore(initial: initialCredentials)
         return CredentialsRepository(
             save: { credentials in
                 await store.save(credentials)
@@ -144,6 +242,10 @@ extension CredentialsRepository {
 
 private actor UITestCredentialsStore {
     private var storage: [TransmissionServerCredentialsKey: TransmissionServerCredentials] = [:]
+
+    init(initial: [TransmissionServerCredentialsKey: TransmissionServerCredentials] = [:]) {
+        storage = initial
+    }
 
     func save(_ credentials: TransmissionServerCredentials) {
         storage[credentials.key] = credentials
