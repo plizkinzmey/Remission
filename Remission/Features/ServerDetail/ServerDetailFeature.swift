@@ -3,6 +3,8 @@ import Foundation
 
 // swiftlint:disable nesting type_body_length
 
+/// Главный reducer экрана деталей сервера: отвечает за подключение, управление
+/// сервером и встраивает `TorrentListReducer` для отображения торрентов.
 @Reducer
 struct ServerDetailReducer {
     @ObservableState
@@ -228,8 +230,8 @@ struct ServerDetailReducer {
                 state.torrentList.connectionEnvironment = response.environment
                 var effects: Effect<Action> = .send(.torrentList(.task))
                 if ProcessInfo.processInfo.arguments.contains(
-                    "--ui-testing-fixture=torrent-list-sample")
-                {
+                    "--ui-testing-fixture=torrent-list-sample"
+                ) {
                     effects = .merge(
                         effects,
                         .send(.torrentList(.refreshRequested))
@@ -302,6 +304,8 @@ struct ServerDetailReducer {
         case connection
     }
 
+    /// Проверяет, нужно ли переустанавливать подключение (изменился ли fingerprint
+    /// или окружение невалидно) и инициирует коннект при необходимости.
     private func startConnectionIfNeeded(
         state: inout State
     ) -> Effect<Action> {
@@ -315,6 +319,7 @@ struct ServerDetailReducer {
         return .none
     }
 
+    /// Запускает процесс подключения к серверу, учитывая флаг принудительного запуска.
     private func startConnection(
         state: inout State,
         force: Bool
@@ -330,6 +335,7 @@ struct ServerDetailReducer {
         return .none
     }
 
+    /// Создаёт `ServerConnectionEnvironment` и выполняет handshake Transmission.
     private func connect(server: ServerConfig) -> Effect<Action> {
         .run { send in
             await send(

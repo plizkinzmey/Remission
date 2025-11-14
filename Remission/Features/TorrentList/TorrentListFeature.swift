@@ -4,6 +4,8 @@ import Foundation
 
 // swiftlint:disable nesting type_body_length
 
+/// Управляет списком торрентов на экране деталей сервера:
+/// держит состояние фильтров, поиск, polling и взаимодействие с `TorrentRepository`.
 @Reducer
 struct TorrentListReducer {
     @ObservableState
@@ -268,6 +270,8 @@ struct TorrentListReducer {
         case polling
     }
 
+    /// Загружает пользовательские настройки, чтобы инициализировать polling interval
+    /// и другие параметры обновления списка.
     private func loadPreferences() -> Effect<Action> {
         .run { send in
             await send(
@@ -281,6 +285,7 @@ struct TorrentListReducer {
         .cancellable(id: CancelID.preferences, cancelInFlight: true)
     }
 
+    /// Выполняет запрос списка торрентов с учётом выбранного триггера (initial/manual/polling).
     private func fetchTorrents(
         state: inout State,
         trigger: FetchTrigger
@@ -320,6 +325,7 @@ struct TorrentListReducer {
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
     }
 
+    /// Планирует следующий polling tick через указанный интервал.
     private func schedulePolling(after delay: Duration) -> Effect<Action> {
         .run { send in
             let clock = appClock.clock()

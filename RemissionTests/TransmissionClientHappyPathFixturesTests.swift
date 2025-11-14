@@ -24,7 +24,7 @@ import Testing
 // - Фикстуры (RTC-30): RemissionTests/Fixtures/TransmissionFixture.swift
 //
 // swiftlint:disable explicit_type_interface
-@Suite("TransmissionClient Happy Path (Fixtures)")
+@Suite("TransmissionClient Happy Path (Fixtures)", .serialized)
 @MainActor
 struct TransmissionClientHappyPathFixturesTests {
     private let baseURL = URL(string: "https://mock.transmission/rpc")!

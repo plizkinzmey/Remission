@@ -54,6 +54,119 @@ struct TorrentListFeatureTests {
         }
     }
 
+    @Test("polling interval читает значение из UserPreferences")
+    func pollingIntervalRespectsUserPreferences() async {
+        var preferences = DomainFixtures.userPreferences
+        preferences.pollingInterval = 1.5
+        let preferencesOverride = preferences
+
+        let baseClock = TestClock<Duration>()
+        let recordingClock = RecordingClock(base: baseClock)
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = .preview(server: .previewLocalHTTP)
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: recordingClock)
+                dependencies.userPreferencesRepository = .testValue(
+                    preferences: preferencesOverride)
+                dependencies.torrentRepository = TorrentRepository.test(fetchList: {
+                    DomainFixtures.torrents
+                })
+            }
+        )
+        store.exhaustivity = .off
+
+        await store.send(.userPreferencesResponse(.success(preferences))) {
+            $0.pollingInterval = .milliseconds(1_500)
+            $0.isPollingEnabled = preferences.isAutoRefreshEnabled
+        }
+
+        await store.send(.torrentsResponse(.success(DomainFixtures.torrents))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(
+                uniqueElements: DomainFixtures.torrents.map {
+                    TorrentListItem.State(torrent: $0)
+                }
+            )
+            $0.isRefreshing = false
+            $0.failedAttempts = 0
+        }
+
+        await Task.yield()
+        #expect(recordingClock.sleepHistory.first == .milliseconds(1_500))
+
+        await store.send(.teardown)
+    }
+
+    // Проверяем, что server-scoped окружение переопределяет глобальные зависимости.
+    @Test("ServerConnectionEnvironment применяется перед fetchList")
+    func serverEnvironmentOverridesGlobalDependencies() async {
+        let clock = TestClock<Duration>()
+        let defaultRepositoryCalls = FetchCounter()
+        let scopedRepositoryCalls = FetchCounter()
+        let torrents = DomainFixtures.torrents
+        let preferences = DomainFixtures.userPreferences
+
+        let defaultRepository = TorrentRepository.test(fetchList: {
+            await defaultRepositoryCalls.increment()
+            return []
+        })
+
+        let scopedRepository = TorrentRepository.test(fetchList: {
+            await scopedRepositoryCalls.increment()
+            return torrents
+        })
+
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: scopedRepository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.userPreferencesRepository = .testValue(preferences: preferences)
+                dependencies.torrentRepository = defaultRepository
+            }
+        )
+
+        await store.send(.task) {
+            $0.phase = .loading
+        }
+
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
+            $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
+            $0.isPollingEnabled = preferences.isAutoRefreshEnabled
+        }
+
+        let expectedItems = IdentifiedArray(
+            uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
+        )
+
+        await store.receive(.torrentsResponse(.success(torrents))) {
+            $0.phase = .loaded
+            $0.items = expectedItems
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        await store.send(.teardown)
+
+        #expect(await defaultRepositoryCalls.value == 0)
+        #expect(await scopedRepositoryCalls.value == 1)
+    }
+
     // Проверяем, что ошибка запроса показывает alert и включает экспоненциальный backoff.
     @Test("ошибка fetchList показывает alert и использует экспоненциальный backoff")
     func errorPathShowsAlertAndBackoff() async {
@@ -298,6 +411,32 @@ private actor CancellationRecorder {
 
     func wasCancelled(call: Int) -> Bool {
         cancelled.contains(call)
+    }
+}
+
+private final class RecordingClock: Clock, @unchecked Sendable {
+    typealias Duration = Swift.Duration
+    typealias Instant = TestClock<Duration>.Instant
+
+    private let base: TestClock<Duration>
+    private(set) var sleepHistory: [Duration] = []
+
+    init(base: TestClock<Duration>) {
+        self.base = base
+    }
+
+    var now: Instant { base.now }
+    var minimumResolution: Duration { base.minimumResolution }
+
+    func sleep(until deadline: Instant, tolerance: Duration? = nil) async throws {
+        let interval = base.now.duration(to: deadline)
+        sleepHistory.append(interval)
+        try await base.sleep(until: deadline, tolerance: tolerance)
+    }
+
+    func sleep(for duration: Duration, tolerance: Duration? = nil) async throws {
+        sleepHistory.append(duration)
+        try await base.sleep(for: duration, tolerance: tolerance)
     }
 }
 

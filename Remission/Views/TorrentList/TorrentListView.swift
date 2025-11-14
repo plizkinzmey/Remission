@@ -131,6 +131,9 @@ struct TorrentListView: View {
 
     private var emptyStateView: some View {
         VStack(alignment: .leading, spacing: 8) {
+            Image(systemName: "tray")
+                .font(.largeTitle)
+                .foregroundStyle(.secondary)
             Text("Нет активных торрентов")
                 .font(.subheadline)
                 .bold()

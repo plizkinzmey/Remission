@@ -4,7 +4,7 @@ import Testing
 
 @testable import Remission
 
-@Suite("TransmissionMockServer")
+@Suite("TransmissionMockServer", .serialized)
 struct TransmissionMockServerTests {
     private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
         let config: URLSessionConfiguration = server.makeEphemeralSessionConfiguration()

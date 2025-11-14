@@ -214,19 +214,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         guard remainingRetries > 0, shouldRetry(urlError) else {
             return false
         }
-        let exponentialDelay: TimeInterval =
-            config.retryDelay
-            * pow(
-                2.0,
-                Double(retryAttempt)
-            )
-        let safeDelay: TimeInterval = min(
-            max(exponentialDelay, 0),
-            TimeInterval(UInt64.max) / 1_000_000_000
-        )
+        let delay = retryDelay(for: retryAttempt)
         retryAttempt += 1
         remainingRetries -= 1
-        try await clock.sleep(for: .seconds(safeDelay))
+        try await clock.sleep(for: delay)
         return true
     }
 
@@ -568,6 +559,14 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         default:
             return false
         }
+    }
+
+    /// Возвращает Duration для указанной попытки ретрая с экспоненциальным ростом.
+    private func retryDelay(for attempt: Int) -> Duration {
+        guard config.retryDelay > 0 else { return .seconds(0) }
+        let exponential = config.retryDelay * pow(2.0, Double(attempt))
+        let clamped = min(max(exponential, 0), TimeInterval(Int.max))
+        return .milliseconds(Int(clamped * 1_000))
     }
 }
 
