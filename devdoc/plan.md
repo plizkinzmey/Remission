@@ -1309,13 +1309,58 @@ return .run { [repository, clock = appClock.clock()] send in
 - QA-скрытие: приложить скриншоты HTTP предупреждения и trust prompt, сохранить лог прогона в Linear.
 
 ## Веха 6: Список торрентов
-- M6.1 Описать TCA-состояние списка (@ObservableState: элементы как IdentifiedArray, фильтры, сортировка, флаги загрузки) и действия через enum Action.
-- M6.2 Реализовать вызовы `torrent-get` с настраиваемым набором полей через @Dependency repository. Обработка ошибок и exponential backoff через Effects.
-- M6.3 Построить SwiftUI-список с индикаторами прогресса, скоростей и статуса. Использовать @Bindable для state.
-- M6.4 Добавить поиск, элементы сортировки и жест pull-to-refresh, связав их с Actions в reducer.
-- M6.5 Настроить периодический опрос через Task и swift-clocks для детерминированного тестирования с конфигурируемым интервалом.
-- M6.6 Покрыть редьюсер тестами Swift Testing: happy path, error scenarios, retry logic с использованием TestStore.
-- Проверка: модульные тесты редьюсера с TestStore (успех, ошибка, отмена) и UI-тест отображения списка на симуляторе iPhone 12.
+
+### TCA состояние, действия и зависимости
+- `TorrentListReducer.State` включает:
+  - `connectionEnvironment: ServerConnectionEnvironment?` — сервер-специфические зависимости (TransmissionClient, TorrentRepository, SessionRepository).
+  - `phase: idle/loading/loaded/error`, `isRefreshing`, `isPollingEnabled`, `failedAttempts`, `pollingInterval`, `@Presents var alert`.
+  - Коллекцию `items: IdentifiedArrayOf<TorrentListItem.State>`, вычисляемые `visibleItems` (фильтрируются по `searchQuery` и `Filter`, сортируются по `SortOrder`).
+  - `searchQuery`, `Filter` (`all/downloading/seeding/errors`), `SortOrder` (`name/progress/downloadSpeed/eta`).
+- `Action` покрывает жизненный цикл (`task`, `teardown`), пользовательские действия (`refreshRequested`, `searchQueryChanged`, `filterChanged`, `sortChanged`, `rowTapped`, `addTorrentButtonTapped`), таймер (`pollingTick`), ответы зависимостей (`userPreferencesResponse`, `torrentsResponse`), делегаты (`openTorrent`, `addTorrentRequested`) и `AlertAction`.
+- `@Dependency`:
+  - `appClock` — планирование polling/backoff.
+  - `userPreferencesRepository` — загрузка polling interval и флага автообновления.
+  - `torrentRepository` поступает из `connectionEnvironment.apply(to:)`.
+
+### Потоки данных и server-scoped bootstrap
+1. `ServerDetailReducer` создаёт `ServerConnectionEnvironment` через `serverConnectionEnvironmentFactory.make(server)` и проверяет рукопожатие с Transmission (`performHandshake`).
+2. При успехе `ServerDetailReducer` присваивает окружение себе и вложенному `TorrentListReducer`, затем диспатчит `.torrentList(.task)`.
+3. `TorrentListReducer.fetchTorrents` применяет `connectionEnvironment.apply(to: &DependencyValues)` перед вызовом `torrentRepository.fetchList()`.
+4. Цепочка: **ServerDetailReducer → TorrentListReducer → TorrentRepository → TransmissionClientDependency → TransmissionClient**. Репозиторий использует `TransmissionDomainMapper` для преобразования RPC → `Torrent`.
+5. При ошибке подключения `ServerDetailReducer` диспатчит `.torrentList(.teardown)` и сбрасывает состояние, чтобы предотвратить повторные запросы с устаревшим session-id.
+
+### Polling, backoff и минимальные RPC поля
+- Значения по умолчанию: автообновление включено, интервал 5 секунд (`Duration.seconds(5)`), хранятся в `UserPreferencesRepository`.
+- Цикл:
+  - `task` → загрузка настроек (`loadPreferences`) → `fetchTorrents(trigger: .initial)`.
+  - Успех: `phase = .loaded`, `failedAttempts = 0`, отмена alert, `merge(items:, with:)`, затем `schedulePolling(after: pollingInterval)`.
+  - Ошибка: `failedAttempts += 1`, `alert = .networkError`, если список пуст — `phase = .error(message)`, далее `schedulePolling(after: backoffDelay(failures))`.
+  - Backoff значения: `[1s, 2s, 4s, 8s, 16s, 30s]` (при большем числе ошибок остаётся на 30s). Manual refresh сбрасывает alert и принудительно ставит `isRefreshing = true`.
+- `torrent-get` запрашивает поля из `TorrentListFields.summary`:
+  - идентификаторы, имя, статус, `percentDone`, размеры (`totalSize`, `downloadedEver`, `uploadedEver`), скорости (`rateDownload`, `rateUpload`), ETA, лимиты, peers и ratio.
+  - Данных достаточно для расчёта `TorrentListItem.Metrics` (progress, скорости, ETA). Mapper обрабатывает значения percentDone как долю (0...1) или проценты (>1) согласно `TransmissionDomainMapper`.
+
+### UI/UX обязательства
+- `TorrentListView` использует `visibleItems` и:
+  - отображает прогресс (бар + проценты), черезцветные индикаторы скоростей (`speedSummary` с `↓`/`↑`), статус.
+  - предоставляет `searchable(text: $store.searchQuery)` и segmented control с фильтрами; сортировка через `Picker`.
+  - пустые состояния:
+    - `phase == .loading` → skeleton placeholder.
+    - `phase == .loaded && items.isEmpty` → экран «Нет торрентов» + CTA «Добавить торрент».
+    - `phase == .error` → сообщение об ошибке и кнопка «Повторить».
+- Пользовательское действие «Добавить торрент» пока диспатчит `.delegate(.addTorrentRequested)` и в деталях сервера отображается placeholder alert.
+
+### Тестирование и QA
+- Unit: `RemissionTests/TorrentListFeatureTests.swift` покрывает happy path (получение списка, сортировки, polling) и error path (backoff, alerts) через `TestStore` + `TestClock`.
+- UI: `RemissionUITests/RemissionUITests.swift::testTorrentListSearchAndRefresh` (iOS). Использует launch-аргументы `--ui-testing-fixture=torrent-list-sample` + `--ui-testing-scenario=torrent-list-sample`; проверяет загрузку фикстурных торрентов, поиск, фильтры, скриншоты.
+- Dev tooling: `--ui-testing-fixture=torrent-list-sample` активирует серверную фикстуру при старте приложения (см. `AppBootstrap`). Инструкции и smoke-шаги описаны в `README.md`, `RemissionTests/README.md` и `devdoc/QA_REPORT_RTC70+.md`.
+
+### Проверка готовности
+- `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`
+- `swiftlint lint`
+- `xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:RemissionTests/TorrentListFeatureTests`
+- `xcodebuild test -scheme Remission -testPlan RemissionUITests -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh`
+- QA прогон по инструкции в `devdoc/QA_REPORT_RTC70+.md` с фиксацией скриншотов (`torrent_list_fixture`, `torrent_list_search_result`) и логов `xcodebuild`.
 
 ## Веха 7: Детали торрента
 - M7.1 Создать TCA-состояние деталей (@ObservableState) с файлами, трекерами, пирами и историей скоростей. Использовать Identifiable для коллекций.

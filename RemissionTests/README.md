@@ -39,7 +39,22 @@ Store(initialState: state) {
   `xcodebuild test -scheme Remission -destination 'platform=macOS,arch=arm64' -only-testing:RemissionTests/TorrentListFeatureTests`.
   Файл `TorrentListFeatureTests.swift` покрывает happy/error path, поиск/фильтры без сетевых запросов и ручной refresh с `TestClock`.
 
-UI-тест «Добавление сервера» использует аргумент `--ui-testing-scenario=onboarding-flow`, который приложение читает при старте. Этот аргумент включает in-memory реализации `ServerConfigRepository`, `CredentialsRepository`, `ServerConnectionProbe` и `OnboardingProgressRepository`, поэтому тест изолирован от Keychain и файловой системы. Для теста списка серверов по-прежнему доступен аргумент `--ui-testing-fixture=server-list-sample`. Скриншоты предупреждения HTTP и диалога доверия автоматически прикладываются к прогону (`onboarding_http_warning`, `onboarding_trust_prompt`).
+### Torrent List smoke-сценарий
+
+- `xcodebuild test -scheme Remission -testPlan RemissionUITests -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh`
+- Требуемые launch-аргументы:
+  - `--ui-testing-fixture=torrent-list-sample`
+  - `--ui-testing-scenario=torrent-list-sample`
+
+Эти аргументы активируют in-memory `ServerConnectionEnvironment` с фикстурными торрентовыми данными (downloading/seeding/error) и гарантируют, что polling и поиск будут выполняться без реального Transmission.
+
+UI-тест «Добавление сервера» использует аргумент `--ui-testing-scenario=onboarding-flow`, который приложение читает при старте. Этот аргумент включает in-memory реализации `ServerConfigRepository`, `CredentialsRepository`, `ServerConnectionProbe` и `OnboardingProgressRepository`, поэтому тест изолирован от Keychain и файловой системы. Для теста списка серверов доступен аргумент `--ui-testing-fixture=server-list-sample`. Скриншоты предупреждения HTTP и диалога доверия автоматически прикладываются к прогону (`onboarding_http_warning`, `onboarding_trust_prompt`). Для торрентов UI-тест прикладывает `torrent_list_fixture` и `torrent_list_search_result`.
+
+## Troubleshooting
+
+- **Stuck polling / stale данные в TorrentListFeatureTests** — убедитесь, что `ServerDetailReducer` диспатчит `.torrentList(.teardown)` перед заменой окружения. В тестах используйте `ServerConnectionEnvironment.testEnvironment(...)` и переинициализируйте состояние перед каждым `store.send(.task)`.
+- **UI-тест torrent-list зависает на «Подключение»** — очистите аргументы схемы и снова добавьте `--ui-testing-fixture=torrent-list-sample`. Этот аргумент выключает реальный Transmission и подставляет предсказуемые данные. Также можно удалить приложение с симулятора (`xcrun simctl uninstall booted com.remission.app`) для сброса сохранённых серверов.
+- **Мок `ServerConnectionEnvironment` не применяется** — убедитесь, что вызываете `environment.apply(to: &dependencies)` внутри эффекта перед чтением `torrentRepository`. Это требование описано в `devdoc/plan.md` (Веха 6).
 
 ## Справочные материалы
 

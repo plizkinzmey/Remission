@@ -372,11 +372,54 @@ swiftlint lint
 xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
+#### Точечные проверки списка торрентов
+
+```bash
+# Только редьюсер TorrentListReducer (Swift Testing)
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:RemissionTests/TorrentListFeatureTests
+
+# UI-тест списка торрентов (фикстура torrent-list)
+xcodebuild test \
+  -scheme Remission \
+  -testPlan RemissionUITests \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh
+```
+
+#### UI фикстуры и аргументы
+
+| Аргумент | Назначение |
+| --- | --- |
+| `--ui-testing-fixture=server-list-sample` | Предзаполняет список серверов демо-данными |
+| `--ui-testing-fixture=torrent-list-sample` | Создаёт in-memory `ServerConnectionEnvironment` и `TorrentRepository` с тремя торрентовыми фикстурами |
+| `--ui-testing-scenario=server-list-sample` | Настраивает сценарий перехода в детали из списка серверов |
+| `--ui-testing-scenario=torrent-list-sample` | Включает вспомогательные зависимости для теста поиска/refresh в списке торрентов |
+| `--ui-testing-scenario=onboarding-flow` | Инициализирует in-memory репозитории для онбординга |
+
+Добавьте аргументы в схему (`Edit Scheme… → Arguments`) или передайте через CLI (`xcodebuild test ... OTHER_ARGUMENTS`).
+
+## Troubleshooting
+
+### Сброс ServerConnectionEnvironment при ошибках подключения
+
+`ServerConnectionEnvironment` инкапсулирует TransmissionClient/TorrentRepository для конкретного сервера. Если список торрентов перестал обновляться (поллинг завис в ошибке, UI не выходит из «Подключаемся…»):
+
+1. **Повторите подключение** — на экране сервера нажмите «Повторить подключение». Редьюсер заново вызовет `serverConnectionEnvironmentFactory.make(...)` и пересоздаст клиент.
+2. **Сделайте teardown вручную** — закройте экран деталей или перезапустите приложение. Это диспатчит `.torrentList(.teardown)` и принудительно обнуляет окружение; при следующем `task` произойдёт bootstrap.
+3. **Пересохраните сервер** — нажмите «Редактировать», измените любой параметр (или нажмите «Сохранить» без изменений). Обновлённый `connectionFingerprint` вызовет teardown и создание нового окружения.
+4. **Используйте фикстуру** — для UI-тестов и ручного smoke прогона запустите приложение с аргументом `--ui-testing-fixture=torrent-list-sample`: он подставит in-memory зависимости и гарантирует чистое состояние.
+
+Если после этих шагов ошибка сохраняется, удалите сервер из списка (что очистит креды/траст) и добавьте заново; при необходимости см. логи Transmission в консоли Xcode.
+
 ## Документация
 
 - **`devdoc/PRD.md`** — Product Requirements Document с подробным описанием функциональности
 - **`AGENTS.md`** — Справочник архитектуры, соглашений и инструкций для разработчиков и AI-агентов
 - **`devdoc/plan.md`** — План развития проекта и дорожная карта
+- **`devdoc/QA_REPORT_RTC70+.md`** — smoke-сценарии QA для списка торрентов и связанных фич
 
 ## Лицензия
 
