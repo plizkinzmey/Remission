@@ -211,6 +211,55 @@ struct TorrentListFeatureTests {
         }
     }
 
+    @Test("manual refresh сбрасывает backoff перед повторным запросом")
+    func manualRefreshResetsBackoff() async {
+        enum DummyError: Error, LocalizedError, Equatable {
+            case failed
+
+            var errorDescription: String? { "failed" }
+        }
+
+        let clock = TestClock<Duration>()
+        let repository = TorrentRepository.test(fetchList: {
+            throw DummyError.failed
+        })
+        let preferences = DomainFixtures.userPreferences
+
+        let store = makeStore(
+            clock: clock,
+            repository: repository,
+            preferences: preferences
+        )
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.phase = .loading
+        }
+
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
+            $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
+            $0.isPollingEnabled = preferences.isAutoRefreshEnabled
+        }
+
+        await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            $0.phase = .error("failed")
+            $0.alert = .networkError(message: "failed")
+            $0.failedAttempts = 1
+            $0.isRefreshing = false
+        }
+
+        await store.send(.refreshRequested) {
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = true
+        }
+
+        await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            $0.failedAttempts = 1
+            $0.isRefreshing = false
+        }
+    }
+
     // Проверяем, что поиск и фильтры не инициируют дополнительный fetchList.
     @Test("searchQuery и filter меняют visibleItems без дополнительных запросов")
     func searchAndFilterUpdateVisibleItemsWithoutFetching() async {
@@ -298,6 +347,93 @@ struct TorrentListFeatureTests {
 
         #expect(await cancellationRecorder.wasCancelled(call: 1))
         #expect(await callCounter.value == 2)
+    }
+
+    @Test("обновление настроек пересчитывает интервал и перезапускает fetch")
+    func preferencesUpdateRestartsPolling() async {
+        let clock = TestClock<Duration>()
+        let torrents = DomainFixtures.torrents
+        let callCounter = FetchCounter()
+        var continuation: AsyncStream<UserPreferences>.Continuation!
+        let basePreferences = DomainFixtures.userPreferences
+
+        let updatesStream = AsyncStream<UserPreferences> {
+            continuation = $0
+        }
+
+        let repository = TorrentRepository.test(fetchList: {
+            await callCounter.increment()
+            return torrents
+        })
+
+        let userPreferencesRepository = UserPreferencesRepository(
+            load: { basePreferences },
+            updatePollingInterval: { _ in basePreferences },
+            setAutoRefreshEnabled: { _ in basePreferences },
+            updateDefaultSpeedLimits: { _ in basePreferences },
+            observe: { updatesStream }
+        )
+
+        let server = ServerConfig.previewLocalHTTP
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: repository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.userPreferencesRepository = userPreferencesRepository
+            }
+        )
+
+        await store.send(.task) {
+            $0.phase = .loading
+        }
+
+        await store.receive(.userPreferencesResponse(.success(basePreferences))) {
+            $0.pollingInterval = .milliseconds(Int(basePreferences.pollingInterval * 1_000))
+            $0.isPollingEnabled = basePreferences.isAutoRefreshEnabled
+        }
+
+        let expectedItems = IdentifiedArray(
+            uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
+        )
+
+        await store.receive(.torrentsResponse(.success(torrents))) {
+            $0.phase = .loaded
+            $0.items = expectedItems
+            $0.isRefreshing = false
+            $0.failedAttempts = 0
+        }
+
+        #expect(await callCounter.value == 1)
+
+        var updatedPreferences = basePreferences
+        updatedPreferences.pollingInterval = 10
+        updatedPreferences.isAutoRefreshEnabled = false
+        continuation.yield(updatedPreferences)
+
+        await store.receive(.userPreferencesResponse(.success(updatedPreferences))) {
+            $0.pollingInterval = .seconds(10)
+            $0.isPollingEnabled = false
+        }
+
+        await store.receive(.torrentsResponse(.success(torrents))) {
+            $0.items = expectedItems
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        #expect(await callCounter.value == 2)
+
+        continuation.finish()
     }
 
     // Проверяем, что ошибка загрузки preferences показывает alert и всё равно запускает fetch.
@@ -446,7 +582,12 @@ extension UserPreferencesRepository {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences }
+            updateDefaultSpeedLimits: { _ in preferences },
+            observe: {
+                AsyncStream { continuation in
+                    continuation.finish()
+                }
+            }
         )
     }
 
@@ -467,6 +608,11 @@ extension UserPreferencesRepository {
                 var prefs = DomainFixtures.userPreferences
                 prefs.defaultSpeedLimits = limits
                 return prefs
+            },
+            observe: {
+                AsyncStream { continuation in
+                    continuation.finish()
+                }
             }
         )
     }

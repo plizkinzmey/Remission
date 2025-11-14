@@ -234,40 +234,20 @@ struct TransmissionClientErrorScenariosTests {
             tag: nil
         )
         let successData = try JSONEncoder().encode(successResponse)
-        RetryURLProtocol.configure(
+        defer { RetryURLProtocol.reset() }
+
+        let setup = makeRetryingClient(
             responses: [
                 .error(URLError(.timedOut)),
                 .error(URLError(.timedOut)),
                 .error(URLError(.timedOut)),
                 .success(successData)
-            ]
-        )
-        defer { RetryURLProtocol.reset() }
-
-        let config = TransmissionClientConfig(
-            baseURL: baseURL,
-            requestTimeout: 5,
+            ],
             maxRetries: 3,
             retryDelay: 0.1
         )
 
-        let sessionConfiguration: URLSessionConfiguration =
-            {
-                let configuration = URLSessionConfiguration.ephemeral
-                configuration.protocolClasses = [RetryURLProtocol.self]
-                return configuration
-            }()
-        let baseClock = TestClock<Duration>()
-        let recordingClock = RecordingClock(base: baseClock)
-        let client = TransmissionClient(
-            config: config,
-            sessionConfiguration: sessionConfiguration,
-            trustStore: .inMemory(),
-            trustDecisionHandler: { _ in .trustPermanently },
-            clock: recordingClock
-        )
-
-        async let response = client.torrentGet(ids: nil, fields: nil)
+        async let response = setup.client.torrentGet(ids: nil, fields: nil)
 
         let retryDelays: [Duration] = [
             .milliseconds(100),
@@ -275,13 +255,13 @@ struct TransmissionClientErrorScenariosTests {
             .milliseconds(400)
         ]
         for delay in retryDelays {
-            await baseClock.advance(by: delay)
+            await setup.baseClock.advance(by: delay)
         }
-        await baseClock.run()
+        await setup.baseClock.run()
 
         _ = try await response
 
-        let recordedSeconds: [Double] = recordingClock.sleepHistory.map(durationInSeconds)
+        let recordedSeconds: [Double] = setup.recordingClock.sleepHistory.map(durationInSeconds)
         #expect(recordedSeconds.count == 3)
         #expect(abs(recordedSeconds[0] - 0.1) < 0.0001)
         #expect(abs(recordedSeconds[1] - 0.2) < 0.0001)
@@ -320,6 +300,43 @@ struct TransmissionClientErrorScenariosTests {
             clock: testClock
         )
         return (client, testClock)
+    }
+
+    private func makeRetryingClient(
+        responses: [RetryURLProtocol.Response],
+        maxRetries: Int,
+        retryDelay: Double
+    ) -> (
+        client: TransmissionClient,
+        baseClock: TestClock<Duration>,
+        recordingClock: RecordingClock
+    ) {
+        RetryURLProtocol.configure(responses: responses)
+
+        let config = TransmissionClientConfig(
+            baseURL: baseURL,
+            requestTimeout: 5,
+            maxRetries: maxRetries,
+            retryDelay: retryDelay
+        )
+
+        let sessionConfiguration: URLSessionConfiguration = {
+            let configuration = URLSessionConfiguration.ephemeral
+            configuration.protocolClasses = [RetryURLProtocol.self]
+            return configuration
+        }()
+
+        let baseClock = TestClock<Duration>()
+        let recordingClock = RecordingClock(base: baseClock)
+        let client = TransmissionClient(
+            config: config,
+            sessionConfiguration: sessionConfiguration,
+            trustStore: .inMemory(),
+            trustDecisionHandler: { _ in .trustPermanently },
+            clock: recordingClock
+        )
+
+        return (client, baseClock, recordingClock)
     }
 }
 
@@ -366,7 +383,7 @@ private final class RecordingClock: Clock, @unchecked Sendable {
     }
 }
 
-private final class RetryURLProtocol: URLProtocol {
+private class RetryURLProtocol: URLProtocol {
     enum Response {
         case error(URLError)
         case success(Data)

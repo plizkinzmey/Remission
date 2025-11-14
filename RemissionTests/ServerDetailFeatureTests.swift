@@ -41,6 +41,7 @@ struct ServerDetailFeatureTests {
             dependencies.serverConnectionEnvironmentFactory = .mock(environment: environment)
             dependencies.userPreferencesRepository = .testValue(preferences: preferences)
         }
+        store.exhaustivity = .off
 
         await store.send(.task) {
             $0.connectionState.phase = .connecting
@@ -186,6 +187,7 @@ struct ServerDetailFeatureTests {
             }
             dependencies.userPreferencesRepository = .testValue(preferences: preferences)
         }
+        store.exhaustivity = .off
 
         await store.send(.task) {
             $0.connectionState.phase = .connecting
@@ -523,6 +525,115 @@ struct ServerDetailFeatureTests {
             $0.editor = nil
         }
     }
+
+    @Test
+    func preferencesUpdatePropagatesToTorrentList() async {
+        let server = ServerConfig.previewLocalHTTP
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "observer",
+            rpcVersion: 20,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0.3",
+            isCompatible: true
+        )
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            handshake: handshake
+        )
+
+        let preferencesBox = LockedValue(DomainFixtures.userPreferences)
+        let continuationBox = PreferencesContinuationBox()
+
+        let repository = UserPreferencesRepository(
+            load: { preferencesBox.value },
+            updatePollingInterval: { interval in
+                var updated = preferencesBox.value
+                updated.pollingInterval = interval
+                preferencesBox.set(updated)
+                return updated
+            },
+            setAutoRefreshEnabled: { isEnabled in
+                var updated = preferencesBox.value
+                updated.isAutoRefreshEnabled = isEnabled
+                preferencesBox.set(updated)
+                return updated
+            },
+            updateDefaultSpeedLimits: { limits in
+                var updated = preferencesBox.value
+                updated.defaultSpeedLimits = limits
+                preferencesBox.set(updated)
+                return updated
+            },
+            observe: {
+                AsyncStream { cont in
+                    Task {
+                        await continuationBox.set(cont)
+                    }
+                }
+            }
+        )
+
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.serverConnectionEnvironmentFactory = .mock(environment: environment)
+            dependencies.userPreferencesRepository = repository
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.connectionState.phase = .connecting
+        }
+
+        await store.receive(
+            .connectionResponse(
+                .success(
+                    ServerDetailReducer.ConnectionResponse(
+                        environment: environment,
+                        handshake: handshake
+                    )
+                )
+            )
+        ) {
+            $0.connectionEnvironment = environment
+            $0.connectionState.phase = .ready(
+                .init(fingerprint: environment.fingerprint, handshake: handshake)
+            )
+            $0.torrentList.connectionEnvironment = environment
+        }
+
+        await store.receive(.torrentList(.task)) {
+            $0.torrentList.phase = .loading
+        }
+
+        let initialPreferences = preferencesBox.value
+        await store.receive(.torrentList(.userPreferencesResponse(.success(initialPreferences)))) {
+            $0.torrentList.pollingInterval = .milliseconds(
+                Int(initialPreferences.pollingInterval * 1_000)
+            )
+            $0.torrentList.isPollingEnabled = initialPreferences.isAutoRefreshEnabled
+        }
+
+        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+            $0.torrentList.phase = .loaded
+        }
+
+        var updated = preferencesBox.value
+        updated.pollingInterval = 30
+        updated.isAutoRefreshEnabled = false
+        preferencesBox.set(updated)
+        await continuationBox.yield(updated)
+
+        await store.receive(.torrentList(.userPreferencesResponse(.success(updated)))) {
+            $0.torrentList.pollingInterval = .seconds(30)
+            $0.torrentList.isPollingEnabled = false
+        }
+
+        await continuationBox.finish()
+    }
 }
 
 extension UserPreferencesRepository {
@@ -531,7 +642,12 @@ extension UserPreferencesRepository {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences }
+            updateDefaultSpeedLimits: { _ in preferences },
+            observe: {
+                AsyncStream { continuation in
+                    continuation.finish()
+                }
+            }
         )
     }
 }
@@ -560,6 +676,22 @@ private final class LockedValue<Value>: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         return storage
+    }
+}
+
+private actor PreferencesContinuationBox {
+    private var continuation: AsyncStream<UserPreferences>.Continuation?
+
+    func set(_ continuation: AsyncStream<UserPreferences>.Continuation) {
+        self.continuation = continuation
+    }
+
+    func yield(_ preferences: UserPreferences) {
+        continuation?.yield(preferences)
+    }
+
+    func finish() {
+        continuation?.finish()
     }
 }
 

@@ -7,9 +7,7 @@ struct TorrentListView: View {
     var body: some View {
         Section("Торренты") {
             content
-            if store.connectionEnvironment != nil,
-                store.isPollingEnabled == false
-            {
+            if store.connectionEnvironment != nil && store.isPollingEnabled == false {
                 Text("Автообновление отключено в настройках.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)

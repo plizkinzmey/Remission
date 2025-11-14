@@ -16,12 +16,21 @@ struct AppView: View {
             .toolbar {
                 #if os(macOS)
                     ToolbarItem(placement: .primaryAction) { addServerButton }
+                    ToolbarItem(placement: .primaryAction) { settingsButton }
                 #else
-                    ToolbarItem(placement: .topBarTrailing) { addServerButton }
+                    ToolbarItemGroup(placement: .topBarTrailing) {
+                        settingsButton
+                        addServerButton
+                    }
                 #endif
             }
         } destination: { store in
             ServerDetailView(store: store)
+        }
+        .sheet(
+            store: store.scope(state: \.$settings, action: \.settings)
+        ) { settingsStore in
+            SettingsView(store: settingsStore)
         }
     }
 
@@ -30,6 +39,14 @@ struct AppView: View {
             store.send(.serverList(.addButtonTapped))
         } label: {
             Label("Добавить", systemImage: "plus")
+        }
+    }
+
+    private var settingsButton: some View {
+        Button {
+            store.send(.settingsButtonTapped)
+        } label: {
+            Label("Настройки", systemImage: "gearshape")
         }
     }
 }

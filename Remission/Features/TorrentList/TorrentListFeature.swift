@@ -27,6 +27,7 @@ struct TorrentListReducer {
         var isPollingEnabled: Bool = true
         var failedAttempts: Int = 0
         var pollingInterval: Duration = .seconds(5)
+        var hasLoadedPreferences: Bool = false
         @Presents var alert: AlertState<AlertAction>?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
@@ -168,6 +169,7 @@ struct TorrentListReducer {
         case fetch
         case polling
         case preferences
+        case preferencesUpdates
     }
 
     var body: some Reducer<State, Action> {
@@ -178,18 +180,24 @@ struct TorrentListReducer {
                     state.phase = .loading
                 }
                 state.alert = nil
-                return loadPreferences()
+                return .merge(
+                    loadPreferences(),
+                    observePreferences()
+                )
 
             case .teardown:
                 state.isRefreshing = false
+                state.hasLoadedPreferences = false
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
-                    .cancel(id: CancelID.preferences)
+                    .cancel(id: CancelID.preferences),
+                    .cancel(id: CancelID.preferencesUpdates)
                 )
 
             case .refreshRequested:
                 state.alert = nil
+                state.failedAttempts = 0
                 return fetchTorrents(state: &state, trigger: .manualRefresh)
 
             case .searchQueryChanged(let query):
@@ -214,9 +222,25 @@ struct TorrentListReducer {
                 return fetchTorrents(state: &state, trigger: .polling)
 
             case .userPreferencesResponse(.success(let preferences)):
-                state.pollingInterval = duration(from: preferences.pollingInterval)
-                state.isPollingEnabled = preferences.isAutoRefreshEnabled
-                return fetchTorrents(state: &state, trigger: .initial)
+                let newInterval = duration(from: preferences.pollingInterval)
+                let newAutoRefresh = preferences.isAutoRefreshEnabled
+                let intervalChanged = state.pollingInterval != newInterval
+                let autoRefreshChanged = state.isPollingEnabled != newAutoRefresh
+                state.pollingInterval = newInterval
+                state.isPollingEnabled = newAutoRefresh
+
+                if state.hasLoadedPreferences == false {
+                    state.hasLoadedPreferences = true
+                    return fetchTorrents(state: &state, trigger: .initial)
+                }
+
+                guard intervalChanged || autoRefreshChanged else {
+                    return .none
+                }
+                return .merge(
+                    .cancel(id: CancelID.polling),
+                    fetchTorrents(state: &state, trigger: .preferencesChanged)
+                )
 
             case .userPreferencesResponse(.failure(let error)):
                 let effect = fetchTorrents(state: &state, trigger: .initial)
@@ -268,6 +292,7 @@ struct TorrentListReducer {
         case initial
         case manualRefresh
         case polling
+        case preferencesChanged
     }
 
     /// Загружает пользовательские настройки, чтобы инициализировать polling interval
@@ -283,6 +308,17 @@ struct TorrentListReducer {
             )
         }
         .cancellable(id: CancelID.preferences, cancelInFlight: true)
+    }
+
+    /// Наблюдает за изменениями настроек и пробрасывает их в reducer.
+    private func observePreferences() -> Effect<Action> {
+        .run { send in
+            let stream = userPreferencesRepository.observe()
+            for await preferences in stream {
+                await send(.userPreferencesResponse(.success(preferences)))
+            }
+        }
+        .cancellable(id: CancelID.preferencesUpdates, cancelInFlight: true)
     }
 
     /// Выполняет запрос списка торрентов с учётом выбранного триггера (initial/manual/polling).
@@ -303,6 +339,8 @@ struct TorrentListReducer {
         case .manualRefresh:
             state.isRefreshing = true
         case .polling:
+            break
+        case .preferencesChanged:
             break
         }
 

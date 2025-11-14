@@ -8,6 +8,7 @@ struct AppReducer {
         var version: AppStateVersion
         var serverList: ServerListReducer.State
         var path: StackState<ServerDetailReducer.State>
+        @Presents var settings: SettingsReducer.State?
 
         init(
             version: AppStateVersion = .latest,
@@ -23,6 +24,8 @@ struct AppReducer {
     enum Action: Equatable {
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
+        case settingsButtonTapped
+        case settings(PresentationAction<SettingsReducer.Action>)
     }
 
     var body: some Reducer<State, Action> {
@@ -59,6 +62,17 @@ struct AppReducer {
 
             case .path:
                 return .none
+
+            case .settingsButtonTapped:
+                state.settings = SettingsReducer.State()
+                return .none
+
+            case .settings(.presented(.delegate(.closeRequested))):
+                state.settings = nil
+                return .none
+
+            case .settings:
+                return .none
             }
         }
         .forEach(\.path, action: \.path) {
@@ -67,6 +81,10 @@ struct AppReducer {
 
         Scope(state: \.serverList, action: \.serverList) {
             ServerListReducer()
+        }
+
+        .ifLet(\.$settings, action: \.settings) {
+            SettingsReducer()
         }
     }
 }

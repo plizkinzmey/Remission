@@ -13,6 +13,8 @@ protocol UserPreferencesRepositoryProtocol: Sendable {
     func updateDefaultSpeedLimits(
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences
+    /// Наблюдает за изменениями настроек и возвращает поток актуальных значений.
+    func observe() -> AsyncStream<UserPreferences>
 }
 
 /// Обёртка, предоставляющая зависимости через `DependencyKey`.
@@ -22,6 +24,7 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
     var setAutoRefreshEnabledClosure: @Sendable (Bool) async throws -> UserPreferences
     var updateDefaultSpeedLimitsClosure:
         @Sendable (UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
+    var observeClosure: @Sendable () -> AsyncStream<UserPreferences>
 
     init(
         load: @escaping @Sendable () async throws -> UserPreferences,
@@ -29,12 +32,14 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         setAutoRefreshEnabled: @escaping @Sendable (Bool) async throws -> UserPreferences,
         updateDefaultSpeedLimits:
             @escaping @Sendable (UserPreferences.DefaultSpeedLimits)
-            async throws -> UserPreferences
+            async throws -> UserPreferences,
+        observe: @escaping @Sendable () -> AsyncStream<UserPreferences>
     ) {
         self.loadClosure = load
         self.updatePollingIntervalClosure = updatePollingInterval
         self.setAutoRefreshEnabledClosure = setAutoRefreshEnabled
         self.updateDefaultSpeedLimitsClosure = updateDefaultSpeedLimits
+        self.observeClosure = observe
     }
 
     func load() async throws -> UserPreferences {
@@ -53,6 +58,10 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences {
         try await updateDefaultSpeedLimitsClosure(limits)
+    }
+
+    func observe() -> AsyncStream<UserPreferences> {
+        observeClosure()
     }
 }
 
@@ -100,6 +109,11 @@ extension UserPreferencesRepository {
             var preferences: UserPreferences = .default
             preferences.defaultSpeedLimits = limits
             return preferences
+        },
+        observe: {
+            AsyncStream { continuation in
+                continuation.finish()
+            }
         }
     )
 
@@ -115,6 +129,11 @@ extension UserPreferencesRepository {
         },
         updateDefaultSpeedLimits: { _ in
             throw UserPreferencesRepositoryError.notConfigured("updateDefaultSpeedLimits")
+        },
+        observe: {
+            AsyncStream { continuation in
+                continuation.finish()
+            }
         }
     )
 }

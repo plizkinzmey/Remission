@@ -378,6 +378,7 @@ actor InMemoryUserPreferencesRepositoryStore {
 
     private(set) var preferences: UserPreferences
     private var failedOperations: Set<Operation> = []
+    private var observers: [UUID: AsyncStream<UserPreferences>.Continuation] = [:]
 
     init(preferences: UserPreferences) {
         self.preferences = preferences
@@ -393,6 +394,30 @@ actor InMemoryUserPreferencesRepositoryStore {
 
     func shouldFail(_ operation: Operation) -> Bool {
         failedOperations.contains(operation)
+    }
+
+    func addObserver(
+        id: UUID,
+        continuation: AsyncStream<UserPreferences>.Continuation
+    ) {
+        observers[id] = continuation
+        continuation.onTermination = { [weak self] _ in
+            guard let self else { return }
+            Task {
+                await self.removeObserver(id: id)
+            }
+        }
+    }
+
+    func notifyObservers() {
+        let current = preferences
+        for continuation in observers.values {
+            continuation.yield(current)
+        }
+    }
+
+    private func removeObserver(id: UUID) {
+        observers[id] = nil
     }
 }
 
@@ -426,6 +451,7 @@ extension UserPreferencesRepository {
                 await store.update {
                     $0.pollingInterval = interval
                 }
+                await store.notifyObservers()
                 return await store.preferences
             },
             setAutoRefreshEnabled: { isEnabled in
@@ -436,6 +462,7 @@ extension UserPreferencesRepository {
                 await store.update {
                     $0.isAutoRefreshEnabled = isEnabled
                 }
+                await store.notifyObservers()
                 return await store.preferences
             },
             updateDefaultSpeedLimits: { limits in
@@ -446,7 +473,16 @@ extension UserPreferencesRepository {
                 await store.update {
                     $0.defaultSpeedLimits = limits
                 }
+                await store.notifyObservers()
                 return await store.preferences
+            },
+            observe: {
+                AsyncStream { continuation in
+                    let id = UUID()
+                    Task {
+                        await store.addObserver(id: id, continuation: continuation)
+                    }
+                }
             }
         )
     }
