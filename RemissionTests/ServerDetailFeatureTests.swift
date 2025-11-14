@@ -316,6 +316,49 @@ struct ServerDetailFeatureTests {
     }
 
     @Test
+    func connectionFailureTriggersTorrentListTeardown() async {
+        enum DummyError: Error, LocalizedError, Equatable {
+            case failure
+
+            var errorDescription: String? { "failure" }
+        }
+
+        let server = ServerConfig.previewLocalHTTP
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "session",
+            rpcVersion: 17,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4",
+            isCompatible: true
+        )
+        let environment = ServerConnectionEnvironment.testEnvironment(server: server)
+
+        var initialState = ServerDetailReducer.State(server: server)
+        initialState.connectionEnvironment = environment
+        initialState.connectionState.phase = .ready(
+            .init(fingerprint: environment.fingerprint, handshake: handshake)
+        )
+        initialState.torrentList.connectionEnvironment = environment
+
+        let store = TestStore(
+            initialState: initialState
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.connectionResponse(.failure(DummyError.failure))) {
+            $0.connectionEnvironment = nil
+            $0.connectionState.phase = .failed(.init(message: "failure"))
+            $0.torrentList = TorrentListReducer.State()
+            $0.alert = .connectionFailure(message: "failure")
+        }
+
+        await store.receive(.torrentList(.teardown))
+    }
+
+    @Test
     func httpWarningResetClearsPreferences() async {
         let fingerprint = LockedValue<String?>(nil)
         let server = ServerConfig.previewLocalHTTP

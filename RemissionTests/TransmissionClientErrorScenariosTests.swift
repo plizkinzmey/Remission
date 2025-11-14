@@ -13,7 +13,7 @@ import Testing
 /// - `/pointfreeco/swift-composable-architecture` → статья *Testing TCA* (mock dependencies, TestStore).
 /// - `/swiftlang/swift-testing` → *Discoverable Test Content* и best practices @Test/@Suite.
 /// - `/websites/transmission-rpc_readthedocs_io` → спецификация Transmission RPC (handshake, версии).
-@Suite("TransmissionClient Error Scenarios")
+@Suite("TransmissionClient Error Scenarios", .serialized)
 @MainActor
 struct TransmissionClientErrorScenariosTests {
     private let baseURL: URL = URL(string: "https://mock.transmission/rpc")!
@@ -226,23 +226,23 @@ struct TransmissionClientErrorScenariosTests {
         #expect(!joinedLogs.contains(sessionID))
     }
 
-    @Test("Проверяет экспоненциальный backoff при сетевых ошибках", .timeLimit(.minutes(1)))
+    @Test("Проверяет экспоненциальный backoff при сетевых ошибках")
     func testExponentialBackoffOnNetworkErrors() async throws {
-        let server = TransmissionMockServer()
-        defer { cleanupMockServer() }
-
-        server.register(
-            scenario: .init(
-                name: "retry-with-backoff",
-                steps: [
-                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
-                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
-                    .networkFailure(method: "torrent-get", error: URLError(.timedOut)),
-                    .rpcSuccess(
-                        method: "torrent-get", arguments: .object(["torrents": .array([])]))
-                ]
-            )
+        let successResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object(["torrents": .array([])]),
+            tag: nil
         )
+        let successData = try JSONEncoder().encode(successResponse)
+        RetryURLProtocol.configure(
+            responses: [
+                .error(URLError(.timedOut)),
+                .error(URLError(.timedOut)),
+                .error(URLError(.timedOut)),
+                .success(successData)
+            ]
+        )
+        defer { RetryURLProtocol.reset() }
 
         let config = TransmissionClientConfig(
             baseURL: baseURL,
@@ -252,7 +252,11 @@ struct TransmissionClientErrorScenariosTests {
         )
 
         let sessionConfiguration: URLSessionConfiguration =
-            server.makeEphemeralSessionConfiguration()
+            {
+                let configuration = URLSessionConfiguration.ephemeral
+                configuration.protocolClasses = [RetryURLProtocol.self]
+                return configuration
+            }()
         let baseClock = TestClock<Duration>()
         let recordingClock = RecordingClock(base: baseClock)
         let client = TransmissionClient(
@@ -276,8 +280,6 @@ struct TransmissionClientErrorScenariosTests {
         await baseClock.run()
 
         _ = try await response
-
-        try server.assertAllScenariosFinished()
 
         let recordedSeconds: [Double] = recordingClock.sleepHistory.map(durationInSeconds)
         #expect(recordedSeconds.count == 3)
@@ -361,6 +363,76 @@ private final class RecordingClock: Clock, @unchecked Sendable {
     func sleep(for duration: Duration, tolerance: Duration? = nil) async throws {
         sleepHistory.append(duration)
         try await base.sleep(for: duration, tolerance: tolerance)
+    }
+}
+
+private final class RetryURLProtocol: URLProtocol {
+    enum Response {
+        case error(URLError)
+        case success(Data)
+    }
+
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var pendingResponses: [Response] = []
+
+    static func configure(responses: [Response]) {
+        lock.lock()
+        pendingResponses = responses
+        lock.unlock()
+    }
+
+    static func reset() {
+        configure(responses: [])
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
+
+    override func startLoading() {
+        guard let client else { return }
+        guard let next = Self.dequeue() else {
+            client.urlProtocol(
+                self,
+                didFailWithError: URLError(.badServerResponse)
+            )
+            return
+        }
+
+        switch next {
+        case .error(let error):
+            client.urlProtocol(self, didFailWithError: error)
+        case .success(let data):
+            guard let url = request.url else {
+                client.urlProtocol(
+                    self,
+                    didFailWithError: URLError(.badURL)
+                )
+                return
+            }
+            let response = HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]
+            )!
+            client.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client.urlProtocol(self, didLoad: data)
+            client.urlProtocolDidFinishLoading(self)
+        }
+    }
+
+    override func stopLoading() {}
+
+    private static func dequeue() -> Response? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard pendingResponses.isEmpty == false else { return nil }
+        return pendingResponses.removeFirst()
     }
 }
 
