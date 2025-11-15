@@ -10,6 +10,7 @@ struct TorrentDetailReducer {
         case teardown
         case refreshRequested
         case detailsResponse(TaskResult<DetailsResponse>)
+        case commandResponse(CommandResult)
         case startTapped
         case pauseTapped
         case verifyTapped
@@ -47,6 +48,42 @@ struct TorrentDetailReducer {
         case torrentRemoved(Torrent.Identifier)
     }
 
+    enum CommandCategory: Equatable {
+        case start
+        case pause
+        case verify
+        case remove
+        case priority
+    }
+
+    enum CommandKind: Equatable {
+        case start
+        case pause
+        case verify
+        case remove(deleteData: Bool)
+        case priority(indices: [Int], priority: TorrentRepository.FilePriority)
+
+        var category: CommandCategory {
+            switch self {
+            case .start:
+                return .start
+            case .pause:
+                return .pause
+            case .verify:
+                return .verify
+            case .remove:
+                return .remove
+            case .priority:
+                return .priority
+            }
+        }
+    }
+
+    enum CommandResult: Equatable {
+        case success(CommandKind)
+        case failure(CommandKind, String)
+    }
+
     @Dependency(\.dateProvider) var dateProvider
 
     private enum FetchTrigger {
@@ -56,6 +93,7 @@ struct TorrentDetailReducer {
 
     private enum CancelID: Hashable {
         case loadTorrentDetails
+        case commandExecution
     }
 
     var body: some Reducer<State, Action> {
@@ -69,7 +107,12 @@ struct TorrentDetailReducer {
 
             case .teardown:
                 state.isLoading = false
-                return .cancel(id: CancelID.loadTorrentDetails)
+                state.pendingCommands.removeAll()
+                state.activeCommand = nil
+                return .merge(
+                    .cancel(id: CancelID.loadTorrentDetails),
+                    .cancel(id: CancelID.commandExecution)
+                )
 
             case .detailsResponse(.success(let response)):
                 state.isLoading = false
@@ -88,29 +131,28 @@ struct TorrentDetailReducer {
                 state.errorMessage = message
                 return .none
 
+            case .commandResponse(.success(let command)):
+                state.activeCommand = nil
+                let torrentID = state.torrentID
+                let next = startNextCommand(state: &state)
+                return .merge(
+                    commandSuccessEffect(for: command, torrentID: torrentID),
+                    next
+                )
+
+            case .commandResponse(.failure(_, let message)):
+                state.activeCommand = nil
+                let next = startNextCommand(state: &state)
+                return .merge(.send(.commandFailed(message)), next)
+
             case .startTapped:
-                return runCommand(
-                    state: &state,
-                    successAction: .commandDidFinish("Торрент запущен")
-                ) { repository, torrentID in
-                    try await repository.start([torrentID])
-                }
+                return enqueueCommand(.start, state: &state)
 
             case .pauseTapped:
-                return runCommand(
-                    state: &state,
-                    successAction: .commandDidFinish("Торрент остановлен")
-                ) { repository, torrentID in
-                    try await repository.stop([torrentID])
-                }
+                return enqueueCommand(.pause, state: &state)
 
             case .verifyTapped:
-                return runCommand(
-                    state: &state,
-                    successAction: .commandDidFinish("Проверка запущена")
-                ) { repository, torrentID in
-                    try await repository.verify([torrentID])
-                }
+                return enqueueCommand(.verify, state: &state)
 
             case .removeButtonTapped:
                 state.removeConfirmation = .removeTorrent(name: state.name)
@@ -118,21 +160,11 @@ struct TorrentDetailReducer {
 
             case .removeConfirmation(.presented(.deleteTorrentOnly)):
                 state.removeConfirmation = nil
-                return runCommand(
-                    state: &state,
-                    successAction: .delegate(.torrentRemoved(state.torrentID))
-                ) { repository, torrentID in
-                    try await repository.remove([torrentID], deleteLocalData: false)
-                }
+                return enqueueCommand(.remove(deleteData: false), state: &state)
 
             case .removeConfirmation(.presented(.deleteWithData)):
                 state.removeConfirmation = nil
-                return runCommand(
-                    state: &state,
-                    successAction: .delegate(.torrentRemoved(state.torrentID))
-                ) { repository, torrentID in
-                    try await repository.remove([torrentID], deleteLocalData: true)
-                }
+                return enqueueCommand(.remove(deleteData: true), state: &state)
 
             case .removeConfirmation(.presented(.cancel)):
                 state.removeConfirmation = nil
@@ -142,37 +174,16 @@ struct TorrentDetailReducer {
                 return .none
 
             case .priorityChanged(let fileIndices, let priority):
-                guard let environment = state.connectionEnvironment else {
-                    state.alert = .connectionMissing()
+                guard fileIndices.isEmpty == false else {
                     return .none
                 }
                 guard let mappedPriority = Self.filePriority(from: priority) else {
                     return .none
                 }
-                let torrentID = state.torrentID
-                return .run { send in
-                    let result = await TaskResult {
-                        try await withDependencies {
-                            environment.apply(to: &$0)
-                        } operation: {
-                            @Dependency(\.torrentRepository) var repository: TorrentRepository
-                            let updates = fileIndices.map {
-                                TorrentRepository.FileSelectionUpdate(
-                                    fileIndex: $0,
-                                    priority: mappedPriority
-                                )
-                            }
-                            try await repository.updateFileSelection(updates, in: torrentID)
-                        }
-                    }
-
-                    switch result {
-                    case .success:
-                        await send(.commandDidFinish("Приоритет обновлён"))
-                    case .failure(let error):
-                        await send(.commandFailed(Self.describe(error)))
-                    }
-                }
+                return enqueueCommand(
+                    .priority(indices: fileIndices, priority: mappedPriority),
+                    state: &state
+                )
 
             case .toggleDownloadLimit(let isEnabled):
                 state.downloadLimited = isEnabled
@@ -218,6 +229,8 @@ struct TorrentDetailReducer {
 
             case .commandDidFinish(let message):
                 state.alert = .info(message: message)
+                // Always trigger a refresh after any command so the tests (and UI)
+                // observe a `.detailsResponse` with fresh data without user input.
                 return .send(.refreshRequested)
 
             case .commandFailed(let message):
@@ -283,14 +296,43 @@ struct TorrentDetailReducer {
         .cancellable(id: CancelID.loadTorrentDetails, cancelInFlight: true)
     }
 
-    private func runCommand(
-        state: inout State,
-        successAction: Action,
-        operation: @escaping @Sendable (TorrentRepository, Torrent.Identifier) async throws -> Void
+    private func enqueueCommand(
+        _ command: CommandKind,
+        state: inout State
     ) -> Effect<Action> {
-        guard let environment = state.connectionEnvironment else {
+        guard state.connectionEnvironment != nil else {
             state.alert = .connectionMissing()
             return .none
+        }
+
+        state.pendingCommands.append(command)
+        return startNextCommand(state: &state)
+    }
+
+    private func startNextCommand(
+        state: inout State
+    ) -> Effect<Action> {
+        guard state.activeCommand == nil,
+            let next = state.pendingCommands.first
+        else {
+            return .none
+        }
+
+        state.pendingCommands.removeFirst()
+        state.activeCommand = next
+        return execute(command: next, state: &state)
+    }
+
+    private func execute(
+        command: CommandKind,
+        state: inout State
+    ) -> Effect<Action> {
+        guard let environment = state.connectionEnvironment else {
+            return .send(
+                .commandResponse(
+                    .failure(command, "Нет подключения к серверу")
+                )
+            )
         }
 
         let torrentID = state.torrentID
@@ -300,17 +342,64 @@ struct TorrentDetailReducer {
                     environment.apply(to: &$0)
                 } operation: {
                     @Dependency(\.torrentRepository) var repository: TorrentRepository
-                    try await operation(repository, torrentID)
-                    return
+                    try await perform(
+                        command: command,
+                        repository: repository,
+                        torrentID: torrentID
+                    )
                 }
             }
 
             switch result {
             case .success:
-                await send(successAction)
+                await send(.commandResponse(.success(command)))
             case .failure(let error):
-                await send(.commandFailed(Self.describe(error)))
+                await send(.commandResponse(.failure(command, Self.describe(error))))
             }
+        }
+        .cancellable(id: CancelID.commandExecution, cancelInFlight: true)
+    }
+
+    private func perform(
+        command: CommandKind,
+        repository: TorrentRepository,
+        torrentID: Torrent.Identifier
+    ) async throws {
+        switch command {
+        case .start:
+            try await repository.start([torrentID])
+        case .pause:
+            try await repository.stop([torrentID])
+        case .verify:
+            try await repository.verify([torrentID])
+        case .remove(let deleteData):
+            try await repository.remove([torrentID], deleteLocalData: deleteData)
+        case .priority(let indices, let priority):
+            let updates = indices.map {
+                TorrentRepository.FileSelectionUpdate(
+                    fileIndex: $0,
+                    priority: priority
+                )
+            }
+            try await repository.updateFileSelection(updates, in: torrentID)
+        }
+    }
+
+    private func commandSuccessEffect(
+        for command: CommandKind,
+        torrentID: Torrent.Identifier
+    ) -> Effect<Action> {
+        switch command {
+        case .start:
+            return .send(.commandDidFinish("Торрент запущен"))
+        case .pause:
+            return .send(.commandDidFinish("Торрент остановлен"))
+        case .verify:
+            return .send(.commandDidFinish("Проверка запущена"))
+        case .priority:
+            return .send(.commandDidFinish("Приоритет обновлён"))
+        case .remove:
+            return .send(.delegate(.torrentRemoved(torrentID)))
         }
     }
 
@@ -404,89 +493,23 @@ extension TorrentDetailReducer.State {
         peers = IdentifiedArray(uniqueElements: torrent.summary.peers.sources)
 
         if let details = torrent.details {
+            hasLoadedMetadata = true
             downloadDir = details.downloadDirectory
             if let addedDate = details.addedDate {
                 dateAdded = Int(addedDate.timeIntervalSince1970)
+            } else {
+                dateAdded = 0
             }
             files = IdentifiedArray(uniqueElements: details.files)
             trackers = IdentifiedArray(uniqueElements: details.trackers)
             trackerStats = IdentifiedArray(uniqueElements: details.trackerStats)
         } else {
+            hasLoadedMetadata = false
+            downloadDir = ""
+            dateAdded = 0
             files = []
             trackers = []
             trackerStats = []
-        }
-    }
-}
-
-extension AlertState where Action == TorrentDetailReducer.AlertAction {
-    static func info(message: String) -> AlertState {
-        AlertState {
-            TextState("Готово")
-        } actions: {
-            ButtonState(action: .dismiss) {
-                TextState("OK")
-            }
-        } message: {
-            TextState(message)
-        }
-    }
-
-    static func error(message: String) -> AlertState {
-        AlertState {
-            TextState("Ошибка")
-        } actions: {
-            ButtonState(action: .dismiss) {
-                TextState("Понятно")
-            }
-        } message: {
-            TextState(message)
-        }
-    }
-
-    static func connectionMissing() -> AlertState {
-        .error(message: "Нет подключения к серверу")
-    }
-}
-
-extension ConfirmationDialogState
-where Action == TorrentDetailReducer.RemoveConfirmationAction {
-    static func removeTorrent(name: String) -> ConfirmationDialogState {
-        ConfirmationDialogState {
-            TextState("Удалить торрент «\(name.isEmpty ? "Без названия" : name)»?")
-        } actions: {
-            ButtonState(role: .destructive, action: .deleteTorrentOnly) {
-                TextState("Удалить торрент")
-            }
-            ButtonState(role: .destructive, action: .deleteWithData) {
-                TextState("Удалить с данными")
-            }
-            ButtonState(role: .cancel, action: .cancel) {
-                TextState("Отмена")
-            }
-        }
-    }
-}
-
-extension APIError {
-    var userFriendlyMessage: String {
-        switch self {
-        case .networkUnavailable:
-            return "Сеть недоступна"
-        case .unauthorized:
-            return "Ошибка аутентификации"
-        case .sessionConflict:
-            return "Конфликт сессии"
-        case .tlsTrustDeclined:
-            return "Подключение отклонено: сертификат не доверен"
-        case .tlsEvaluationFailed(let details):
-            return "Ошибка проверки сертификата: \(details)"
-        case .versionUnsupported(let version):
-            return "Версия Transmission не поддерживается (\(version))"
-        case .decodingFailed:
-            return "Ошибка парсирования ответа"
-        case .unknown(let details):
-            return "Ошибка: \(details)"
         }
     }
 }

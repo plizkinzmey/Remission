@@ -44,6 +44,22 @@ enum DomainFixtures {
         return torrent
     }()
 
+    static let torrentMetadataPending: Torrent = {
+        var torrent = Torrent.previewDownloading
+        torrent.id = .init(rawValue: 15)
+        torrent.details = nil
+        torrent.summary.progress = .init(
+            percentDone: 0,
+            totalSize: 0,
+            downloadedEver: 0,
+            uploadedEver: 0,
+            uploadRatio: 0,
+            etaSeconds: -1
+        )
+        torrent.summary.peers = .init(connected: 0, sources: [])
+        return torrent
+    }()
+
     static let torrents: [Torrent] = [
         torrentDownloading,
         torrentCompleted

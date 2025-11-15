@@ -11,7 +11,8 @@ struct TorrentActionsView: View {
                     actionButton(
                         title: isActive ? "Пауза" : "Старт",
                         systemImage: isActive ? "pause.fill" : "play.fill",
-                        color: isActive ? .orange : .green
+                        color: isActive ? .orange : .green,
+                        lockCategory: isActive ? .pause : .start
                     ) {
                         store.send(isActive ? .pauseTapped : .startTapped)
                     }
@@ -19,7 +20,8 @@ struct TorrentActionsView: View {
                     actionButton(
                         title: "Проверить",
                         systemImage: "checkmark.shield.fill",
-                        color: .blue
+                        color: .blue,
+                        lockCategory: .verify
                     ) {
                         store.send(.verifyTapped)
                     }
@@ -29,7 +31,8 @@ struct TorrentActionsView: View {
                     title: "Удалить торрент",
                     systemImage: "trash.fill",
                     color: .red,
-                    fullWidth: true
+                    fullWidth: true,
+                    lockCategory: .remove
                 ) {
                     store.send(.removeButtonTapped)
                 }
@@ -50,6 +53,7 @@ struct TorrentActionsView: View {
         systemImage: String,
         color: Color,
         fullWidth: Bool = false,
+        lockCategory: TorrentDetailReducer.CommandCategory? = nil,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -58,6 +62,7 @@ struct TorrentActionsView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(color)
+        .disabled(lockCategory.map(isLocked(for:)) ?? false)
         .accessibilityIdentifier(identifier(for: title))
         .accessibilityLabel(title)
         .accessibilityHint("Отправляет команду на Transmission")
@@ -76,6 +81,10 @@ struct TorrentActionsView: View {
         default:
             return "torrent-action-\(title.lowercased())"
         }
+    }
+
+    private func isLocked(for category: TorrentDetailReducer.CommandCategory) -> Bool {
+        store.withState { $0.isCommandCategoryLocked(category) }
     }
 }
 

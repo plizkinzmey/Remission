@@ -16,7 +16,8 @@ enum TorrentDetailFormatters {
     }
 
     static func progress(_ value: Double) -> String {
-        String(format: "%.1f%%", value * 100)
+        let clamped = max(0, min(value, 1))
+        return String(format: "%.1f%%", clamped * 100)
     }
 
     static func bytes(_ bytes: Int) -> String {

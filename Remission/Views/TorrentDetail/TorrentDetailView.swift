@@ -20,18 +20,35 @@ struct TorrentDetailView: View {
                     EmptyPlaceholderView(
                         systemImage: "arrow.clockwise.circle",
                         title: "Получаем данные",
-                        message: "Как только сервер Transmission вернёт детали, они появятся здесь."
+                        message:
+                            """
+                            Как только сервер Transmission вернёт детали,
+                            они появятся здесь.
+                            """
                     )
                     .accessibilityIdentifier("torrent-detail-initial-placeholder")
+                }
+
+                if shouldShowMetadataFallback {
+                    EmptyPlaceholderView(
+                        systemImage: "sparkles",
+                        title: "Ждём метаданные",
+                        message:
+                            """
+                            Transmission пока не прислал структуру файлов и трекеров.
+                            Попробуйте обновить через несколько секунд.
+                            """
+                    )
+                    .accessibilityIdentifier("torrent-detail-metadata-placeholder")
                 }
 
                 TorrentMainInfoView(store: store)
                 TorrentStatisticsView(store: store)
                 TorrentSpeedHistoryView(samples: store.speedHistory.samples)
                 TorrentActionsView(store: store)
-                TorrentFilesView(store: store)
-                TorrentTrackersView(store: store)
-                TorrentPeersView(peers: store.peers)
+                filesSection
+                trackersSection
+                peersSection
             }
             .padding(.horizontal)
             .padding(.vertical, 24)
@@ -70,17 +87,77 @@ struct TorrentDetailView: View {
             && store.speedHistory.samples.isEmpty
     }
 
+    private var shouldShowMetadataFallback: Bool {
+        store.isLoading == false
+            && store.errorMessage == nil
+            && store.hasLoadedMetadata == false
+            && store.files.isEmpty
+            && store.trackers.isEmpty
+            && store.peers.isEmpty
+    }
+
+    @ViewBuilder
+    private var filesSection: some View {
+        if store.files.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "doc.text.magnifyingglass",
+                title: store.hasLoadedMetadata ? "Файлы недоступны" : "Файлы ещё не загружены",
+                message: store.hasLoadedMetadata
+                    ? "Transmission не вернул список файлов. Обновите детали позже."
+                    : "Как только сервер пришлёт метаданные, список файлов появится автоматически."
+            )
+            .accessibilityIdentifier("torrent-files-empty")
+        } else {
+            TorrentFilesView(store: store)
+        }
+    }
+
+    @ViewBuilder
+    private var trackersSection: some View {
+        if store.trackers.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "dot.radiowaves.left.and.right",
+                title: store.hasLoadedMetadata ? "Нет трекеров" : "Трекеры ещё не загружены",
+                message: store.hasLoadedMetadata
+                    ? "Переданные детали не содержат трекеров."
+                    : "Дождитесь загрузки метаданных, чтобы увидеть список трекеров."
+            )
+            .accessibilityIdentifier("torrent-trackers-empty")
+        } else {
+            TorrentTrackersView(store: store)
+        }
+    }
+
+    @ViewBuilder
+    private var peersSection: some View {
+        if store.peers.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "person.2.wave.2.fill",
+                title: store.hasLoadedMetadata ? "Нет источников" : "Источники ещё не получены",
+                message: store.hasLoadedMetadata
+                    ? "Для этого торрента нет активных источников."
+                    : "Как только Transmission пришлёт данные о пирам, мы покажем их здесь."
+            )
+            .accessibilityIdentifier("torrent-peers-empty")
+        } else {
+            TorrentPeersView(peers: store.peers)
+        }
+    }
+
     @ViewBuilder
     private var summarySection: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 16) {
-                    ProgressView(value: store.percentDone, total: 1.0)
-                        .progressViewStyle(.circular)
-                        .frame(width: 52, height: 52)
-                        .accessibilityLabel("Прогресс загрузки")
-                        .accessibilityValue(progressDescription)
-                        .accessibilityIdentifier("torrent-progress")
+                    ProgressView(
+                        value: store.hasLoadedMetadata ? store.percentDone : 0,
+                        total: 1.0
+                    )
+                    .progressViewStyle(.circular)
+                    .frame(width: 52, height: 52)
+                    .accessibilityLabel("Прогресс загрузки")
+                    .accessibilityValue(progressDescription)
+                    .accessibilityIdentifier("torrent-progress")
                     VStack(alignment: .leading, spacing: 4) {
                         Text(progressDescription)
                             .font(.title3.weight(.semibold))
@@ -91,8 +168,12 @@ struct TorrentDetailView: View {
                             Text("Осталось \(TorrentDetailFormatters.eta(store.eta))")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
-                        } else {
+                        } else if store.hasLoadedMetadata {
                             Text("ETA недоступно")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("ETA появится после загрузки метаданных")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -129,6 +210,9 @@ struct TorrentDetailView: View {
     }
 
     private var progressDescription: String {
+        guard store.hasLoadedMetadata else {
+            return "Нет данных"
+        }
         let percent = max(0, min(100, Int((store.percentDone * 100).rounded())))
         return "\(percent)%"
     }
@@ -222,6 +306,7 @@ private struct SummaryMetricRow: View {
                 isLoading: false,
                 errorMessage: nil
             )
+            state.hasLoadedMetadata = true
             state.speedHistory.samples = [
                 SpeedSample(
                     timestamp: Date().addingTimeInterval(-120),

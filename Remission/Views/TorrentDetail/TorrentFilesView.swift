@@ -6,20 +6,11 @@ struct TorrentFilesView: View {
 
     var body: some View {
         GroupBox {
-            if store.files.isEmpty {
-                EmptyPlaceholderView(
-                    systemImage: "doc.text",
-                    title: "Нет файлов",
-                    message: "Transmission не вернул список файлов. Обновите детали позднее."
-                )
-                .accessibilityIdentifier("torrent-files-empty")
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    ForEach(store.files) { file in
-                        TorrentFileRow(file: file) { priority in
-                            store.send(
-                                .priorityChanged(fileIndices: [file.index], priority: priority))
-                        }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(store.files) { file in
+                    TorrentFileRow(file: file) { priority in
+                        store.send(
+                            .priorityChanged(fileIndices: [file.index], priority: priority))
                     }
                 }
             }
@@ -28,6 +19,11 @@ struct TorrentFilesView: View {
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-files-section")
+        .disabled(isPriorityLocked)
+    }
+
+    private var isPriorityLocked: Bool {
+        store.withState { $0.isCommandCategoryLocked(.priority) }
     }
 }
 
