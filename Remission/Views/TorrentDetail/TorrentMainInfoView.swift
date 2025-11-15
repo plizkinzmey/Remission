@@ -17,39 +17,56 @@ struct TorrentMainInfoView: View {
                 )
                 TorrentDetailLabelValueRow(
                     label: "Прогресс:",
-                    value: TorrentDetailFormatters.progress(store.percentDone)
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.progress(store.percentDone)
+                        : "Недоступно"
                 )
                 TorrentDetailLabelValueRow(
                     label: "Размер:",
-                    value: TorrentDetailFormatters.bytes(store.totalSize)
+                    value: store.hasLoadedMetadata && store.totalSize > 0
+                        ? TorrentDetailFormatters.bytes(store.totalSize)
+                        : "Неизвестно"
                 )
                 TorrentDetailLabelValueRow(
                     label: "Загружено:",
-                    value: TorrentDetailFormatters.bytes(store.downloadedEver)
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.bytes(store.downloadedEver)
+                        : "Недоступно"
                 )
                 TorrentDetailLabelValueRow(
                     label: "Отдано:",
-                    value: TorrentDetailFormatters.bytes(store.uploadedEver)
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.bytes(store.uploadedEver)
+                        : "Недоступно"
                 )
                 TorrentDetailLabelValueRow(
                     label: "Путь:",
-                    value: store.downloadDir
+                    value: store.hasLoadedMetadata && store.downloadDir.isEmpty == false
+                        ? store.downloadDir
+                        : "Неизвестно"
                 )
                 TorrentDetailLabelValueRow(
                     label: "Дата добавления:",
-                    value: TorrentDetailFormatters.date(from: store.dateAdded)
+                    value: store.hasLoadedMetadata && store.dateAdded > 0
+                        ? TorrentDetailFormatters.date(from: store.dateAdded)
+                        : "Недоступно"
                 )
-                if store.eta > 0 {
-                    TorrentDetailLabelValueRow(
-                        label: "Осталось:",
-                        value: TorrentDetailFormatters.eta(store.eta)
-                    )
-                }
+                TorrentDetailLabelValueRow(
+                    label: "Осталось:",
+                    value: etaDescription
+                )
             }
         } label: {
             Text("Основная информация")
                 .font(.headline)
         }
+    }
+
+    private var etaDescription: String {
+        if store.eta > 0 {
+            return TorrentDetailFormatters.eta(store.eta)
+        }
+        return store.hasLoadedMetadata ? "Неизвестно" : "Ожидание метаданных"
     }
 }
 
@@ -57,7 +74,18 @@ struct TorrentMainInfoView: View {
     #Preview {
         TorrentMainInfoView(
             store: Store(
-                initialState: TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
+                initialState: TorrentDetailReducer.State(
+                    torrentID: .init(rawValue: 1),
+                    name: "Ubuntu ISO",
+                    status: 4,
+                    percentDone: 0.42,
+                    totalSize: 1_024_000_000,
+                    downloadedEver: 512_000_000,
+                    uploadedEver: 128_000_000,
+                    downloadDir: "/downloads/ubuntu",
+                    dateAdded: Int(Date().timeIntervalSince1970),
+                    hasLoadedMetadata: true
+                )
             ) {
                 TorrentDetailReducer()
             } withDependencies: {

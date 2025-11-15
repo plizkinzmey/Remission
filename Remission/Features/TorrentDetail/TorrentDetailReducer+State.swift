@@ -50,6 +50,9 @@ extension TorrentDetailReducer {
         var files: IdentifiedArrayOf<TorrentFile> = []
         var trackers: IdentifiedArrayOf<TorrentTracker> = []
         var trackerStats: IdentifiedArrayOf<TrackerStat> = []
+        var hasLoadedMetadata: Bool = false
+        var activeCommand: TorrentDetailReducer.CommandKind?
+        var pendingCommands: [TorrentDetailReducer.CommandKind] = []
         var isLoading: Bool = false
         var errorMessage: String?
         @Presents var alert: AlertState<AlertAction>?
@@ -80,6 +83,9 @@ extension TorrentDetailReducer {
             files: [TorrentFile] = [],
             trackers: [TorrentTracker] = [],
             trackerStats: [TrackerStat] = [],
+            hasLoadedMetadata: Bool = false,
+            activeCommand: TorrentDetailReducer.CommandKind? = nil,
+            pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
             errorMessage: String? = nil
         ) {
@@ -107,6 +113,9 @@ extension TorrentDetailReducer {
             self.files = IdentifiedArray(uniqueElements: files)
             self.trackers = IdentifiedArray(uniqueElements: trackers)
             self.trackerStats = IdentifiedArray(uniqueElements: trackerStats)
+            self.hasLoadedMetadata = hasLoadedMetadata
+            self.activeCommand = activeCommand
+            self.pendingCommands = pendingCommands
             self.isLoading = isLoading
             self.errorMessage = errorMessage
         }
@@ -145,6 +154,9 @@ extension TorrentDetailReducer {
             files: [TorrentFile] = [],
             trackers: [TorrentTracker] = [],
             trackerStats: [TrackerStat] = [],
+            hasLoadedMetadata: Bool = false,
+            activeCommand: TorrentDetailReducer.CommandKind? = nil,
+            pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
             errorMessage: String? = nil
         ) {
@@ -173,9 +185,19 @@ extension TorrentDetailReducer {
                 files: files,
                 trackers: trackers,
                 trackerStats: trackerStats,
+                hasLoadedMetadata: hasLoadedMetadata,
+                activeCommand: activeCommand,
+                pendingCommands: pendingCommands,
                 isLoading: isLoading,
                 errorMessage: errorMessage
             )
+        }
+
+        func isCommandCategoryLocked(_ category: TorrentDetailReducer.CommandCategory) -> Bool {
+            if let activeCommand, activeCommand.category == category {
+                return true
+            }
+            return pendingCommands.contains(where: { $0.category == category })
         }
     }
 }
