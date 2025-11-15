@@ -6,18 +6,28 @@ struct TorrentTrackersView: View {
 
     var body: some View {
         GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(store.trackers) { tracker in
-                    let stats: TrackerStat? = store
-                        .trackerStats
-                        .first { $0.trackerId == tracker.id }
-                    TorrentTrackerRow(tracker: tracker, stats: stats)
+            if store.trackers.isEmpty {
+                EmptyPlaceholderView(
+                    systemImage: "dot.radiowaves.left.and.right",
+                    title: "Нет трекеров",
+                    message: "Этот торрент не содержит активных трекеров или сервер их не вернул."
+                )
+                .accessibilityIdentifier("torrent-trackers-empty")
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(store.trackers) { tracker in
+                        let stats: TrackerStat? = store
+                            .trackerStats
+                            .first { $0.trackerId == tracker.id }
+                        TorrentTrackerRow(tracker: tracker, stats: stats)
+                    }
                 }
             }
         } label: {
             Text("Трекеры (\(store.trackers.count))")
                 .font(.headline)
         }
+        .accessibilityIdentifier("torrent-trackers-section")
     }
 }
 
@@ -50,6 +60,11 @@ private struct TorrentTrackerRow: View {
             }
         }
         .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("torrent-tracker-\(tracker.id)")
+        .accessibilityLabel(
+            "\(tracker.displayName), \(tracker.announce), сидающих \(stats?.seederCount ?? 0), качающих \(stats?.leecherCount ?? 0)"
+        )
     }
 }
 

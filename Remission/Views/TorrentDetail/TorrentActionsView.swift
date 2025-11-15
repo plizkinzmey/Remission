@@ -38,6 +38,7 @@ struct TorrentActionsView: View {
             Text("Действия")
                 .font(.headline)
         }
+        .accessibilityIdentifier("torrent-actions-section")
     }
 
     private var isActive: Bool {
@@ -57,6 +58,24 @@ struct TorrentActionsView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(color)
+        .accessibilityIdentifier(identifier(for: title))
+        .accessibilityLabel(title)
+        .accessibilityHint("Отправляет команду на Transmission")
+    }
+
+    private func identifier(for title: String) -> String {
+        switch title {
+        case "Пауза":
+            return "torrent-action-pause"
+        case "Старт":
+            return "torrent-action-start"
+        case "Проверить":
+            return "torrent-action-verify"
+        case "Удалить торрент":
+            return "torrent-action-remove"
+        default:
+            return "torrent-action-\(title.lowercased())"
+        }
     }
 }
 
