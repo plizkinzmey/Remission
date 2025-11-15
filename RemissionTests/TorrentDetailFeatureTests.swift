@@ -13,8 +13,12 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.test(
             fetchDetails: { _ in throw APIError.networkUnavailable }
         )
+        let environment = makeEnvironment(repository: repository)
         let store = TestStoreFactory.make(
-            initialState: .init(torrentId: 1),
+            initialState: .init(
+                torrentID: .init(rawValue: 1),
+                connectionEnvironment: environment
+            ),
             reducer: { TorrentDetailReducer() },
             configure: { dependencies in
                 dependencies.torrentRepository = repository
@@ -22,12 +26,12 @@ struct TorrentDetailFeatureTests {
             }
         )
 
-        await store.send(.loadTorrentDetails) {
+        await store.send(.task) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
 
-        await store.receive(.loadingFailed("Сеть недоступна")) {
+        await store.receive(.detailsResponse(.failure(APIError.networkUnavailable))) {
             $0.isLoading = false
             $0.errorMessage = "Сеть недоступна"
         }
@@ -48,8 +52,12 @@ struct TorrentDetailFeatureTests {
         )
 
         let timestamp = Date(timeIntervalSince1970: 10)
+        let environment = makeEnvironment(repository: repository)
         let store = TestStoreFactory.make(
-            initialState: .init(torrentId: torrent.id.rawValue),
+            initialState: .init(
+                torrentID: torrent.id,
+                connectionEnvironment: environment
+            ),
             reducer: { TorrentDetailReducer() },
             configure: { dependencies in
                 dependencies.torrentRepository = repository
@@ -57,18 +65,22 @@ struct TorrentDetailFeatureTests {
             }
         )
 
-        await store.send(.loadTorrentDetails) {
+        await store.send(.task) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
-        await store.send(.loadTorrentDetails)
+        await store.send(.task)
 
         await clock.advance(by: .seconds(1))
 
-        await store.receive(.detailsLoaded(torrent, timestamp)) {
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: torrent, timestamp: timestamp))
+            )
+        ) {
             $0.isLoading = false
             assign(&$0, from: torrent)
-            $0.speedHistory = [
+            $0.speedHistory.samples = [
                 SpeedSample(
                     timestamp: timestamp,
                     downloadRate: torrent.summary.transfer.downloadRate,
@@ -86,9 +98,13 @@ struct TorrentDetailFeatureTests {
         let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [torrent])
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 20)
+        let environment = makeEnvironment(repository: repository)
 
         let store = TestStoreFactory.make(
-            initialState: .init(torrentId: torrent.id.rawValue),
+            initialState: .init(
+                torrentID: torrent.id,
+                connectionEnvironment: environment
+            ),
             reducer: { TorrentDetailReducer() },
             configure: { dependencies in
                 dependencies.torrentRepository = repository
@@ -96,18 +112,24 @@ struct TorrentDetailFeatureTests {
             }
         )
 
-        await store.send(.startTorrent)
-        await store.receive(.actionCompleted("Торрент запущен"))
-        await store.receive(.loadTorrentDetails) {
+        await store.send(.startTapped)
+        await store.receive(.commandDidFinish("Торрент запущен")) {
+            $0.alert = .info(message: "Торрент запущен")
+        }
+        await store.receive(.refreshRequested) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
         var expected = torrent
         expected.status = .downloading
-        await store.receive(.detailsLoaded(expected, timestamp)) {
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: expected, timestamp: timestamp))
+            )
+        ) {
             $0.isLoading = false
             assign(&$0, from: expected)
-            $0.speedHistory = [
+            $0.speedHistory.samples = [
                 SpeedSample(
                     timestamp: timestamp,
                     downloadRate: expected.summary.transfer.downloadRate,
@@ -122,16 +144,22 @@ struct TorrentDetailFeatureTests {
         let repository = TorrentRepository.test(
             start: { _ in throw APIError.networkUnavailable }
         )
+        let environment = makeEnvironment(repository: repository)
         let store = TestStoreFactory.make(
-            initialState: .init(torrentId: 1),
+            initialState: .init(
+                torrentID: .init(rawValue: 1),
+                connectionEnvironment: environment
+            ),
             reducer: { TorrentDetailReducer() },
             configure: { dependencies in
                 dependencies.torrentRepository = repository
             }
         )
 
-        await store.send(.startTorrent)
-        await store.receive(.actionFailed("Сеть недоступна"))
+        await store.send(.startTapped)
+        await store.receive(.commandFailed("Сеть недоступна")) {
+            $0.alert = .error(message: "Сеть недоступна")
+        }
     }
 
     @Test
@@ -142,10 +170,14 @@ struct TorrentDetailFeatureTests {
         let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [torrent])
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 30)
+        let environment = makeEnvironment(repository: repository)
 
         let store = TestStoreFactory.make(
             initialState: {
-                var state = TorrentDetailReducer.State(torrentId: torrent.id.rawValue)
+                var state = TorrentDetailReducer.State(
+                    torrentID: torrent.id,
+                    connectionEnvironment: environment
+                )
                 state.downloadLimit = 512
                 state.downloadLimited = false
                 return state
@@ -160,17 +192,23 @@ struct TorrentDetailFeatureTests {
         await store.send(.toggleDownloadLimit(true)) {
             $0.downloadLimited = true
         }
-        await store.receive(.actionCompleted("Настройки скоростей обновлены"))
-        await store.receive(.loadTorrentDetails) {
+        await store.receive(.commandDidFinish("Настройки скоростей обновлены")) {
+            $0.alert = .info(message: "Настройки скоростей обновлены")
+        }
+        await store.receive(.refreshRequested) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
         var expected = torrent
         expected.summary.transfer.downloadLimit = .init(isEnabled: true, kilobytesPerSecond: 512)
-        await store.receive(.detailsLoaded(expected, timestamp)) {
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: expected, timestamp: timestamp))
+            )
+        ) {
             $0.isLoading = false
             assign(&$0, from: expected)
-            $0.speedHistory = [
+            $0.speedHistory.samples = [
                 SpeedSample(
                     timestamp: timestamp,
                     downloadRate: expected.summary.transfer.downloadRate,
@@ -187,9 +225,13 @@ struct TorrentDetailFeatureTests {
         let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [torrent])
         let repository = TorrentRepository.inMemory(store: repositoryStore)
         let timestamp = Date(timeIntervalSince1970: 40)
+        let environment = makeEnvironment(repository: repository)
 
         let store = TestStoreFactory.make(
-            initialState: .init(torrentId: torrent.id.rawValue),
+            initialState: .init(
+                torrentID: torrent.id,
+                connectionEnvironment: environment
+            ),
             reducer: { TorrentDetailReducer() },
             configure: { dependencies in
                 dependencies.torrentRepository = repository
@@ -197,18 +239,24 @@ struct TorrentDetailFeatureTests {
             }
         )
 
-        await store.send(.setPriority(fileIndices: [0], priority: 2))
-        await store.receive(.actionCompleted("Приоритет установлен"))
-        await store.receive(.loadTorrentDetails) {
+        await store.send(.priorityChanged(fileIndices: [0], priority: 2))
+        await store.receive(.commandDidFinish("Приоритет обновлён")) {
+            $0.alert = .info(message: "Приоритет обновлён")
+        }
+        await store.receive(.refreshRequested) {
             $0.isLoading = true
             $0.errorMessage = nil
         }
         var expected = torrent
         expected.details?.files[0].priority = TorrentRepository.FilePriority.high.rawValue
-        await store.receive(.detailsLoaded(expected, timestamp)) {
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: expected, timestamp: timestamp))
+            )
+        ) {
             $0.isLoading = false
             assign(&$0, from: expected)
-            $0.speedHistory = [
+            $0.speedHistory.samples = [
                 SpeedSample(
                     timestamp: timestamp,
                     downloadRate: expected.summary.transfer.downloadRate,
@@ -240,7 +288,7 @@ private func assign(
     state.uploadLimited = torrent.summary.transfer.uploadLimit.isEnabled
 
     state.peersConnected = torrent.summary.peers.connected
-    state.peersFrom = torrent.summary.peers.sources
+    state.peers = IdentifiedArray(uniqueElements: torrent.summary.peers.sources)
 
     if let details = torrent.details {
         state.downloadDir = details.downloadDirectory
@@ -249,9 +297,9 @@ private func assign(
         } else {
             state.dateAdded = 0
         }
-        state.files = details.files
-        state.trackers = details.trackers
-        state.trackerStats = details.trackerStats
+        state.files = IdentifiedArray(uniqueElements: details.files)
+        state.trackers = IdentifiedArray(uniqueElements: details.trackers)
+        state.trackerStats = IdentifiedArray(uniqueElements: details.trackerStats)
     } else {
         state.files = []
         state.trackers = []
@@ -259,4 +307,13 @@ private func assign(
         state.downloadDir = ""
         state.dateAdded = 0
     }
+}
+
+private func makeEnvironment(
+    repository: TorrentRepository
+) -> ServerConnectionEnvironment {
+    ServerConnectionEnvironment.testEnvironment(
+        server: .previewLocalHTTP,
+        torrentRepository: repository
+    )
 }

@@ -3,7 +3,6 @@ import SwiftUI
 
 struct TorrentActionsView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
-    @Binding var showingDeleteConfirmation: Bool
 
     var body: some View {
         GroupBox {
@@ -14,7 +13,7 @@ struct TorrentActionsView: View {
                         systemImage: isActive ? "pause.fill" : "play.fill",
                         color: isActive ? .orange : .green
                     ) {
-                        store.send(isActive ? .stopTorrent : .startTorrent)
+                        store.send(isActive ? .pauseTapped : .startTapped)
                     }
 
                     actionButton(
@@ -22,7 +21,7 @@ struct TorrentActionsView: View {
                         systemImage: "checkmark.shield.fill",
                         color: .blue
                     ) {
-                        store.send(.verifyTorrent)
+                        store.send(.verifyTapped)
                     }
                 }
 
@@ -32,7 +31,7 @@ struct TorrentActionsView: View {
                     color: .red,
                     fullWidth: true
                 ) {
-                    showingDeleteConfirmation = true
+                    store.send(.removeButtonTapped)
                 }
             }
         } label: {
@@ -63,18 +62,15 @@ struct TorrentActionsView: View {
 
 #if DEBUG
     struct TorrentActionsViewPreviewContainer: View {
-        @State private var showingDelete: Bool = false
-
         var body: some View {
             TorrentActionsView(
                 store: Store(
-                    initialState: TorrentDetailReducer.State(torrentId: 1)
+                    initialState: TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
                 ) {
                     TorrentDetailReducer()
                 } withDependencies: {
                     $0 = AppDependencies.makePreview()
-                },
-                showingDeleteConfirmation: $showingDelete
+                }
             )
         }
     }

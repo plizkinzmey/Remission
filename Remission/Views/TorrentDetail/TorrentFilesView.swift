@@ -9,7 +9,7 @@ struct TorrentFilesView: View {
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(store.files) { file in
                     TorrentFileRow(file: file) { priority in
-                        store.send(.setPriority(fileIndices: [file.index], priority: priority))
+                        store.send(.priorityChanged(fileIndices: [file.index], priority: priority))
                     }
                 }
             }
@@ -72,7 +72,7 @@ private struct TorrentFileRow: View {
         TorrentFilesView(
             store: Store(
                 initialState: TorrentDetailReducer.State(
-                    torrentId: 1,
+                    torrentID: .init(rawValue: 1),
                     files: [
                         TorrentFile(
                             index: 0,

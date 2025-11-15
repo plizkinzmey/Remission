@@ -12,6 +12,7 @@ struct ServerDetailReducer {
         var server: ServerConfig
         @Presents var alert: AlertState<AlertAction>?
         @Presents var editor: ServerEditorReducer.State?
+        @Presents var torrentDetail: TorrentDetailReducer.State?
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
@@ -38,6 +39,7 @@ struct ServerDetailReducer {
         case connectionResponse(TaskResult<ConnectionResponse>)
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
+        case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -221,6 +223,7 @@ struct ServerDetailReducer {
 
             case .connectionResponse(.success(let response)):
                 state.connectionEnvironment = response.environment
+                state.torrentDetail?.connectionEnvironment = response.environment
                 state.connectionState.phase = .ready(
                     .init(
                         fingerprint: response.environment.fingerprint,
@@ -241,6 +244,7 @@ struct ServerDetailReducer {
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil
+                state.torrentDetail?.connectionEnvironment = nil
                 let message = describe(error)
                 state.connectionState.phase = .failed(.init(message: message))
                 state.alert = AlertState.connectionFailure(message: message)
@@ -278,13 +282,32 @@ struct ServerDetailReducer {
                 return .none
 
             case .torrentList(.delegate(.openTorrent(let id))):
-                return .send(.delegate(.torrentSelected(id)))
+                guard let selectedItem = state.torrentList.items[id: id] else {
+                    return .none
+                }
+                state.torrentDetail = TorrentDetailReducer.State(
+                    torrent: selectedItem.torrent,
+                    connectionEnvironment: state.connectionEnvironment
+                )
+                return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):
                 state.alert = makeAddTorrentPlaceholderAlert()
                 return .none
 
             case .torrentList:
+                return .none
+
+            case .torrentDetail(.presented(.delegate(.torrentRemoved(let identifier)))):
+                state.torrentDetail = nil
+                state.torrentList.items.remove(id: identifier)
+                return .send(.torrentList(.refreshRequested))
+
+            case .torrentDetail(.presented(.delegate(.closeRequested))):
+                state.torrentDetail = nil
+                return .none
+
+            case .torrentDetail:
                 return .none
 
             case .delegate:
@@ -294,6 +317,9 @@ struct ServerDetailReducer {
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$editor, action: \.editor) {
             ServerEditorReducer()
+        }
+        .ifLet(\.$torrentDetail, action: \.torrentDetail) {
+            TorrentDetailReducer()
         }
         Scope(state: \.torrentList, action: \.torrentList) {
             TorrentListReducer()

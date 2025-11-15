@@ -5,30 +5,26 @@ import SwiftUI
 /// Отображает все поля торрента и предоставляет кнопки управления
 struct TorrentDetailView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
-    @State private var showingDeleteConfirmation: Bool = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 TorrentMainInfoView(store: store)
                 TorrentStatisticsView(store: store)
-                TorrentActionsView(
-                    store: store,
-                    showingDeleteConfirmation: $showingDeleteConfirmation
-                )
+                TorrentActionsView(store: store)
                 if !store.files.isEmpty {
                     TorrentFilesView(store: store)
                 }
                 if !store.trackers.isEmpty {
                     TorrentTrackersView(store: store)
                 }
-                if !store.peersFrom.isEmpty {
-                    TorrentPeersView(peers: store.peersFrom)
+                if !store.peers.isEmpty {
+                    TorrentPeersView(peers: store.peers)
                 }
                 if let errorMessage = store.errorMessage {
                     TorrentErrorView(
                         message: errorMessage,
-                        onDismiss: { store.send(.clearError) }
+                        onDismiss: { store.send(.dismissError) }
                     )
                 }
             }
@@ -39,11 +35,17 @@ struct TorrentDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
         #endif
         .task {
-            await store.send(.loadTorrentDetails).finish()
+            await store.send(.task).finish()
         }
         .refreshable {
-            await store.send(.loadTorrentDetails).finish()
+            await store.send(.refreshRequested).finish()
         }
+        .alert(
+            $store.scope(state: \.alert, action: \.alert)
+        )
+        .confirmationDialog(
+            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+        )
         .overlay {
             if store.isLoading {
                 ProgressView("Загрузка...")
@@ -51,20 +53,8 @@ struct TorrentDetailView: View {
                     .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 10))
             }
         }
-        .confirmationDialog(
-            "Удаление торрента",
-            isPresented: $showingDeleteConfirmation,
-            titleVisibility: .visible
-        ) {
-            Button("Удалить только торрент", role: .destructive) {
-                store.send(.removeTorrent(deleteData: false))
-            }
-            Button("Удалить с данными", role: .destructive) {
-                store.send(.removeTorrent(deleteData: true))
-            }
-            Button("Отмена", role: .cancel) {}
-        } message: {
-            Text("Выберите способ удаления торрента «\(store.name)»")
+        .onDisappear {
+            store.send(.teardown)
         }
     }
 }
@@ -77,7 +67,7 @@ struct TorrentDetailView: View {
             TorrentDetailView(
                 store: Store(
                     initialState: TorrentDetailReducer.State(
-                        torrentId: 1,
+                        torrentID: .init(rawValue: 1),
                         name: "Ubuntu 22.04 LTS Desktop",
                         status: 4,
                         percentDone: 0.45,
@@ -93,7 +83,7 @@ struct TorrentDetailView: View {
                         uploadLimit: 512,
                         uploadLimited: true,
                         peersConnected: 45,
-                        peersFrom: [
+                        peers: [
                             PeerSource(name: "Tracker", count: 30),
                             PeerSource(name: "DHT", count: 10),
                             PeerSource(name: "PEX", count: 5)

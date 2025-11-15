@@ -26,6 +26,20 @@ struct ServerDetailView: View {
         ) { editorStore in
             ServerEditorView(store: editorStore)
         }
+        .sheet(
+            store: store.scope(state: \.$torrentDetail, action: \.torrentDetail)
+        ) { detailStore in
+            NavigationStack {
+                TorrentDetailView(store: detailStore)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Закрыть") {
+                                detailStore.send(.delegate(.closeRequested))
+                            }
+                        }
+                    }
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Изменить") {

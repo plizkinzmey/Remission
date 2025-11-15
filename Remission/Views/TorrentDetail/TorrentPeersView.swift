@@ -1,7 +1,8 @@
+import ComposableArchitecture
 import SwiftUI
 
 struct TorrentPeersView: View {
-    let peers: [PeerSource]
+    let peers: IdentifiedArrayOf<PeerSource>
 
     var body: some View {
         GroupBox {
@@ -27,10 +28,12 @@ struct TorrentPeersView: View {
 #if DEBUG
     #Preview {
         TorrentPeersView(
-            peers: [
-                PeerSource(name: "Tracker", count: 12),
-                PeerSource(name: "DHT", count: 8)
-            ]
+            peers: IdentifiedArray(
+                uniqueElements: [
+                    PeerSource(name: "Tracker", count: 12),
+                    PeerSource(name: "DHT", count: 8)
+                ]
+            )
         )
         .padding()
     }

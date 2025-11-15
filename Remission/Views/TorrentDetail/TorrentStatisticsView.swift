@@ -44,7 +44,7 @@ struct TorrentStatisticsView: View {
             ),
             value: Binding(
                 get: { store.downloadLimit },
-                set: { store.send(.updateDownloadLimit($0)) }
+                set: { store.send(.downloadLimitChanged($0)) }
             )
         )
     }
@@ -58,7 +58,7 @@ struct TorrentStatisticsView: View {
             ),
             value: Binding(
                 get: { store.uploadLimit },
-                set: { store.send(.updateUploadLimit($0)) }
+                set: { store.send(.uploadLimitChanged($0)) }
             )
         )
     }
@@ -102,7 +102,7 @@ private struct TorrentLimitControl: View {
     #Preview {
         TorrentStatisticsView(
             store: Store(
-                initialState: TorrentDetailReducer.State(torrentId: 1)
+                initialState: TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
             ) {
                 TorrentDetailReducer()
             } withDependencies: {

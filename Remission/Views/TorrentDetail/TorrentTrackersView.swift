@@ -58,7 +58,7 @@ private struct TorrentTrackerRow: View {
         TorrentTrackersView(
             store: Store(
                 initialState: TorrentDetailReducer.State(
-                    torrentId: 1,
+                    torrentID: .init(rawValue: 1),
                     trackers: [
                         TorrentTracker(
                             id: 0,

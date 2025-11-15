@@ -57,7 +57,7 @@ struct TorrentMainInfoView: View {
     #Preview {
         TorrentMainInfoView(
             store: Store(
-                initialState: TorrentDetailReducer.State(torrentId: 1)
+                initialState: TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
             ) {
                 TorrentDetailReducer()
             } withDependencies: {
