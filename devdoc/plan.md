@@ -1370,6 +1370,16 @@ return .run { [repository, clock = appClock.clock()] send in
 - M7.5 Добавить обработку edge cases (нулевые значения, отсутствующие файлы) согласно PRD.
 - Проверка: модульные тесты редьюсера команд с TestStore (happy path + error scenarios) и UI-тест перехода из списка в детали на симуляторе iPhone 12.
 
+### RTC-80: Контракт деталей торрента
+- `Torrent.Details.downloadDirectory` — строка пути, может быть пустой если сервер не вернул `downloadDir`.
+- `addedDate` — `Date?`; `nil`, когда Transmission ответил без поля `dateAdded` или передал `0`.
+- `files`/`trackers`/`trackerStats` — массивы, по умолчанию пустые (маппер не возвращает `nil`). Экран обязан корректно отображать пустые состояния (списки скрываются, показывается stub).
+- Файл (`Torrent.File`): `bytesCompleted ∈ [0, length]`, `priority` — целое из {-1, 0, 1}, `wanted` по умолчанию `true`. Если приоритет отсутствует, маппер проставляет `1` (Transmission default).
+- Трекер (`Torrent.Tracker`): `tier ≥ 0`, `announce` строка; `id` берётся из `trackers[n].id` или `trackerId`, fallback — `tier`.
+- Статистика трекера (`Torrent.TrackerStat`): `downloadCount`, `leecherCount`, `seederCount` ≥ 0. `lastAnnounceResult` — строка статуса (может быть пустой).
+- История скоростей (`speedSamples`) пока заполняется клиентом (локальный стор), Transmission не присылает массив — допускаются пустые данные.
+- Нулевые/отсутствующие значения из Transmission трактуются как "данные недоступны", маппер и UI не падают: вместо `nil` используются 0/`false`/пустые коллекции, `DomainMappingError` возникает только при структурных ошибках (тип/отсутствие ключа `torrents`).
+
 ## Веха 8: Добавление торрента
 - M8.1 Реализовать обработчики импорта `.torrent` (FileImporter) и magnet-ссылок (Pasteboard/Share) в TCA действиях.
 - M8.2 Добавить TCA-фичу диалога добавления торрента (@Reducer, @ObservableState) с параметрами (путь, старт в паузе, теги).

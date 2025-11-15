@@ -177,23 +177,158 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         static func live(
             transmissionClient: TransmissionClientDependency,
             mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
-            fields: [String] = TorrentListFields.summary
+            fields: [String] = TorrentListFields.summary,
+            detailFields: [String] = TorrentListFields.details
         ) -> TorrentRepository {
-            let base = TorrentRepository.placeholder
-
-            return TorrentRepository(
+            TorrentRepository(
                 fetchList: {
                     let response = try await transmissionClient.torrentGet(nil, fields)
                     return try mapper.mapTorrentList(from: response)
                 },
-                fetchDetails: base.fetchDetailsClosure,
-                start: base.startClosure,
-                stop: base.stopClosure,
-                remove: base.removeClosure,
-                verify: base.verifyClosure,
-                updateTransferSettings: base.updateTransferSettingsClosure,
-                updateFileSelection: base.updateFileSelectionClosure
+                fetchDetails: { identifier in
+                    let response = try await transmissionClient.torrentGet(
+                        [identifier.rawValue],
+                        detailFields
+                    )
+                    return try mapper.mapTorrentDetails(from: response)
+                },
+                start: makeCommandClosure(
+                    context: "torrent-start",
+                    rpc: transmissionClient.torrentStart
+                ),
+                stop: makeCommandClosure(
+                    context: "torrent-stop",
+                    rpc: transmissionClient.torrentStop
+                ),
+                remove: { ids, deleteData in
+                    let response = try await transmissionClient.torrentRemove(
+                        ids.map(\.rawValue),
+                        deleteData
+                    )
+                    try ensureSuccess(response, context: "torrent-remove")
+                },
+                verify: makeCommandClosure(
+                    context: "torrent-verify",
+                    rpc: transmissionClient.torrentVerify
+                ),
+                updateTransferSettings: { settings, ids in
+                    let arguments = makeTransferSettingsArguments(from: settings)
+                    guard arguments.isEmpty == false else {
+                        return
+                    }
+                    let response = try await transmissionClient.torrentSet(
+                        ids.map(\.rawValue),
+                        .object(arguments)
+                    )
+                    try ensureSuccess(response, context: "torrent-set")
+                },
+                updateFileSelection: { updates, torrentID in
+                    let arguments = makeFileSelectionArguments(from: updates)
+                    guard arguments.isEmpty == false else {
+                        return
+                    }
+                    let response = try await transmissionClient.torrentSet(
+                        [torrentID.rawValue],
+                        .object(arguments)
+                    )
+                    try ensureSuccess(response, context: "torrent-set")
+                }
             )
+        }
+
+        private static func makeCommandClosure(
+            context: String,
+            rpc: @escaping @Sendable ([Int]) async throws -> TransmissionResponse
+        ) -> @Sendable ([Torrent.Identifier]) async throws -> Void {
+            { ids in
+                let response = try await rpc(ids.map(\.rawValue))
+                try ensureSuccess(response, context: context)
+            }
+        }
+
+        private static func ensureSuccess(
+            _ response: TransmissionResponse,
+            context: String
+        ) throws {
+            guard response.isSuccess else {
+                throw DomainMappingError.rpcError(result: response.result, context: context)
+            }
+        }
+
+        private static func makeTransferSettingsArguments(
+            from settings: TransferSettings
+        ) -> [String: AnyCodable] {
+            var arguments: [String: AnyCodable] = [:]
+
+            if let downloadLimit = settings.downloadLimit {
+                arguments["downloadLimit"] = .int(downloadLimit.kilobytesPerSecond)
+                arguments["downloadLimited"] = .bool(downloadLimit.isEnabled)
+            }
+
+            if let uploadLimit = settings.uploadLimit {
+                arguments["uploadLimit"] = .int(uploadLimit.kilobytesPerSecond)
+                arguments["uploadLimited"] = .bool(uploadLimit.isEnabled)
+            }
+
+            return arguments
+        }
+
+        private static func makeFileSelectionArguments(
+            from updates: [FileSelectionUpdate]
+        ) -> [String: AnyCodable] {
+            var filesWanted: Set<Int> = []
+            var filesUnwanted: Set<Int> = []
+            var priorityHigh: Set<Int> = []
+            var priorityNormal: Set<Int> = []
+            var priorityLow: Set<Int> = []
+
+            for update in updates {
+                if let isWanted = update.isWanted {
+                    if isWanted {
+                        filesWanted.insert(update.fileIndex)
+                    } else {
+                        filesUnwanted.insert(update.fileIndex)
+                    }
+                }
+
+                if let priority = update.priority {
+                    switch priority {
+                    case .high:
+                        priorityHigh.insert(update.fileIndex)
+                    case .normal:
+                        priorityNormal.insert(update.fileIndex)
+                    case .low:
+                        priorityLow.insert(update.fileIndex)
+                    }
+                }
+            }
+
+            var arguments: [String: AnyCodable] = [:]
+            if let value = arrayArgument(from: filesWanted) {
+                arguments["files-wanted"] = value
+            }
+            if let value = arrayArgument(from: filesUnwanted) {
+                arguments["files-unwanted"] = value
+            }
+            if let value = arrayArgument(from: priorityHigh) {
+                arguments["priority-high"] = value
+            }
+            if let value = arrayArgument(from: priorityNormal) {
+                arguments["priority-normal"] = value
+            }
+            if let value = arrayArgument(from: priorityLow) {
+                arguments["priority-low"] = value
+            }
+
+            return arguments
+        }
+
+        private static func arrayArgument(from indices: Set<Int>) -> AnyCodable? {
+            guard indices.isEmpty == false else {
+                return nil
+            }
+            let values = indices.sorted().map { AnyCodable.int($0) }
+            return .array(values)
         }
     }
 #endif

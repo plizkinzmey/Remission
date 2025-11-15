@@ -20,4 +20,15 @@ enum TorrentListFields {
         "peersConnected",
         "peersFrom"
     ]
+
+    /// Поля для экрана деталей торрента (summary + подробности).
+    static let details: [String] =
+        summary + [
+            "downloadDir",
+            "dateAdded",
+            "files",
+            "fileStats",
+            "trackers",
+            "trackerStats"
+        ]
 }
