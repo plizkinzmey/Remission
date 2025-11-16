@@ -115,6 +115,102 @@ final class RemissionUITests: XCTestCase {
     }
 
     @MainActor
+    func testTorrentDetailFlow() throws {
+        #if os(macOS)
+            throw XCTSkip("Тест детализации торрента выполняется только в iOS среде.")
+        #else
+            let app = launchApp(
+                arguments: [
+                    "--ui-testing-fixture=torrent-list-sample",
+                    "--ui-testing-scenario=torrent-list-sample"
+                ]
+            )
+            let serverIdentifier = "server_list_item_AAAA1111-B222-C333-D444-EEEEEEEEEEEE"
+            let serverCell = app.buttons[serverIdentifier]
+            XCTAssertTrue(serverCell.waitForExistence(timeout: 5), "Server cell not found")
+            serverCell.tap()
+
+            let torrentsHeader = app.staticTexts["Торренты"]
+            XCTAssertTrue(torrentsHeader.waitForExistence(timeout: 5), "Torrent section missing")
+
+            let torrentRowButton = app.buttons["torrent_list_item_1001"]
+            XCTAssertTrue(torrentRowButton.waitForExistence(timeout: 5), "Fixture torrent missing")
+            torrentRowButton.tap()
+
+            let detailNavBar = app.navigationBars["Ubuntu 25.04 Desktop"]
+            XCTAssertTrue(detailNavBar.waitForExistence(timeout: 5), "Detail screen not visible")
+
+            XCTAssertTrue(
+                app.otherElements["torrent-summary"].waitForExistence(timeout: 3),
+                "Summary section missing"
+            )
+            XCTAssertTrue(
+                app.otherElements["torrent-main-info"].waitForExistence(timeout: 3),
+                "Main info section missing"
+            )
+            XCTAssertTrue(
+                app.otherElements["torrent-statistics-section"].waitForExistence(timeout: 3),
+                "Statistics section missing"
+            )
+            XCTAssertTrue(
+                app.otherElements["torrent-speed-history-section"].waitForExistence(timeout: 3),
+                "Speed history missing"
+            )
+            XCTAssertTrue(
+                app.otherElements["torrent-actions-section"].waitForExistence(timeout: 3),
+                "Actions section missing"
+            )
+            XCTAssertTrue(
+                app.buttons["torrent-action-pause"].waitForExistence(timeout: 2),
+                "Pause command missing"
+            )
+            XCTAssertTrue(
+                app.buttons["torrent-action-verify"].waitForExistence(timeout: 2),
+                "Verify command missing"
+            )
+            XCTAssertTrue(
+                app.buttons["torrent-action-remove"].waitForExistence(timeout: 2),
+                "Remove command missing"
+            )
+
+            let scrollView = app.scrollViews.firstMatch
+            XCTAssertTrue(scrollView.waitForExistence(timeout: 2))
+
+            let filesSection = app.otherElements["torrent-files-section"]
+            XCTAssertTrue(
+                waitUntil(
+                    timeout: 6,
+                    condition: filesSection.exists,
+                    onTick: { scrollView.swipeUp() }
+                ),
+                "Files section missing"
+            )
+
+            let trackersSection = app.otherElements["torrent-trackers-section"]
+            XCTAssertTrue(
+                waitUntil(
+                    timeout: 6,
+                    condition: trackersSection.exists,
+                    onTick: { scrollView.swipeUp() }
+                ),
+                "Trackers section missing"
+            )
+
+            let peersSection = app.otherElements["torrent-peers-section"]
+            XCTAssertTrue(
+                waitUntil(
+                    timeout: 6,
+                    condition: peersSection.exists,
+                    onTick: { scrollView.swipeUp() }
+                ),
+                "Peers section missing"
+            )
+
+            attachScreenshot(app, name: "torrent_detail_fixture")
+        #endif
+    }
+
+    @MainActor
     func testOnboardingFlowAddsServer() throws {
         #if os(macOS)
             throw XCTSkip("Онбординг UI-тест выполняется только на iOS среде.")

@@ -33,6 +33,7 @@ struct TorrentStatisticsView: View {
             Text("Статистика")
                 .font(.headline)
         }
+        .accessibilityIdentifier("torrent-statistics-section")
     }
 
     private var downloadLimitControls: some View {

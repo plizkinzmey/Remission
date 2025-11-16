@@ -1,0 +1,43 @@
+{
+  "configurations" : [
+    {
+      "id" : "7A57B33A-773B-4D4E-9422-8BC743622ADD",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "isEnabled" : true,
+        "key" : "ENABLE_SWIFT_TESTING",
+        "value" : "YES"
+      }
+    ],
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Remission.xcodeproj",
+      "identifier" : "15AA8C3A2EA1C9360025EF81",
+      "name" : "Remission"
+    }
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Remission.xcodeproj",
+        "identifier" : "15AA8C512EA1C9370025EF81",
+        "name" : "RemissionUITests"
+      },
+      "selectedTests" : [
+        "RemissionUITests/RemissionUITests/testShowsEmptyStateOnFirstLaunch",
+        "RemissionUITests/RemissionUITests/testSelectingServerOpensDetailScreen",
+        "RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh",
+        "RemissionUITests/RemissionUITests/testOnboardingFlowAddsServer",
+        "RemissionUITests/RemissionUITests/testTorrentDetailFlow"
+      ]
+    }
+  ],
+  "version" : 1
+}

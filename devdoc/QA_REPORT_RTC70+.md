@@ -32,6 +32,14 @@ xcodebuild test \
   -destination 'platform=iOS Simulator,name=iPhone 15' \
   -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh \
   | tee build/torrent-list-ui.log | xcbeautify
+
+# 3. UI переход в детали торрента
+xcodebuild test \
+  -scheme Remission \
+  -testPlan RemissionUITests \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -only-testing:RemissionUITests/RemissionUITests/testTorrentDetailFlow \
+  | tee build/torrent-detail-ui.log | xcbeautify
 ```
 
 > **Важно:** перед запуском UI-теста убедитесь, что в схеме или Runner'е установлены launch-аргументы `--ui-testing-fixture=torrent-list-sample --ui-testing-scenario=torrent-list-sample`. В CLI можно использовать `xcodebuild test ... -test-arguments "<args>"` или предварительно отредактировать схему.
@@ -48,11 +56,28 @@ xcodebuild test \
 | 6 | Очистить поиск, потянуть refresh | Стейт `isRefreshing` показывает прогресс; после ответа данные не меняются, `failedAttempts = 0` |
 | 7 | Принудительно завершить `TransmissionClient` (опционально) | Через debug menu `Network` → `Simulate Failure` → получить `alert` «Не удалось обновить список торрентов», после backoff повторная попытка выполняется через 1-2 секунды |
 
+## Smoke-сценарий: переход в детали торрента
+
+| Шаг | Действие | Ожидаемый результат |
+| --- | --- | --- |
+| 1 | Запустить приложение с аргументами `--ui-testing-fixture=torrent-list-sample --ui-testing-scenario=torrent-list-sample` | В списке серверов отображается `UI Torrent Fixture` |
+| 2 | Тап по серверу `UI Torrent Fixture` | Открывается экран сервера, раздел «Торренты» появляется в течение 2 секунд |
+| 3 | Выбрать торрент `Ubuntu 25.04 Desktop` (`torrent_list_item_1001`) | Появляется navigation bar «Ubuntu 25.04 Desktop», идёт запрос деталей |
+| 4 | Проверить секции | Видны `Сводка`, `Основная информация`, `Статистика`, график скоростей и блок `Действия`; отображение не зависит от локали благодаря `accessibilityIdentifier` |
+| 5 | Проверить команды | Кнопки `Пауза`, `Проверить`, `Удалить торрент` активны; фикстура подтягивает состояние `.downloading`, поэтому в списке команд отсутствует `Старт` |
+| 6 | Прокрутить вниз | Появляются секции файлов (`torrent-files-section`), трекеров (`torrent-trackers-section`) и пиров (`torrent-peers-section`) с данными из фикстуры |
+| 7 | Зафиксировать результат | UI-тест сохраняет скриншот `torrent_detail_fixture` и xcresult с логами (`build/torrent-detail-ui.log`, `build/TestResults/RemissionUITests.xcresult`) |
+
+## Локализации RU/EN
+
+- По умолчанию UI запускается в RU (см. `AppBootstrap`). Для проверки EN локали в Xcode выберите `Edit Scheme → Run → Options → Application Language → English` или в CLI добавьте `-test-arguments "-AppleLanguages (en)" "-AppleLocale en_US"` к `xcodebuild`.
+- Все проверки UI-теста используют `accessibilityIdentifier`, поэтому сценарий стабильный в обеих локалях; текстовые ожидания остаются только для QA-чеклиста.
+
 ## Логи и артефакты
 
-- Скриншоты: `torrent_list_fixture.png`, `torrent_list_search_result.png` (автогенерация UI-теста).
-- Лог `build/torrent-list-ui.log` прикладывается к Linear тикету (RTC-73).
-- В случае падений — приложить `build/TestResults/Remission.xcresult`.
+- Скриншоты: `torrent_list_fixture.png`, `torrent_list_search_result.png`, `torrent_detail_fixture.png` (автогенерация UI-тестов).
+- Логи: `build/torrent-list-ui.log`, `build/torrent-detail-ui.log`.
+- В случае падений — приложить `build/TestResults/Remission.xcresult` и `build/TestResults/RemissionUITests.xcresult`.
 
 ## Связанные файлы
 
@@ -60,4 +85,5 @@ xcodebuild test \
 - `Remission/Views/TorrentList/TorrentListView.swift`
 - `Remission/TorrentRepository.swift` + `Remission/Domain/TorrentListFields.swift`
 - `RemissionUITests/RemissionUITests.swift::testTorrentListSearchAndRefresh`
+- `RemissionUITests/RemissionUITests.swift::testTorrentDetailFlow`
 - Документация: `devdoc/plan.md` (раздел «Веха 6») и `devdoc/PRD.md` (раздел «Список торрентов»), `README.md` (тесты + troubleshooting), `RemissionTests/README.md`

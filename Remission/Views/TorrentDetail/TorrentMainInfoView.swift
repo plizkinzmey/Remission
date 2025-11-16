@@ -60,6 +60,7 @@ struct TorrentMainInfoView: View {
             Text("Основная информация")
                 .font(.headline)
         }
+        .accessibilityIdentifier("torrent-main-info")
     }
 
     private var etaDescription: String {
