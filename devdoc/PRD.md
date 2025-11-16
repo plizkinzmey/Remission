@@ -149,6 +149,10 @@ Ready → Idle (disconnect / switch server)
 3. Детали торрента
    - Страница с детальной информацией: список файлов, трекеры, peers, история скорости, путь загрузки.
    - Кнопки действий: Start, Pause, Remove, Verify (recheck), Set Priority.
+   - **Архитектурные требования (RTC-86)**:
+     - Деталь и список используют одно подключение (`ServerConnectionEnvironment`), передаваемое через `ServerDetailReducer`, чтобы не повторять handshake и не расходиться по состоянию.
+     - После любой команды деталь отправляет делегаты `.torrentUpdated/.torrentRemoved`, список немедленно обновляет item и инициирует внеочередной `torrent-get`, polling/backoff остаётся консистентным.
+     - Проверка 16.11.2025: `swift-format lint`, `swiftlint lint`, таргетные `xcodebuild test` (TorrentDetail/TorrentList/ServerDetail reducers). Лог `build/rtc86-ios-selected.log`, `.xcresult` хранится в `~/Library/Developer/Xcode/DerivedData/Remission-*/Logs/Test/Test-Remission-2025.11.16_16-34-00-+0300.xcresult`.
 
 4. Добавление торрентов
    - Добавление через .torrent файл (из Files/Share) и через magnet-ссылку.

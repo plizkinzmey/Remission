@@ -1371,6 +1371,12 @@ return .run { [repository, clock = appClock.clock()] send in
 - M7.5 Добавить обработку edge cases (нулевые значения, отсутствующие файлы) согласно PRD.
 - Проверка: модульные тесты редьюсера команд с TestStore (happy path + error scenarios) и UI-тест перехода из списка в детали на симуляторе iPhone 12.
 
+### RTC-86: Архитектурная проверка вехи 7 (2025-11-16)
+- **TorrentDetailReducer/TorrentDetailView** подтверждены как соответствующие TCA: состояние оформлено через `@ObservableState`, побочные эффекты инкапсулированы в reducer, UI (`Remission/Views/TorrentDetail/*`) только читает Store и не содержит бизнес-логики.
+- **Переиспользование окружения**: `ServerDetailReducer` пробрасывает один `ServerConnectionEnvironment` в список и детали (`applyConnectionEnvironment`), что исключает повторное рукопожатие и дублирование клиентов (RTC-84 выполнена).
+- **Синхронизация состояний**: делегаты `.torrentUpdated/.torrentRemoved` и флаг `pendingListSync` гарантируют немедленное обновление списка после команд (RTC-85 выполнена, polling/backoff не ломается).
+- **Тесты и артефакты**: прогнаны `swift-format lint --recursive --strict`, `swiftlint lint`, `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 17' -only-testing:RemissionTests/TorrentDetailFeatureTests ...` (лог `build/rtc86-ios-selected.log`, xcresult `~/Library/Developer/Xcode/DerivedData/.../Test-Remission-2025.11.16_16-34-00-+0300.xcresult`). Полный `xcodebuild test` требует >10 минут, запуск оставлен для CI/ручного контроля.
+
 ### RTC-80: Контракт деталей торрента
 - `Torrent.Details.downloadDirectory` — строка пути, может быть пустой если сервер не вернул `downloadDir`.
 - `addedDate` — `Date?`; `nil`, когда Transmission ответил без поля `dateAdded` или передал `0`.
