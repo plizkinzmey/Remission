@@ -78,7 +78,8 @@ Remission — кроссплатформенное клиентское прил
 2. Загрузить пароль из Keychain через `CredentialsRepository`.
 3. Создать конфигурацию для `TransmissionClient` (endpoint, auth headers, timeout).
 4. Инициализировать `ServerConnectionEnvironment` с клиентом, репозиториями (TorrentRepository, SessionRepository) и другими зависимостями.
-5. Выполнить первичное рукопожатие (HTTP 409 handshake, проверка версии).
+5. При открытии дочерних фич (TorrentList, TorrentDetail) `ServerDetailReducer` прокидывает то же окружение через `State.applyConnectionEnvironment(_:)`, чтобы не пересоздавать Transmission-клиенты и переиспользовать handshake.
+6. Выполнить первичное рукопожатие (HTTP 409 handshake, проверка версии).
 
 **Паттерн**: использовать `ServerConnectionEnvironmentFactory` (DependencyKey) для создания per-context окружений:
 

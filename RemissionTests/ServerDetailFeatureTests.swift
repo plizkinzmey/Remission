@@ -78,6 +78,88 @@ struct ServerDetailFeatureTests {
     }
 
     @Test
+    func torrentDetailReusesExistingConnectionEnvironment() async {
+        let server = ServerConfig.previewLocalHTTP
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "session-42",
+            rpcVersion: 21,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.1",
+            isCompatible: true
+        )
+        let torrent = DomainFixtures.torrentDownloading
+        let repository = TorrentRepository.test(fetchList: { [torrent] })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            handshake: handshake,
+            torrentRepository: repository
+        )
+        let invocationCount = LockedValue(0)
+        let preferences = DomainFixtures.userPreferences
+
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.serverConnectionEnvironmentFactory = .init { _ in
+                invocationCount.withValue { $0 += 1 }
+                return environment
+            }
+            dependencies.userPreferencesRepository = .testValue(preferences: preferences)
+            dependencies.torrentRepository = repository
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.connectionState.phase = .connecting
+        }
+
+        await store.receive(
+            .connectionResponse(
+                .success(
+                    ServerDetailReducer.ConnectionResponse(
+                        environment: environment,
+                        handshake: handshake
+                    )
+                )
+            )
+        ) {
+            $0.connectionEnvironment = environment
+            $0.connectionState.phase = .ready(
+                .init(fingerprint: environment.fingerprint, handshake: handshake)
+            )
+            $0.torrentList.connectionEnvironment = environment
+        }
+        await store.receive(.torrentList(.task)) {
+            $0.torrentList.phase = .loading
+        }
+        await store.receive(.torrentList(.userPreferencesResponse(.success(preferences)))) {
+            $0.torrentList.pollingInterval = .milliseconds(
+                Int(preferences.pollingInterval * 1_000)
+            )
+            $0.torrentList.isPollingEnabled = preferences.isAutoRefreshEnabled
+            $0.torrentList.hasLoadedPreferences = true
+        }
+        await store.receive(.torrentList(.torrentsResponse(.success([torrent])))) {
+            $0.torrentList.phase = .loaded
+            $0.torrentList.items = [
+                TorrentListItem.State(torrent: torrent)
+            ]
+            $0.torrentList.failedAttempts = 0
+            $0.torrentList.isRefreshing = false
+        }
+
+        await store.send(.torrentList(.delegate(.openTorrent(torrent.id)))) {
+            #expect($0.torrentDetail?.connectionEnvironment == environment)
+            #expect($0.torrentDetail?.torrentID == torrent.id)
+        }
+
+        #expect(invocationCount.value == 1)
+    }
+
+    @Test
     func connectionFailureShowsAlert() async {
         let server = ServerConfig.previewSecureSeedbox
         let expectedError = ServerConnectionEnvironmentFactoryError.missingCredentials

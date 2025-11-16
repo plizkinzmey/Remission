@@ -38,6 +38,52 @@ struct TorrentDetailFeatureTests {
     }
 
     @Test
+    func loadTorrentDetailsUsesInjectedEnvironment() async {
+        let torrent = DomainFixtures.torrentDownloading
+        let environmentRepository = TorrentRepository.test(
+            fetchDetails: { _ in torrent }
+        )
+        let failingRepository = TorrentRepository.test(
+            fetchDetails: { _ in throw APIError.networkUnavailable }
+        )
+        let environment = makeEnvironment(repository: environmentRepository)
+        let timestamp = Date(timeIntervalSince1970: 15)
+
+        let store = TestStoreFactory.make(
+            initialState: .init(
+                torrentID: torrent.id,
+                connectionEnvironment: environment
+            ),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = failingRepository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
+
+        await store.send(.task) {
+            $0.isLoading = true
+            $0.errorMessage = nil
+        }
+
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: torrent, timestamp: timestamp))
+            )
+        ) {
+            $0.isLoading = false
+            assign(&$0, from: torrent)
+            $0.speedHistory.samples = [
+                SpeedSample(
+                    timestamp: timestamp,
+                    downloadRate: torrent.summary.transfer.downloadRate,
+                    uploadRate: torrent.summary.transfer.uploadRate
+                )
+            ]
+        }
+    }
+
+    @Test
     func loadTorrentDetailsCancelsInFlightRequests() async throws {
         let clock = TestClock()
         let torrent = DomainFixtures.torrentDownloading
