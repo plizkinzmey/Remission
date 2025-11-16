@@ -128,6 +128,17 @@ extension TorrentDetailReducer {
             apply(torrent)
         }
 
+        mutating func applyConnectionEnvironment(
+            _ environment: ServerConnectionEnvironment?
+        ) {
+            connectionEnvironment = environment
+            guard environment == nil else { return }
+            // Когда окружение теряется, сбрасываем очередь команд,
+            // чтобы не выполнять их без активного подключения.
+            pendingCommands.removeAll()
+            activeCommand = nil
+        }
+
         @available(*, deprecated, message: "Use torrentID overload")
         init(
             torrentId: Int,

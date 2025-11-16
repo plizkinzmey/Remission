@@ -227,6 +227,34 @@ func serverConnectionFailureShowsAlert() async {
 - `await store.receive(...)` для проверки эффектов (асинхронных результатов)
 - Happy path и error path тестируются отдельно
 - Используйте `LockedValue` для thread-safe проверки побочных эффектов в сложных тестах
+- **Пример многослойной композиции (ServerDetail → TorrentDetail)**:
+  ```swift
+  // Родитель сохраняет окружение и передаёт детям
+  case .connectionResponse(.success(let response)):
+      state.connectionEnvironment = response.environment
+      state.torrentList.connectionEnvironment = response.environment
+      state.torrentDetail?.applyConnectionEnvironment(response.environment)
+
+  case .torrentList(.delegate(.openTorrent(let id))):
+      guard let item = state.torrentList.items[id: id] else { return .none }
+      var detailState = TorrentDetailReducer.State(torrent: item.torrent)
+      detailState.applyConnectionEnvironment(state.torrentList.connectionEnvironment)
+      state.torrentDetail = detailState
+  ```
+  ```swift
+  @Reducer
+  struct TorrentDetailReducer {
+      mutating func applyConnectionEnvironment(
+          _ environment: ServerConnectionEnvironment?
+      ) {
+          connectionEnvironment = environment
+          guard environment == nil else { return }
+          pendingCommands.removeAll()
+          activeCommand = nil
+      }
+  }
+  ```
+  Такой шаблон гарантирует повторное использование `ServerConnectionEnvironment` на всех уровнях и предотвращает повторный handshake/создание клиентов при навигации по дочерним экранам.
 
 - Integration: поднятие Transmission через Docker-compose в CI, прогон сценариев connect/add/start/stop/remove.
 - UI: XCUITest для onboarding, списка и добавления торрента (Given/When/Then комментарии).

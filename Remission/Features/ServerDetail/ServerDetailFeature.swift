@@ -223,7 +223,7 @@ struct ServerDetailReducer {
 
             case .connectionResponse(.success(let response)):
                 state.connectionEnvironment = response.environment
-                state.torrentDetail?.connectionEnvironment = response.environment
+                state.torrentDetail?.applyConnectionEnvironment(response.environment)
                 state.connectionState.phase = .ready(
                     .init(
                         fingerprint: response.environment.fingerprint,
@@ -244,7 +244,7 @@ struct ServerDetailReducer {
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil
-                state.torrentDetail?.connectionEnvironment = nil
+                state.torrentDetail?.applyConnectionEnvironment(nil)
                 let message = describe(error)
                 state.connectionState.phase = .failed(.init(message: message))
                 state.alert = AlertState.connectionFailure(message: message)
@@ -285,10 +285,11 @@ struct ServerDetailReducer {
                 guard let selectedItem = state.torrentList.items[id: id] else {
                     return .none
                 }
-                state.torrentDetail = TorrentDetailReducer.State(
-                    torrent: selectedItem.torrent,
-                    connectionEnvironment: state.connectionEnvironment
+                var detailState = TorrentDetailReducer.State(
+                    torrent: selectedItem.torrent
                 )
+                detailState.applyConnectionEnvironment(state.torrentList.connectionEnvironment)
+                state.torrentDetail = detailState
                 return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):

@@ -1328,6 +1328,7 @@ return .run { [repository, clock = appClock.clock()] send in
 3. `TorrentListReducer.fetchTorrents` применяет `connectionEnvironment.apply(to: &DependencyValues)` перед вызовом `torrentRepository.fetchList()`.
 4. Цепочка: **ServerDetailReducer → TorrentListReducer → TorrentRepository → TransmissionClientDependency → TransmissionClient**. Репозиторий использует `TransmissionDomainMapper` для преобразования RPC → `Torrent`.
 5. При ошибке подключения `ServerDetailReducer` диспатчит `.torrentList(.teardown)` и сбрасывает состояние, чтобы предотвратить повторные запросы с устаревшим session-id.
+6. `TorrentDetailReducer` получает то же `ServerConnectionEnvironment`, что и список: `ServerDetailReducer` вызывает `State.applyConnectionEnvironment(_:)` при открытии деталей и при обновлении соединения, поэтому дочерняя фича не создаёт новые Transmission-клиенты и использует общие `torrentRepository`/`sessionRepository`.
 
 ### Polling, backoff и минимальные RPC поля
 - Значения по умолчанию: автообновление включено, интервал 5 секунд (`Duration.seconds(5)`), хранятся в `UserPreferencesRepository`.
