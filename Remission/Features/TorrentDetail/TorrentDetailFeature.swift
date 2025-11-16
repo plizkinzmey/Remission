@@ -45,6 +45,7 @@ struct TorrentDetailReducer {
 
     enum Delegate: Equatable {
         case closeRequested
+        case torrentUpdated(Torrent)
         case torrentRemoved(Torrent.Identifier)
     }
 
@@ -109,6 +110,7 @@ struct TorrentDetailReducer {
                 state.isLoading = false
                 state.pendingCommands.removeAll()
                 state.activeCommand = nil
+                state.pendingListSync = false
                 return .merge(
                     .cancel(id: CancelID.loadTorrentDetails),
                     .cancel(id: CancelID.commandExecution)
@@ -123,16 +125,24 @@ struct TorrentDetailReducer {
                     downloadRate: state.rateDownload,
                     uploadRate: state.rateUpload
                 )
+                if state.pendingListSync {
+                    state.pendingListSync = false
+                    return .send(.delegate(.torrentUpdated(response.torrent)))
+                }
                 return .none
 
             case .detailsResponse(.failure(let error)):
                 state.isLoading = false
                 let message = Self.describe(error)
                 state.errorMessage = message
+                state.pendingListSync = false
                 return .none
 
             case .commandResponse(.success(let command)):
                 state.activeCommand = nil
+                if Self.shouldSyncList(after: command) {
+                    state.pendingListSync = true
+                }
                 let torrentID = state.torrentID
                 let next = startNextCommand(state: &state)
                 return .merge(
@@ -142,6 +152,7 @@ struct TorrentDetailReducer {
 
             case .commandResponse(.failure(_, let message)):
                 state.activeCommand = nil
+                state.pendingListSync = false
                 let next = startNextCommand(state: &state)
                 return .merge(.send(.commandFailed(message)), next)
 
@@ -465,6 +476,15 @@ struct TorrentDetailReducer {
             return parserError.localizedDescription
         }
         return error.localizedDescription
+    }
+
+    private static func shouldSyncList(after command: CommandKind) -> Bool {
+        switch command {
+        case .start, .pause, .verify, .priority:
+            return true
+        case .remove:
+            return false
+        }
     }
 }
 

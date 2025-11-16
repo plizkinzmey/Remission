@@ -299,10 +299,12 @@ struct ServerDetailReducer {
             case .torrentList:
                 return .none
 
+            case .torrentDetail(.presented(.delegate(.torrentUpdated(let torrent)))):
+                return .send(.torrentList(.delegate(.detailUpdated(torrent))))
+
             case .torrentDetail(.presented(.delegate(.torrentRemoved(let identifier)))):
                 state.torrentDetail = nil
-                state.torrentList.items.remove(id: identifier)
-                return .send(.torrentList(.refreshRequested))
+                return .send(.torrentList(.delegate(.detailRemoved(identifier))))
 
             case .torrentDetail(.presented(.delegate(.closeRequested))):
                 state.torrentDetail = nil

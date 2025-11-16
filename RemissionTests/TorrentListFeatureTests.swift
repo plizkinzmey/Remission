@@ -262,6 +262,150 @@ struct TorrentListFeatureTests {
         }
     }
 
+    @Test("delegate detailUpdated обновляет список и инициирует мгновенный refresh")
+    func detailDelegateUpdatesListAndRefreshes() async {
+        let clock = TestClock<Duration>()
+        let baseTorrent = DomainFixtures.torrentDownloading
+        let updatedTorrent: Torrent = {
+            var torrent = baseTorrent
+            torrent.status = .seeding
+            torrent.summary.progress.percentDone = 0.95
+            return torrent
+        }()
+
+        let repository = TorrentRepository.test(fetchList: { [updatedTorrent] })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository
+        )
+
+        var initialState = makeLoadedState(torrents: [baseTorrent])
+        initialState.connectionEnvironment = environment
+        initialState.isPollingEnabled = false
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.delegate(.detailUpdated(updatedTorrent))) {
+            $0.items[id: updatedTorrent.id]?.update(with: updatedTorrent)
+            $0.phase = .loaded
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        await store.receive(.torrentsResponse(.success([updatedTorrent]))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(
+                uniqueElements: [TorrentListItem.State(torrent: updatedTorrent)]
+            )
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+    }
+
+    @Test("delegate detailUpdated при ошибке показывает alert и не расходится со state")
+    func detailDelegateHandlesErrorPath() async {
+        enum DummyError: Error, LocalizedError, Equatable {
+            case failed
+
+            var errorDescription: String? { "failed" }
+        }
+
+        let clock = TestClock<Duration>()
+        let baseTorrent = DomainFixtures.torrentDownloading
+        let updatedTorrent: Torrent = {
+            var torrent = baseTorrent
+            torrent.status = .seeding
+            return torrent
+        }()
+
+        let repository = TorrentRepository.test(fetchList: { throw DummyError.failed })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository
+        )
+
+        var initialState = makeLoadedState(torrents: [baseTorrent])
+        initialState.connectionEnvironment = environment
+        initialState.isPollingEnabled = true
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.delegate(.detailUpdated(updatedTorrent))) {
+            $0.items[id: updatedTorrent.id]?.update(with: updatedTorrent)
+            $0.phase = .loaded
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            $0.alert = .networkError(message: "failed")
+            $0.failedAttempts = 1
+            $0.isRefreshing = false
+        }
+    }
+
+    @Test("delegate detailRemoved удаляет элемент и инициирует refresh")
+    func detailDelegateHandlesRemoval() async {
+        let clock = TestClock<Duration>()
+        let torrents = [
+            DomainFixtures.torrentDownloading,
+            DomainFixtures.torrentSeeding
+        ]
+        let remaining = torrents[1]
+
+        let repository = TorrentRepository.test(fetchList: { [remaining] })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository
+        )
+
+        var initialState = makeLoadedState(torrents: torrents)
+        initialState.connectionEnvironment = environment
+        initialState.isPollingEnabled = false
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.delegate(.detailRemoved(torrents[0].id))) {
+            $0.items.remove(id: torrents[0].id)
+            $0.phase = .loaded
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        await store.receive(.torrentsResponse(.success([remaining]))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(
+                uniqueElements: [TorrentListItem.State(torrent: remaining)]
+            )
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+    }
+
     // Проверяем, что поиск и фильтры не инициируют дополнительный fetchList.
     @Test("searchQuery и filter меняют visibleItems без дополнительных запросов")
     func searchAndFilterUpdateVisibleItemsWithoutFetching() async {

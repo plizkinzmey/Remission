@@ -80,6 +80,8 @@ struct TorrentListReducer {
     enum Delegate: Equatable {
         case openTorrent(Torrent.Identifier)
         case addTorrentRequested
+        case detailUpdated(Torrent)
+        case detailRemoved(Torrent.Identifier)
     }
 
     enum Filter: String, Equatable, CaseIterable, Hashable, Sendable {
@@ -284,6 +286,18 @@ struct TorrentListReducer {
             case .alert:
                 return .none
 
+            case .delegate(.detailUpdated(let torrent)):
+                return handleDetailUpdated(
+                    state: &state,
+                    torrent: torrent
+                )
+
+            case .delegate(.detailRemoved(let identifier)):
+                return handleDetailRemoved(
+                    state: &state,
+                    identifier: identifier
+                )
+
             case .delegate:
                 return .none
             }
@@ -296,6 +310,7 @@ struct TorrentListReducer {
         case manualRefresh
         case polling
         case preferencesChanged
+        case command
     }
 
     /// Загружает пользовательские настройки, чтобы инициализировать polling interval
@@ -349,6 +364,8 @@ struct TorrentListReducer {
             break
         case .preferencesChanged:
             break
+        case .command:
+            state.isRefreshing = false
         }
 
         state.alert = nil
@@ -368,6 +385,46 @@ struct TorrentListReducer {
             )
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
+    }
+
+    private func handleDetailUpdated(
+        state: inout State,
+        torrent: Torrent
+    ) -> Effect<Action> {
+        if var existing = state.items[id: torrent.id] {
+            existing.update(with: torrent)
+            state.items[id: torrent.id] = existing
+        } else {
+            state.items.append(TorrentListItem.State(torrent: torrent))
+        }
+        state.phase = .loaded
+        state.alert = nil
+        state.failedAttempts = 0
+        state.isRefreshing = false
+        return detailSyncEffect(state: &state)
+    }
+
+    private func handleDetailRemoved(
+        state: inout State,
+        identifier: Torrent.Identifier
+    ) -> Effect<Action> {
+        state.items.remove(id: identifier)
+        state.phase = .loaded
+        state.alert = nil
+        state.failedAttempts = 0
+        state.isRefreshing = false
+        return detailSyncEffect(state: &state)
+    }
+
+    private func detailSyncEffect(state: inout State) -> Effect<Action> {
+        guard state.connectionEnvironment != nil else {
+            return .none
+        }
+        let fetchEffect = fetchTorrents(state: &state, trigger: .command)
+        return .merge(
+            .cancel(id: CancelID.polling),
+            fetchEffect
+        )
     }
 
     /// Планирует следующий polling tick через указанный интервал.
@@ -464,71 +521,3 @@ extension AlertState where Action == TorrentListReducer.AlertAction {
 }
 
 // swiftlint:enable nesting type_body_length
-
-enum TorrentListItem {}
-
-extension TorrentListItem {
-    @ObservableState
-    struct State: Equatable, Identifiable, Sendable {
-        var torrent: Torrent
-        var metrics: Metrics
-
-        var id: Torrent.Identifier { torrent.id }
-
-        init(torrent: Torrent) {
-            self.torrent = torrent
-            self.metrics = Metrics(torrent: torrent)
-        }
-
-        mutating func update(with torrent: Torrent) {
-            self.torrent = torrent
-            self.metrics = Metrics(torrent: torrent)
-        }
-    }
-
-    struct Metrics: Equatable, Sendable {
-        var progressFraction: Double
-        var progressText: String
-        var downloadRateText: String
-        var uploadRateText: String
-        var speedSummary: String
-        var etaSeconds: Int
-        var etaText: String?
-
-        init(torrent: Torrent) {
-            let clampedProgress = min(max(torrent.summary.progress.percentDone, 0), 1)
-            self.progressFraction = clampedProgress
-            self.progressText = String(format: "%.1f%%", clampedProgress * 100)
-            self.downloadRateText = Metrics.format(
-                bytesPerSecond: torrent.summary.transfer.downloadRate)
-            self.uploadRateText = Metrics.format(
-                bytesPerSecond: torrent.summary.transfer.uploadRate)
-            self.speedSummary = "↓ \(downloadRateText)/с · ↑ \(uploadRateText)/с"
-            self.etaSeconds = torrent.summary.progress.etaSeconds
-            self.etaText = Metrics.formatETA(seconds: torrent.summary.progress.etaSeconds)
-        }
-
-        private static func format(bytesPerSecond: Int) -> String {
-            guard bytesPerSecond > 0 else {
-                return "0 Б"
-            }
-            let formatter = ByteCountFormatter()
-            formatter.countStyle = .binary
-            formatter.allowedUnits = .useAll
-            formatter.includesUnit = true
-            return formatter.string(fromByteCount: Int64(bytesPerSecond))
-        }
-
-        private static func formatETA(seconds: Int) -> String? {
-            guard seconds > 0 else { return nil }
-            let formatter = DateComponentsFormatter()
-            formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute, .second]
-            formatter.unitsStyle = .abbreviated
-            formatter.maximumUnitCount = 2
-            if let formatted = formatter.string(from: TimeInterval(seconds)) {
-                return "ETA \(formatted)"
-            }
-            return nil
-        }
-    }
-}

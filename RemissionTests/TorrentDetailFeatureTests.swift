@@ -663,6 +663,46 @@ struct TorrentDetailFeatureTests {
             ]
         }
     }
+
+    @Test("detailsResponse отправляет delegate при pendingListSync")
+    func detailsResponseEmitsDelegateWhenSyncPending() async {
+        let baseTorrent = DomainFixtures.torrentDownloading
+        var updatedTorrent = baseTorrent
+        updatedTorrent.status = .seeding
+        updatedTorrent.summary.progress.percentDone = 0.9
+
+        var initialState = TorrentDetailReducer.State(torrent: baseTorrent)
+        initialState.pendingListSync = true
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies = AppDependencies.makeTestDefaults()
+            }
+        )
+
+        let response = TorrentDetailReducer.DetailsResponse(
+            torrent: updatedTorrent,
+            timestamp: Date(timeIntervalSince1970: 1_000)
+        )
+
+        await store.send(.detailsResponse(.success(response))) {
+            $0.isLoading = false
+            $0.errorMessage = nil
+            $0.apply(response.torrent)
+            $0.speedHistory.samples = [
+                SpeedSample(
+                    timestamp: response.timestamp,
+                    downloadRate: response.torrent.summary.transfer.downloadRate,
+                    uploadRate: response.torrent.summary.transfer.uploadRate
+                )
+            ]
+            $0.pendingListSync = false
+        }
+
+        await store.receive(.delegate(.torrentUpdated(updatedTorrent)))
+    }
 }
 
 @MainActor

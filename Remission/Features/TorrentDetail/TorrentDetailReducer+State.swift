@@ -55,6 +55,7 @@ extension TorrentDetailReducer {
         var pendingCommands: [TorrentDetailReducer.CommandKind] = []
         var isLoading: Bool = false
         var errorMessage: String?
+        var pendingListSync: Bool = false
         @Presents var alert: AlertState<AlertAction>?
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
 
@@ -87,7 +88,8 @@ extension TorrentDetailReducer {
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
-            errorMessage: String? = nil
+            errorMessage: String? = nil,
+            pendingListSync: Bool = false
         ) {
             self.torrentID = torrentID
             self.connectionEnvironment = connectionEnvironment
@@ -118,6 +120,7 @@ extension TorrentDetailReducer {
             self.pendingCommands = pendingCommands
             self.isLoading = isLoading
             self.errorMessage = errorMessage
+            self.pendingListSync = pendingListSync
         }
 
         init(
@@ -137,6 +140,7 @@ extension TorrentDetailReducer {
             // чтобы не выполнять их без активного подключения.
             pendingCommands.removeAll()
             activeCommand = nil
+            pendingListSync = false
         }
 
         @available(*, deprecated, message: "Use torrentID overload")
@@ -169,7 +173,8 @@ extension TorrentDetailReducer {
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
-            errorMessage: String? = nil
+            errorMessage: String? = nil,
+            pendingListSync: Bool = false
         ) {
             self.init(
                 torrentID: .init(rawValue: torrentId),
@@ -200,7 +205,8 @@ extension TorrentDetailReducer {
                 activeCommand: activeCommand,
                 pendingCommands: pendingCommands,
                 isLoading: isLoading,
-                errorMessage: errorMessage
+                errorMessage: errorMessage,
+                pendingListSync: pendingListSync
             )
         }
 
