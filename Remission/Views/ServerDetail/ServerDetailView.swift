@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ServerDetailView: View {
     @Bindable var store: StoreOf<ServerDetailReducer>
@@ -40,6 +41,26 @@ struct ServerDetailView: View {
                     }
             }
         }
+        .sheet(
+            store: store.scope(state: \.$addTorrent, action: \.addTorrent)
+        ) { addStore in
+            NavigationStack {
+                AddTorrentView(store: addStore)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Закрыть") {
+                                addStore.send(.closeButtonTapped)
+                            }
+                        }
+                    }
+            }
+        }
+        .fileImporter(
+            isPresented: fileImporterBinding,
+            allowedContentTypes: torrentContentTypes,
+            allowsMultipleSelection: false,
+            onCompletion: handleFileImport
+        )
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button("Изменить") {
@@ -56,6 +77,23 @@ struct ServerDetailView: View {
             LabeledContent("Протокол") {
                 securityBadge
             }
+        }
+    }
+
+    private var fileImporterBinding: Binding<Bool> {
+        Binding(
+            get: { store.isFileImporterPresented },
+            set: { store.send(.fileImporterPresented($0)) }
+        )
+    }
+
+    private func handleFileImport(_ result: Result<[URL], any Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            store.send(.fileImportResult(.success(url)))
+        case .failure(let error):
+            store.send(.fileImportResult(.failure(error.localizedDescription)))
         }
     }
 
@@ -178,6 +216,13 @@ struct ServerDetailView: View {
         )
     }
 }
+
+private let torrentContentTypes: [UTType] = {
+    if let type = UTType(filenameExtension: "torrent") {
+        return [type]
+    }
+    return [.data]
+}()
 
 #Preview {
     ServerDetailView(

@@ -13,6 +13,8 @@ struct ServerDetailReducer {
         @Presents var alert: AlertState<AlertAction>?
         @Presents var editor: ServerEditorReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
+        @Presents var addTorrent: AddTorrentReducer.State?
+        var isFileImporterPresented: Bool = false
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
@@ -40,6 +42,11 @@ struct ServerDetailReducer {
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
+        case addTorrent(PresentationAction<AddTorrentReducer.Action>)
+        case fileImporterPresented(Bool)
+        case fileImportResult(FileImportResult)
+        case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
+        case magnetLinkResponse(Result<String?, MagnetImportError>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -99,11 +106,40 @@ struct ServerDetailReducer {
         var handshake: TransmissionHandshakeResult
     }
 
+    enum FileImportResult: Equatable {
+        case success(URL)
+        case failure(String)
+    }
+
+    enum FileImportError: Equatable, Error {
+        case failed(String)
+
+        var message: String {
+            switch self {
+            case .failed(let message):
+                return message
+            }
+        }
+    }
+
+    enum MagnetImportError: Equatable, Error {
+        case failed(String)
+
+        var message: String {
+            switch self {
+            case .failed(let message):
+                return message
+            }
+        }
+    }
+
     @Dependency(\.credentialsRepository) var credentialsRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
     @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
+    @Dependency(\.magnetLinkClient) var magnetLinkClient
+    @Dependency(\.torrentFileLoader) var torrentFileLoader
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -293,8 +329,18 @@ struct ServerDetailReducer {
                 return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):
-                state.alert = makeAddTorrentPlaceholderAlert()
-                return .none
+                return .run { send in
+                    do {
+                        let magnet = try await magnetLinkClient.consumePendingMagnet()
+                        await send(.magnetLinkResponse(.success(magnet)))
+                    } catch {
+                        await send(
+                            .magnetLinkResponse(
+                                .failure(.failed(error.localizedDescription))
+                            )
+                        )
+                    }
+                }
 
             case .torrentList:
                 return .none
@@ -313,6 +359,41 @@ struct ServerDetailReducer {
             case .torrentDetail:
                 return .none
 
+            case .fileImporterPresented(let isPresented):
+                state.isFileImporterPresented = isPresented
+                return .none
+
+            case .fileImportResult(.success(let url)):
+                return handleFileImport(url: url, state: &state)
+
+            case .fileImportResult(.failure(let message)):
+                return handleFileImportFailure(message: message, state: &state)
+
+            case .fileImportLoaded(.success(let input)):
+                return handleFileImportLoaded(
+                    result: .success(input),
+                    state: &state
+                )
+
+            case .fileImportLoaded(.failure(let error)):
+                return handleFileImportLoaded(
+                    result: .failure(error),
+                    state: &state
+                )
+
+            case .magnetLinkResponse(.success(let magnet)):
+                return handleMagnetResponse(result: .success(magnet), state: &state)
+
+            case .magnetLinkResponse(.failure(let error)):
+                return handleMagnetResponse(result: .failure(error), state: &state)
+
+            case .addTorrent(.presented(.delegate(.closeRequested))):
+                state.addTorrent = nil
+                return .none
+
+            case .addTorrent:
+                return .none
+
             case .delegate:
                 return .none
             }
@@ -323,6 +404,9 @@ struct ServerDetailReducer {
         }
         .ifLet(\.$torrentDetail, action: \.torrentDetail) {
             TorrentDetailReducer()
+        }
+        .ifLet(\.$addTorrent, action: \.addTorrent) {
+            AddTorrentReducer()
         }
         Scope(state: \.torrentList, action: \.torrentList) {
             TorrentListReducer()
@@ -435,17 +519,6 @@ struct ServerDetailReducer {
         }
     }
 
-    private func makeAddTorrentPlaceholderAlert() -> AlertState<AlertAction> {
-        AlertState {
-            TextState("Добавление торрента")
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Готово")
-            }
-        } message: {
-            TextState("Экран добавления пока не реализован. Сообщим, как только появится.")
-        }
-    }
 }
 
 private func describe(_ error: Error) -> String {
