@@ -7,6 +7,7 @@ import Testing
 
 @MainActor
 @Suite("TorrentDetailReducer")
+// swiftlint:disable:next type_body_length
 struct TorrentDetailFeatureTests {
     @Test
     func loadTorrentDetailsFailure() async {
@@ -548,6 +549,7 @@ struct TorrentDetailFeatureTests {
     }
 
     @Test
+    // swiftlint:disable:next function_body_length
     func commandsQueueSequentially() async throws {
         let clock = TestClock()
         var torrent = DomainFixtures.torrentDownloading

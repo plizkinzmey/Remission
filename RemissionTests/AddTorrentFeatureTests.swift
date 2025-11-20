@@ -6,9 +6,17 @@ import Testing
 
 @MainActor
 struct AddTorrentFeatureTests {
+    struct CapturedAddParams: Sendable {
+        var input: PendingTorrentInput
+        var destination: String
+        var startPaused: Bool
+        var tags: [String]?
+    }
+
     @Test
+    // swiftlint:disable:next function_body_length
     func submitMagnetAddsTorrentWithParameters() async {
-        let captured = LockedValue<(PendingTorrentInput, String, Bool, [String]?)?>(nil)
+        let captured = LockedValue<CapturedAddParams?>(nil)
         let addResult = TorrentRepository.AddResult(
             status: .added,
             id: .init(rawValue: 42),
@@ -18,7 +26,14 @@ struct AddTorrentFeatureTests {
 
         let repository = TorrentRepository.test(
             add: { input, destination, startPaused, tags in
-                captured.withValue { $0 = (input, destination, startPaused, tags) }
+                captured.withValue {
+                    $0 = CapturedAddParams(
+                        input: input,
+                        destination: destination,
+                        startPaused: startPaused,
+                        tags: tags
+                    )
+                }
                 return addResult
             }
         )
@@ -75,13 +90,14 @@ struct AddTorrentFeatureTests {
         await store.receive(.delegate(.closeRequested))
 
         let capturedValue = captured.value
-        #expect(capturedValue?.0.displayName == "magnet:?xt=urn:btih:demo")
-        #expect(capturedValue?.1 == "/downloads")
-        #expect(capturedValue?.2 == true)
-        #expect(capturedValue?.3 == ["linux"])
+        #expect(capturedValue?.input.displayName == "magnet:?xt=urn:btih:demo")
+        #expect(capturedValue?.destination == "/downloads")
+        #expect(capturedValue?.startPaused == true)
+        #expect(capturedValue?.tags == ["linux"])
     }
 
     @Test
+    // swiftlint:disable:next function_body_length
     func duplicateTorrentShowsInfoAlertAndCloses() async {
         let addResult = TorrentRepository.AddResult(
             status: .duplicate,

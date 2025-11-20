@@ -32,6 +32,7 @@ enum AppDependencies {
     }
 
     /// Набор зависимостей для UI-тестов с управляемыми сценарием/фикстурой.
+    // swiftlint:disable:next function_body_length
     static func makeUITest(
         fixture: AppBootstrap.UITestingFixture?,
         scenario: AppBootstrap.UITestingScenario?
