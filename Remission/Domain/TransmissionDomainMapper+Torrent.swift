@@ -70,6 +70,32 @@ extension TransmissionDomainMapper {
         return try mapTorrentObject(dict, includeDetails: true)
     }
 
+    func mapTorrentAdd(from response: TransmissionResponse) throws -> TorrentRepository.AddResult {
+        let arguments: [String: AnyCodable] = try arguments(
+            from: response,
+            context: "torrent-add"
+        )
+
+        if let addedValue = arguments["torrent-added"] {
+            return try makeAddResult(
+                from: addedValue,
+                status: .added
+            )
+        }
+
+        if let duplicateValue = arguments["torrent-duplicate"] {
+            return try makeAddResult(
+                from: duplicateValue,
+                status: .duplicate
+            )
+        }
+
+        throw DomainMappingError.missingField(
+            field: "torrent-added|torrent-duplicate",
+            context: "torrent-add"
+        )
+    }
+
     func mapTorrentObject(
         _ dict: [String: AnyCodable],
         includeDetails: Bool
@@ -135,6 +161,30 @@ extension TransmissionDomainMapper {
             trackers: torrentTrackers(in: dict),
             trackerStats: torrentTrackerStats(in: dict),
             speedSamples: []
+        )
+    }
+
+    private func makeAddResult(
+        from value: AnyCodable,
+        status: TorrentRepository.AddStatus
+    ) throws -> TorrentRepository.AddResult {
+        guard case .object(let addObject) = value else {
+            throw DomainMappingError.invalidType(
+                field: status == .added ? "torrent-added" : "torrent-duplicate",
+                expected: "object",
+                context: "torrent-add"
+            )
+        }
+
+        let id: Int = try requireInt("id", in: addObject, context: "torrent-add")
+        let name: String = try requireString("name", in: addObject, context: "torrent-add")
+        let hash: String = try requireString("hashString", in: addObject, context: "torrent-add")
+
+        return TorrentRepository.AddResult(
+            status: status,
+            id: .init(rawValue: id),
+            name: name,
+            hashString: hash
         )
     }
 

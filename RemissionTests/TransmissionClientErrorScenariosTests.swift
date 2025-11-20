@@ -268,6 +268,40 @@ struct TransmissionClientErrorScenariosTests {
         #expect(abs(recordedSeconds[2] - 0.4) < 0.0001)
     }
 
+    @Test("HTTP 401 при torrent-add возвращает APIError.unauthorized")
+    func testTorrentAddUnauthorized() async {
+        let server: TransmissionMockServer = TransmissionMockServer()
+        defer { cleanupMockServer() }
+        server.register(
+            scenario: .init(
+                name: "torrent-add unauthorized",
+                steps: [
+                    TransmissionMockStep(
+                        matcher: .method("torrent-add"),
+                        response: .http(statusCode: 401, headers: [:], body: nil)
+                    )
+                ]
+            )
+        )
+
+        let (client, _) = makeClient(using: server)
+
+        do {
+            _ = try await client.torrentAdd(
+                filename: "magnet:?xt=urn:btih:unauthorized",
+                metainfo: nil,
+                downloadDir: nil,
+                paused: nil,
+                labels: nil
+            )
+            #expect(Bool(false), "Ожидалась ошибка unauthorized")
+        } catch let error as APIError {
+            #expect(error == .unauthorized)
+        } catch {
+            #expect(Bool(false), "Ожидалась APIError, получено \(error)")
+        }
+    }
+
     // MARK: - Helpers
 
     private func cleanupMockServer() {

@@ -12,6 +12,7 @@ struct AddTorrentReducer {
         var tags: [String] = []
         var newTag: String = ""
         var isSubmitting: Bool = false
+        var closeOnAlertDismiss: Bool = false
         @Presents var alert: AlertState<AlertAction>?
     }
 
@@ -36,20 +37,31 @@ struct AddTorrentReducer {
         case dismiss
     }
 
-    struct SubmitResult: Equatable {}
+    struct SubmitResult: Equatable {
+        var addResult: TorrentRepository.AddResult
+    }
 
     enum SubmitError: Equatable, Error {
+        case unauthorized
+        case sessionConflict
+        case mapping(String)
         case failed(String)
 
         var message: String {
             switch self {
+            case .unauthorized:
+                return "Проверьте логин/пароль и повторите попытку."
+            case .sessionConflict:
+                return "Сессия устарела. Попробуйте снова подключиться и повторить добавление."
+            case .mapping(let details):
+                return "Некорректный ответ Transmission: \(details)"
             case .failed(let value):
                 return value
             }
         }
     }
 
-    @Dependency(\.transmissionClient) var transmissionClient
+    @Dependency(\.torrentRepository) var torrentRepository
 
     private enum AddTorrentCancelID {
         case submit
@@ -90,12 +102,15 @@ struct AddTorrentReducer {
             case .submitButtonTapped:
                 return handleSubmit(state: &state)
 
-            case .submitResponse(.success):
+            case .submitResponse(.success(let result)):
                 state.isSubmitting = false
-                return .send(.delegate(.closeRequested))
+                state.closeOnAlertDismiss = true
+                state.alert = successAlert(for: result.addResult)
+                return .none
 
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false
+                state.closeOnAlertDismiss = false
                 state.alert = AlertState {
                     TextState("Не удалось добавить торрент")
                 } actions: {
@@ -112,7 +127,9 @@ struct AddTorrentReducer {
 
             case .alert(.presented(.dismiss)):
                 state.alert = nil
-                return .none
+                let shouldClose = state.closeOnAlertDismiss
+                state.closeOnAlertDismiss = false
+                return shouldClose ? .send(.delegate(.closeRequested)) : .none
 
             case .alert(.dismiss):
                 return .none
@@ -127,6 +144,7 @@ struct AddTorrentReducer {
         .ifLet(\.$alert, action: \.alert)
     }
 
+    // swiftlint:disable function_body_length
     private func handleSubmit(state: inout State) -> Effect<Action> {
         let input = state.pendingInput
         let destination = state.destinationPath.trimmingCharacters(
@@ -142,6 +160,7 @@ struct AddTorrentReducer {
             } message: {
                 TextState("Поле каталога загрузки не может быть пустым.")
             }
+            state.closeOnAlertDismiss = false
             return .none
         }
 
@@ -155,45 +174,80 @@ struct AddTorrentReducer {
             } message: {
                 TextState("Не удалось получить окружение подключения. Повторите попытку позже.")
             }
+            state.closeOnAlertDismiss = false
             return .none
         }
 
         let tags = state.tags.isEmpty ? nil : state.tags
         let startPaused = state.startPaused
         state.isSubmitting = true
+        state.closeOnAlertDismiss = false
 
         return .run { send in
-            await send(
-                .submitResponse(
-                    Result {
-                        try await withDependencies {
-                            environment.apply(to: &$0)
-                        } operation: {
-                            switch input.payload {
-                            case .torrentFile(let data, _):
-                                _ = try await transmissionClient.torrentAdd(
-                                    nil,
-                                    data,
-                                    destination,
-                                    startPaused,
-                                    tags
-                                )
-                            case .magnetLink(_, let rawValue):
-                                _ = try await transmissionClient.torrentAdd(
-                                    rawValue,
-                                    nil,
-                                    destination,
-                                    startPaused,
-                                    tags
-                                )
-                            }
-                        }
-                    }
-                    .map { _ in SubmitResult() }
-                    .mapError { SubmitError.failed($0.localizedDescription) }
-                )
-            )
+            let result = await Result {
+                try await withDependencies {
+                    environment.apply(to: &$0)
+                } operation: {
+                    try await torrentRepository.add(
+                        input,
+                        destinationPath: destination,
+                        startPaused: startPaused,
+                        tags: tags
+                    )
+                }
+            }
+
+            switch result {
+            case .success(let response):
+                await send(.submitResponse(.success(.init(addResult: response))))
+            case .failure(let error):
+                await send(.submitResponse(.failure(mapSubmitError(error))))
+            }
         }
         .cancellable(id: AddTorrentCancelID.submit, cancelInFlight: true)
+    }
+    // swiftlint:enable function_body_length
+
+    private func successAlert(
+        for result: TorrentRepository.AddResult
+    ) -> AlertState<AlertAction> {
+        let isDuplicate: Bool = result.status == .duplicate
+        let title: TextState =
+            isDuplicate
+            ? TextState("Торрент уже добавлен")
+            : TextState("Торрент добавлен")
+        let message: TextState =
+            isDuplicate
+            ? TextState("Переданный торрент уже есть в списке: \(result.name)")
+            : TextState("Добавлен торрент \(result.name)")
+
+        return AlertState {
+            title
+        } actions: {
+            ButtonState(role: .cancel, action: .dismiss) {
+                TextState("Понятно")
+            }
+        } message: {
+            message
+        }
+    }
+
+    private func mapSubmitError(_ error: Error) -> SubmitError {
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .unauthorized:
+                return .unauthorized
+            case .sessionConflict:
+                return .sessionConflict
+            default:
+                return .failed(apiError.localizedDescription)
+            }
+        }
+
+        if let mappingError = error as? DomainMappingError {
+            return .mapping(mappingError.localizedDescription)
+        }
+
+        return .failed(error.localizedDescription)
     }
 }

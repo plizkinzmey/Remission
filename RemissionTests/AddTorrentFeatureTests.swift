@@ -8,17 +8,24 @@ import Testing
 struct AddTorrentFeatureTests {
     @Test
     func submitMagnetAddsTorrentWithParameters() async {
-        let captured = LockedValue<(String?, Data?, String?, Bool?, [String]?)?>(nil)
+        let captured = LockedValue<(PendingTorrentInput, String, Bool, [String]?)?>(nil)
+        let addResult = TorrentRepository.AddResult(
+            status: .added,
+            id: .init(rawValue: 42),
+            name: "Demo torrent",
+            hashString: "deadbeef"
+        )
 
-        var client = TransmissionClientDependency.placeholder
-        client.torrentAdd = { filename, metainfo, downloadDir, paused, labels in
-            captured.withValue { $0 = (filename, metainfo, downloadDir, paused, labels) }
-            return TransmissionResponse(result: "success")
-        }
+        let repository = TorrentRepository.test(
+            add: { input, destination, startPaused, tags in
+                captured.withValue { $0 = (input, destination, startPaused, tags) }
+                return addResult
+            }
+        )
 
         let environment = ServerConnectionEnvironment.testEnvironment(
             server: .previewLocalHTTP,
-            transmissionClient: client
+            torrentRepository: repository
         )
 
         let store = TestStore(
@@ -44,15 +51,148 @@ struct AddTorrentFeatureTests {
         await store.send(.submitButtonTapped) {
             $0.isSubmitting = true
         }
-        await store.receive(.submitResponse(.success(.init()))) {
+        await store.receive(
+            .submitResponse(
+                .success(.init(addResult: addResult))
+            )
+        ) {
             $0.isSubmitting = false
+            $0.closeOnAlertDismiss = true
+            $0.alert = AlertState {
+                TextState("Торрент добавлен")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Добавлен торрент Demo torrent")
+            }
+        }
+        await store.send(.alert(.presented(.dismiss))) {
+            $0.alert = nil
+            $0.closeOnAlertDismiss = false
         }
         await store.receive(.delegate(.closeRequested))
-        #expect(captured.value?.0 == "magnet:?xt=urn:btih:demo")
-        #expect(captured.value?.1 == nil)
-        #expect(captured.value?.2 == "/downloads")
-        #expect(captured.value?.3 == true)
-        #expect(captured.value?.4 == ["linux"])
+
+        let capturedValue = captured.value
+        #expect(capturedValue?.0.displayName == "magnet:?xt=urn:btih:demo")
+        #expect(capturedValue?.1 == "/downloads")
+        #expect(capturedValue?.2 == true)
+        #expect(capturedValue?.3 == ["linux"])
+    }
+
+    @Test
+    func duplicateTorrentShowsInfoAlertAndCloses() async {
+        let addResult = TorrentRepository.AddResult(
+            status: .duplicate,
+            id: .init(rawValue: 7),
+            name: "Existing Torrent",
+            hashString: "duplicate-hash"
+        )
+
+        let repository = TorrentRepository.test(
+            add: { _, destination, _, _ in
+                #expect(destination == "/downloads")
+                return addResult
+            }
+        )
+
+        let store = TestStore(
+            initialState: AddTorrentReducer.State(
+                pendingInput: PendingTorrentInput(
+                    payload: .magnetLink(
+                        url: URL(string: "magnet:?xt=urn:btih:duplicate")!,
+                        rawValue: "magnet:?xt=urn:btih:duplicate"
+                    ),
+                    sourceDescription: "Magnet"
+                ),
+                connectionEnvironment: .testEnvironment(
+                    server: .previewLocalHTTP,
+                    torrentRepository: repository
+                ),
+                destinationPath: "/downloads"
+            )
+        ) {
+            AddTorrentReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.submitButtonTapped) {
+            $0.isSubmitting = true
+        }
+        await store.receive(
+            .submitResponse(
+                .success(.init(addResult: addResult))
+            )
+        ) {
+            $0.isSubmitting = false
+            $0.alert = AlertState {
+                TextState("Торрент уже добавлен")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Переданный торрент уже есть в списке: Existing Torrent")
+            }
+            $0.closeOnAlertDismiss = true
+        }
+        await store.send(.alert(.presented(.dismiss))) {
+            $0.alert = nil
+            $0.closeOnAlertDismiss = false
+        }
+        await store.receive(.delegate(.closeRequested))
+    }
+
+    @Test
+    func unauthorizedErrorShowsAlertWithoutClosing() async {
+        let repository = TorrentRepository.test(
+            add: { _, _, _, _ in
+                throw APIError.unauthorized
+            }
+        )
+
+        let store = TestStore(
+            initialState: AddTorrentReducer.State(
+                pendingInput: PendingTorrentInput(
+                    payload: .magnetLink(
+                        url: URL(string: "magnet:?xt=urn:btih:demo")!,
+                        rawValue: "magnet:?xt=urn:btih:demo"
+                    ),
+                    sourceDescription: "Magnet"
+                ),
+                connectionEnvironment: .testEnvironment(
+                    server: .previewLocalHTTP,
+                    torrentRepository: repository
+                ),
+                destinationPath: "/downloads"
+            )
+        ) {
+            AddTorrentReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.submitButtonTapped) {
+            $0.isSubmitting = true
+        }
+        await store.receive(.submitResponse(.failure(.unauthorized))) {
+            $0.isSubmitting = false
+            $0.alert = AlertState {
+                TextState("Не удалось добавить торрент")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Проверьте логин/пароль и повторите попытку.")
+            }
+            $0.closeOnAlertDismiss = false
+        }
+        await store.send(.alert(.presented(.dismiss))) {
+            $0.alert = nil
+        }
     }
 
     @Test

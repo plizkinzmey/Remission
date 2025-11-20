@@ -95,6 +95,14 @@ enum AppDependencies {
                     return try await baseRepository.fetchList()
                 },
                 fetchDetails: { id in try await baseRepository.fetchDetails(id) },
+                add: { input, destination, startPaused, tags in
+                    try await baseRepository.add(
+                        input,
+                        destinationPath: destination,
+                        startPaused: startPaused,
+                        tags: tags
+                    )
+                },
                 start: { ids in try await baseRepository.start(ids) },
                 stop: { ids in try await baseRepository.stop(ids) },
                 remove: { ids, delete in

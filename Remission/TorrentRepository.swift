@@ -9,6 +9,12 @@ import Foundation
 protocol TorrentRepositoryProtocol: Sendable {
     func fetchList() async throws -> [Torrent]
     func fetchDetails(_ id: Torrent.Identifier) async throws -> Torrent
+    func add(
+        _ input: PendingTorrentInput,
+        destinationPath: String,
+        startPaused: Bool,
+        tags: [String]?
+    ) async throws -> TorrentRepository.AddResult
     func start(_ ids: [Torrent.Identifier]) async throws
     func stop(_ ids: [Torrent.Identifier]) async throws
     func remove(_ ids: [Torrent.Identifier], deleteLocalData: Bool?) async throws
@@ -50,6 +56,18 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         }
     }
 
+    enum AddStatus: Equatable, Sendable {
+        case added
+        case duplicate
+    }
+
+    struct AddResult: Equatable, Sendable {
+        var status: AddStatus
+        var id: Torrent.Identifier
+        var name: String
+        var hashString: String
+    }
+
     enum FilePriority: Int, Equatable, Sendable {
         case low = -1
         case normal = 0
@@ -73,6 +91,8 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
 
     var fetchListClosure: @Sendable () async throws -> [Torrent]
     var fetchDetailsClosure: @Sendable (Torrent.Identifier) async throws -> Torrent
+    var addClosure:
+        @Sendable (PendingTorrentInput, String, Bool, [String]?) async throws -> AddResult
     var startClosure: @Sendable ([Torrent.Identifier]) async throws -> Void
     var stopClosure: @Sendable ([Torrent.Identifier]) async throws -> Void
     var removeClosure: @Sendable ([Torrent.Identifier], Bool?) async throws -> Void
@@ -85,6 +105,10 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     init(
         fetchList: @escaping @Sendable () async throws -> [Torrent],
         fetchDetails: @escaping @Sendable (Torrent.Identifier) async throws -> Torrent,
+        add:
+            @escaping @Sendable (
+                PendingTorrentInput, String, Bool, [String]?
+            ) async throws -> AddResult,
         start: @escaping @Sendable ([Torrent.Identifier]) async throws -> Void,
         stop: @escaping @Sendable ([Torrent.Identifier]) async throws -> Void,
         remove: @escaping @Sendable ([Torrent.Identifier], Bool?) async throws -> Void,
@@ -98,6 +122,7 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     ) {
         self.fetchListClosure = fetchList
         self.fetchDetailsClosure = fetchDetails
+        self.addClosure = add
         self.startClosure = start
         self.stopClosure = stop
         self.removeClosure = remove
@@ -112,6 +137,15 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
 
     func fetchDetails(_ id: Torrent.Identifier) async throws -> Torrent {
         try await fetchDetailsClosure(id)
+    }
+
+    func add(
+        _ input: PendingTorrentInput,
+        destinationPath: String,
+        startPaused: Bool,
+        tags: [String]?
+    ) async throws -> AddResult {
+        try await addClosure(input, destinationPath, startPaused, tags)
     }
 
     func start(_ ids: [Torrent.Identifier]) async throws {
@@ -174,67 +208,106 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     }
 
     extension TorrentRepository {
+        // swiftlint:disable function_body_length
         static func live(
             transmissionClient: TransmissionClientDependency,
             mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
             fields: [String] = TorrentListFields.summary,
             detailFields: [String] = TorrentListFields.details
         ) -> TorrentRepository {
-            TorrentRepository(
-                fetchList: {
-                    let response = try await transmissionClient.torrentGet(nil, fields)
-                    return try mapper.mapTorrentList(from: response)
-                },
-                fetchDetails: { identifier in
+            let fetchList: @Sendable () async throws -> [Torrent] = {
+                let response = try await transmissionClient.torrentGet(nil, fields)
+                return try mapper.mapTorrentList(from: response)
+            }
+
+            let fetchDetails: @Sendable (Torrent.Identifier) async throws -> Torrent =
+                { identifier in
                     let response = try await transmissionClient.torrentGet(
                         [identifier.rawValue],
                         detailFields
                     )
                     return try mapper.mapTorrentDetails(from: response)
-                },
-                start: makeCommandClosure(
-                    context: "torrent-start",
-                    rpc: transmissionClient.torrentStart
-                ),
-                stop: makeCommandClosure(
-                    context: "torrent-stop",
-                    rpc: transmissionClient.torrentStop
-                ),
-                remove: { ids, deleteData in
+                }
+
+            let add:
+                @Sendable (PendingTorrentInput, String, Bool, [String]?) async throws
+                    -> AddResult =
+                    { input, destination, startPaused, labels in
+                        let response = try await transmissionClient.torrentAdd(
+                            filename: input.filenameArgument,
+                            metainfo: input.metainfoArgument,
+                            downloadDir: destination,
+                            paused: startPaused,
+                            labels: labels
+                        )
+                        return try mapper.mapTorrentAdd(from: response)
+                    }
+
+            let start: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
+                context: "torrent-start",
+                rpc: transmissionClient.torrentStart
+            )
+
+            let stop: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
+                context: "torrent-stop",
+                rpc: transmissionClient.torrentStop
+            )
+
+            let remove: @Sendable ([Torrent.Identifier], Bool?) async throws -> Void =
+                { ids, deleteData in
                     let response = try await transmissionClient.torrentRemove(
                         ids.map(\.rawValue),
                         deleteData
                     )
                     try ensureSuccess(response, context: "torrent-remove")
-                },
-                verify: makeCommandClosure(
-                    context: "torrent-verify",
-                    rpc: transmissionClient.torrentVerify
-                ),
-                updateTransferSettings: { settings, ids in
-                    let arguments = makeTransferSettingsArguments(from: settings)
-                    guard arguments.isEmpty == false else {
-                        return
-                    }
-                    let response = try await transmissionClient.torrentSet(
-                        ids.map(\.rawValue),
-                        .object(arguments)
-                    )
-                    try ensureSuccess(response, context: "torrent-set")
-                },
-                updateFileSelection: { updates, torrentID in
-                    let arguments = makeFileSelectionArguments(from: updates)
-                    guard arguments.isEmpty == false else {
-                        return
-                    }
-                    let response = try await transmissionClient.torrentSet(
-                        [torrentID.rawValue],
-                        .object(arguments)
-                    )
-                    try ensureSuccess(response, context: "torrent-set")
                 }
+
+            let verify: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
+                context: "torrent-verify",
+                rpc: transmissionClient.torrentVerify
+            )
+
+            let updateTransferSettings:
+                @Sendable (TransferSettings, [Torrent.Identifier]) async throws
+                    -> Void = { settings, ids in
+                        let arguments = makeTransferSettingsArguments(from: settings)
+                        guard arguments.isEmpty == false else {
+                            return
+                        }
+                        let response = try await transmissionClient.torrentSet(
+                            ids.map(\.rawValue),
+                            .object(arguments)
+                        )
+                        try ensureSuccess(response, context: "torrent-set")
+                    }
+
+            let updateFileSelection:
+                @Sendable ([FileSelectionUpdate], Torrent.Identifier) async throws
+                    -> Void = { updates, torrentID in
+                        let arguments = makeFileSelectionArguments(from: updates)
+                        guard arguments.isEmpty == false else {
+                            return
+                        }
+                        let response = try await transmissionClient.torrentSet(
+                            [torrentID.rawValue],
+                            .object(arguments)
+                        )
+                        try ensureSuccess(response, context: "torrent-set")
+                    }
+
+            return TorrentRepository(
+                fetchList: fetchList,
+                fetchDetails: fetchDetails,
+                add: add,
+                start: start,
+                stop: stop,
+                remove: remove,
+                verify: verify,
+                updateTransferSettings: updateTransferSettings,
+                updateFileSelection: updateFileSelection
             )
         }
+        // swiftlint:enable function_body_length
 
         private static func makeCommandClosure(
             context: String,
@@ -278,48 +351,40 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         ) -> [String: AnyCodable] {
             var filesWanted: Set<Int> = []
             var filesUnwanted: Set<Int> = []
-            var priorityHigh: Set<Int> = []
-            var priorityNormal: Set<Int> = []
-            var priorityLow: Set<Int> = []
+            var priorityBuckets: [FilePriority: Set<Int>] = [
+                .high: [],
+                .normal: [],
+                .low: []
+            ]
 
             for update in updates {
                 if let isWanted = update.isWanted {
+                    var target = isWanted ? filesWanted : filesUnwanted
+                    target.insert(update.fileIndex)
                     if isWanted {
-                        filesWanted.insert(update.fileIndex)
+                        filesWanted = target
                     } else {
-                        filesUnwanted.insert(update.fileIndex)
+                        filesUnwanted = target
                     }
                 }
 
                 if let priority = update.priority {
-                    switch priority {
-                    case .high:
-                        priorityHigh.insert(update.fileIndex)
-                    case .normal:
-                        priorityNormal.insert(update.fileIndex)
-                    case .low:
-                        priorityLow.insert(update.fileIndex)
-                    }
+                    priorityBuckets[priority, default: []].insert(update.fileIndex)
                 }
             }
 
             var arguments: [String: AnyCodable] = [:]
-            if let value = arrayArgument(from: filesWanted) {
-                arguments["files-wanted"] = value
-            }
-            if let value = arrayArgument(from: filesUnwanted) {
-                arguments["files-unwanted"] = value
-            }
-            if let value = arrayArgument(from: priorityHigh) {
-                arguments["priority-high"] = value
-            }
-            if let value = arrayArgument(from: priorityNormal) {
-                arguments["priority-normal"] = value
-            }
-            if let value = arrayArgument(from: priorityLow) {
-                arguments["priority-low"] = value
-            }
-
+            appendArrayArgument(from: filesWanted, forKey: "files-wanted", into: &arguments)
+            appendArrayArgument(from: filesUnwanted, forKey: "files-unwanted", into: &arguments)
+            appendArrayArgument(
+                from: priorityBuckets[.high] ?? [], forKey: "priority-high", into: &arguments)
+            appendArrayArgument(
+                from: priorityBuckets[.normal] ?? [],
+                forKey: "priority-normal",
+                into: &arguments
+            )
+            appendArrayArgument(
+                from: priorityBuckets[.low] ?? [], forKey: "priority-low", into: &arguments)
             return arguments
         }
 
@@ -330,14 +395,46 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
             let values = indices.sorted().map { AnyCodable.int($0) }
             return .array(values)
         }
+
+        private static func appendArrayArgument(
+            from indices: Set<Int>,
+            forKey key: String,
+            into arguments: inout [String: AnyCodable]
+        ) {
+            guard let value = arrayArgument(from: indices) else { return }
+            arguments[key] = value
+        }
     }
 #endif
+
+extension PendingTorrentInput {
+    fileprivate var filenameArgument: String? {
+        switch payload {
+        case .magnetLink(_, let rawValue):
+            return rawValue
+        case .torrentFile:
+            return nil
+        }
+    }
+
+    fileprivate var metainfoArgument: Data? {
+        switch payload {
+        case .torrentFile(let data, _):
+            return data
+        case .magnetLink:
+            return nil
+        }
+    }
+}
 
 extension TorrentRepository {
     static let placeholder: TorrentRepository = TorrentRepository(
         fetchList: { [] },
         fetchDetails: { _ in
             throw TorrentRepositoryError.notConfigured("fetchDetails")
+        },
+        add: { _, _, _, _ in
+            throw TorrentRepositoryError.notConfigured("add")
         },
         start: { _ in },
         stop: { _ in },
@@ -353,6 +450,9 @@ extension TorrentRepository {
         },
         fetchDetails: { _ in
             throw TorrentRepositoryError.notConfigured("fetchDetails")
+        },
+        add: { _, _, _, _ in
+            throw TorrentRepositoryError.notConfigured("add")
         },
         start: { _ in
             throw TorrentRepositoryError.notConfigured("start")

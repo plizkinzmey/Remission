@@ -161,6 +161,60 @@ struct TransmissionClientHappyPathFixturesTests {
     }
     // swiftlint:enable function_body_length
 
+    @Test("torrent-add возвращает torrent-duplicate из фикстуры")
+    func testTorrentAddDuplicateWithFixture() async throws {
+        let expectedResponse: TransmissionResponse =
+            try TransmissionFixture.response(.torrentAddDuplicateMagnet)
+        let sessionID: String = "session-torrent-duplicate"
+        let mockServer: TransmissionMockServer = TransmissionMockServer()
+
+        mockServer.register(
+            scenario: TransmissionMockScenario(
+                name: "torrent-add duplicate",
+                steps: [
+                    handshakeStep(
+                        method: "torrent-add",
+                        sessionID: sessionID,
+                        fixture: .torrentAddDuplicateMagnet,
+                        assertions: [
+                            TransmissionMockAssertion("encodes magnet payload") { request, _ in
+                                let arguments = try argumentsDictionary(from: request)
+                                guard
+                                    arguments["filename"]
+                                        == .string("magnet:?xt=urn:btih:duplicate")
+                                else {
+                                    throw TransmissionMockError.assertionFailed(
+                                        "Ожидался magnet в filename")
+                                }
+                            }
+                        ]
+                    )
+                ]
+            )
+        )
+
+        let client: TransmissionClient = makeClient(using: mockServer)
+        let response: TransmissionResponse = try await client.torrentAdd(
+            filename: "magnet:?xt=urn:btih:duplicate",
+            metainfo: nil,
+            downloadDir: "/downloads",
+            paused: false,
+            labels: nil
+        )
+
+        #expect(response == expectedResponse)
+        let torrentDuplicate: [String: AnyCodable] =
+            try #require(
+                response.arguments?
+                    .objectValue?["torrent-duplicate"]?
+                    .objectValue,
+                "Ожидались данные torrent-duplicate"
+            )
+        #expect(torrentDuplicate["id"] == .int(9))
+
+        try mockServer.assertAllScenariosFinished()
+    }
+
     @Test("torrent-start использует session-id и возвращает success")
     func testTorrentStartSuccessWithFixture() async throws {
         try await assertSimpleCommandSuccess(

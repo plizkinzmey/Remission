@@ -11,6 +11,7 @@ actor InMemoryTorrentRepositoryStore {
     enum Operation: Hashable {
         case fetchList
         case fetchDetails
+        case add
         case start
         case stop
         case remove
@@ -90,6 +91,7 @@ extension TorrentRepository {
         TorrentRepository(
             fetchList: makeFetchList(store: store),
             fetchDetails: makeFetchDetails(store: store),
+            add: makeAdd(store: store),
             start: makeStart(store: store),
             stop: makeStop(store: store),
             remove: makeRemove(store: store),
@@ -121,6 +123,50 @@ extension TorrentRepository {
             }
         }
     }
+
+    // swiftlint:disable opening_brace
+    private static func makeAdd(
+        store: InMemoryTorrentRepositoryStore
+    )
+        -> @Sendable (PendingTorrentInput, String, Bool, [String]?) async throws ->
+        TorrentRepository.AddResult
+    {
+        { input, destination, startPaused, _ in
+            try await store.withTorrents(.add) { torrents in
+                let nextIDValue: Int = (torrents.map(\.id.rawValue).max() ?? 0) + 1
+                let addedID = Torrent.Identifier(rawValue: nextIDValue)
+                let addedName = input.displayName
+                let addedHash = UUID().uuidString
+
+                var newTorrent = torrents.first ?? .previewDownloading
+                newTorrent.id = addedID
+                newTorrent.name = addedName
+                newTorrent.details?.downloadDirectory = destination
+                newTorrent.summary.progress.percentDone =
+                    startPaused ? 0.0 : newTorrent.summary.progress.percentDone
+                newTorrent.summary.peers = Torrent.Peers(connected: 0, sources: [])
+                newTorrent.summary.transfer.downloadRate = 0
+                newTorrent.summary.transfer.uploadRate = 0
+                newTorrent.details?.trackers = []
+                newTorrent.details?.trackerStats = []
+                newTorrent.details?.files = []
+
+                if startPaused {
+                    newTorrent.status = .stopped
+                }
+
+                torrents.append(newTorrent)
+
+                return TorrentRepository.AddResult(
+                    status: .added,
+                    id: addedID,
+                    name: addedName,
+                    hashString: addedHash
+                )
+            }
+        }
+    }
+    // swiftlint:enable opening_brace
 
     private static func makeStart(
         store: InMemoryTorrentRepositoryStore

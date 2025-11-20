@@ -14,6 +14,12 @@ extension TorrentRepository {
         fetchDetails: @escaping @Sendable (Torrent.Identifier) async throws -> Torrent = { _ in
             throw TorrentRepositoryTestError.unimplemented
         },
+        add:
+            @escaping @Sendable (
+                PendingTorrentInput, String, Bool, [String]?
+            ) async throws -> TorrentRepository.AddResult = { _, _, _, _ in
+                throw TorrentRepositoryTestError.unimplemented
+            },
         start: @escaping @Sendable ([Torrent.Identifier]) async throws -> Void = { _ in
             throw TorrentRepositoryTestError.unimplemented
         },
@@ -44,6 +50,7 @@ extension TorrentRepository {
         TorrentRepository(
             fetchList: fetchList,
             fetchDetails: fetchDetails,
+            add: add,
             start: start,
             stop: stop,
             remove: remove,
