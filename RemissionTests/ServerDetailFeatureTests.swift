@@ -160,6 +160,43 @@ struct ServerDetailFeatureTests {
     }
 
     @Test
+    func addTorrentCompletionDelegatesToList() async {
+        let server = ServerConfig.previewLocalHTTP
+        let addResult = TorrentRepository.AddResult(
+            status: .added,
+            id: .init(rawValue: 321),
+            name: "Queued Torrent",
+            hashString: "hash-321"
+        )
+        let environment = ServerConnectionEnvironment.preview(server: server)
+        var initialState = ServerDetailReducer.State(server: server)
+        initialState.connectionEnvironment = environment
+        initialState.torrentList.connectionEnvironment = environment
+        initialState.addTorrent = AddTorrentReducer.State(
+            pendingInput: PendingTorrentInput(
+                payload: .magnetLink(
+                    url: URL(string: "magnet:?xt=urn:btih:queued")!,
+                    rawValue: "magnet:?xt=urn:btih:queued"
+                ),
+                sourceDescription: "Magnet"
+            ),
+            connectionEnvironment: environment
+        )
+
+        let store = TestStore(
+            initialState: initialState
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.addTorrent(.presented(.delegate(.addCompleted(addResult)))))
+        await store.receive(.torrentList(.delegate(.added(addResult))))
+    }
+
+    @Test
     func connectionFailureShowsAlert() async {
         let server = ServerConfig.previewSecureSeedbox
         let expectedError = ServerConnectionEnvironmentFactoryError.missingCredentials

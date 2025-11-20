@@ -4,6 +4,8 @@ import Testing
 
 @testable import Remission
 
+private let fixturesBaseURL = URL(string: "https://mock.transmission/rpc")!
+
 // TransmissionClient успешные сценарии — с использованием фикстур
 //
 // Интеграционные тесты, которые используют:
@@ -27,8 +29,6 @@ import Testing
 @Suite("TransmissionClient Happy Path (Fixtures)", .serialized)
 @MainActor
 struct TransmissionClientHappyPathFixturesTests {
-    private let baseURL = URL(string: "https://mock.transmission/rpc")!
-
     // MARK: - Tests
 
     // swiftlint:disable function_body_length
@@ -327,81 +327,6 @@ struct TransmissionClientHappyPathFixturesTests {
         try mockServer.assertAllScenariosFinished()
     }
 
-    // MARK: - Helpers
-
-    private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
-        let configuration: URLSessionConfiguration = server.makeEphemeralSessionConfiguration()
-        let config: TransmissionClientConfig = TransmissionClientConfig(
-            baseURL: baseURL,
-            requestTimeout: 5,
-            maxRetries: 0,
-            enableLogging: false
-        )
-        let immediateClock = ImmediateClock()
-        return TransmissionClient(
-            config: config,
-            sessionConfiguration: configuration,
-            trustStore: .inMemory(),
-            trustDecisionHandler: { _ in .trustPermanently },
-            clock: immediateClock
-        )
-    }
-
-    private func handshakeStep(
-        method: String,
-        sessionID: String,
-        fixture: TransmissionFixtureName,
-        assertions: [TransmissionMockAssertion] = [],
-        repeats: Int? = nil
-    ) -> TransmissionMockStep {
-        TransmissionMockStep(
-            matcher: .method(method),
-            response: .handshake(
-                sessionID: sessionID,
-                followUp: .custom { _, urlRequest in
-                    try assertSessionHeader(in: urlRequest, equals: sessionID)
-                    return try TransmissionMockResponsePlan.fixture(fixture)
-                }
-            ),
-            assertions: assertions,
-            repeats: repeats
-        )
-    }
-
-    private func assertSimpleCommandSuccess(
-        method: String,
-        fixture: TransmissionFixtureName,
-        sessionID: String,
-        perform: @Sendable (TransmissionClient) async throws -> TransmissionResponse,
-        validateArguments: @escaping @Sendable (TransmissionRequest) throws -> Void
-    ) async throws {
-        let expectedResponse: TransmissionResponse = try TransmissionFixture.response(fixture)
-        let mockServer: TransmissionMockServer = TransmissionMockServer()
-
-        mockServer.register(
-            scenario: TransmissionMockScenario(
-                name: "\(method) success",
-                steps: [
-                    handshakeStep(
-                        method: method,
-                        sessionID: sessionID,
-                        fixture: fixture,
-                        assertions: [
-                            TransmissionMockAssertion("validates request arguments") { request, _ in
-                                try validateArguments(request)
-                            }
-                        ]
-                    )
-                ]
-            )
-        )
-
-        let client: TransmissionClient = makeClient(using: mockServer)
-        let response: TransmissionResponse = try await perform(client)
-
-        #expect(response == expectedResponse)
-        try mockServer.assertAllScenariosFinished()
-    }
 }
 
 private func argumentsDictionary(from request: TransmissionRequest) throws -> [String: AnyCodable] {
@@ -420,6 +345,80 @@ private func assertSessionHeader(in urlRequest: URLRequest, equals sessionID: St
             "Ожидался заголовок X-Transmission-Session-Id == \(sessionID)"
         )
     }
+}
+
+private func makeClient(using server: TransmissionMockServer) -> TransmissionClient {
+    let configuration: URLSessionConfiguration = server.makeEphemeralSessionConfiguration()
+    let config: TransmissionClientConfig = TransmissionClientConfig(
+        baseURL: fixturesBaseURL,
+        requestTimeout: 5,
+        maxRetries: 0,
+        enableLogging: false
+    )
+    let immediateClock = ImmediateClock()
+    return TransmissionClient(
+        config: config,
+        sessionConfiguration: configuration,
+        trustStore: .inMemory(),
+        trustDecisionHandler: { _ in .trustPermanently },
+        clock: immediateClock
+    )
+}
+
+private func handshakeStep(
+    method: String,
+    sessionID: String,
+    fixture: TransmissionFixtureName,
+    assertions: [TransmissionMockAssertion] = [],
+    repeats: Int? = nil
+) -> TransmissionMockStep {
+    TransmissionMockStep(
+        matcher: .method(method),
+        response: .handshake(
+            sessionID: sessionID,
+            followUp: .custom { _, urlRequest in
+                try assertSessionHeader(in: urlRequest, equals: sessionID)
+                return try TransmissionMockResponsePlan.fixture(fixture)
+            }
+        ),
+        assertions: assertions,
+        repeats: repeats
+    )
+}
+
+private func assertSimpleCommandSuccess(
+    method: String,
+    fixture: TransmissionFixtureName,
+    sessionID: String,
+    perform: @Sendable (TransmissionClient) async throws -> TransmissionResponse,
+    validateArguments: @escaping @Sendable (TransmissionRequest) throws -> Void
+) async throws {
+    let expectedResponse: TransmissionResponse = try TransmissionFixture.response(fixture)
+    let mockServer: TransmissionMockServer = TransmissionMockServer()
+
+    mockServer.register(
+        scenario: TransmissionMockScenario(
+            name: "\(method) success",
+            steps: [
+                handshakeStep(
+                    method: method,
+                    sessionID: sessionID,
+                    fixture: fixture,
+                    assertions: [
+                        TransmissionMockAssertion("validates request arguments") { request, _ in
+                            try validateArguments(request)
+                        }
+                    ]
+                )
+            ]
+        )
+    )
+
+    let client: TransmissionClient = makeClient(using: mockServer)
+    let response: TransmissionResponse = try await perform(client)
+
+    #expect(response == expectedResponse)
+    try mockServer.assertAllScenariosFinished()
 }
 
 // swiftlint:enable explicit_type_interface
