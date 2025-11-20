@@ -323,6 +323,9 @@ struct ServerDetailReducer {
                 state.addTorrent = nil
                 return .none
 
+            case .addTorrent(.presented(.delegate(.addCompleted(let result)))):
+                return .send(.torrentList(.delegate(.added(result))))
+
             case .addTorrent:
                 return .none
 

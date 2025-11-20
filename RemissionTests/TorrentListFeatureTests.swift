@@ -406,6 +406,108 @@ struct TorrentListFeatureTests {
         }
     }
 
+    @Test("delegate added оптимистично вставляет элемент и инициирует refresh")
+    func addedDelegateInsertsAndRefreshes() async {
+        let addResult = TorrentRepository.AddResult(
+            status: .added,
+            id: .init(rawValue: 999),
+            name: "New Torrent",
+            hashString: "hash-999"
+        )
+        let fetchedTorrent: Torrent = {
+            var torrent = DomainFixtures.torrentDownloading
+            torrent.id = addResult.id
+            torrent.name = addResult.name
+            return torrent
+        }()
+
+        let repository = TorrentRepository.test(fetchList: { [fetchedTorrent] })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository
+        )
+
+        var initialState = TorrentListReducer.State()
+        initialState.connectionEnvironment = environment
+        initialState.isPollingEnabled = false
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.delegate(.added(addResult))) {
+            $0.phase = .loaded
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+            #expect($0.items[id: addResult.id]?.torrent.name == addResult.name)
+            #expect($0.items[id: addResult.id]?.torrent.status == .downloadWaiting)
+        }
+
+        await store.receive(.torrentsResponse(.success([fetchedTorrent]))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(
+                uniqueElements: [TorrentListItem.State(torrent: fetchedTorrent)]
+            )
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+    }
+
+    @Test("delegate added при ошибке сохраняет placeholder и показывает alert")
+    func addedDelegateHandlesError() async {
+        enum DummyError: Error, LocalizedError, Equatable {
+            case failed
+
+            var errorDescription: String? { "failed" }
+        }
+
+        let addResult = TorrentRepository.AddResult(
+            status: .added,
+            id: .init(rawValue: 1001),
+            name: "Broken Torrent",
+            hashString: "hash-1001"
+        )
+
+        let repository = TorrentRepository.test(fetchList: { throw DummyError.failed })
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository
+        )
+
+        var initialState = TorrentListReducer.State()
+        initialState.connectionEnvironment = environment
+        initialState.isPollingEnabled = false
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.delegate(.added(addResult))) {
+            $0.phase = .loaded
+            $0.alert = nil
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+            #expect($0.items[id: addResult.id]?.torrent.name == addResult.name)
+            #expect($0.items[id: addResult.id]?.torrent.status == .downloadWaiting)
+        }
+
+        await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            $0.alert = .networkError(message: "failed")
+            $0.failedAttempts = 1
+            $0.isRefreshing = false
+        }
+        #expect(store.state.items[id: addResult.id] != nil)
+    }
+
     // Проверяем, что поиск и фильтры не инициируют дополнительный fetchList.
     @Test("searchQuery и filter меняют visibleItems без дополнительных запросов")
     func searchAndFilterUpdateVisibleItemsWithoutFetching() async {

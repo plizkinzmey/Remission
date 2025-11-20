@@ -80,6 +80,7 @@ struct TorrentListReducer {
     enum Delegate: Equatable {
         case openTorrent(Torrent.Identifier)
         case addTorrentRequested
+        case added(TorrentRepository.AddResult)
         case detailUpdated(Torrent)
         case detailRemoved(Torrent.Identifier)
     }
@@ -292,6 +293,12 @@ struct TorrentListReducer {
                     torrent: torrent
                 )
 
+            case .delegate(.added(let result)):
+                return handleTorrentAdded(
+                    state: &state,
+                    result: result
+                )
+
             case .delegate(.detailRemoved(let identifier)):
                 return handleDetailRemoved(
                     state: &state,
@@ -404,6 +411,31 @@ struct TorrentListReducer {
         return detailSyncEffect(state: &state)
     }
 
+    private func handleTorrentAdded(
+        state: inout State,
+        result: TorrentRepository.AddResult
+    ) -> Effect<Action> {
+        guard state.connectionEnvironment != nil else {
+            return .none
+        }
+        // Оптимистично добавляем placeholder сразу, а фактические данные приходят асинхронным fetch.
+        // Первый poll/refresh перезапишет элемент через merge, поэтому видимое «мигание» допустимо.
+        if state.items[id: result.id] == nil {
+            let placeholder = makePlaceholderTorrent(addResult: result)
+            state.items.append(TorrentListItem.State(torrent: placeholder))
+        }
+        state.phase = .loaded
+        state.alert = nil
+        state.failedAttempts = 0
+        state.isRefreshing = false
+
+        let fetchEffect = fetchTorrents(state: &state, trigger: .command)
+        return .merge(
+            .cancel(id: CancelID.polling),
+            fetchEffect
+        )
+    }
+
     private func handleDetailRemoved(
         state: inout State,
         identifier: Torrent.Identifier
@@ -460,6 +492,35 @@ struct TorrentListReducer {
         }
 
         return updated
+    }
+
+    private func makePlaceholderTorrent(
+        addResult: TorrentRepository.AddResult
+    ) -> Torrent {
+        let zeroLimits = Torrent.Transfer.SpeedLimit(isEnabled: false, kilobytesPerSecond: 0)
+        let summary = Torrent.Summary(
+            progress: .init(
+                percentDone: 0,
+                totalSize: 0,
+                downloadedEver: 0,
+                uploadedEver: 0,
+                uploadRatio: 0,
+                etaSeconds: -1
+            ),
+            transfer: .init(
+                downloadRate: 0,
+                uploadRate: 0,
+                downloadLimit: zeroLimits,
+                uploadLimit: zeroLimits
+            ),
+            peers: .init(connected: 0, sources: [])
+        )
+        return Torrent(
+            id: addResult.id,
+            name: addResult.name,
+            status: .downloadWaiting,
+            summary: summary
+        )
     }
 
     private func backoffDelay(for failures: Int) -> Duration {

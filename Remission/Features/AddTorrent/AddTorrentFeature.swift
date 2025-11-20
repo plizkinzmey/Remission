@@ -31,6 +31,7 @@ struct AddTorrentReducer {
 
     enum Delegate: Equatable {
         case closeRequested
+        case addCompleted(TorrentRepository.AddResult)
     }
 
     enum AlertAction: Equatable {
@@ -106,7 +107,7 @@ struct AddTorrentReducer {
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = true
                 state.alert = successAlert(for: result.addResult)
-                return .none
+                return .send(.delegate(.addCompleted(result.addResult)))
 
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false

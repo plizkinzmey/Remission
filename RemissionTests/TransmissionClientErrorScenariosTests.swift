@@ -4,6 +4,8 @@ import Testing
 
 @testable import Remission
 
+private let transmissionTestsBaseURL: URL = URL(string: "https://mock.transmission/rpc")!
+
 /// TransmissionClient negative-path coverage backed by TransmissionMockServer scenarios.
 ///
 /// Покрывает ключевые ошибки APIError и проверяет безопасное логирование.
@@ -16,8 +18,6 @@ import Testing
 @Suite("TransmissionClient Error Scenarios", .serialized)
 @MainActor
 struct TransmissionClientErrorScenariosTests {
-    private let baseURL: URL = URL(string: "https://mock.transmission/rpc")!
-
     @Test("Останавливает handshake после двух 409 и выбрасывает sessionConflict")
     func testStopsHandshakeAfterTwo409Conflicts() async {
         let server: TransmissionMockServer = TransmissionMockServer()
@@ -206,7 +206,7 @@ struct TransmissionClientErrorScenariosTests {
             logs.append(message)
         }
         let config: TransmissionClientConfig = TransmissionClientConfig(
-            baseURL: baseURL,
+            baseURL: transmissionTestsBaseURL,
             username: "user",
             password: "super-secret",
             requestTimeout: 5,
@@ -302,76 +302,83 @@ struct TransmissionClientErrorScenariosTests {
         }
     }
 
-    // MARK: - Helpers
+}
 
-    private func cleanupMockServer() {
-        TransmissionMockServer.activeServerLock.lock()
-        TransmissionMockServer.activeServer = nil
-        TransmissionMockServer.activeServerLock.unlock()
-    }
+// MARK: - Helpers
 
-    private func makeClient(
-        using server: TransmissionMockServer,
-        configOverride: TransmissionClientConfig? = nil
-    ) -> (client: TransmissionClient, clock: TestClock<Duration>) {
-        let sessionConfiguration: URLSessionConfiguration =
-            server.makeEphemeralSessionConfiguration()
+private func cleanupMockServer() {
+    TransmissionMockServer.activeServerLock.lock()
+    TransmissionMockServer.activeServer = nil
+    TransmissionMockServer.activeServerLock.unlock()
+}
 
-        let config: TransmissionClientConfig =
-            configOverride
-            ?? TransmissionClientConfig(
-                baseURL: baseURL,
-                requestTimeout: 5,
-                maxRetries: 0,
-                enableLogging: false
-            )
-        let testClock = TestClock<Duration>()
-        let client = TransmissionClient(
-            config: config,
-            sessionConfiguration: sessionConfiguration,
-            trustStore: .inMemory(),
-            trustDecisionHandler: { _ in .trustPermanently },
-            clock: testClock
-        )
-        return (client, testClock)
-    }
+private func makeClient(
+    using server: TransmissionMockServer,
+    configOverride: TransmissionClientConfig? = nil
+) -> (client: TransmissionClient, clock: TestClock<Duration>) {
+    let sessionConfiguration: URLSessionConfiguration =
+        server.makeEphemeralSessionConfiguration()
 
-    private func makeRetryingClient(
-        responses: [RetryURLProtocol.Response],
-        maxRetries: Int,
-        retryDelay: Double
-    ) -> (
-        client: TransmissionClient,
-        baseClock: TestClock<Duration>,
-        recordingClock: RecordingClock
-    ) {
-        RetryURLProtocol.configure(responses: responses)
-
-        let config = TransmissionClientConfig(
-            baseURL: baseURL,
+    let config: TransmissionClientConfig =
+        configOverride
+        ?? TransmissionClientConfig(
+            baseURL: transmissionTestsBaseURL,
             requestTimeout: 5,
-            maxRetries: maxRetries,
-            retryDelay: retryDelay
+            maxRetries: 0,
+            enableLogging: false
         )
+    let testClock = TestClock<Duration>()
+    let client = TransmissionClient(
+        config: config,
+        sessionConfiguration: sessionConfiguration,
+        trustStore: .inMemory(),
+        trustDecisionHandler: { _ in .trustPermanently },
+        clock: testClock
+    )
+    return (client, testClock)
+}
 
-        let sessionConfiguration: URLSessionConfiguration = {
-            let configuration = URLSessionConfiguration.ephemeral
-            configuration.protocolClasses = [RetryURLProtocol.self]
-            return configuration
-        }()
+private struct RetryingClientSetup {
+    var client: TransmissionClient
+    var baseClock: TestClock<Duration>
+    var recordingClock: RecordingClock
+}
 
-        let baseClock = TestClock<Duration>()
-        let recordingClock = RecordingClock(base: baseClock)
-        let client = TransmissionClient(
-            config: config,
-            sessionConfiguration: sessionConfiguration,
-            trustStore: .inMemory(),
-            trustDecisionHandler: { _ in .trustPermanently },
-            clock: recordingClock
-        )
+private func makeRetryingClient(
+    responses: [RetryURLProtocol.Response],
+    maxRetries: Int,
+    retryDelay: Double
+) -> RetryingClientSetup {
+    RetryURLProtocol.configure(responses: responses)
 
-        return (client, baseClock, recordingClock)
-    }
+    let config = TransmissionClientConfig(
+        baseURL: transmissionTestsBaseURL,
+        requestTimeout: 5,
+        maxRetries: maxRetries,
+        retryDelay: retryDelay
+    )
+
+    let sessionConfiguration: URLSessionConfiguration = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [RetryURLProtocol.self]
+        return configuration
+    }()
+
+    let baseClock = TestClock<Duration>()
+    let recordingClock = RecordingClock(base: baseClock)
+    let client = TransmissionClient(
+        config: config,
+        sessionConfiguration: sessionConfiguration,
+        trustStore: .inMemory(),
+        trustDecisionHandler: { _ in .trustPermanently },
+        clock: recordingClock
+    )
+
+    return RetryingClientSetup(
+        client: client,
+        baseClock: baseClock,
+        recordingClock: recordingClock
+    )
 }
 
 private final class TransmissionLogCollector: @unchecked Sendable {

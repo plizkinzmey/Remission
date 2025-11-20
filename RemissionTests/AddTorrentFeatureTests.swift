@@ -83,6 +83,7 @@ struct AddTorrentFeatureTests {
                 TextState("Добавлен торрент Demo torrent")
             }
         }
+        await store.receive(.delegate(.addCompleted(addResult)))
         await store.send(.alert(.presented(.dismiss))) {
             $0.alert = nil
             $0.closeOnAlertDismiss = false
@@ -154,6 +155,7 @@ struct AddTorrentFeatureTests {
             }
             $0.closeOnAlertDismiss = true
         }
+        await store.receive(.delegate(.addCompleted(addResult)))
         await store.send(.alert(.presented(.dismiss))) {
             $0.alert = nil
             $0.closeOnAlertDismiss = false
