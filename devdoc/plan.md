@@ -1394,6 +1394,12 @@ return .run { [repository, clock = appClock.clock()] send in
 - M8.4 Обновить состояние списка торрентов после успешного добавления через композицию редьюсеров.
 - Проверка: модульные тесты редьюсера с TestStore и интеграционный тест с локальным Transmission.
 
+### RTC-91: Архитектурная проверка вехи 8 (2025-11-21)
+- **Структура**: UI — `Remission/Views/TorrentAdd`, фича — `Remission/Features/TorrentAdd` (папка переименована с `AddTorrent` под схему). При необходимости обновить группы в проекте.
+- **Переиспользование окружения**: `AddTorrentReducer` применяет `ServerConnectionEnvironment` через `environment.apply(...)`; дополнительных рукопожатий/креденшлов не создаёт. Навигация и алерты используют `@Presents` и делегаты без утечек состояния.
+- **Тесты**: Добавлены error-pathы для добавления торрента (sessionConflict, mapping error, отсутствие connectionEnvironment) и импортов (ошибка magnet, ошибка открытия/парсинга .torrent). Покрыто 14 тестов суммарно в `AddTorrentFeatureTests` и `ServerDetailImportTests`.
+- **Запуск**: `xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64' -only-testing:RemissionTests/AddTorrentFeatureTests -only-testing:RemissionTests/ServerDetailImportTests` (лог: `~/Library/Developer/Xcode/DerivedData/Remission-hizssvkjniurwvggbezcsopugcdl/Logs/Test/Test-Remission-2025.11.21_02-46-56-+0300.xcresult`). Результат: PASS, 14 тестов.
+
 ## Веха 9: Настройки и предпочтения
 - M9.1 Реализовать TCA-состояние настроек (@ObservableState) для интервала опроса, автообновления и лимитов по умолчанию.
 - M9.2 Сохранить предпочтения в UserDefaults или выделенном хранилище через @Dependency.
