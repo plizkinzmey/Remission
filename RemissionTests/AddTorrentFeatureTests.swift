@@ -246,6 +246,141 @@ struct AddTorrentFeatureTests {
             }
         }
     }
+
+    @Test
+    func sessionConflictShowsAlert() async {
+        let repository = TorrentRepository.test(
+            add: { _, _, _, _ in
+                throw APIError.sessionConflict
+            }
+        )
+
+        let store = TestStore(
+            initialState: AddTorrentReducer.State(
+                pendingInput: PendingTorrentInput(
+                    payload: .magnetLink(
+                        url: URL(string: "magnet:?xt=urn:btih:conflict")!,
+                        rawValue: "magnet:?xt=urn:btih:conflict"
+                    ),
+                    sourceDescription: "Magnet"
+                ),
+                connectionEnvironment: .testEnvironment(
+                    server: .previewLocalHTTP,
+                    torrentRepository: repository
+                ),
+                destinationPath: "/downloads"
+            )
+        ) {
+            AddTorrentReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.submitButtonTapped) {
+            $0.isSubmitting = true
+        }
+        await store.receive(.submitResponse(.failure(.sessionConflict))) {
+            $0.isSubmitting = false
+            $0.alert = AlertState {
+                TextState("Не удалось добавить торрент")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Сессия устарела. Попробуйте снова подключиться и повторить добавление.")
+            }
+            $0.closeOnAlertDismiss = false
+        }
+    }
+
+    @Test
+    func mappingErrorShowsAlert() async {
+        let mappingError = DomainMappingError.invalidValue(
+            field: "result",
+            description: "unexpected value",
+            context: "torrent-add"
+        )
+        let repository = TorrentRepository.test(
+            add: { _, _, _, _ in
+                throw mappingError
+            }
+        )
+
+        let store = TestStore(
+            initialState: AddTorrentReducer.State(
+                pendingInput: PendingTorrentInput(
+                    payload: .magnetLink(
+                        url: URL(string: "magnet:?xt=urn:btih:mapping")!,
+                        rawValue: "magnet:?xt=urn:btih:mapping"
+                    ),
+                    sourceDescription: "Magnet"
+                ),
+                connectionEnvironment: .testEnvironment(
+                    server: .previewLocalHTTP,
+                    torrentRepository: repository
+                ),
+                destinationPath: "/downloads"
+            )
+        ) {
+            AddTorrentReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.submitButtonTapped) {
+            $0.isSubmitting = true
+        }
+        await store.receive(.submitResponse(.failure(.mapping(mappingError.localizedDescription))))
+        {
+            $0.isSubmitting = false
+            $0.alert = AlertState {
+                TextState("Не удалось добавить торрент")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Некорректный ответ Transmission: \(mappingError.localizedDescription)")
+            }
+            $0.closeOnAlertDismiss = false
+        }
+    }
+
+    @Test
+    func missingConnectionEnvironmentShowsAlert() async {
+        let store = TestStore(
+            initialState: AddTorrentReducer.State(
+                pendingInput: PendingTorrentInput(
+                    payload: .magnetLink(
+                        url: URL(string: "magnet:?xt=urn:btih:noenv")!,
+                        rawValue: "magnet:?xt=urn:btih:noenv"
+                    ),
+                    sourceDescription: "Magnet"
+                ),
+                connectionEnvironment: nil,
+                destinationPath: "/downloads"
+            )
+        ) {
+            AddTorrentReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.submitButtonTapped) {
+            $0.alert = AlertState {
+                TextState("Нет подключения к серверу")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Не удалось получить окружение подключения. Повторите попытку позже.")
+            }
+            $0.closeOnAlertDismiss = false
+            $0.isSubmitting = false
+        }
+    }
 }
 
 private final class LockedValue<Value>: @unchecked Sendable {

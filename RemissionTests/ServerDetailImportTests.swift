@@ -143,6 +143,101 @@ struct ServerDetailImportTests {
             $0.isFileImporterPresented = false
         }
     }
+
+    @Test
+    func magnetImportFailureShowsAlert() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: {
+                var state = ServerDetailReducer.State(server: server)
+                state.torrentList.connectionEnvironment = .preview(server: server)
+                return state
+            }()
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.magnetLinkClient = MagnetLinkClient(
+                consumePendingMagnet: {
+                    struct DummyError: LocalizedError {
+                        var errorDescription: String? { "Magnet access failed" }
+                    }
+                    throw DummyError()
+                }
+            )
+        }
+
+        await store.send(.torrentList(.delegate(.addTorrentRequested)))
+        await store.receive(.magnetLinkResponse(.failure(.failed("Magnet access failed")))) {
+            $0.alert = AlertState {
+                TextState("Не удалось обработать magnet")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Magnet access failed")
+            }
+        }
+    }
+
+    @Test
+    func fileImportFailureShowsAlert() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: {
+                var state = ServerDetailReducer.State(server: server)
+                state.torrentList.connectionEnvironment = .preview(server: server)
+                state.isFileImporterPresented = true
+                return state
+            }()
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.fileImportResult(.failure("Permission denied"))) {
+            $0.alert = AlertState {
+                TextState("Не удалось открыть файл")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Permission denied")
+            }
+        }
+    }
+
+    @Test
+    func fileImportLoadedFailureShowsAlert() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: {
+                var state = ServerDetailReducer.State(server: server)
+                state.torrentList.connectionEnvironment = .preview(server: server)
+                return state
+            }()
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.fileImportLoaded(.failure(.failed("Corrupted file")))) {
+            $0.isFileImporterPresented = false
+            $0.alert = AlertState {
+                TextState("Не удалось прочитать файл")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Понятно")
+                }
+            } message: {
+                TextState("Corrupted file")
+            }
+        }
+    }
 }
 
 // swiftlint:enable function_body_length
