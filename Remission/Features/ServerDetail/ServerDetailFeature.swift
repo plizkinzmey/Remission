@@ -1,7 +1,7 @@
 import ComposableArchitecture
 import Foundation
 
-// swiftlint:disable nesting type_body_length
+// swiftlint:disable type_body_length
 
 /// Главный reducer экрана деталей сервера: отвечает за подключение, управление
 /// сервером и встраивает `TorrentListReducer` для отображения торрентов.
@@ -63,74 +63,6 @@ struct ServerDetailReducer {
         case serverUpdated(ServerConfig)
         case serverDeleted(UUID)
         case torrentSelected(Torrent.Identifier)
-    }
-
-    struct DeletionError: Equatable, Error {
-        var message: String
-    }
-
-    enum DeletionResult: Equatable {
-        case success
-        case failure(DeletionError)
-    }
-
-    struct ConnectionState: Equatable {
-        struct Ready: Equatable {
-            var fingerprint: String
-            var handshake: TransmissionHandshakeResult
-        }
-
-        struct Failure: Equatable {
-            var message: String
-        }
-
-        enum Phase: Equatable {
-            case idle
-            case connecting
-            case ready(Ready)
-            case failed(Failure)
-        }
-
-        var phase: Phase = .idle
-
-        var failureMessage: String? {
-            if case .failed(let failure) = phase {
-                return failure.message
-            }
-            return nil
-        }
-    }
-
-    struct ConnectionResponse: Equatable {
-        var environment: ServerConnectionEnvironment
-        var handshake: TransmissionHandshakeResult
-    }
-
-    enum FileImportResult: Equatable {
-        case success(URL)
-        case failure(String)
-    }
-
-    enum FileImportError: Equatable, Error {
-        case failed(String)
-
-        var message: String {
-            switch self {
-            case .failed(let message):
-                return message
-            }
-        }
-    }
-
-    enum MagnetImportError: Equatable, Error {
-        case failed(String)
-
-        var message: String {
-            switch self {
-            case .failed(let message):
-                return message
-            }
-        }
     }
 
     @Dependency(\.credentialsRepository) var credentialsRepository
@@ -549,4 +481,4 @@ extension AlertState where Action == ServerDetailReducer.AlertAction {
     }
 }
 
-// swiftlint:enable nesting type_body_length
+// swiftlint:enable type_body_length
