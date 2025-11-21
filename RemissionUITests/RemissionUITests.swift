@@ -115,6 +115,40 @@ final class RemissionUITests: XCTestCase {
     }
 
     @MainActor
+    func testSettingsScreenShowsControls() {
+        let app = launchApp()
+
+        #if os(macOS)
+            let settingsButton = app.toolbars.buttons["Настройки"].firstMatch
+        #else
+            let settingsButton = app.buttons["Настройки"]
+        #endif
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
+        settingsButton.tap()
+
+        let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
+        XCTAssertTrue(autoRefreshToggle.waitForExistence(timeout: 5), "Auto-refresh toggle missing")
+
+        let pollingSlider = app.sliders["settings_polling_slider"]
+        XCTAssertTrue(pollingSlider.waitForExistence(timeout: 5), "Polling slider missing")
+
+        let downloadField = app.textFields["settings_download_limit_field"]
+        XCTAssertTrue(downloadField.waitForExistence(timeout: 5), "Download limit field missing")
+
+        let uploadField = app.textFields["settings_upload_limit_field"]
+        XCTAssertTrue(uploadField.waitForExistence(timeout: 5), "Upload limit field missing")
+
+        let closeButton = app.buttons["settings_close_button"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
+        closeButton.tap()
+
+        XCTAssertTrue(
+            autoRefreshToggle.waitForDisappearance(timeout: 3),
+            "Settings sheet did not close"
+        )
+    }
+
+    @MainActor
     func testTorrentDetailFlow() throws {
         #if os(macOS)
             throw XCTSkip("Тест детализации торрента выполняется только в iOS среде.")

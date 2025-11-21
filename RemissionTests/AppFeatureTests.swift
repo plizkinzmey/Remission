@@ -54,4 +54,19 @@ struct AppFeatureTests {
         #expect(store.state.path.isEmpty)
         #expect(store.state.serverList.servers == serverList.servers)
     }
+
+    @Test("settings открываются и закрываются через AppReducer")
+    func settingsPresentation() async {
+        let store = TestStoreFactory.makeAppTestStore()
+
+        await store.send(.settingsButtonTapped) {
+            $0.settings = SettingsReducer.State()
+        }
+
+        await store.send(.settings(.presented(.delegate(.closeRequested))))
+
+        await store.receive(.settingsDismissed) {
+            $0.settings = nil
+        }
+    }
 }

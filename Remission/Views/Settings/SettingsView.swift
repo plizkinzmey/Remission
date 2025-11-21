@@ -55,6 +55,7 @@ struct SettingsView: View {
                                     set: { store.send(.downloadLimitChanged($0)) }
                                 )
                             )
+                            .accessibilityIdentifier("settings_download_limit_field")
                             .multilineTextAlignment(.trailing)
                             .frame(maxWidth: 120)
                         } label: {
@@ -71,6 +72,7 @@ struct SettingsView: View {
                                     set: { store.send(.uploadLimitChanged($0)) }
                                 )
                             )
+                            .accessibilityIdentifier("settings_upload_limit_field")
                             .multilineTextAlignment(.trailing)
                             .frame(maxWidth: 120)
                         } label: {
@@ -100,12 +102,10 @@ struct SettingsView: View {
                     Button("Закрыть") {
                         store.send(.delegate(.closeRequested))
                     }
+                    .accessibilityIdentifier("settings_close_button")
                 }
             }
             .task { await store.send(.task).finish() }
-            .onDisappear {
-                store.send(.teardown)
-            }
             .alert($store.scope(state: \.alert, action: \.alert))
         }
     }
@@ -125,7 +125,15 @@ struct SettingsView: View {
     NavigationStack {
         SettingsView(
             store: Store(
-                initialState: SettingsReducer.State()
+                initialState: SettingsReducer.State(
+                    isLoading: false,
+                    pollingIntervalSeconds: 3,
+                    isAutoRefreshEnabled: true,
+                    defaultSpeedLimits: .init(
+                        downloadKilobytesPerSecond: 2_048,
+                        uploadKilobytesPerSecond: 1_024
+                    )
+                )
             ) {
                 SettingsReducer()
             } withDependencies: {
