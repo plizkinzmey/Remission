@@ -26,6 +26,7 @@ struct AppReducer {
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case settingsButtonTapped
         case settings(PresentationAction<SettingsReducer.Action>)
+        case settingsDismissed
     }
 
     var body: some Reducer<State, Action> {
@@ -68,6 +69,18 @@ struct AppReducer {
                 return .none
 
             case .settings(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.settings(.presented(.teardown))),
+                    .send(.settingsDismissed)
+                )
+
+            case .settings(.dismiss):
+                return .concatenate(
+                    .send(.settings(.presented(.teardown))),
+                    .send(.settingsDismissed)
+                )
+
+            case .settingsDismissed:
                 state.settings = nil
                 return .none
 
