@@ -2,8 +2,8 @@ import Foundation
 
 /// Пользовательские настройки приложения Remission.
 /// Хранят значения, влияющие на периодичность обновлений и дефолтные лимиты скоростей.
-struct UserPreferences: Equatable, Sendable {
-    struct DefaultSpeedLimits: Equatable, Sendable {
+struct UserPreferences: Equatable, Sendable, Codable {
+    struct DefaultSpeedLimits: Equatable, Sendable, Codable {
         /// Значение лимита скачивания в КБ/с. `nil` означает отсутствие ограничения.
         var downloadKilobytesPerSecond: Int?
         /// Значение лимита отдачи в КБ/с. `nil` означает отсутствие ограничения.
