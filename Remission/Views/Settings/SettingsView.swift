@@ -42,6 +42,47 @@ struct SettingsView: View {
                     }
                 }
 
+                Section("Лимиты скорости (КБ/с)") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        LabeledContent {
+                            TextField(
+                                "Не ограничивать",
+                                text: Binding(
+                                    get: {
+                                        limitText(
+                                            store.defaultSpeedLimits.downloadKilobytesPerSecond)
+                                    },
+                                    set: { store.send(.downloadLimitChanged($0)) }
+                                )
+                            )
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 120)
+                        } label: {
+                            Text("Скачивание")
+                        }
+
+                        LabeledContent {
+                            TextField(
+                                "Не ограничивать",
+                                text: Binding(
+                                    get: {
+                                        limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
+                                    },
+                                    set: { store.send(.uploadLimitChanged($0)) }
+                                )
+                            )
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 120)
+                        } label: {
+                            Text("Отдача")
+                        }
+
+                        Text("Оставьте поле пустым, чтобы не ограничивать скорость.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 if store.isLoading {
                     Section {
                         HStack {
@@ -72,6 +113,11 @@ struct SettingsView: View {
     private var intervalLabel: String {
         let seconds = Int(store.pollingIntervalSeconds.rounded())
         return "\(seconds) сек."
+    }
+
+    private func limitText(_ value: Int?) -> String {
+        guard let value else { return "" }
+        return "\(value)"
     }
 }
 

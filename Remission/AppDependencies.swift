@@ -10,6 +10,7 @@ enum AppDependencies {
         dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(
             dependencies: dependencies
         )
+        dependencies.userPreferencesRepository = .persistent()
         return dependencies
     }
 
@@ -19,6 +20,7 @@ enum AppDependencies {
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
+        dependencies.userPreferencesRepository = .previewValue
         return dependencies
     }
 
@@ -28,6 +30,7 @@ enum AppDependencies {
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
+        dependencies.userPreferencesRepository = .testValue
         return dependencies
     }
 
@@ -44,6 +47,7 @@ enum AppDependencies {
         dependencies.onboardingProgressRepository = .inMemory()
         dependencies.httpWarningPreferencesStore = .inMemory()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
+        dependencies.userPreferencesRepository = .testValue
 
         let resolvedScenario: AppBootstrap.UITestingScenario?
         if let scenario {
