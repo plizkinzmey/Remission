@@ -37,6 +37,7 @@ struct SettingsFeatureTests {
             $0.pollingIntervalSeconds = preferences.pollingInterval
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.persistedPreferences = preferences
         }
     }
 
@@ -85,6 +86,7 @@ struct SettingsFeatureTests {
 
         await store.receive(.preferencesResponse(.success(expectedPreferences))) {
             $0.pollingIntervalSeconds = targetInterval
+            $0.persistedPreferences = expectedPreferences
         }
 
         let calls = intervalRecorder.value
@@ -139,6 +141,7 @@ struct SettingsFeatureTests {
         updatedPreferences.defaultSpeedLimits = downloadOnly
         await store.receive(.preferencesResponse(.success(updatedPreferences))) {
             $0.defaultSpeedLimits = downloadOnly
+            $0.persistedPreferences = updatedPreferences
         }
 
         let bothLimits = UserPreferences.DefaultSpeedLimits(
@@ -152,6 +155,7 @@ struct SettingsFeatureTests {
         updatedPreferences.defaultSpeedLimits = bothLimits
         await store.receive(.preferencesResponse(.success(updatedPreferences))) {
             $0.defaultSpeedLimits = bothLimits
+            $0.persistedPreferences = updatedPreferences
         }
 
         #expect(limitsRecorder.value == [downloadOnly, bothLimits])
@@ -194,6 +198,7 @@ struct SettingsFeatureTests {
             $0.pollingIntervalSeconds = preferences.pollingInterval
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.persistedPreferences = preferences
         }
 
         var updated = preferences
@@ -209,6 +214,7 @@ struct SettingsFeatureTests {
             $0.pollingIntervalSeconds = 30
             $0.isAutoRefreshEnabled = false
             $0.defaultSpeedLimits = updated.defaultSpeedLimits
+            $0.persistedPreferences = updated
         }
 
         await continuationBox.finish()
@@ -260,6 +266,86 @@ struct SettingsFeatureTests {
             }
         }
     }
+
+    @Test("успешное сохранение возвращает сохранённые значения")
+    func successfulSaveUpdatesPersistedPreferences() async {
+        let preferences = DomainFixtures.userPreferences
+        let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
+
+        let store = TestStoreFactory.makeSettingsTestStore(
+            initialState: loadedState(from: preferences),
+            preferencesStore: preferencesStore
+        )
+
+        await store.send(.downloadLimitChanged("4096")) {
+            $0.defaultSpeedLimits.downloadKilobytesPerSecond = 4_096
+        }
+
+        var expected = preferences
+        expected.defaultSpeedLimits = .init(
+            downloadKilobytesPerSecond: 4_096,
+            uploadKilobytesPerSecond: preferences.defaultSpeedLimits.uploadKilobytesPerSecond
+        )
+
+        await store.receive(.preferencesResponse(.success(expected))) {
+            $0.defaultSpeedLimits = expected.defaultSpeedLimits
+            $0.persistedPreferences = expected
+        }
+
+        let persisted = await preferencesStore.preferences
+        #expect(persisted.defaultSpeedLimits == expected.defaultSpeedLimits)
+    }
+
+    @Test("ошибка сохранения откатывает состояние и показывает alert")
+    func saveFailureRollsBackState() async {
+        let preferences = DomainFixtures.userPreferences
+        let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
+        await preferencesStore.markFailure(.updatePollingInterval)
+
+        let store = TestStoreFactory.makeSettingsTestStore(
+            initialState: loadedState(from: preferences),
+            preferencesStore: preferencesStore
+        )
+
+        let expectedError = InMemoryUserPreferencesRepositoryError.operationFailed(
+            .updatePollingInterval)
+        let newInterval: Double = 22
+
+        await store.send(.pollingIntervalChanged(newInterval)) {
+            $0.pollingIntervalSeconds = newInterval
+        }
+
+        await store.receive(.preferencesResponse(.failure(expectedError))) {
+            $0.isLoading = false
+            $0.pollingIntervalSeconds = preferences.pollingInterval
+            $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            $0.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.persistedPreferences = preferences
+            $0.alert = AlertState {
+                TextState("Не удалось сохранить настройки")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Закрыть")
+                }
+            } message: {
+                TextState(expectedError.errorDescription ?? "")
+            }
+        }
+
+        let persisted = await preferencesStore.preferences
+        #expect(persisted.pollingInterval == preferences.pollingInterval)
+    }
+}
+
+private func loadedState(from preferences: UserPreferences) -> SettingsReducer.State {
+    var state = SettingsReducer.State(
+        isLoading: false,
+        pollingIntervalSeconds: preferences.pollingInterval,
+        isAutoRefreshEnabled: preferences.isAutoRefreshEnabled,
+        defaultSpeedLimits: preferences.defaultSpeedLimits
+    )
+    state.persistedPreferences = preferences
+    return state
 }
 
 private final class LockedValue<Value>: @unchecked Sendable {

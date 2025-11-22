@@ -38,7 +38,8 @@ enum AppDependencies {
     // swiftlint:disable:next function_body_length
     static func makeUITest(
         fixture: AppBootstrap.UITestingFixture?,
-        scenario: AppBootstrap.UITestingScenario?
+        scenario: AppBootstrap.UITestingScenario?,
+        environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> DependencyValues {
         var dependencies = DependencyValues.appTest()
         dependencies.transmissionClient = .placeholder
@@ -162,6 +163,14 @@ enum AppDependencies {
             }
         case .none:
             break
+        }
+
+        if let suiteName = environment["UI_TESTING_PREFERENCES_SUITE"],
+            let defaults = UserDefaults(suiteName: suiteName)
+        {
+            dependencies.userPreferencesRepository = .persistent(
+                store: PersistentUserPreferencesStore(defaults: defaults)
+            )
         }
 
         return dependencies

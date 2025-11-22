@@ -84,20 +84,25 @@ struct AppReducer {
                 state.settings = nil
                 return .none
 
+            case .settings(.presented) where state.settings == nil:
+                // Игнорируем presented действия, если состояние настроек уже сброшено.
+                // Это предотвращает предупреждения TCA когда UI отправляет события после dismiss.
+                return .none
+
             case .settings:
                 return .none
             }
         }
+        .ifLet(\.$settings, action: \.settings) {
+            SettingsReducer()
+        }
+
         .forEach(\.path, action: \.path) {
             ServerDetailReducer()
         }
 
         Scope(state: \.serverList, action: \.serverList) {
             ServerListReducer()
-        }
-
-        .ifLet(\.$settings, action: \.settings) {
-            SettingsReducer()
         }
     }
 }

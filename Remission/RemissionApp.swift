@@ -26,7 +26,8 @@ struct RemissionApp: App {
             if scenario != nil || fixture != nil {
                 dependencies = AppDependencies.makeUITest(
                     fixture: fixture,
-                    scenario: scenario
+                    scenario: scenario,
+                    environment: ProcessInfo.processInfo.environment
                 )
             } else {
                 dependencies = AppDependencies.makeLive()
