@@ -55,6 +55,7 @@ struct ServerDetailConnectionBasicsTests {
         await store.receive(.torrentList(.task)) {
             $0.torrentList.phase = .loading
         }
+        await store.receive(.torrentList(.refreshRequested))
     }
 
     @Test
@@ -98,16 +99,19 @@ struct ServerDetailConnectionBasicsTests {
         }
         await store.send(
             .connectionResponse(.success(.init(environment: environment, handshake: handshake)))
-        ) {
+        )
+        await store.receive(.torrentList(.task)) {
             $0.connectionEnvironment = environment
             $0.connectionState.phase = .ready(
                 .init(fingerprint: environment.fingerprint, handshake: handshake)
             )
             $0.torrentList.connectionEnvironment = environment
             $0.lastAppliedDefaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.torrentList.phase = .loaded
+            $0.torrentList.items = [TorrentListItem.State(torrent: torrent)]
         }
-
-        await store.send(.torrentList(.torrentsResponse(.success([torrent])))) {
+        await store.receive(.torrentList(.refreshRequested))
+        await store.receive(.torrentList(.torrentsResponse(.success([torrent])))) {
             $0.torrentList.phase = .loaded
             $0.torrentList.items = [TorrentListItem.State(torrent: torrent)]
         }
@@ -256,6 +260,7 @@ struct ServerDetailConnectionBasicsTests {
         await store.receive(.torrentList(.task)) {
             $0.torrentList.phase = .loading
         }
+        await store.receive(.torrentList(.refreshRequested))
 
         await store.send(.editButtonTapped) {
             $0.editor = ServerEditorReducer.State(server: initialServer)

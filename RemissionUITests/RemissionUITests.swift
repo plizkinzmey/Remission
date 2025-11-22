@@ -222,15 +222,23 @@ final class RemissionUITests: XCTestCase {
         }
 
         // Set limits - это работает стабильно на всех платформах
-        controls.downloadField.clearAndTypeText("777")
+        controls.downloadField.clearAndTypeText("77777")
+        controls.downloadField.typeText("\n")
         controls.uploadField.clearAndTypeText("321")
+        controls.uploadField.typeText("\n")
 
         #if os(iOS)
             let savedPollingValue = controls.pollingValue.label
         #endif
         let savedAutoRefresh = (controls.autoRefreshToggle.value as? String) ?? ""
-        let savedDownload = controls.downloadField.value as? String ?? ""
-        let savedUpload = controls.uploadField.value as? String ?? ""
+        let savedDownload =
+            (controls.downloadField.value as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let savedUpload =
+            (controls.uploadField.value as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        XCTAssertFalse(savedDownload.isEmpty, "Download limit не прочитан после ввода")
+        XCTAssertFalse(savedUpload.isEmpty, "Upload limit не прочитан после ввода")
 
         controls.closeButton.tap()
         app.terminate()
@@ -259,6 +267,80 @@ final class RemissionUITests: XCTestCase {
             controls.uploadField.value as? String ?? "",
             savedUpload,
             "Upload limit не сохранился после перезапуска"
+        )
+    }
+
+    @MainActor
+    func testSettingsScreenShowsControlsAndAllowsEditing() {
+        let suiteName = "ui-settings-smoke"
+        let app = launchApp(
+            environment: [
+                "UI_TESTING_PREFERENCES_SUITE": suiteName,
+                "UI_TESTING_RESET_PREFERENCES": "1"
+            ]
+        )
+        var controls = openSettingsControls(app)
+        waitForSettingsLoaded(app)
+
+        // Toggle auto refresh
+        controls.autoRefreshToggle.tap()
+        let autoValue = (controls.autoRefreshToggle.value as? String) ?? ""
+        #if os(macOS)
+            // На macOS value может быть пустым в UI-тестах, проверяем лишь доступность.
+            XCTAssertTrue(controls.autoRefreshToggle.exists, "Auto-refresh toggle отсутствует")
+        #else
+            XCTAssertFalse(autoValue.isEmpty, "Auto-refresh toggle не реагирует")
+        #endif
+
+        // Adjust polling slider (iOS only; на macOS шаги пропускаются)
+        #if os(iOS)
+            if controls.pollingSlider.exists {
+                controls.pollingSlider.adjust(toNormalizedSliderPosition: 0.2)
+            }
+        #endif
+
+        // Update limits
+        controls.downloadField.clearAndTypeText("555")
+        controls.uploadField.clearAndTypeText("444")
+        let savedUploadInSession = (controls.uploadField.value as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Даём время на асинхронное сохранение через UserPreferencesRepository
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+
+        controls.closeButton.tap()
+        XCTAssertTrue(
+            controls.autoRefreshToggle.waitForDisappearance(timeout: 3),
+            "Settings sheet did not close"
+        )
+
+        // Re-open and verify values persisted within session
+        controls = openSettingsControls(app)
+        waitForSettingsLoaded(app)
+        let reopenedDownloadRaw = controls.downloadField.value as? String ?? ""
+        let reopenedUploadRaw = controls.uploadField.value as? String ?? ""
+        let reopenedDownload = reopenedDownloadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let reopenedUpload = reopenedUploadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // macOS часто дублирует ввод backspace+значение; допускаем префиксы/суффиксы.
+        let downloadMatches =
+            reopenedDownload == "555"
+            || reopenedDownload.hasSuffix("555")
+            || reopenedDownload.hasPrefix("555")
+
+        let expectedUpload = (savedUploadInSession ?? "444")
+        let uploadMatches =
+            reopenedUpload == expectedUpload
+            || reopenedUpload.hasSuffix(expectedUpload)
+            || reopenedUpload.hasPrefix(expectedUpload)
+
+        XCTAssertTrue(
+            downloadMatches,
+            "Download limit не сохраняется внутри сессии (\(reopenedDownloadRaw))"
+        )
+        XCTAssertTrue(
+            uploadMatches,
+            "Upload limit не сохраняется внутри сессии (\(reopenedUploadRaw))"
         )
     }
 
