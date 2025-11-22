@@ -45,4 +45,18 @@ extension DependencyValues {
         configure(&dependencies)
         return dependencies
     }
+
+    /// Набор зависимостей с переопределённым in-memory `UserPreferencesRepository`.
+    ///
+    /// Удобно использовать в тестах, где требуется управлять состоянием преференсов через
+    /// `InMemoryUserPreferencesRepositoryStore` (например, для инъекции ошибок).
+    static func testDependencies(
+        userPreferencesStore: InMemoryUserPreferencesRepositoryStore,
+        configure: @Sendable (inout DependencyValues) -> Void = { _ in }
+    ) -> DependencyValues {
+        var dependencies = AppDependencies.makeTestDefaults()
+        dependencies.userPreferencesRepository = .inMemory(store: userPreferencesStore)
+        configure(&dependencies)
+        return dependencies
+    }
 }

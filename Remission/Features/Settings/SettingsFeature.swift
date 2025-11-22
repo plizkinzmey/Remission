@@ -9,6 +9,7 @@ struct SettingsReducer {
         var isLoading: Bool = true
         var pollingIntervalSeconds: Double = 5
         var isAutoRefreshEnabled: Bool = true
+        var persistedPreferences: UserPreferences?
         var defaultSpeedLimits: UserPreferences.DefaultSpeedLimits = .init(
             downloadKilobytesPerSecond: nil,
             uploadKilobytesPerSecond: nil
@@ -82,6 +83,7 @@ struct SettingsReducer {
 
             case .preferencesResponse(.success(let preferences)):
                 state.isLoading = false
+                state.persistedPreferences = preferences
                 state.pollingIntervalSeconds = preferences.pollingInterval
                 state.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
                 state.defaultSpeedLimits = preferences.defaultSpeedLimits
@@ -90,6 +92,11 @@ struct SettingsReducer {
 
             case .preferencesResponse(.failure(let error)):
                 state.isLoading = false
+                if let persisted = state.persistedPreferences {
+                    state.pollingIntervalSeconds = persisted.pollingInterval
+                    state.isAutoRefreshEnabled = persisted.isAutoRefreshEnabled
+                    state.defaultSpeedLimits = persisted.defaultSpeedLimits
+                }
                 state.alert = AlertState {
                     TextState("Не удалось сохранить настройки")
                 } actions: {

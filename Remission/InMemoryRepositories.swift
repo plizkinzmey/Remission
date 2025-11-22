@@ -467,7 +467,7 @@ actor InMemoryUserPreferencesRepositoryStore {
     }
 }
 
-enum InMemoryUserPreferencesRepositoryError: Error, LocalizedError, Sendable {
+enum InMemoryUserPreferencesRepositoryError: Error, LocalizedError, Sendable, Equatable {
     case operationFailed(InMemoryUserPreferencesRepositoryStore.Operation)
 
     var errorDescription: String? {

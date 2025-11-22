@@ -370,6 +370,21 @@ swiftlint lint
 ```bash
 # Полный набор тестов
 xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'
+
+# Только SettingsReducer с сохранением результата в xcresult
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:RemissionTests/SettingsFeatureTests \
+  -resultBundlePath build/TestResults/SettingsFeatureTests.xcresult
+
+# UI-тест персистентности настроек (использует UI_TESTING_PREFERENCES_SUITE)
+UI_TESTING_PREFERENCES_SUITE=ui-settings-persistence \
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:RemissionUITests/RemissionUITests/testSettingsPersistenceAcrossLaunches \
+  -resultBundlePath build/TestResults/SettingsPersistenceUI.xcresult
 ```
 
 #### Точечные проверки списка торрентов
@@ -389,7 +404,7 @@ xcodebuild test \
   -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh
 ```
 
-#### UI фикстуры и аргументы
+#### UI фикстуры, аргументы и переменные окружения
 
 | Аргумент | Назначение |
 | --- | --- |
@@ -398,6 +413,7 @@ xcodebuild test \
 | `--ui-testing-scenario=server-list-sample` | Настраивает сценарий перехода в детали из списка серверов |
 | `--ui-testing-scenario=torrent-list-sample` | Включает вспомогательные зависимости для теста поиска/refresh в списке торрентов |
 | `--ui-testing-scenario=onboarding-flow` | Инициализирует in-memory репозитории для онбординга |
+| `UI_TESTING_PREFERENCES_SUITE=<suite>` | Направляет UI-тесты настроек в отдельный `UserDefaults(suiteName:)`, чтобы проверять персистентность между перезапусками |
 
 Добавьте аргументы в схему (`Edit Scheme… → Arguments`) или передайте через CLI (`xcodebuild test ... OTHER_ARGUMENTS`).
 
