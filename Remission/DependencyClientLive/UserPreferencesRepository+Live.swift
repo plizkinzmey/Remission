@@ -3,7 +3,19 @@ import Foundation
 extension UserPreferencesRepository {
     /// Живая реализация репозитория предпочтений с сохранением в `UserDefaults`.
     static func persistent(
-        store: PersistentUserPreferencesStore = PersistentUserPreferencesStore()
+        defaults: UserDefaults = .standard,
+        resetStoredValue: Bool = false
+    ) -> UserPreferencesRepository {
+        let defaultsBox = PreferencesUserDefaultsBox(defaults: defaults)
+        let store = PersistentUserPreferencesStore(
+            defaults: defaultsBox,
+            resetStoredValue: resetStoredValue
+        )
+        return persistent(store: store)
+    }
+
+    static func persistent(
+        store: PersistentUserPreferencesStore
     ) -> UserPreferencesRepository {
         UserPreferencesRepository(
             load: {
@@ -37,12 +49,18 @@ actor PersistentUserPreferencesStore {
         static let preferences = "user_preferences"
     }
 
-    private let defaults: UserDefaults
+    private let defaults: PreferencesUserDefaultsBox
     private var preferences: UserPreferences
     private var observers: [UUID: AsyncStream<UserPreferences>.Continuation] = [:]
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: PreferencesUserDefaultsBox = PreferencesUserDefaultsBox(defaults: .standard),
+        resetStoredValue: Bool = false
+    ) {
         self.defaults = defaults
+        if resetStoredValue {
+            defaults.remove(StorageKey.preferences)
+        }
         self.preferences = Self.loadSnapshot(defaults: defaults)
     }
 
@@ -94,15 +112,35 @@ actor PersistentUserPreferencesStore {
         defaults.set(data, forKey: StorageKey.preferences)
     }
 
-    private static func loadSnapshot(defaults: UserDefaults) -> UserPreferences {
-        guard let data = defaults.data(forKey: StorageKey.preferences) else {
+    private static func loadSnapshot(defaults: PreferencesUserDefaultsBox) -> UserPreferences {
+        guard let data = defaults.data(StorageKey.preferences) else {
             return .default
         }
         do {
             return try JSONDecoder().decode(UserPreferences.self, from: data)
         } catch {
-            defaults.removeObject(forKey: StorageKey.preferences)
+            defaults.remove(StorageKey.preferences)
             return .default
         }
+    }
+}
+
+final class PreferencesUserDefaultsBox: @unchecked Sendable {
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults) {
+        self.defaults = defaults
+    }
+
+    func data(_ key: String) -> Data? {
+        defaults.data(forKey: key)
+    }
+
+    func set(_ data: Data, forKey key: String) {
+        defaults.set(data, forKey: key)
+    }
+
+    func remove(_ key: String) {
+        defaults.removeObject(forKey: key)
     }
 }

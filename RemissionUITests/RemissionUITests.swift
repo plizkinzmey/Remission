@@ -184,13 +184,14 @@ final class RemissionUITests: XCTestCase {
     @MainActor
     func testSettingsPersistenceAcrossLaunches() {
         let suiteName = "ui-settings-persistence"
-        if let defaults = UserDefaults(suiteName: suiteName) {
-            defaults.removePersistentDomain(forName: suiteName)
-        }
-        let environment = ["UI_TESTING_PREFERENCES_SUITE": suiteName]
+        let initialEnvironment = [
+            "UI_TESTING_PREFERENCES_SUITE": suiteName,
+            "UI_TESTING_RESET_PREFERENCES": "1"
+        ]
+        let persistenceEnvironment = ["UI_TESTING_PREFERENCES_SUITE": suiteName]
 
         // First launch: change settings
-        let app = launchApp(environment: environment)
+        let app = launchApp(environment: initialEnvironment)
         var controls = openSettingsControls(app)
         waitForSettingsLoaded(app)
 
@@ -235,7 +236,7 @@ final class RemissionUITests: XCTestCase {
         app.terminate()
 
         // Relaunch and verify persistence
-        let relaunchedApp = launchApp(environment: environment)
+        let relaunchedApp = launchApp(environment: persistenceEnvironment)
         controls = openSettingsControls(relaunchedApp)
         waitForSettingsLoaded(relaunchedApp)
 

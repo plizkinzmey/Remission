@@ -168,8 +168,10 @@ enum AppDependencies {
         if let suiteName = environment["UI_TESTING_PREFERENCES_SUITE"],
             let defaults = UserDefaults(suiteName: suiteName)
         {
+            let shouldResetPreferences = environment["UI_TESTING_RESET_PREFERENCES"] == "1"
             dependencies.userPreferencesRepository = .persistent(
-                store: PersistentUserPreferencesStore(defaults: defaults)
+                defaults: defaults,
+                resetStoredValue: shouldResetPreferences
             )
         }
 

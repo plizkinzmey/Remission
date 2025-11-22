@@ -59,4 +59,14 @@ extension DependencyValues {
         configure(&dependencies)
         return dependencies
     }
+
+    /// Быстрая сборка зависимостей с конкретным snapshot'ом `UserPreferences`,
+    /// не требующая ручной подготовки `InMemoryUserPreferencesRepositoryStore`.
+    static func testDependencies(
+        userPreferences: UserPreferences,
+        configure: @Sendable (inout DependencyValues) -> Void = { _ in }
+    ) -> DependencyValues {
+        let store = InMemoryUserPreferencesRepositoryStore(preferences: userPreferences)
+        return testDependencies(userPreferencesStore: store, configure: configure)
+    }
 }
