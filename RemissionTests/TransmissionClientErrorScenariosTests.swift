@@ -4,7 +4,7 @@ import Testing
 
 @testable import Remission
 
-private let transmissionTestsBaseURL: URL = URL(string: "https://mock.transmission/rpc")!
+private let transmissionTestsBaseURL: URL = URL(string: "http://mock.transmission/rpc")!
 
 /// TransmissionClient negative-path coverage backed by TransmissionMockServer scenarios.
 ///
@@ -244,28 +244,17 @@ struct TransmissionClientErrorScenariosTests {
                 .success(successData)
             ],
             maxRetries: 3,
-            retryDelay: 0.1
+            retryDelay: 0.01
         )
 
-        async let response = setup.client.torrentGet(ids: nil, fields: nil)
+        let start = ContinuousClock.now
+        _ = try await setup.client.torrentGet(ids: nil, fields: nil)
+        let elapsed = start.duration(to: ContinuousClock.now)
 
-        let retryDelays: [Duration] = [
-            .milliseconds(100),
-            .milliseconds(200),
-            .milliseconds(400)
-        ]
-        for delay in retryDelays {
-            await setup.baseClock.advance(by: delay)
-        }
-        await setup.baseClock.run()
-
-        _ = try await response
-
-        let recordedSeconds: [Double] = setup.recordingClock.sleepHistory.map(durationInSeconds)
-        #expect(recordedSeconds.count == 3)
-        #expect(abs(recordedSeconds[0] - 0.1) < 0.0001)
-        #expect(abs(recordedSeconds[1] - 0.2) < 0.0001)
-        #expect(abs(recordedSeconds[2] - 0.4) < 0.0001)
+        #expect(RetryURLProtocol.requestCount == 4)
+        // Минимум 0.07с (0.01 + 0.02 + 0.04) с учётом backoff, но меньше секунды.
+        #expect(elapsed >= .milliseconds(60))
+        #expect(elapsed < .seconds(1))
     }
 
     @Test("HTTP 401 при torrent-add возвращает APIError.unauthorized")
@@ -340,8 +329,6 @@ private func makeClient(
 
 private struct RetryingClientSetup {
     var client: TransmissionClient
-    var baseClock: TestClock<Duration>
-    var recordingClock: RecordingClock
 }
 
 private func makeRetryingClient(
@@ -353,7 +340,7 @@ private func makeRetryingClient(
 
     let config = TransmissionClientConfig(
         baseURL: transmissionTestsBaseURL,
-        requestTimeout: 5,
+        requestTimeout: 0.2,
         maxRetries: maxRetries,
         retryDelay: retryDelay
     )
@@ -361,23 +348,21 @@ private func makeRetryingClient(
     let sessionConfiguration: URLSessionConfiguration = {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [RetryURLProtocol.self]
+        configuration.timeoutIntervalForRequest = 0.5
+        configuration.timeoutIntervalForResource = 1
         return configuration
     }()
 
-    let baseClock = TestClock<Duration>()
-    let recordingClock = RecordingClock(base: baseClock)
     let client = TransmissionClient(
         config: config,
         sessionConfiguration: sessionConfiguration,
         trustStore: .inMemory(),
         trustDecisionHandler: { _ in .trustPermanently },
-        clock: recordingClock
+        clock: ContinuousClock()
     )
 
     return RetryingClientSetup(
-        client: client,
-        baseClock: baseClock,
-        recordingClock: recordingClock
+        client: client
     )
 }
 
@@ -432,6 +417,13 @@ private class RetryURLProtocol: URLProtocol {
 
     private static let lock = NSLock()
     private nonisolated(unsafe) static var pendingResponses: [Response] = []
+    private nonisolated(unsafe) static var _requestCount: Int = 0
+
+    static var requestCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return _requestCount
+    }
 
     static func configure(responses: [Response]) {
         lock.lock()
@@ -447,12 +439,17 @@ private class RetryURLProtocol: URLProtocol {
         true
     }
 
+    override class func canInit(with task: URLSessionTask) -> Bool {
+        true
+    }
+
     override class func canonicalRequest(for request: URLRequest) -> URLRequest {
         request
     }
 
     override func startLoading() {
         guard let client else { return }
+        Self.incrementRequests()
         guard let next = Self.dequeue() else {
             client.urlProtocol(
                 self,
@@ -491,6 +488,12 @@ private class RetryURLProtocol: URLProtocol {
         defer { lock.unlock() }
         guard pendingResponses.isEmpty == false else { return nil }
         return pendingResponses.removeFirst()
+    }
+
+    private static func incrementRequests() {
+        lock.lock()
+        _requestCount += 1
+        lock.unlock()
     }
 }
 

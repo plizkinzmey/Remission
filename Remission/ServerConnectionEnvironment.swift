@@ -62,13 +62,17 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
 
             let dependency = TransmissionClientDependency.live(client: client)
             let torrentRepository = TorrentRepository.live(transmissionClient: dependency)
+            let sessionRepository = SessionRepository.live(
+                transmissionClient: dependency,
+                mapper: TransmissionDomainMapper()
+            )
             return ServerConnectionEnvironment(
                 serverID: server.id,
                 fingerprint: server.connectionFingerprint,
                 dependencies: .init(
                     transmissionClient: dependency,
                     torrentRepository: torrentRepository,
-                    sessionRepository: .placeholder
+                    sessionRepository: sessionRepository
                 )
             )
         }

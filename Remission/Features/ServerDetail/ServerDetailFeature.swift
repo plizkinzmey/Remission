@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 // swiftlint:disable type_body_length
+// swiftlint:disable file_length
 
 /// Главный reducer экрана деталей сервера: отвечает за подключение, управление
 /// сервером и встраивает `TorrentListReducer` для отображения торрентов.
@@ -19,6 +20,8 @@ struct ServerDetailReducer {
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
         var torrentList: TorrentListReducer.State = .init()
+        var preferences: UserPreferences?
+        var lastAppliedDefaultSpeedLimits: UserPreferences.DefaultSpeedLimits?
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
@@ -39,6 +42,7 @@ struct ServerDetailReducer {
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
         case connectionResponse(TaskResult<ConnectionResponse>)
+        case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
@@ -72,12 +76,17 @@ struct ServerDetailReducer {
     @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
     @Dependency(\.magnetLinkClient) var magnetLinkClient
     @Dependency(\.torrentFileLoader) var torrentFileLoader
+    @Dependency(\.userPreferencesRepository) var userPreferencesRepository
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
-                return startConnectionIfNeeded(state: &state)
+                return .merge(
+                    loadPreferences(),
+                    observePreferences(),
+                    startConnectionIfNeeded(state: &state)
+                )
 
             case .retryConnectionButtonTapped:
                 return startConnection(state: &state, force: true)
@@ -208,10 +217,14 @@ struct ServerDetailReducer {
                         .send(.torrentList(.refreshRequested))
                     )
                 }
-                return effects
+                return .merge(
+                    effects,
+                    applyDefaultSpeedLimitsIfNeeded(state: &state)
+                )
 
             case .connectionResponse(.failure(let error)):
                 state.connectionEnvironment = nil
+                state.lastAppliedDefaultSpeedLimits = nil
                 state.torrentDetail?.applyConnectionEnvironment(nil)
                 let message = describe(error)
                 state.connectionState.phase = .failed(.init(message: message))
@@ -232,6 +245,8 @@ struct ServerDetailReducer {
                     shouldReconnect ? .send(.torrentList(.teardown)) : .none
                 if shouldReconnect {
                     state.torrentList = .init()
+                    state.connectionEnvironment = nil
+                    state.lastAppliedDefaultSpeedLimits = nil
                 }
                 let connectionEffect =
                     shouldReconnect
@@ -329,6 +344,13 @@ struct ServerDetailReducer {
             case .addTorrent:
                 return .none
 
+            case .userPreferencesResponse(.success(let preferences)):
+                state.preferences = preferences
+                return applyDefaultSpeedLimitsIfNeeded(state: &state)
+
+            case .userPreferencesResponse(.failure):
+                return .none
+
             case .delegate:
                 return .none
             }
@@ -350,6 +372,9 @@ struct ServerDetailReducer {
 
     private enum ConnectionCancellationID {
         case connection
+        case preferences
+        case preferencesUpdates
+        case defaultSpeedLimits
     }
 
     /// Проверяет, нужно ли переустанавливать подключение (изменился ли fingerprint
@@ -376,6 +401,7 @@ struct ServerDetailReducer {
             force == false
         else {
             state.connectionEnvironment = nil
+            state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
             return connect(server: state.server)
         }
@@ -437,6 +463,81 @@ struct ServerDetailReducer {
                 await send(.deleteCompleted(.failure(DeletionError(message: message))))
             }
         }
+    }
+
+    private func loadPreferences() -> Effect<Action> {
+        .run { send in
+            await send(
+                .userPreferencesResponse(
+                    TaskResult {
+                        try await userPreferencesRepository.load()
+                    }
+                )
+            )
+        }
+        .cancellable(id: ConnectionCancellationID.preferences, cancelInFlight: true)
+    }
+
+    private func observePreferences() -> Effect<Action> {
+        .run { send in
+            let stream = userPreferencesRepository.observe()
+            for await preferences in stream {
+                await send(.userPreferencesResponse(.success(preferences)))
+            }
+        }
+        .cancellable(id: ConnectionCancellationID.preferencesUpdates, cancelInFlight: true)
+    }
+
+    private func applyDefaultSpeedLimitsIfNeeded(
+        state: inout State
+    ) -> Effect<Action> {
+        guard let environment = state.connectionEnvironment,
+            let preferences = state.preferences
+        else {
+            return .none
+        }
+        let limits = preferences.defaultSpeedLimits
+        guard state.lastAppliedDefaultSpeedLimits != limits else {
+            return .none
+        }
+        state.lastAppliedDefaultSpeedLimits = limits
+        return applyDefaultSpeedLimits(
+            limits: limits,
+            environment: environment
+        )
+    }
+
+    private func applyDefaultSpeedLimits(
+        limits: UserPreferences.DefaultSpeedLimits,
+        environment: ServerConnectionEnvironment
+    ) -> Effect<Action> {
+        .run { _ in
+            try await withDependencies {
+                environment.apply(to: &$0)
+            } operation: {
+                @Dependency(\.sessionRepository) var sessionRepository
+                let download = SessionState.SpeedLimits.Limit(
+                    isEnabled: limits.downloadKilobytesPerSecond != nil,
+                    kilobytesPerSecond: limits.downloadKilobytesPerSecond ?? 0
+                )
+                let upload = SessionState.SpeedLimits.Limit(
+                    isEnabled: limits.uploadKilobytesPerSecond != nil,
+                    kilobytesPerSecond: limits.uploadKilobytesPerSecond ?? 0
+                )
+                let update = SessionRepository.SessionUpdate(
+                    speedLimits: .init(
+                        download: download,
+                        upload: upload,
+                        alternative: nil
+                    )
+                )
+                _ = try await sessionRepository.updateState(update)
+            }
+        }
+        .cancellable(
+            id: ConnectionCancellationID.defaultSpeedLimits,
+            cancelInFlight: true
+        )
     }
 
     private func makeDeleteAlert() -> AlertState<AlertAction> {
