@@ -1403,11 +1403,11 @@ return .run { [repository, clock = appClock.clock()] send in
 - **Запуск**: `xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64' -only-testing:RemissionTests/AddTorrentFeatureTests -only-testing:RemissionTests/ServerDetailImportTests` (лог: `~/Library/Developer/Xcode/DerivedData/Remission-hizssvkjniurwvggbezcsopugcdl/Logs/Test/Test-Remission-2025.11.21_02-46-56-+0300.xcresult`). Результат: PASS, 14 тестов.
 
 ## Веха 9: Настройки и предпочтения
-- M9.1 Реализовать TCA-состояние настроек (@ObservableState) для интервала опроса, автообновления и лимитов по умолчанию.
-- M9.2 Сохранить предпочтения в UserDefaults или выделенном хранилище через @Dependency.
-- M9.3 Создать SwiftUI-контролы с группировкой настроек и описаниями, используя @Bindable.
-- M9.4 Обновить редьюсеры зависимых фич для чтения выбранных настроек через @Dependency.
-- Проверка: модульные тесты сохранения и чтения настроек с TestStore и UI-тест изменения значений с проверкой персистентности.
+- M9.1 Реализовать и интегрировать SettingsReducer/SettingsView в AppFeature через @Presents sheet (TCA, @ObservableState, effects через @Dependency).
+- M9.2 Версионировать `UserPreferences` (поле `version`, `currentVersion`), готовить миграции; live/in-memory сторожи должны всегда писать актуальную версию.
+- M9.3 Стабилизировать polling: гарантировать первичный fetch после коннекта (ServerDetail → TorrentList) и единый helper для рестарта polling при смене настроек.
+- M9.4 UI/QA: добавить XCUITest для настроек (персистентность между запусками, smoke редактирования) на iOS и macOS; обеспечить accessibility identifiers.
+- Проверка: unit-тесты Settings/TorrentList/ServerDetail reducers, UI-тесты Settings (персистентность + smoke), актуальные команды xcodebuild и ссылки на xcresult в отчёте.
 
 ## Веха 10: Логирование и телеметрия
 - M10.1 Интегрировать `swift-log` (Swift.org official) с согласованными уровнями логирования (debug, info, warning, error) через @Dependency Logger.

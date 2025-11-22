@@ -3,6 +3,8 @@ import Foundation
 /// Пользовательские настройки приложения Remission.
 /// Хранят значения, влияющие на периодичность обновлений и дефолтные лимиты скоростей.
 struct UserPreferences: Equatable, Sendable, Codable {
+    static let currentVersion: Int = 1
+
     struct DefaultSpeedLimits: Equatable, Sendable, Codable {
         /// Значение лимита скачивания в КБ/с. `nil` означает отсутствие ограничения.
         var downloadKilobytesPerSecond: Int?
@@ -18,6 +20,8 @@ struct UserPreferences: Equatable, Sendable, Codable {
         }
     }
 
+    /// Версия схемы сохранённых настроек. Помогает мигрировать данные при изменении структуры.
+    var version: Int
     /// Интервал опроса (в секундах) списка торрентов.
     var pollingInterval: TimeInterval
     /// Автоматическое обновление при запуске приложения.
@@ -25,14 +29,37 @@ struct UserPreferences: Equatable, Sendable, Codable {
     /// Дефолтные лимиты скоростей, применяемые при добавлении торрентов.
     var defaultSpeedLimits: DefaultSpeedLimits
 
+    private enum CodingKeys: String, CodingKey {
+        case version
+        case pollingInterval
+        case isAutoRefreshEnabled
+        case defaultSpeedLimits
+    }
+
     public init(
         pollingInterval: TimeInterval,
         isAutoRefreshEnabled: Bool,
-        defaultSpeedLimits: DefaultSpeedLimits
+        defaultSpeedLimits: DefaultSpeedLimits,
+        version: Int = UserPreferences.currentVersion
     ) {
+        self.version = version
         self.pollingInterval = pollingInterval
         self.isAutoRefreshEnabled = isAutoRefreshEnabled
         self.defaultSpeedLimits = defaultSpeedLimits
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let version =
+            try container.decodeIfPresent(Int.self, forKey: .version)
+            ?? UserPreferences.currentVersion
+        self.version = version
+        self.pollingInterval = try container.decode(TimeInterval.self, forKey: .pollingInterval)
+        self.isAutoRefreshEnabled = try container.decode(Bool.self, forKey: .isAutoRefreshEnabled)
+        self.defaultSpeedLimits = try container.decode(
+            DefaultSpeedLimits.self,
+            forKey: .defaultSpeedLimits
+        )
     }
 }
 
@@ -44,6 +71,7 @@ extension UserPreferences {
         defaultSpeedLimits: .init(
             downloadKilobytesPerSecond: nil,
             uploadKilobytesPerSecond: nil
-        )
+        ),
+        version: UserPreferences.currentVersion
     )
 }

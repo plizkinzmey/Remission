@@ -496,6 +496,7 @@ extension UserPreferencesRepository {
                 }
                 await store.update {
                     $0.pollingInterval = interval
+                    $0.version = UserPreferences.currentVersion
                 }
                 await store.notifyObservers()
                 return await store.preferences
@@ -507,6 +508,7 @@ extension UserPreferencesRepository {
                 }
                 await store.update {
                     $0.isAutoRefreshEnabled = isEnabled
+                    $0.version = UserPreferences.currentVersion
                 }
                 await store.notifyObservers()
                 return await store.preferences
@@ -518,6 +520,7 @@ extension UserPreferencesRepository {
                 }
                 await store.update {
                     $0.defaultSpeedLimits = limits
+                    $0.version = UserPreferences.currentVersion
                 }
                 await store.notifyObservers()
                 return await store.preferences

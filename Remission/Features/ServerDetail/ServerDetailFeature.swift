@@ -208,15 +208,10 @@ struct ServerDetailReducer {
                     )
                 )
                 state.torrentList.connectionEnvironment = response.environment
-                var effects: Effect<Action> = .send(.torrentList(.task))
-                if ProcessInfo.processInfo.arguments.contains(
-                    "--ui-testing-fixture=torrent-list-sample"
-                ) {
-                    effects = .merge(
-                        effects,
-                        .send(.torrentList(.refreshRequested))
-                    )
-                }
+                let effects: Effect<Action> = .concatenate(
+                    .send(.torrentList(.task)),
+                    .send(.torrentList(.refreshRequested))
+                )
                 return .merge(
                     effects,
                     applyDefaultSpeedLimitsIfNeeded(state: &state)

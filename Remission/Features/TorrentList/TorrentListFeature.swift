@@ -240,10 +240,7 @@ struct TorrentListReducer {
                 guard intervalChanged || autoRefreshChanged else {
                     return .none
                 }
-                return .merge(
-                    .cancel(id: CancelID.polling),
-                    fetchTorrents(state: &state, trigger: .preferencesChanged)
-                )
+                return restartPolling(state: &state)
 
             case .userPreferencesResponse(.failure(let error)):
                 let effect = fetchTorrents(state: &state, trigger: .initial)
@@ -389,6 +386,13 @@ struct TorrentListReducer {
             )
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
+    }
+
+    private func restartPolling(state: inout State) -> Effect<Action> {
+        .merge(
+            .cancel(id: CancelID.polling),
+            fetchTorrents(state: &state, trigger: .preferencesChanged)
+        )
     }
 
     private func handleDetailUpdated(

@@ -70,6 +70,7 @@ actor PersistentUserPreferencesStore {
 
     func update(_ transform: (inout UserPreferences) -> Void) async throws -> UserPreferences {
         transform(&preferences)
+        preferences.version = UserPreferences.currentVersion
         try persist(preferences)
         notifyObservers()
         return preferences
