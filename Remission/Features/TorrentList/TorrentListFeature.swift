@@ -186,10 +186,7 @@ struct TorrentListReducer {
                     state.phase = .loading
                 }
                 state.alert = nil
-                return .merge(
-                    loadPreferences(),
-                    observePreferences()
-                )
+                return .none
 
             case .teardown:
                 state.isRefreshing = false

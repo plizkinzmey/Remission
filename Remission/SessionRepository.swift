@@ -140,7 +140,10 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
 
 #if canImport(ComposableArchitecture)
     extension SessionRepository: DependencyKey {
-        static var liveValue: SessionRepository { .placeholder }
+        static var liveValue: SessionRepository {
+            @Dependency(\.transmissionClient) var transmissionClient
+            return .live(transmissionClient: transmissionClient)
+        }
         static var previewValue: SessionRepository {
             let store = InMemorySessionRepositoryStore(
                 handshake: .init(
@@ -178,6 +181,106 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
         }
     }
 #endif
+
+extension SessionRepository {
+    /// Live-реализация, основанная на TransmissionClientDependency и доменном маппере.
+    static func live(
+        transmissionClient: TransmissionClientDependency,
+        mapper: TransmissionDomainMapper = .init()
+    ) -> SessionRepository {
+        SessionRepository(
+            performHandshake: {
+                try await transmissionClient.performHandshake()
+                    .asSessionRepositoryHandshake()
+            },
+            fetchState: {
+                let session = try await transmissionClient.sessionGet()
+                let stats = try await transmissionClient.sessionStats()
+                return try mapper.mapSessionState(
+                    sessionResponse: session,
+                    statsResponse: stats
+                )
+            },
+            updateState: { update in
+                let arguments = makeSessionSetArguments(update: update)
+                guard let arguments else {
+                    return try await SessionRepository.live(
+                        transmissionClient: transmissionClient,
+                        mapper: mapper
+                    ).fetchState()
+                }
+                _ = try await transmissionClient.sessionSet(arguments)
+                let session = try await transmissionClient.sessionGet()
+                let stats = try await transmissionClient.sessionStats()
+                return try mapper.mapSessionState(
+                    sessionResponse: session,
+                    statsResponse: stats
+                )
+            },
+            checkCompatibility: {
+                let result = try await transmissionClient.performHandshake()
+                return SessionRepository.Compatibility(
+                    isCompatible: result.isCompatible,
+                    rpcVersion: result.rpcVersion
+                )
+            }
+        )
+    }
+}
+
+private func makeSessionSetArguments(
+    update: SessionRepository.SessionUpdate
+) -> AnyCodable? {
+    var dict: [String: AnyCodable] = [:]
+
+    if let speedLimits = update.speedLimits {
+        if let download = speedLimits.download {
+            dict["speed-limit-down-enabled"] = .bool(download.isEnabled)
+            dict["speed-limit-down"] = .int(download.kilobytesPerSecond)
+        }
+        if let upload = speedLimits.upload {
+            dict["speed-limit-up-enabled"] = .bool(upload.isEnabled)
+            dict["speed-limit-up"] = .int(upload.kilobytesPerSecond)
+        }
+        if let alt = speedLimits.alternative {
+            dict["alt-speed-enabled"] = .bool(alt.isEnabled)
+            dict["alt-speed-down"] = .int(alt.downloadKilobytesPerSecond)
+            dict["alt-speed-up"] = .int(alt.uploadKilobytesPerSecond)
+        }
+    }
+
+    if let queue = update.queue {
+        if let downloadLimit = queue.downloadLimit {
+            dict["download-queue-enabled"] = .bool(downloadLimit.isEnabled)
+            dict["download-queue-size"] = .int(downloadLimit.count)
+        }
+        if let seedLimit = queue.seedLimit {
+            dict["seed-queue-enabled"] = .bool(seedLimit.isEnabled)
+            dict["seed-queue-size"] = .int(seedLimit.count)
+        }
+        if let considerStalled = queue.considerStalled {
+            dict["queue-stalled-enabled"] = .bool(considerStalled)
+        }
+        if let stalledMinutes = queue.stalledMinutes {
+            dict["queue-stalled-minutes"] = .int(stalledMinutes)
+        }
+    }
+
+    guard dict.isEmpty == false else { return nil }
+    return .object(dict)
+}
+
+extension TransmissionHandshakeResult {
+    fileprivate func asSessionRepositoryHandshake() -> SessionRepository.Handshake {
+        SessionRepository.Handshake(
+            sessionID: sessionID,
+            rpcVersion: rpcVersion,
+            minimumSupportedRpcVersion: minimumSupportedRpcVersion,
+            serverVersionDescription: serverVersionDescription,
+            isCompatible: isCompatible
+        )
+    }
+}
 
 extension SessionRepository {
     static let placeholder: SessionRepository = SessionRepository(
