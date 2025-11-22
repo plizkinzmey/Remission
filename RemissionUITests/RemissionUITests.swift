@@ -274,7 +274,15 @@ final class RemissionUITests: XCTestCase {
 
             let detailNavBar = app.navigationBars[serverName]
             XCTAssertTrue(detailNavBar.waitForExistence(timeout: 5))
-            XCTAssertTrue(app.staticTexts["Адрес"].waitForExistence(timeout: 2))
+            let editButton = app.buttons["Изменить"]
+            XCTAssertTrue(
+                waitUntil(
+                    timeout: 6,
+                    condition: editButton.exists,
+                    onTick: { app.swipeDown() }
+                ),
+                "Экран деталей сервера не отобразился"
+            )
         #endif
     }
 

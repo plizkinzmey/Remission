@@ -66,19 +66,23 @@ struct ServerDetailPreferencesTests {
             dependencies = AppDependencies.makeTestDefaults()
             dependencies.userPreferencesRepository = repository
         }
-        store.exhaustivity = .off
 
         await store.send(.task)
 
         // Simulate initial preferences delivery
         let initial = preferencesBox.value
-        await store.send(.userPreferencesResponse(.success(initial))) {
+        await store.receive(.userPreferencesResponse(.success(initial))) {
             $0.preferences = initial
             $0.lastAppliedDefaultSpeedLimits = initial.defaultSpeedLimits
         }
-        await store.send(.torrentList(.userPreferencesResponse(.success(initial)))) {
+        await store.receive(.torrentList(.userPreferencesResponse(.success(initial)))) {
             $0.torrentList.pollingInterval = .milliseconds(Int(initial.pollingInterval * 1_000))
             $0.torrentList.isPollingEnabled = initial.isAutoRefreshEnabled
+            $0.torrentList.phase = .loading
+            $0.torrentList.hasLoadedPreferences = true
+        }
+        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+            $0.torrentList.phase = .loaded
         }
 
         // Simulate update
@@ -90,10 +94,12 @@ struct ServerDetailPreferencesTests {
             $0.preferences = updated
             $0.lastAppliedDefaultSpeedLimits = updated.defaultSpeedLimits
         }
-        await store.send(.torrentList(.userPreferencesResponse(.success(updated)))) {
+        await store.receive(.torrentList(.userPreferencesResponse(.success(updated)))) {
             $0.torrentList.pollingInterval = .seconds(30)
             $0.torrentList.isPollingEnabled = false
+            $0.torrentList.hasLoadedPreferences = true
         }
+        await store.receive(.torrentList(.torrentsResponse(.success([]))))
 
         await continuationBox.finish()
         await store.finish()

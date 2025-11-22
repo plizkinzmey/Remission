@@ -29,7 +29,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.success(preferences))) {
+        await store.send(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -147,7 +147,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.success(preferences))) {
+        await store.send(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -194,7 +194,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.success(preferences))) {
+        await store.send(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -238,7 +238,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.success(preferences))) {
+        await store.send(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -603,12 +603,7 @@ struct TorrentListFeatureTests {
         let torrents = TorrentFixture.torrentListSample
         #expect(torrents.isEmpty == false)
         let callCounter = FetchCounter()
-        var continuation: AsyncStream<UserPreferences>.Continuation!
         let basePreferences = DomainFixtures.userPreferences
-
-        let updatesStream = AsyncStream<UserPreferences> {
-            continuation = $0
-        }
 
         let repository = TorrentRepository.test(fetchList: {
             await callCounter.increment()
@@ -620,7 +615,11 @@ struct TorrentListFeatureTests {
             updatePollingInterval: { _ in basePreferences },
             setAutoRefreshEnabled: { _ in basePreferences },
             updateDefaultSpeedLimits: { _ in basePreferences },
-            observe: { updatesStream }
+            observe: {
+                AsyncStream { continuation in
+                    continuation.finish()
+                }
+            }
         )
 
         let server = ServerConfig.previewLocalHTTP
@@ -646,7 +645,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.success(basePreferences))) {
+        await store.send(.userPreferencesResponse(.success(basePreferences))) {
             $0.pollingInterval = .milliseconds(Int(basePreferences.pollingInterval * 1_000))
             $0.isPollingEnabled = basePreferences.isAutoRefreshEnabled
         }
@@ -667,9 +666,8 @@ struct TorrentListFeatureTests {
         var updatedPreferences = basePreferences
         updatedPreferences.pollingInterval = 10
         updatedPreferences.isAutoRefreshEnabled = false
-        continuation.yield(updatedPreferences)
 
-        await store.receive(.userPreferencesResponse(.success(updatedPreferences))) {
+        await store.send(.userPreferencesResponse(.success(updatedPreferences))) {
             $0.pollingInterval = .seconds(10)
             $0.isPollingEnabled = false
         }
@@ -681,8 +679,6 @@ struct TorrentListFeatureTests {
         }
 
         #expect(await callCounter.value == 2)
-
-        continuation.finish()
     }
 
     // Проверяем, что ошибка загрузки preferences показывает alert и всё равно запускает fetch.
@@ -720,7 +716,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.receive(.userPreferencesResponse(.failure(PrefError.failed))) {
+        await store.send(.userPreferencesResponse(.failure(PrefError.failed))) {
             $0.alert = .preferencesError(message: "preferences failed")
         }
 

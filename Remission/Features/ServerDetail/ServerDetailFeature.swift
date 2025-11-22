@@ -346,7 +346,10 @@ struct ServerDetailReducer {
 
             case .userPreferencesResponse(.success(let preferences)):
                 state.preferences = preferences
-                return applyDefaultSpeedLimitsIfNeeded(state: &state)
+                return .merge(
+                    applyDefaultSpeedLimitsIfNeeded(state: &state),
+                    .send(.torrentList(.userPreferencesResponse(.success(preferences))))
+                )
 
             case .userPreferencesResponse(.failure):
                 return .none
