@@ -9,6 +9,7 @@ struct SettingsReducer {
         var isLoading: Bool = true
         var pollingIntervalSeconds: Double = 5
         var isAutoRefreshEnabled: Bool = true
+        var isTelemetryEnabled: Bool = false
         var persistedPreferences: UserPreferences?
         var defaultSpeedLimits: UserPreferences.DefaultSpeedLimits = .init(
             downloadKilobytesPerSecond: nil,
@@ -22,6 +23,7 @@ struct SettingsReducer {
         case teardown
         case pollingIntervalChanged(Double)
         case autoRefreshToggled(Bool)
+        case telemetryToggled(Bool)
         case downloadLimitChanged(String)
         case uploadLimitChanged(String)
         case preferencesResponse(TaskResult<UserPreferences>)
@@ -43,6 +45,7 @@ struct SettingsReducer {
         case observation
         case updatePollingInterval
         case setAutoRefresh
+        case setTelemetry
         case updateSpeedLimits
     }
 
@@ -62,6 +65,7 @@ struct SettingsReducer {
                     .cancel(id: CancelID.observation),
                     .cancel(id: CancelID.updatePollingInterval),
                     .cancel(id: CancelID.setAutoRefresh),
+                    .cancel(id: CancelID.setTelemetry),
                     .cancel(id: CancelID.updateSpeedLimits)
                 )
 
@@ -72,6 +76,10 @@ struct SettingsReducer {
             case .autoRefreshToggled(let isEnabled):
                 state.isAutoRefreshEnabled = isEnabled
                 return setAutoRefreshEnabled(isEnabled)
+
+            case .telemetryToggled(let isEnabled):
+                state.isTelemetryEnabled = isEnabled
+                return setTelemetryEnabled(isEnabled)
 
             case .downloadLimitChanged(let value):
                 state.defaultSpeedLimits.downloadKilobytesPerSecond = parse(limit: value)
@@ -86,6 +94,7 @@ struct SettingsReducer {
                 state.persistedPreferences = preferences
                 state.pollingIntervalSeconds = preferences.pollingInterval
                 state.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+                state.isTelemetryEnabled = preferences.isTelemetryEnabled
                 state.defaultSpeedLimits = preferences.defaultSpeedLimits
                 state.alert = nil
                 return .none
@@ -95,6 +104,7 @@ struct SettingsReducer {
                 if let persisted = state.persistedPreferences {
                     state.pollingIntervalSeconds = persisted.pollingInterval
                     state.isAutoRefreshEnabled = persisted.isAutoRefreshEnabled
+                    state.isTelemetryEnabled = persisted.isTelemetryEnabled
                     state.defaultSpeedLimits = persisted.defaultSpeedLimits
                 }
                 state.alert = AlertState {
@@ -168,6 +178,19 @@ struct SettingsReducer {
             )
         }
         .cancellable(id: CancelID.setAutoRefresh, cancelInFlight: true)
+    }
+
+    private func setTelemetryEnabled(_ isEnabled: Bool) -> Effect<Action> {
+        .run { send in
+            await send(
+                .preferencesResponse(
+                    TaskResult {
+                        try await userPreferencesRepository.setTelemetryEnabled(isEnabled)
+                    }
+                )
+            )
+        }
+        .cancellable(id: CancelID.setTelemetry, cancelInFlight: true)
     }
 
     private func updateDefaultSpeedLimits(

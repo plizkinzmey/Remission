@@ -39,4 +39,49 @@ struct UserPreferencesRepositoryLiveTests {
         let reset = try await resetRepository.load()
         #expect(reset == .default)
     }
+
+    @Test
+    func migrationAddsTelemetryFlagWithDefaultFalse() async throws {
+        struct LegacyPreferencesV1: Codable {
+            var version: Int
+            var pollingInterval: TimeInterval
+            var isAutoRefreshEnabled: Bool
+            var defaultSpeedLimits: UserPreferences.DefaultSpeedLimits
+        }
+
+        let suiteName = "userprefs-migration-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Не удалось создать UserDefaults для suite \(suiteName)")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let legacy = LegacyPreferencesV1(
+            version: 1,
+            pollingInterval: 9,
+            isAutoRefreshEnabled: false,
+            defaultSpeedLimits: .init(
+                downloadKilobytesPerSecond: 128,
+                uploadKilobytesPerSecond: 256
+            )
+        )
+        let encoded = try JSONEncoder().encode(legacy)
+        defaults.set(encoded, forKey: "user_preferences")
+
+        let repository = UserPreferencesRepository.persistent(defaults: defaults)
+        let migrated = try await repository.load()
+
+        #expect(migrated.version == UserPreferences.currentVersion)
+        #expect(migrated.isTelemetryEnabled == false)
+        #expect(migrated.pollingInterval == 9)
+        #expect(migrated.defaultSpeedLimits.uploadKilobytesPerSecond == 256)
+
+        if let raw = defaults.data(forKey: "user_preferences") {
+            let redecoded = try JSONDecoder().decode(UserPreferences.self, from: raw)
+            #expect(redecoded.isTelemetryEnabled == false)
+            #expect(redecoded.version == UserPreferences.currentVersion)
+        } else {
+            Issue.record("Снапшот преференсов отсутствует после миграции")
+        }
+    }
 }

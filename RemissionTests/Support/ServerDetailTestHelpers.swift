@@ -63,6 +63,7 @@ extension UserPreferencesRepository {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { _ in preferences },
             observe: {
                 AsyncStream { continuation in

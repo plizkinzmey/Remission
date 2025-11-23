@@ -14,6 +14,7 @@ struct SettingsFeatureTests {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { _ in preferences },
             observe: {
                 AsyncStream { continuation in
@@ -36,6 +37,7 @@ struct SettingsFeatureTests {
             $0.isLoading = false
             $0.pollingIntervalSeconds = preferences.pollingInterval
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            $0.isTelemetryEnabled = preferences.isTelemetryEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.persistedPreferences = preferences
         }
@@ -57,6 +59,7 @@ struct SettingsFeatureTests {
                 return updated
             },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { _ in preferences },
             observe: {
                 AsyncStream { cont in
@@ -86,6 +89,7 @@ struct SettingsFeatureTests {
 
         await store.receive(.preferencesResponse(.success(expectedPreferences))) {
             $0.pollingIntervalSeconds = targetInterval
+            $0.isTelemetryEnabled = expectedPreferences.isTelemetryEnabled
             $0.persistedPreferences = expectedPreferences
         }
 
@@ -104,6 +108,7 @@ struct SettingsFeatureTests {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { limits in
                 limitsRecorder.withValue { $0.append(limits) }
                 var updated = preferences
@@ -141,6 +146,7 @@ struct SettingsFeatureTests {
         updatedPreferences.defaultSpeedLimits = downloadOnly
         await store.receive(.preferencesResponse(.success(updatedPreferences))) {
             $0.defaultSpeedLimits = downloadOnly
+            $0.isTelemetryEnabled = updatedPreferences.isTelemetryEnabled
             $0.persistedPreferences = updatedPreferences
         }
 
@@ -155,10 +161,64 @@ struct SettingsFeatureTests {
         updatedPreferences.defaultSpeedLimits = bothLimits
         await store.receive(.preferencesResponse(.success(updatedPreferences))) {
             $0.defaultSpeedLimits = bothLimits
+            $0.isTelemetryEnabled = updatedPreferences.isTelemetryEnabled
             $0.persistedPreferences = updatedPreferences
         }
 
         #expect(limitsRecorder.value == [downloadOnly, bothLimits])
+    }
+
+    @Test("переключатель телеметрии сохраняет значение")
+    func telemetryToggleSavesPreference() async {
+        let preferences = DomainFixtures.userPreferences
+        let toggleRecorder = LockedValue<[Bool]>([])
+        let continuationBox = PreferencesContinuationBox()
+
+        let repository = UserPreferencesRepository(
+            load: { preferences },
+            updatePollingInterval: { _ in preferences },
+            setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { isEnabled in
+                toggleRecorder.withValue { $0.append(isEnabled) }
+                var updated = preferences
+                updated.isTelemetryEnabled = isEnabled
+                await continuationBox.yield(updated)
+                return updated
+            },
+            updateDefaultSpeedLimits: { _ in preferences },
+            observe: {
+                AsyncStream { cont in
+                    Task {
+                        await continuationBox.set(cont)
+                    }
+                }
+            }
+        )
+
+        let store = TestStore(
+            initialState: SettingsReducer.State(isLoading: false)
+        ) {
+            SettingsReducer()
+        } withDependencies: {
+            $0.userPreferencesRepository = repository
+        }
+        store.exhaustivity = .off
+
+        await store.send(.telemetryToggled(true)) {
+            $0.isTelemetryEnabled = true
+        }
+
+        var expected = preferences
+        expected.isTelemetryEnabled = true
+
+        await store.receive(.preferencesResponse(.success(expected))) {
+            $0.isTelemetryEnabled = expected.isTelemetryEnabled
+            $0.persistedPreferences = expected
+        }
+
+        #expect(toggleRecorder.value == [true])
+
+        await continuationBox.finish()
     }
 
     @Test("observe поток обновляет состояние")
@@ -170,6 +230,7 @@ struct SettingsFeatureTests {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { _ in preferences },
             observe: {
                 AsyncStream { cont in
@@ -197,6 +258,7 @@ struct SettingsFeatureTests {
             $0.isLoading = false
             $0.pollingIntervalSeconds = preferences.pollingInterval
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            $0.isTelemetryEnabled = preferences.isTelemetryEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.persistedPreferences = preferences
         }
@@ -213,6 +275,7 @@ struct SettingsFeatureTests {
         await store.receive(.preferencesResponse(.success(updated))) {
             $0.pollingIntervalSeconds = 30
             $0.isAutoRefreshEnabled = false
+            $0.isTelemetryEnabled = updated.isTelemetryEnabled
             $0.defaultSpeedLimits = updated.defaultSpeedLimits
             $0.persistedPreferences = updated
         }
@@ -232,6 +295,7 @@ struct SettingsFeatureTests {
             load: { throw DummyError.failed },
             updatePollingInterval: { _ in throw DummyError.failed },
             setAutoRefreshEnabled: { _ in throw DummyError.failed },
+            setTelemetryEnabled: { _ in throw DummyError.failed },
             updateDefaultSpeedLimits: { _ in throw DummyError.failed },
             observe: {
                 AsyncStream { continuation in
@@ -289,11 +353,53 @@ struct SettingsFeatureTests {
 
         await store.receive(.preferencesResponse(.success(expected))) {
             $0.defaultSpeedLimits = expected.defaultSpeedLimits
+            $0.isTelemetryEnabled = expected.isTelemetryEnabled
             $0.persistedPreferences = expected
         }
 
         let persisted = await preferencesStore.preferences
         #expect(persisted.defaultSpeedLimits == expected.defaultSpeedLimits)
+    }
+
+    @Test("ошибка сохранения телеметрии откатывает состояние")
+    func telemetryToggleFailureRollsBackState() async {
+        var preferences = DomainFixtures.userPreferences
+        preferences.isTelemetryEnabled = true
+        let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
+        await preferencesStore.markFailure(.setTelemetryEnabled)
+
+        let store = TestStoreFactory.makeSettingsTestStore(
+            initialState: loadedState(from: preferences),
+            preferencesStore: preferencesStore
+        )
+
+        let expectedError = InMemoryUserPreferencesRepositoryError.operationFailed(
+            .setTelemetryEnabled)
+
+        await store.send(.telemetryToggled(false)) {
+            $0.isTelemetryEnabled = false
+        }
+
+        await store.receive(.preferencesResponse(.failure(expectedError))) {
+            $0.isLoading = false
+            $0.pollingIntervalSeconds = preferences.pollingInterval
+            $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            $0.isTelemetryEnabled = preferences.isTelemetryEnabled
+            $0.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.persistedPreferences = preferences
+            $0.alert = AlertState {
+                TextState("Не удалось сохранить настройки")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState("Закрыть")
+                }
+            } message: {
+                TextState(expectedError.errorDescription ?? "")
+            }
+        }
+
+        let persisted = await preferencesStore.preferences
+        #expect(persisted.isTelemetryEnabled == true)
     }
 
     @Test("ошибка сохранения откатывает состояние и показывает alert")
@@ -319,6 +425,7 @@ struct SettingsFeatureTests {
             $0.isLoading = false
             $0.pollingIntervalSeconds = preferences.pollingInterval
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            $0.isTelemetryEnabled = preferences.isTelemetryEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.persistedPreferences = preferences
             $0.alert = AlertState {
@@ -342,6 +449,7 @@ private func loadedState(from preferences: UserPreferences) -> SettingsReducer.S
         isLoading: false,
         pollingIntervalSeconds: preferences.pollingInterval,
         isAutoRefreshEnabled: preferences.isAutoRefreshEnabled,
+        isTelemetryEnabled: preferences.isTelemetryEnabled,
         defaultSpeedLimits: preferences.defaultSpeedLimits
     )
     state.persistedPreferences = preferences

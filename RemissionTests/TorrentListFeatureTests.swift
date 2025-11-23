@@ -614,6 +614,7 @@ struct TorrentListFeatureTests {
             load: { basePreferences },
             updatePollingInterval: { _ in basePreferences },
             setAutoRefreshEnabled: { _ in basePreferences },
+            setTelemetryEnabled: { _ in basePreferences },
             updateDefaultSpeedLimits: { _ in basePreferences },
             observe: {
                 AsyncStream { continuation in
@@ -801,6 +802,7 @@ extension UserPreferencesRepository {
             load: { preferences },
             updatePollingInterval: { _ in preferences },
             setAutoRefreshEnabled: { _ in preferences },
+            setTelemetryEnabled: { _ in preferences },
             updateDefaultSpeedLimits: { _ in preferences },
             observe: {
                 AsyncStream { continuation in
@@ -821,6 +823,11 @@ extension UserPreferencesRepository {
             setAutoRefreshEnabled: { isEnabled in
                 var prefs = DomainFixtures.userPreferences
                 prefs.isAutoRefreshEnabled = isEnabled
+                return prefs
+            },
+            setTelemetryEnabled: { isEnabled in
+                var prefs = DomainFixtures.userPreferences
+                prefs.isTelemetryEnabled = isEnabled
                 return prefs
             },
             updateDefaultSpeedLimits: { limits in

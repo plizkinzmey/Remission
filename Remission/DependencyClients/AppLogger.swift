@@ -106,7 +106,9 @@ public struct AppLogger: @unchecked Sendable {
 }
 
 extension AppLogger {
+    /// Live logger that outputs to the configured `LoggingSystem`.
     public static let liveValue: AppLogger = AppLogger()
+    /// No-op logger for tests and previews.
     public static let noop: AppLogger = AppLogger(
         logger: Logger(label: "app.remission.noop") { _ in SwiftLogNoOpLogHandler() },
         label: "app.remission",

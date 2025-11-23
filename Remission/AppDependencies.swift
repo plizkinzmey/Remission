@@ -127,6 +127,7 @@ enum AppDependencies {
                 preferences: UserPreferences(
                     pollingInterval: 2,
                     isAutoRefreshEnabled: true,
+                    isTelemetryEnabled: false,
                     defaultSpeedLimits: .init(
                         downloadKilobytesPerSecond: nil,
                         uploadKilobytesPerSecond: nil
