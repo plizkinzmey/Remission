@@ -1,68 +1,198 @@
 import Foundation
 
+public enum TransmissionLogLevel: String, Sendable {
+    case debug
+    case info
+    case warning
+    case error
+}
+
+public struct TransmissionLogContext: Sendable, Equatable {
+    public var serverID: UUID?
+    public var host: String?
+    public var path: String?
+    public var method: String?
+    public var statusCode: Int?
+    public var durationMs: Double?
+    public var retryAttempt: Int?
+    public var maxRetries: Int?
+
+    public init(
+        serverID: UUID? = nil,
+        host: String? = nil,
+        path: String? = nil,
+        method: String? = nil,
+        statusCode: Int? = nil,
+        durationMs: Double? = nil,
+        retryAttempt: Int? = nil,
+        maxRetries: Int? = nil
+    ) {
+        self.serverID = serverID
+        self.host = host
+        self.path = path
+        self.method = method
+        self.statusCode = statusCode
+        self.durationMs = durationMs
+        self.retryAttempt = retryAttempt
+        self.maxRetries = maxRetries
+    }
+
+    func merging(_ other: TransmissionLogContext) -> TransmissionLogContext {
+        TransmissionLogContext(
+            serverID: other.serverID ?? serverID,
+            host: other.host ?? host,
+            path: other.path ?? path,
+            method: other.method ?? method,
+            statusCode: other.statusCode ?? statusCode,
+            durationMs: other.durationMs ?? durationMs,
+            retryAttempt: other.retryAttempt ?? retryAttempt,
+            maxRetries: other.maxRetries ?? maxRetries
+        )
+    }
+
+    func maskedServerID() -> String {
+        guard let id = serverID else { return "<unknown>" }
+        return String(id.uuidString.prefix(8))
+    }
+
+    func metadata() -> [String: String] {
+        var result: [String: String] = [:]
+        if let host {
+            result["host"] = host
+        }
+        if let path {
+            result["path"] = path
+        }
+        if let method {
+            result["method"] = method
+        }
+        if let statusCode {
+            result["status"] = "\(statusCode)"
+        }
+        if let durationMs {
+            let rounded = Int(durationMs.rounded())
+            result["elapsed_ms"] = "\(rounded)"
+        }
+        if let retryAttempt {
+            result["retry_attempt"] = "\(retryAttempt)"
+        }
+        if let maxRetries {
+            result["max_retries"] = "\(maxRetries)"
+        }
+        result["server"] = maskedServerID()
+        return result
+    }
+}
+
 /// Протокол для логирования запросов/ответов Transmission RPC.
 /// Реализует безопасное логирование с маскированием чувствительных данных.
 public protocol TransmissionLogger: Sendable {
-    /// Залогировать исходящий RPC запрос.
-    /// - Parameters:
-    ///   - method: Имя RPC метода (например, "torrent-get").
-    ///   - request: URLRequest с заголовками и телом.
-    func logRequest(method: String, request: URLRequest)
+    func logRequest(
+        method: String,
+        request: URLRequest,
+        context: TransmissionLogContext
+    )
 
-    /// Залогировать входящий RPC ответ.
-    /// - Parameters:
-    ///   - method: Имя RPC метода.
-    ///   - statusCode: HTTP статус код.
-    ///   - responseBody: Тело ответа (сырой JSON).
-    func logResponse(method: String, statusCode: Int, responseBody: Data)
+    func logResponse(
+        method: String,
+        statusCode: Int,
+        responseBody: Data,
+        context: TransmissionLogContext
+    )
 
-    /// Залогировать ошибку сети или RPC.
-    /// - Parameters:
-    ///   - method: Имя RPC метода.
-    ///   - error: Объект ошибки.
-    func logError(method: String, error: Error)
+    func logError(
+        method: String,
+        error: Error,
+        context: TransmissionLogContext
+    )
 }
 
-/// Стандартная реализация логирования в консоль.
-/// Маскирует Authorization заголовки и X-Transmission-Session-Id.
-/// Потокобезопасна и не требует главного потока.
+/// Стандартная реализация логирования.
+/// Маскирует Authorization заголовки и X-Transmission-Session-Id, не раскрывает содержимое JSON,
+/// усекает слишком длинные данные. Потокобезопасна и не требует главного потока.
 public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
+    private let appLogger: AppLogger?
     /// Функция логирования (по умолчанию print).
     private let logFn: @Sendable (String) -> Void
+    private let baseContext: TransmissionLogContext
 
     /// Инициализация с пользовательской функцией логирования.
-    /// - Parameter logFn: Функция для вывода логов (по умолчанию print).
-    public init(logFn: @escaping @Sendable (String) -> Void = { print($0) }) {
+    /// - Parameters:
+    ///   - appLogger: Опциональный AppLogger для единообразных уровней.
+    ///   - baseContext: Базовый контекст (server/host/path), дополняется контекстом вызова.
+    ///   - logFn: Функция для вывода логов (по умолчанию print).
+    public init(
+        appLogger: AppLogger? = nil,
+        baseContext: TransmissionLogContext = .init(),
+        logFn: @escaping @Sendable (String) -> Void = { print($0) }
+    ) {
+        self.appLogger = appLogger
+        self.baseContext = baseContext
         self.logFn = logFn
     }
 
-    public func logRequest(method: String, request: URLRequest) {
+    public func logRequest(
+        method: String,
+        request: URLRequest,
+        context: TransmissionLogContext
+    ) {
+        let mergedContext = baseContext.merging(context)
         let maskedRequest: URLRequest = maskRequest(request)
         let headers: String = formatHeaders(maskedRequest.allHTTPHeaderFields ?? [:])
-        logFn(
-            "🔵 [TransmissionClient] Request: \(method)\n"
-                + "   URL: \(maskedRequest.url?.absoluteString ?? "<no-url>")\n"
-                + "   Headers: \(headers)"
-        )
+        let urlDescription: String = maskedRequest.url?.absoluteString ?? "<no-url>"
+        let message =
+            "[debug] [Transmission] request method=\(method) url=\(urlDescription) headers=\(headers) meta=\(formatMetadata(mergedContext))"
+        emit(level: .debug, message: message, metadata: mergedContext.metadata())
     }
 
-    public func logResponse(method: String, statusCode: Int, responseBody: Data) {
+    public func logResponse(
+        method: String,
+        statusCode: Int,
+        responseBody: Data,
+        context: TransmissionLogContext
+    ) {
+        let mergedContext = baseContext.merging(context)
         let bodySummary: String = sanitizeResponseBody(responseBody)
-        let statusEmoji: String = (200...299).contains(statusCode) ? "✅" : "⚠️"
-        logFn(
-            "\(statusEmoji) [TransmissionClient] Response: \(method)\n"
-                + "   Status: \(statusCode)\n"
-                + "   Body: \(bodySummary)"
-        )
+        let level: TransmissionLogLevel = (200...299).contains(statusCode) ? .info : .warning
+        let message =
+            "[\(level.rawValue)] [Transmission] response method=\(method) status=\(statusCode) body=\(bodySummary) meta=\(formatMetadata(mergedContext))"
+        emit(level: level, message: message, metadata: mergedContext.metadata())
     }
 
-    public func logError(method: String, error: Error) {
-        logFn(
-            "❌ [TransmissionClient] Error in \(method): \(error.localizedDescription)"
-        )
+    public func logError(
+        method: String,
+        error: Error,
+        context: TransmissionLogContext
+    ) {
+        let mergedContext = baseContext.merging(context)
+        let errorDescription = safeErrorDescription(error)
+        let message =
+            "[error] [Transmission] error method=\(method) message=\(errorDescription) meta=\(formatMetadata(mergedContext))"
+        emit(level: .error, message: message, metadata: mergedContext.metadata())
     }
 
     // MARK: - Private Helpers
+
+    private func emit(
+        level: TransmissionLogLevel,
+        message: String,
+        metadata: [String: String]
+    ) {
+        if let appLogger {
+            switch level {
+            case .debug:
+                appLogger.debug(message, metadata: metadata)
+            case .info:
+                appLogger.info(message, metadata: metadata)
+            case .warning:
+                appLogger.warning(message, metadata: metadata)
+            case .error:
+                appLogger.error(message, metadata: metadata)
+            }
+        } else {
+            logFn(message)
+        }
+    }
 
     /// Замаскировать чувствительные заголовки в запросе.
     private func maskRequest(_ request: URLRequest) -> URLRequest {
@@ -84,11 +214,8 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
     /// Входящий формат: "Basic <base64(username:password)>"
     /// Выходящий формат: "Basic <first-3-chars>..."
     private func maskAuthHeader(_ authHeader: String) -> String {
-        // Обрабатываем как "Basic <credentials>" (без чувствительного раскрытия)
-        // Если формат другой — возвращаем укороченную версию для безопасности.
         let lower: String = authHeader.lowercased()
         guard lower.hasPrefix("basic ") else {
-            // Для других схем показываем только первые 6/последние 2 символа
             let visiblePrefix: String = String(authHeader.prefix(6))
             let visibleSuffix: String = String(authHeader.suffix(2))
             return "\(visiblePrefix)...\(visibleSuffix)"
@@ -103,7 +230,6 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         let scheme: String = String(components[0])  // "Basic"
         let credentials: String = String(components[1])
 
-        // Показываем первые 4 и последние 4 символа base64 строки, если длина позволяет
         if credentials.count <= 8 {
             return "\(scheme) ..."
         }
@@ -198,15 +324,37 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         let prefix: Substring = string.prefix(maxLength)
         return String(prefix) + "... (truncated)"
     }
+
+    private func formatMetadata(_ context: TransmissionLogContext) -> String {
+        let elements: [String] = context.metadata()
+            .sorted { $0.key < $1.key }
+            .map { "\($0.key)=\($0.value)" }
+        return elements.isEmpty ? "<none>" : elements.joined(separator: " ")
+    }
+
+    private func safeErrorDescription(_ error: Error) -> String {
+        let description = String(describing: error)
+        return truncateIfNeeded(
+            description.replacingOccurrences(of: "\n", with: " "), maxLength: 180)
+    }
 }
 
 /// Нейтральная реализация логирования (ничего не логирует).
 public final class NoOpTransmissionLogger: TransmissionLogger, Sendable {
     public static let shared: NoOpTransmissionLogger = NoOpTransmissionLogger()
 
-    public func logRequest(method: String, request: URLRequest) {}
+    public func logRequest(
+        method: String,
+        request: URLRequest,
+        context: TransmissionLogContext
+    ) {}
 
-    public func logResponse(method: String, statusCode: Int, responseBody: Data) {}
+    public func logResponse(
+        method: String,
+        statusCode: Int,
+        responseBody: Data,
+        context: TransmissionLogContext
+    ) {}
 
-    public func logError(method: String, error: Error) {}
+    public func logError(method: String, error: Error, context: TransmissionLogContext) {}
 }

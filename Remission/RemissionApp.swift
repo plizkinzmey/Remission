@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import Foundation
-import OSLog
 import SwiftUI
 
 /// Временная фабрика конфигурации TransmissionClient. До появления onboarding
@@ -45,10 +44,7 @@ struct RemissionApp: App {
 }
 
 extension TransmissionClientBootstrap {
-    private static let logger: Logger = Logger(
-        subsystem: "app.remission.bootstrap",
-        category: "TransmissionClient"
-    )
+    private static let logger: AppLogger = AppLogger(label: "app.remission", category: "bootstrap")
 
     static func makeLiveDependency(
         dependencies: DependencyValues
@@ -56,7 +52,8 @@ extension TransmissionClientBootstrap {
         logger.debug("Начало инициализации live dependency TransmissionClient.")
         guard
             let config = makeConfig(
-                credentialsStore: dependencies.keychainCredentials
+                credentialsStore: dependencies.keychainCredentials,
+                appLogger: dependencies.appLogger.withCategory("bootstrap.transmission")
             )
         else {
             logger.warning("Конфигурация TransmissionClient недоступна, используем placeholder.")
@@ -70,14 +67,13 @@ extension TransmissionClientBootstrap {
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
         #endif
         let dependency = TransmissionClientDependency.live(client: client)
-        logger.debug(
-            "Успешно создан live dependency TransmissionClient для \(config.baseURL, privacy: .public)."
-        )
+        logger.debug("Успешно создан live dependency TransmissionClient для \(config.baseURL)")
         return dependency
     }
 
     static func makeConfig(
         credentialsStore: KeychainCredentialsDependency,
+        appLogger: AppLogger,
         fileURL: URL = ServerConfigStoragePaths.defaultURL()
     ) -> TransmissionClientConfig? {
         let records = ServerConfigStoragePaths.loadSnapshot(fileURL: fileURL)
@@ -102,10 +98,18 @@ extension TransmissionClientBootstrap {
             }
         }()
 
+        let loggerContext = TransmissionLogContext(
+            serverID: server.id,
+            host: server.connection.host,
+            path: server.connection.path
+        )
         return server.makeTransmissionClientConfig(
             password: password,
             network: .default,
-            logger: DefaultTransmissionLogger()
+            logger: DefaultTransmissionLogger(
+                appLogger: appLogger,
+                baseContext: loggerContext
+            )
         )
     }
 

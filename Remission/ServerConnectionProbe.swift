@@ -1,5 +1,4 @@
 import Foundation
-import OSLog
 
 #if canImport(ComposableArchitecture)
     import ComposableArchitecture
@@ -31,7 +30,10 @@ struct ServerConnectionProbe: Sendable {
 
 #if canImport(ComposableArchitecture)
     extension ServerConnectionProbe: DependencyKey {
-        static let liveValue: ServerConnectionProbe = .live()
+        static var liveValue: ServerConnectionProbe {
+            @Dependency(\.appLogger) var appLogger
+            return .live(appLogger: appLogger)
+        }
         static let previewValue: ServerConnectionProbe = .placeholder
         static let testValue: ServerConnectionProbe = .placeholder
     }
@@ -58,16 +60,20 @@ extension ServerConnectionProbe {
 
     static func live(
         clock: any Clock<Duration> = ContinuousClock(),
-        logger: TransmissionLogger = {
-            let osLogger = Logger(subsystem: "app.remission.connection", category: "probe")
-            return DefaultTransmissionLogger { message in
-                osLogger.error("\(message, privacy: .public)")
-            }
-        }(),
+        appLogger: AppLogger = .noop,
         maxAttempts: Int = 3,
         initialDelay: Duration = .seconds(1)
     ) -> ServerConnectionProbe {
         ServerConnectionProbe { request, trustHandler in
+            let context = TransmissionLogContext(
+                serverID: request.server.id,
+                host: request.server.connection.host,
+                path: request.server.connection.path
+            )
+            let logger = DefaultTransmissionLogger(
+                appLogger: appLogger.withCategory("connection.probe"),
+                baseContext: context
+            )
             let client = TransmissionClient(
                 config: request.server.makeTransmissionClientConfig(
                     password: request.password,
@@ -79,7 +85,9 @@ extension ServerConnectionProbe {
                     ),
                     logger: logger
                 ),
-                clock: clock
+                clock: clock,
+                appLogger: appLogger.withCategory("connection.probe"),
+                baseLogContext: context
             )
             if let trustHandler {
                 client.setTrustDecisionHandler(trustHandler)
@@ -94,7 +102,11 @@ extension ServerConnectionProbe {
                     return Result(handshake: handshake)
                 } catch {
                     attempt += 1
-                    logger.logError(method: "session-get", error: error)
+                    logger.logError(
+                        method: "session-get",
+                        error: error,
+                        context: context.merging(.init(method: "session-get"))
+                    )
 
                     guard attempt < maxAttempts else {
                         throw ProbeError.handshakeFailed(error.localizedDescription)

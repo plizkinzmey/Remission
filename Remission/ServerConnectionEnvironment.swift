@@ -45,6 +45,7 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
         @Dependency(\.credentialsRepository) var credentialsRepository
         @Dependency(\.appClock) var appClock
         @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
+        @Dependency(\.appLogger) var appLogger
 
         return Self { server in
             let password = try await loadPassword(
@@ -52,12 +53,26 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                 credentialsRepository: credentialsRepository
             )
 
+            let loggerContext = TransmissionLogContext(
+                serverID: server.id,
+                host: server.connection.host,
+                path: server.connection.path
+            )
+            let safeLogger = DefaultTransmissionLogger(
+                appLogger: appLogger.withCategory("transmission"),
+                baseContext: loggerContext
+            )
             let config = server.makeTransmissionClientConfig(
                 password: password,
                 network: .default,
-                logger: DefaultTransmissionLogger()
+                logger: safeLogger
             )
-            let client = TransmissionClient(config: config, clock: appClock.clock())
+            let client = TransmissionClient(
+                config: config,
+                clock: appClock.clock(),
+                appLogger: appLogger.withCategory("transmission"),
+                baseLogContext: loggerContext
+            )
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
 
             let dependency = TransmissionClientDependency.live(client: client)

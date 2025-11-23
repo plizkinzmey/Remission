@@ -37,17 +37,21 @@ struct TransmissionLoggerTests {
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("Basic dXNlcjpwYXNzd29yZA==", forHTTPHeaderField: "Authorization")
 
-        logger.logRequest(method: "torrent-get", request: request)
+        logger.logRequest(
+            method: "torrent-get",
+            request: request,
+            context: .init(serverID: UUID(), host: "localhost")
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
-        #expect(logMessage.contains("🔵"))
+        #expect(logMessage.contains("[debug]"))
         #expect(logMessage.contains("torrent-get"))
-        // Проверяем, что пароль замаскирован
         #expect(!logMessage.contains("dXNlcjpwYXNzd29yZA=="))
         #expect(logMessage.contains("Basic "))
         #expect(logMessage.contains("..."))
+        #expect(logMessage.contains("server="))
     }
 
     @Test("DefaultLogger маскирует Session ID")
@@ -60,7 +64,11 @@ struct TransmissionLoggerTests {
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("1a2b3c4d5e6f7g8h9i0j", forHTTPHeaderField: "X-Transmission-Session-Id")
 
-        logger.logRequest(method: "session-get", request: request)
+        logger.logRequest(
+            method: "session-get",
+            request: request,
+            context: .init(host: "localhost")
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
@@ -81,7 +89,11 @@ struct TransmissionLoggerTests {
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("12345", forHTTPHeaderField: "X-Transmission-Session-Id")
 
-        logger.logRequest(method: "session-get", request: request)
+        logger.logRequest(
+            method: "session-get",
+            request: request,
+            context: .init(host: "localhost")
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
@@ -109,12 +121,17 @@ struct TransmissionLoggerTests {
             """.utf8
         )
 
-        logger.logResponse(method: "torrent-get", statusCode: 200, responseBody: responseData)
+        logger.logResponse(
+            method: "torrent-get",
+            statusCode: 200,
+            responseBody: responseData,
+            context: .init(host: "localhost", durationMs: 15)
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
-        #expect(logMessage.contains("✅"))
+        #expect(logMessage.contains("[info]"))
         #expect(logMessage.contains("torrent-get"))
         #expect(logMessage.contains("200"))
         #expect(logMessage.contains("array(count: 0)"))
@@ -138,12 +155,17 @@ struct TransmissionLoggerTests {
             """.utf8
         )
 
-        logger.logResponse(method: "torrent-get", statusCode: 409, responseBody: responseData)
+        logger.logResponse(
+            method: "torrent-get",
+            statusCode: 409,
+            responseBody: responseData,
+            context: .init(host: "localhost", durationMs: 20)
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
-        #expect(logMessage.contains("⚠️"))
+        #expect(logMessage.contains("[warning]"))
         #expect(logMessage.contains("torrent-get"))
         #expect(logMessage.contains("409"))
         #expect(logMessage.contains("<redacted string>"))
@@ -168,7 +190,12 @@ struct TransmissionLoggerTests {
         let responseData = try JSONEncoder().encode(responseDict)
         let originalLength = responseData.count
 
-        logger.logResponse(method: "torrent-get", statusCode: 200, responseBody: responseData)
+        logger.logResponse(
+            method: "torrent-get",
+            statusCode: 200,
+            responseBody: responseData,
+            context: .init(host: "localhost", durationMs: 30)
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
@@ -187,13 +214,18 @@ struct TransmissionLoggerTests {
         }
 
         let testError = APIError.networkUnavailable
-        logger.logError(method: "torrent-get", error: testError)
+        logger.logError(
+            method: "torrent-get",
+            error: testError,
+            context: .init(host: "localhost")
+        )
 
         let loggedMessages = store.all()
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
-        #expect(logMessage.contains("❌"))
+        #expect(logMessage.contains("[error]"))
         #expect(logMessage.contains("torrent-get"))
+        #expect(logMessage.contains("networkUnavailable"))
     }
 
     // MARK: - NoOpLogger Tests
@@ -206,9 +238,18 @@ struct TransmissionLoggerTests {
         request.setValue("Basic test", forHTTPHeaderField: "Authorization")
 
         // Эти вызовы не должны вызвать никаких эффектов или ошибок
-        logger.logRequest(method: "torrent-get", request: request)
-        logger.logResponse(method: "torrent-get", statusCode: 200, responseBody: Data())
-        logger.logError(method: "torrent-get", error: APIError.networkUnavailable)
+        logger.logRequest(method: "torrent-get", request: request, context: .init())
+        logger.logResponse(
+            method: "torrent-get",
+            statusCode: 200,
+            responseBody: Data(),
+            context: .init()
+        )
+        logger.logError(
+            method: "torrent-get",
+            error: APIError.networkUnavailable,
+            context: .init()
+        )
 
         // Если не было ошибок, тест пройден
         #expect(true)
@@ -245,9 +286,48 @@ struct TransmissionLoggerTests {
         // Проверяем, что кастомный логгер работает
         var request = URLRequest(url: url)
         request.setValue("Basic test", forHTTPHeaderField: "Authorization")
-        config.logger.logRequest(method: "test", request: request)
+        config.logger.logRequest(
+            method: "test",
+            request: request,
+            context: .init(host: "localhost")
+        )
         let loggedMessages = store.all()
         #expect(!loggedMessages.isEmpty)
+    }
+
+    @Test("DefaultLogger добавляет контекст и тайминги")
+    func testDefaultLoggerAddsContextAndTiming() throws {
+        let store = LogStore()
+        let serverID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
+        let logger = DefaultTransmissionLogger(
+            baseContext: .init(serverID: serverID, host: "seedbox.example.com")
+        ) { message in
+            store.append(message)
+        }
+
+        let responseData: Data = Data(
+            """
+            {
+              "result": "success",
+              "arguments": {"torrents": []}
+            }
+            """.utf8
+        )
+
+        logger.logResponse(
+            method: "torrent-get",
+            statusCode: 200,
+            responseBody: responseData,
+            context: .init(durationMs: 42)
+        )
+
+        let loggedMessages = store.all()
+        #expect(loggedMessages.count == 1)
+        let logMessage = loggedMessages[0]
+        #expect(logMessage.contains("seedbox.example.com"))
+        #expect(logMessage.contains("elapsed_ms"))
+        #expect(logMessage.contains("server=AAAAAAAA"))  // masked prefix
+        #expect(logMessage.contains("[info]"))
     }
 }
 // swiftlint:enable explicit_type_interface

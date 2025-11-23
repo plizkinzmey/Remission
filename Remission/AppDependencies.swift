@@ -191,6 +191,7 @@ extension DependencyValues {
     static func appPreview() -> DependencyValues {
         var dependencies = DependencyValues()
         dependencies.useAppDefaults()
+        dependencies.appLogger = .noop
         dependencies.appClock = .placeholder
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder
@@ -205,6 +206,7 @@ extension DependencyValues {
     static func appTest() -> DependencyValues {
         var dependencies = DependencyValues()
         dependencies.useAppDefaults()
+        dependencies.appLogger = .noop
         dependencies.appClock = .placeholder
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder
@@ -221,6 +223,7 @@ extension DependencyValues {
         mainQueueExecutor = MainQueueDependency.liveValue
         dateProvider = DateProviderDependency.liveValue
         uuidGenerator = UUIDGeneratorDependency.liveValue
+        appLogger = AppLogger.liveValue
     }
 }
 
