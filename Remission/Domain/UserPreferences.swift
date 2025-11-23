@@ -3,7 +3,7 @@ import Foundation
 /// Пользовательские настройки приложения Remission.
 /// Хранят значения, влияющие на периодичность обновлений и дефолтные лимиты скоростей.
 struct UserPreferences: Equatable, Sendable, Codable {
-    static let currentVersion: Int = 1
+    static let currentVersion: Int = 2
 
     struct DefaultSpeedLimits: Equatable, Sendable, Codable {
         /// Значение лимита скачивания в КБ/с. `nil` означает отсутствие ограничения.
@@ -26,6 +26,8 @@ struct UserPreferences: Equatable, Sendable, Codable {
     var pollingInterval: TimeInterval
     /// Автоматическое обновление при запуске приложения.
     var isAutoRefreshEnabled: Bool
+    /// Явное согласие пользователя на отправку телеметрии.
+    var isTelemetryEnabled: Bool
     /// Дефолтные лимиты скоростей, применяемые при добавлении торрентов.
     var defaultSpeedLimits: DefaultSpeedLimits
 
@@ -33,18 +35,21 @@ struct UserPreferences: Equatable, Sendable, Codable {
         case version
         case pollingInterval
         case isAutoRefreshEnabled
+        case isTelemetryEnabled
         case defaultSpeedLimits
     }
 
     public init(
         pollingInterval: TimeInterval,
         isAutoRefreshEnabled: Bool,
+        isTelemetryEnabled: Bool,
         defaultSpeedLimits: DefaultSpeedLimits,
         version: Int = UserPreferences.currentVersion
     ) {
         self.version = version
         self.pollingInterval = pollingInterval
         self.isAutoRefreshEnabled = isAutoRefreshEnabled
+        self.isTelemetryEnabled = isTelemetryEnabled
         self.defaultSpeedLimits = defaultSpeedLimits
     }
 
@@ -56,6 +61,8 @@ struct UserPreferences: Equatable, Sendable, Codable {
         self.version = version
         self.pollingInterval = try container.decode(TimeInterval.self, forKey: .pollingInterval)
         self.isAutoRefreshEnabled = try container.decode(Bool.self, forKey: .isAutoRefreshEnabled)
+        self.isTelemetryEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .isTelemetryEnabled) ?? false
         self.defaultSpeedLimits = try container.decode(
             DefaultSpeedLimits.self,
             forKey: .defaultSpeedLimits
@@ -68,6 +75,7 @@ extension UserPreferences {
     static let `default`: UserPreferences = .init(
         pollingInterval: 5,
         isAutoRefreshEnabled: true,
+        isTelemetryEnabled: false,
         defaultSpeedLimits: .init(
             downloadKilobytesPerSecond: nil,
             uploadKilobytesPerSecond: nil

@@ -21,6 +21,28 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
 
+                Section("Телеметрия") {
+                    Toggle(
+                        "Отправлять анонимную телеметрию",
+                        isOn: Binding(
+                            get: { store.isTelemetryEnabled },
+                            set: { store.send(.telemetryToggled($0)) }
+                        )
+                    )
+                    .accessibilityIdentifier("settings_telemetry_toggle")
+
+                    Text("По умолчанию выключено. Включите, чтобы помочь улучшить Remission.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    if let policyURL {
+                        Link("Политика конфиденциальности", destination: policyURL)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("settings_telemetry_policy_link")
+                    }
+                }
+
                 Section("Интервал опроса") {
                     VStack(alignment: .leading, spacing: 12) {
                         Slider(
@@ -113,6 +135,10 @@ struct SettingsView: View {
     private var intervalLabel: String {
         let seconds = Int(store.pollingIntervalSeconds.rounded())
         return "\(seconds) сек."
+    }
+
+    private var policyURL: URL? {
+        URL(string: "https://remission.app/privacy")
     }
 
     private func limitText(_ value: Int?) -> String {

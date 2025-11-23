@@ -271,6 +271,47 @@ final class RemissionUITests: XCTestCase {
     }
 
     @MainActor
+    func testTelemetryTogglePersistsAcrossLaunches() {
+        let suiteName = "ui-telemetry-consent"
+        let app = launchApp(
+            environment: [
+                "UI_TESTING_PREFERENCES_SUITE": suiteName,
+                "UI_TESTING_RESET_PREFERENCES": "1"
+            ]
+        )
+        var controls = openSettingsControls(app)
+        waitForSettingsLoaded(app)
+
+        let defaultValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
+        XCTAssertFalse(
+            ["1", "on", "true"].contains(defaultValue),
+            "Telemetry should be disabled by default"
+        )
+        XCTAssertTrue(
+            controls.telemetryPolicyLink.exists,
+            "Telemetry policy link should be visible"
+        )
+
+        controls.telemetryToggle.tap()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        controls.closeButton.tap()
+
+        let relaunched = launchApp(
+            environment: [
+                "UI_TESTING_PREFERENCES_SUITE": suiteName
+            ]
+        )
+        controls = openSettingsControls(relaunched)
+        waitForSettingsLoaded(relaunched)
+
+        let persistedValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
+        XCTAssertTrue(
+            ["1", "on", "true"].contains(persistedValue),
+            "Telemetry consent did not persist after relaunch"
+        )
+    }
+
+    @MainActor
     func testSettingsScreenShowsControlsAndAllowsEditing() {
         let suiteName = "ui-settings-smoke"
         let app = launchApp(
@@ -554,6 +595,16 @@ final class RemissionUITests: XCTestCase {
         let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
         XCTAssertTrue(autoRefreshToggle.waitForExistence(timeout: 5), "Auto-refresh toggle missing")
 
+        let telemetryToggle = app.descendants(matching: .any)["settings_telemetry_toggle"]
+        XCTAssertTrue(telemetryToggle.waitForExistence(timeout: 5), "Telemetry toggle missing")
+
+        let telemetryPolicyLink =
+            app.descendants(matching: .any)["settings_telemetry_policy_link"]
+        XCTAssertTrue(
+            telemetryPolicyLink.waitForExistence(timeout: 5),
+            "Telemetry policy link missing"
+        )
+
         let pollingSlider = app.sliders["settings_polling_slider"]
         XCTAssertTrue(pollingSlider.waitForExistence(timeout: 5), "Polling slider missing")
 
@@ -571,6 +622,8 @@ final class RemissionUITests: XCTestCase {
 
         return SettingsControls(
             autoRefreshToggle: autoRefreshToggle,
+            telemetryToggle: telemetryToggle,
+            telemetryPolicyLink: telemetryPolicyLink,
             pollingSlider: pollingSlider,
             pollingValue: pollingValue,
             downloadField: downloadField,
@@ -774,6 +827,8 @@ final class RemissionUITests: XCTestCase {
 
 private struct SettingsControls {
     let autoRefreshToggle: XCUIElement
+    let telemetryToggle: XCUIElement
+    let telemetryPolicyLink: XCUIElement
     let pollingSlider: XCUIElement
     let pollingValue: XCUIElement
     let downloadField: XCUIElement

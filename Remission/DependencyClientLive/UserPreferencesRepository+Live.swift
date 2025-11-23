@@ -31,6 +31,11 @@ extension UserPreferencesRepository {
                     preferences.isAutoRefreshEnabled = isEnabled
                 }
             },
+            setTelemetryEnabled: { isEnabled in
+                try await store.update { preferences in
+                    preferences.isTelemetryEnabled = isEnabled
+                }
+            },
             updateDefaultSpeedLimits: { limits in
                 try await store.update { preferences in
                     preferences.defaultSpeedLimits = limits
@@ -118,11 +123,38 @@ actor PersistentUserPreferencesStore {
             return .default
         }
         do {
-            return try JSONDecoder().decode(UserPreferences.self, from: data)
+            let decoded = try JSONDecoder().decode(UserPreferences.self, from: data)
+            return migrate(decoded, defaults: defaults)
         } catch {
             defaults.remove(StorageKey.preferences)
             return .default
         }
+    }
+
+    private static func migrate(
+        _ preferences: UserPreferences,
+        defaults: PreferencesUserDefaultsBox
+    ) -> UserPreferences {
+        var migrated = preferences
+        var didMigrate = false
+
+        if migrated.version < UserPreferences.currentVersion {
+            migrated.isTelemetryEnabled = false
+            migrated.version = UserPreferences.currentVersion
+            didMigrate = true
+        }
+
+        if didMigrate {
+            do {
+                let data = try JSONEncoder().encode(migrated)
+                defaults.set(data, forKey: StorageKey.preferences)
+            } catch {
+                defaults.remove(StorageKey.preferences)
+                return .default
+            }
+        }
+
+        return migrated
     }
 }
 

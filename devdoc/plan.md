@@ -1413,6 +1413,24 @@ return .run { [repository, clock = appClock.clock()] send in
 - M10.1 Интегрировать `swift-log` (Swift.org official) с согласованными уровнями логирования (debug, info, warning, error) через @Dependency Logger.
 - M10.2 Сохранять сетевые и RPC-ошибки с контекстной метаинформацией. **КРИТИЧЕСКИ**: никогда не логировать пароли, usernames, токены или sensitive данные.
 - M10.3 Добавить опциональный переключатель отправки телеметрии (по умолчанию отключен) в настройках с явным согласием пользователя.
+  - Использовать `TelemetryConsentDependency` для гейта телеметрических отправок:
+    ```swift
+    @Dependency(\.telemetryConsent) var telemetryConsent
+    @Dependency(\.appLogger) var logger
+
+    func send(event: TelemetryEvent) async {
+        guard (try? await telemetryConsent.isTelemetryEnabled()) == true else {
+            logger.debug("Telemetry disabled, skip \(event.name)")
+            return
+        }
+        await emitter.send(event)
+    }
+
+    func observeConsentChanges() -> AsyncStream<Bool> {
+        telemetryConsent.observeTelemetryEnabled()
+    }
+    ```
+  - Миграции `UserPreferences` ставят `isTelemetryEnabled = false` по умолчанию; все отправки должны проверять флаг.
 - M10.4 Подготовить гайд по чтению логов и диагностике для пользователей в документации.
 - M10.5 Добавить экран диагностики в UI для просмотра последних логов (для разработчиков и support).
 - Проверка: модульные тесты форматирования логов с использованием Swift Testing @Test и ручная проверка поведения переключателя. Убедиться, что credentials никогда не логируются.

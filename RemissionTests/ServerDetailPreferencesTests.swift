@@ -38,6 +38,12 @@ struct ServerDetailPreferencesTests {
                 preferencesBox.set(updated)
                 return updated
             },
+            setTelemetryEnabled: { isEnabled in
+                var updated = preferencesBox.value
+                updated.isTelemetryEnabled = isEnabled
+                preferencesBox.set(updated)
+                return updated
+            },
             updateDefaultSpeedLimits: { limits in
                 var updated = preferencesBox.value
                 updated.defaultSpeedLimits = limits

@@ -419,6 +419,7 @@ actor InMemoryUserPreferencesRepositoryStore {
         case load
         case updatePollingInterval
         case setAutoRefreshEnabled
+        case setTelemetryEnabled
         case updateDefaultSpeedLimits
     }
 
@@ -508,6 +509,18 @@ extension UserPreferencesRepository {
                 }
                 await store.update {
                     $0.isAutoRefreshEnabled = isEnabled
+                    $0.version = UserPreferences.currentVersion
+                }
+                await store.notifyObservers()
+                return await store.preferences
+            },
+            setTelemetryEnabled: { isEnabled in
+                if await store.shouldFail(.setTelemetryEnabled) {
+                    throw InMemoryUserPreferencesRepositoryError.operationFailed(
+                        .setTelemetryEnabled)
+                }
+                await store.update {
+                    $0.isTelemetryEnabled = isEnabled
                     $0.version = UserPreferences.currentVersion
                 }
                 await store.notifyObservers()

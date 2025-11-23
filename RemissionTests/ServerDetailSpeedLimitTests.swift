@@ -17,6 +17,7 @@ struct ServerDetailSpeedLimitTests {
         let preferences = UserPreferences(
             pollingInterval: 5,
             isAutoRefreshEnabled: true,
+            isTelemetryEnabled: false,
             defaultSpeedLimits: limits
         )
 
@@ -85,6 +86,7 @@ struct ServerDetailSpeedLimitTests {
         let initialPreferences = UserPreferences(
             pollingInterval: 5,
             isAutoRefreshEnabled: true,
+            isTelemetryEnabled: false,
             defaultSpeedLimits: .init(
                 downloadKilobytesPerSecond: nil,
                 uploadKilobytesPerSecond: nil
@@ -94,6 +96,7 @@ struct ServerDetailSpeedLimitTests {
         let updatedPreferences = UserPreferences(
             pollingInterval: 5,
             isAutoRefreshEnabled: true,
+            isTelemetryEnabled: false,
             defaultSpeedLimits: .init(
                 downloadKilobytesPerSecond: 2048,
                 uploadKilobytesPerSecond: 512
@@ -114,6 +117,12 @@ struct ServerDetailSpeedLimitTests {
             setAutoRefreshEnabled: { isEnabled in
                 var updated = preferencesBox.value
                 updated.isAutoRefreshEnabled = isEnabled
+                preferencesBox.set(updated)
+                return updated
+            },
+            setTelemetryEnabled: { isEnabled in
+                var updated = preferencesBox.value
+                updated.isTelemetryEnabled = isEnabled
                 preferencesBox.set(updated)
                 return updated
             },
