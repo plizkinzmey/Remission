@@ -124,6 +124,7 @@ extension ServerConfig {
             requestTimeout: network.requestTimeout,
             maxRetries: network.maxRetries,
             retryDelay: network.retryDelay,
+            serverID: id,
             enableLogging: network.enableLogging,
             logger: logger
         )

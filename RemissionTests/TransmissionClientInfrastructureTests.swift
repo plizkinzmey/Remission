@@ -468,6 +468,7 @@ struct TransmissionClientProtocolTests {
 
             let config = TransmissionClientBootstrap.makeConfig(
                 credentialsStore: credentialsStore,
+                appLogger: .noop,
                 fileURL: tempURL
             )
             #expect(config == nil)
@@ -520,6 +521,7 @@ struct TransmissionClientProtocolTests {
 
             let config = TransmissionClientBootstrap.makeConfig(
                 credentialsStore: credentialsStore,
+                appLogger: .noop,
                 fileURL: tempURL
             )
             #expect(

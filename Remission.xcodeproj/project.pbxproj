@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 15AADFF42EA417C5003711C3 /* ComposableArchitecture */; };
+		15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 15B1A0002F0B7B2E00E3D111 /* Logging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,7 @@
 			isa = PBXFrameworksBuildPhase;
 			files = (
 				15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */,
+				15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */,
 			);
 		};
 		15AA8C452EA1C9370025EF81 /* Frameworks */ = {
@@ -113,6 +115,7 @@
 			name = Remission;
 			packageProductDependencies = (
 				15AADFF42EA417C5003711C3 /* ComposableArchitecture */,
+				15B1A0002F0B7B2E00E3D111 /* Logging */,
 			);
 			productName = Remission;
 			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
@@ -194,6 +197,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */,
 			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 15AA8C3C2EA1C9360025EF81 /* Products */;
@@ -253,6 +257,7 @@
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
 				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
 				"fi",
+				"",
 				"",
 				"",
 				"",
@@ -684,6 +689,14 @@
 				minimumVersion = 1.23.0;
 			};
 		};
+		15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-log";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.4;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -691,6 +704,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;
+		};
+		15B1A0002F0B7B2E00E3D111 /* Logging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */;
+			productName = Logging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

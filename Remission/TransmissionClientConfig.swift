@@ -21,6 +21,9 @@ public struct TransmissionClientConfig: Sendable {
     /// Интервал между повторами в секундах (по умолчанию 1).
     public var retryDelay: TimeInterval
 
+    /// Идентификатор сервера для контекстного логирования.
+    public var serverID: UUID?
+
     /// Логировать ли запросы/ответы (с маскировкой чувствительных данных).
     public var enableLogging: Bool
 
@@ -45,6 +48,7 @@ public struct TransmissionClientConfig: Sendable {
         requestTimeout: TimeInterval = 30,
         maxRetries: Int = 3,
         retryDelay: TimeInterval = 1,
+        serverID: UUID? = nil,
         enableLogging: Bool = false,
         logger: TransmissionLogger = NoOpTransmissionLogger.shared
     ) {
@@ -54,6 +58,7 @@ public struct TransmissionClientConfig: Sendable {
         self.requestTimeout = requestTimeout
         self.maxRetries = maxRetries
         self.retryDelay = retryDelay
+        self.serverID = serverID
         self.enableLogging = enableLogging
         self.logger = logger
     }

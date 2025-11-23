@@ -42,6 +42,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// Позволяет использовать TestClock в тестах для детерминированного управления временем.
     private let clock: any Clock<Duration>
 
+    /// Логгер приложения для контекстного логирования ошибок.
+    private let appLogger: AppLogger
+
+    /// Базовый контекст для логирования RPC.
+    private let baseLogContext: TransmissionLogContext
+
     /// Инициализация TransmissionClient с конфигурацией.
     ///
     /// - Parameters:
@@ -55,10 +61,20 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         sessionConfiguration: URLSessionConfiguration? = nil,
         trustStore: TransmissionTrustStore = TransmissionTrustStore(),
         trustDecisionHandler: TransmissionTrustDecisionHandler? = nil,
-        clock: any Clock<Duration>
+        clock: any Clock<Duration>,
+        appLogger: AppLogger = .noop,
+        baseLogContext: TransmissionLogContext? = nil
     ) {
         self.config = config
         self.clock = clock
+        self.appLogger = appLogger
+        self.baseLogContext =
+            baseLogContext
+            ?? TransmissionLogContext(
+                serverID: config.serverID,
+                host: config.baseURL.host,
+                path: config.baseURL.path
+            )
 
         guard let host = config.baseURL.host else {
             preconditionFailure("TransmissionClientConfig.baseURL must contain host component")
@@ -133,7 +149,11 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         // Логируем запрос если логирование включено
         if config.enableLogging {
-            config.logger.logRequest(method: method, request: urlRequest)
+            config.logger.logRequest(
+                method: method,
+                request: urlRequest,
+                context: makeLogContext(method: method)
+            )
         }
 
         // Отправляем запрос с retry логикой
@@ -158,16 +178,19 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         var handshakeAttempts: Int = 0
 
         while true {
+            let attemptStartedAt = Date()
             do {
                 let (data, response): (Data, URLResponse) = try await session.data(
                     for: mutableRequest)
+                let elapsedMs: Double = Date().timeIntervalSince(attemptStartedAt) * 1_000
 
                 if let transmissionResponse = try await handleResponse(
                     data: data,
                     response: response,
                     request: &mutableRequest,
                     handshakeAttempts: &handshakeAttempts,
-                    method: method
+                    method: method,
+                    elapsedMs: elapsedMs
                 ) {
                     return transmissionResponse
                 }
@@ -176,20 +199,27 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     urlError,
                     method: method,
                     remainingRetries: &remainingRetries,
-                    retryAttempt: &retryAttempt
+                    retryAttempt: &retryAttempt,
+                    elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
                 ) {
                     continue
                 }
                 throw APIError.mapURLError(urlError)
             } catch let apiError as APIError {
-                if config.enableLogging {
-                    config.logger.logError(method: method, error: apiError)
-                }
+                logNetworkError(
+                    method: method,
+                    error: apiError,
+                    retryAttempt: retryAttempt,
+                    elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
+                )
                 throw apiError
             } catch {
-                if config.enableLogging {
-                    config.logger.logError(method: method, error: error)
-                }
+                logNetworkError(
+                    method: method,
+                    error: error,
+                    retryAttempt: retryAttempt,
+                    elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
+                )
                 throw APIError.unknown(details: error.localizedDescription)
             }
         }
@@ -199,11 +229,15 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         _ urlError: URLError,
         method: String,
         remainingRetries: inout Int,
-        retryAttempt: inout Int
+        retryAttempt: inout Int,
+        elapsedMs: Double
     ) async throws -> Bool {
-        if config.enableLogging {
-            config.logger.logError(method: method, error: urlError)
-        }
+        logNetworkError(
+            method: method,
+            error: urlError,
+            retryAttempt: retryAttempt,
+            elapsedMs: elapsedMs
+        )
 
         if urlError.code == .cancelled {
             if let trustError = await trustEvaluator.consumePendingError() {
@@ -226,14 +260,23 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         response: URLResponse,
         request: inout URLRequest,
         handshakeAttempts: inout Int,
-        method: String
+        method: String,
+        elapsedMs: Double
     ) async throws -> TransmissionResponse? {
         let httpResponse: HTTPURLResponse = try requireHTTPResponse(response)
 
         // Логируем ответ если логирование включено
         if config.enableLogging {
             config.logger.logResponse(
-                method: method, statusCode: httpResponse.statusCode, responseBody: data)
+                method: method,
+                statusCode: httpResponse.statusCode,
+                responseBody: data,
+                context: makeLogContext(
+                    method: method,
+                    statusCode: httpResponse.statusCode,
+                    durationMs: elapsedMs
+                )
+            )
         }
 
         if try await processSessionConflictIfNeeded(
@@ -253,6 +296,42 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         return transmissionResponse
+    }
+
+    private func makeLogContext(
+        method: String,
+        statusCode: Int? = nil,
+        durationMs: Double? = nil,
+        retryAttempt: Int? = nil
+    ) -> TransmissionLogContext {
+        TransmissionLogContext(
+            serverID: baseLogContext.serverID,
+            host: baseLogContext.host,
+            path: baseLogContext.path,
+            method: method,
+            statusCode: statusCode,
+            durationMs: durationMs,
+            retryAttempt: retryAttempt,
+            maxRetries: config.maxRetries
+        )
+    }
+
+    private func logNetworkError(
+        method: String,
+        error: Error,
+        retryAttempt: Int?,
+        elapsedMs: Double?
+    ) {
+        let context = makeLogContext(
+            method: method,
+            durationMs: elapsedMs,
+            retryAttempt: retryAttempt
+        )
+        config.logger.logError(method: method, error: error, context: context)
+
+        var metadata = context.metadata()
+        metadata["error"] = String(String(describing: error).prefix(200))
+        appLogger.error("Transmission RPC error", metadata: metadata)
     }
 
     private func requireHTTPResponse(_ response: URLResponse) throws -> HTTPURLResponse {
@@ -425,7 +504,11 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 "Server RPC version: \(handshake.rpcVersion), compatible: \(handshake.isCompatible) (minimum: \(handshake.minimumSupportedRpcVersion))"
             let logMessage: Data = Data(message.utf8)
             config.logger.logResponse(
-                method: "session-get", statusCode: 200, responseBody: logMessage)
+                method: "session-get",
+                statusCode: 200,
+                responseBody: logMessage,
+                context: makeLogContext(method: "session-get", statusCode: 200)
+            )
         }
 
         guard handshake.isCompatible else {
