@@ -84,4 +84,26 @@ struct UserPreferencesRepositoryLiveTests {
             Issue.record("Снапшот преференсов отсутствует после миграции")
         }
     }
+
+    @Test
+    func telemetryFlagPersistsAcrossLoads() async throws {
+        let suiteName = "userprefs-telemetry-\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Не удалось создать UserDefaults для suite \(suiteName)")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let repository = UserPreferencesRepository.persistent(defaults: defaults)
+        let updated = try await repository.setTelemetryEnabled(true)
+
+        #expect(updated.isTelemetryEnabled == true)
+
+        let rehydrated = try await UserPreferencesRepository.persistent(
+            defaults: defaults
+        ).load()
+
+        #expect(rehydrated.isTelemetryEnabled == true)
+        #expect(rehydrated.version == UserPreferences.currentVersion)
+    }
 }
