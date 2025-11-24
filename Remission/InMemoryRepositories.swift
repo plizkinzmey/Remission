@@ -428,7 +428,7 @@ actor InMemoryUserPreferencesRepositoryStore {
     private var observers: [UUID: AsyncStream<UserPreferences>.Continuation] = [:]
 
     init(preferences: UserPreferences) {
-        self.preferences = preferences
+        self.preferences = UserPreferences.migratedToCurrentVersion(preferences)
     }
 
     func markFailure(_ operation: Operation) {

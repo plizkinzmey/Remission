@@ -124,27 +124,11 @@ actor PersistentUserPreferencesStore {
         }
         do {
             let decoded = try JSONDecoder().decode(UserPreferences.self, from: data)
-            return migrate(decoded, defaults: defaults)
-        } catch {
-            defaults.remove(StorageKey.preferences)
-            return .default
-        }
-    }
+            let migrated = UserPreferences.migratedToCurrentVersion(decoded)
+            guard migrated != decoded else {
+                return migrated
+            }
 
-    private static func migrate(
-        _ preferences: UserPreferences,
-        defaults: PreferencesUserDefaultsBox
-    ) -> UserPreferences {
-        var migrated = preferences
-        var didMigrate = false
-
-        if migrated.version < UserPreferences.currentVersion {
-            migrated.isTelemetryEnabled = false
-            migrated.version = UserPreferences.currentVersion
-            didMigrate = true
-        }
-
-        if didMigrate {
             do {
                 let data = try JSONEncoder().encode(migrated)
                 defaults.set(data, forKey: StorageKey.preferences)
@@ -152,9 +136,12 @@ actor PersistentUserPreferencesStore {
                 defaults.remove(StorageKey.preferences)
                 return .default
             }
-        }
 
-        return migrated
+            return migrated
+        } catch {
+            defaults.remove(StorageKey.preferences)
+            return .default
+        }
     }
 }
 

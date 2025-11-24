@@ -83,3 +83,20 @@ extension UserPreferences {
         version: UserPreferences.currentVersion
     )
 }
+
+extension UserPreferences {
+    /// Приводит сохранённые настройки к актуальной версии схемы.
+    static func migratedToCurrentVersion(_ preferences: UserPreferences) -> UserPreferences {
+        var migrated = preferences
+
+        if migrated.version < 2 {
+            migrated.isTelemetryEnabled = false
+        }
+
+        if migrated.version < UserPreferences.currentVersion {
+            migrated.version = UserPreferences.currentVersion
+        }
+
+        return migrated
+    }
+}

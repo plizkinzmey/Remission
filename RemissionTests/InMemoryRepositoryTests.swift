@@ -73,6 +73,28 @@ struct InMemoryRepositoryTests {
     }
 
     @Test
+    func userPreferencesRepositoryMigratesLegacyVersion() async throws {
+        let legacy = UserPreferences(
+            pollingInterval: 7,
+            isAutoRefreshEnabled: false,
+            isTelemetryEnabled: false,
+            defaultSpeedLimits: .init(
+                downloadKilobytesPerSecond: 512,
+                uploadKilobytesPerSecond: 256
+            ),
+            version: 1
+        )
+        let store = DomainFixtures.makeUserPreferencesStore(preferences: legacy)
+        let repository = UserPreferencesRepository.inMemory(store: store)
+
+        let migrated = try await repository.load()
+
+        #expect(migrated.version == UserPreferences.currentVersion)
+        #expect(migrated.isTelemetryEnabled == false)
+        #expect(migrated.pollingInterval == 7)
+    }
+
+    @Test
     func userPreferencesRepositoryFailure() async {
         let store = DomainFixtures.makeUserPreferencesStore()
         await store.markFailure(.load)
