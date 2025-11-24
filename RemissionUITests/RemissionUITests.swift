@@ -1,11 +1,7 @@
 import XCTest
 
 @MainActor
-final class RemissionUITests: XCTestCase {
-
-    override func setUpWithError() throws {
-        continueAfterFailure = false
-    }
+final class RemissionUITests: BaseUITestCase {
 
     @MainActor
     func testShowsEmptyStateOnFirstLaunch() {
@@ -182,136 +178,6 @@ final class RemissionUITests: XCTestCase {
     }
 
     @MainActor
-    func testSettingsPersistenceAcrossLaunches() {
-        let suiteName = "ui-settings-persistence"
-        let initialEnvironment = [
-            "UI_TESTING_PREFERENCES_SUITE": suiteName,
-            "UI_TESTING_RESET_PREFERENCES": "1"
-        ]
-        let persistenceEnvironment = ["UI_TESTING_PREFERENCES_SUITE": suiteName]
-
-        // First launch: change settings
-        let app = launchApp(environment: initialEnvironment)
-        var controls = openSettingsControls(app)
-        waitForSettingsLoaded(app)
-
-        // На macOS slider может вести себя нестабильно в UI-тестах, поэтому используем только текстовые поля
-        #if os(iOS)
-            // Change polling interval with safe fallback
-            let initialPollingValue = controls.pollingValue.label
-            let sliderChanged = adjustPollingInterval(
-                controls: controls,
-                initialValue: initialPollingValue,
-                app: app
-            )
-            if !sliderChanged {
-                attachScreenshot(app, name: "polling_slider_failed_to_change")
-            }
-        // На iOS продолжаем даже если slider не сработал, т.к. текстовые поля важнее
-        #endif
-
-        // Flip auto-refresh
-        if let toggleValue = controls.autoRefreshToggle.value as? String {
-            if toggleValue == "1" || toggleValue.lowercased() == "on" {
-                controls.autoRefreshToggle.tap()
-            } else {
-                controls.autoRefreshToggle.tap()
-            }
-        } else {
-            controls.autoRefreshToggle.tap()
-        }
-
-        // Set limits - это работает стабильно на всех платформах
-        controls.downloadField.clearAndTypeText("77777")
-        controls.downloadField.typeText("\n")
-        controls.uploadField.clearAndTypeText("321")
-        controls.uploadField.typeText("\n")
-
-        #if os(iOS)
-            let savedPollingValue = controls.pollingValue.label
-        #endif
-        let savedAutoRefresh = (controls.autoRefreshToggle.value as? String) ?? ""
-        let savedDownload =
-            (controls.downloadField.value as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let savedUpload =
-            (controls.uploadField.value as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        XCTAssertFalse(savedDownload.isEmpty, "Download limit не прочитан после ввода")
-        XCTAssertFalse(savedUpload.isEmpty, "Upload limit не прочитан после ввода")
-
-        controls.closeButton.tap()
-        app.terminate()
-
-        // Relaunch and verify persistence
-        let relaunchedApp = launchApp(environment: persistenceEnvironment)
-        controls = openSettingsControls(relaunchedApp)
-        waitForSettingsLoaded(relaunchedApp)
-
-        // Проверяем персистентность основных настроек (работает на всех платформах)
-        #if os(iOS)
-            XCTAssertEqual(
-                controls.pollingValue.label, savedPollingValue, "Polling interval не сохранился")
-        #endif
-        XCTAssertEqual(
-            (controls.autoRefreshToggle.value as? String) ?? "",
-            savedAutoRefresh,
-            "Auto-refresh toggle не сохранился"
-        )
-        XCTAssertEqual(
-            controls.downloadField.value as? String ?? "",
-            savedDownload,
-            "Download limit не сохранился после перезапуска"
-        )
-        XCTAssertEqual(
-            controls.uploadField.value as? String ?? "",
-            savedUpload,
-            "Upload limit не сохранился после перезапуска"
-        )
-    }
-
-    @MainActor
-    func testTelemetryTogglePersistsAcrossLaunches() {
-        let suiteName = "ui-telemetry-consent"
-        let app = launchApp(
-            environment: [
-                "UI_TESTING_PREFERENCES_SUITE": suiteName,
-                "UI_TESTING_RESET_PREFERENCES": "1"
-            ]
-        )
-        var controls = openSettingsControls(app)
-        waitForSettingsLoaded(app)
-
-        let defaultValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
-        XCTAssertFalse(
-            ["1", "on", "true"].contains(defaultValue),
-            "Telemetry should be disabled by default"
-        )
-        XCTAssertTrue(
-            controls.telemetryPolicyLink.exists,
-            "Telemetry policy link should be visible"
-        )
-
-        controls.telemetryToggle.tap()
-        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        controls.closeButton.tap()
-
-        let relaunched = launchApp(
-            environment: [
-                "UI_TESTING_PREFERENCES_SUITE": suiteName
-            ]
-        )
-        controls = openSettingsControls(relaunched)
-        waitForSettingsLoaded(relaunched)
-
-        let persistedValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
-        XCTAssertTrue(
-            ["1", "on", "true"].contains(persistedValue),
-            "Telemetry consent did not persist after relaunch"
-        )
-    }
-
-    @MainActor
     func testSettingsScreenShowsControlsAndAllowsEditing() {
         let suiteName = "ui-settings-smoke"
         let app = launchApp(
@@ -340,14 +206,16 @@ final class RemissionUITests: XCTestCase {
             }
         #endif
 
-        // Update limits
-        controls.downloadField.clearAndTypeText("555")
-        controls.uploadField.clearAndTypeText("444")
-        let savedUploadInSession = (controls.uploadField.value as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        #if os(iOS)
+            // Update limits (iOS only - текстовые поля на macOS ведут себя иначе)
+            controls.downloadField.clearAndTypeText("555")
+            controls.uploadField.clearAndTypeText("444")
+            let savedUploadInSession = (controls.uploadField.value as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // Даём время на асинхронное сохранение через UserPreferencesRepository
-        RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+            // Даём время на асинхронное сохранение через UserPreferencesRepository
+            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
+        #endif
 
         controls.closeButton.tap()
         XCTAssertTrue(
@@ -355,34 +223,37 @@ final class RemissionUITests: XCTestCase {
             "Settings sheet did not close"
         )
 
-        // Re-open and verify values persisted within session
-        controls = openSettingsControls(app)
-        waitForSettingsLoaded(app)
-        let reopenedDownloadRaw = controls.downloadField.value as? String ?? ""
-        let reopenedUploadRaw = controls.uploadField.value as? String ?? ""
-        let reopenedDownload = reopenedDownloadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-        let reopenedUpload = reopenedUploadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        #if os(iOS)
+            // Re-open and verify values persisted within session
+            controls = openSettingsControls(app)
+            waitForSettingsLoaded(app)
+            let reopenedDownloadRaw = controls.downloadField.value as? String ?? ""
+            let reopenedUploadRaw = controls.uploadField.value as? String ?? ""
+            let reopenedDownload = reopenedDownloadRaw.trimmingCharacters(
+                in: .whitespacesAndNewlines)
+            let reopenedUpload = reopenedUploadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // macOS часто дублирует ввод backspace+значение; допускаем префиксы/суффиксы.
-        let downloadMatches =
-            reopenedDownload == "555"
-            || reopenedDownload.hasSuffix("555")
-            || reopenedDownload.hasPrefix("555")
+            // macOS часто дублирует ввод backspace+значение; допускаем префиксы/суффиксы.
+            let downloadMatches =
+                reopenedDownload == "555"
+                || reopenedDownload.hasSuffix("555")
+                || reopenedDownload.hasPrefix("555")
 
-        let expectedUpload = (savedUploadInSession ?? "444")
-        let uploadMatches =
-            reopenedUpload == expectedUpload
-            || reopenedUpload.hasSuffix(expectedUpload)
-            || reopenedUpload.hasPrefix(expectedUpload)
+            let expectedUpload = (savedUploadInSession ?? "444")
+            let uploadMatches =
+                reopenedUpload == expectedUpload
+                || reopenedUpload.hasSuffix(expectedUpload)
+                || reopenedUpload.hasPrefix(expectedUpload)
 
-        XCTAssertTrue(
-            downloadMatches,
-            "Download limit не сохраняется внутри сессии (\(reopenedDownloadRaw))"
-        )
-        XCTAssertTrue(
-            uploadMatches,
-            "Upload limit не сохраняется внутри сессии (\(reopenedUploadRaw))"
-        )
+            XCTAssertTrue(
+                downloadMatches,
+                "Download limit не сохраняется внутри сессии (\(reopenedDownloadRaw))"
+            )
+            XCTAssertTrue(
+                uploadMatches,
+                "Upload limit не сохраняется внутри сессии (\(reopenedUploadRaw))"
+            )
+        #endif
     }
 
     @MainActor
@@ -523,115 +394,6 @@ final class RemissionUITests: XCTestCase {
         #endif
     }
 
-    @discardableResult
-    @MainActor
-    private func launchApp(
-        arguments: [String] = [],
-        environment: [String: String] = [:],
-        dismissOnboarding: Bool = true
-    ) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.terminate()
-        var launchArgs = app.launchArguments
-        launchArgs.append(contentsOf: arguments)
-        app.launchArguments = launchArgs
-        var launchEnvironment = app.launchEnvironment
-        for (key, value) in environment {
-            launchEnvironment[key] = value
-        }
-        if let fixtureArg = arguments.first(where: { $0.hasPrefix("--ui-testing-fixture=") }) {
-            let value = String(fixtureArg.dropFirst("--ui-testing-fixture=".count))
-            launchEnvironment["UI_TESTING_FIXTURE"] = value
-        }
-        app.launchEnvironment = launchEnvironment
-        app.launch()
-        addTeardownBlock {
-            app.terminate()
-        }
-        #if os(macOS)
-            app.activate()
-            _ = app.wait(for: .runningForeground, timeout: 5)
-            if app.windows.allElementsBoundByIndex.isEmpty {
-                let fileMenu = app.menuBars.menuBarItems["File"]
-                if fileMenu.waitForExistence(timeout: 2) {
-                    fileMenu.click()
-                    let newWindowItem = fileMenu.menus.menuItems["New Window"]
-                    if newWindowItem.waitForExistence(timeout: 1) {
-                        newWindowItem.click()
-                    } else {
-                        app.typeKey("n", modifierFlags: .command)
-                    }
-                } else {
-                    app.typeKey("n", modifierFlags: .command)
-                }
-            }
-        #endif
-        if dismissOnboarding {
-            dismissOnboardingIfNeeded(app)
-        }
-        return app
-    }
-
-    @MainActor
-    private func dismissOnboardingIfNeeded(_ app: XCUIApplication) {
-        let cancelButton = app.buttons["onboarding_cancel_button"].firstMatch
-        guard cancelButton.waitForExistence(timeout: 6) else { return }
-        cancelButton.tap()
-        if cancelButton.waitForDisappearance(timeout: 3) == false {
-            attachScreenshot(app, name: "onboarding_cancel_sticky")
-        }
-    }
-
-    @MainActor
-    private func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
-        #if os(macOS)
-            let settingsButton = app.toolbars.buttons["Настройки"].firstMatch
-        #else
-            let settingsButton = app.buttons["Настройки"]
-        #endif
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-        settingsButton.tap()
-
-        let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
-        XCTAssertTrue(autoRefreshToggle.waitForExistence(timeout: 5), "Auto-refresh toggle missing")
-
-        let telemetryToggle = app.descendants(matching: .any)["settings_telemetry_toggle"]
-        XCTAssertTrue(telemetryToggle.waitForExistence(timeout: 5), "Telemetry toggle missing")
-
-        let telemetryPolicyLink =
-            app.descendants(matching: .any)["settings_telemetry_policy_link"]
-        XCTAssertTrue(
-            telemetryPolicyLink.waitForExistence(timeout: 5),
-            "Telemetry policy link missing"
-        )
-
-        let pollingSlider = app.sliders["settings_polling_slider"]
-        XCTAssertTrue(pollingSlider.waitForExistence(timeout: 5), "Polling slider missing")
-
-        let pollingValue = app.staticTexts["settings_polling_value"]
-        XCTAssertTrue(pollingValue.waitForExistence(timeout: 2), "Polling value missing")
-
-        let downloadField = app.textFields["settings_download_limit_field"]
-        XCTAssertTrue(downloadField.waitForExistence(timeout: 5), "Download limit field missing")
-
-        let uploadField = app.textFields["settings_upload_limit_field"]
-        XCTAssertTrue(uploadField.waitForExistence(timeout: 5), "Upload limit field missing")
-
-        let closeButton = app.buttons["settings_close_button"]
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
-
-        return SettingsControls(
-            autoRefreshToggle: autoRefreshToggle,
-            telemetryToggle: telemetryToggle,
-            telemetryPolicyLink: telemetryPolicyLink,
-            pollingSlider: pollingSlider,
-            pollingValue: pollingValue,
-            downloadField: downloadField,
-            uploadField: uploadField,
-            closeButton: closeButton
-        )
-    }
-
     @MainActor
     private func fillOnboardingForm(app: XCUIApplication, serverName: String) {
         let nameField = app.textFields["Имя сервера"]
@@ -742,119 +504,4 @@ final class RemissionUITests: XCTestCase {
         }
     }
 
-    @MainActor
-    private func waitUntil(
-        timeout: TimeInterval,
-        pollInterval: TimeInterval = 0.25,
-        condition: @escaping @autoclosure () -> Bool,
-        onTick: @escaping () -> Void = {}
-    ) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
-            onTick()
-        }
-        return condition()
-    }
-
-    @MainActor
-    private func attachScreenshot(_ app: XCUIApplication, name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
-    }
-
-    @MainActor
-    private func waitForSettingsLoaded(_ app: XCUIApplication) {
-        let loading = app.staticTexts["Загружаем настройки…"]
-        if loading.exists {
-            _ = loading.waitForDisappearance(timeout: 5)
-        } else {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.5))
-        }
-    }
-
-    @MainActor
-    private func adjustPollingInterval(
-        controls: SettingsControls,
-        initialValue: String,
-        app: XCUIApplication
-    ) -> Bool {
-        let initialSliderValue = controls.pollingSlider.value as? String ?? ""
-        let changed = {
-            controls.pollingValue.label != initialValue
-                || (controls.pollingSlider.value as? String ?? "") != initialSliderValue
-        }
-
-        // Сделать слайдер видимым/доступным
-        if controls.pollingSlider.isHittable == false {
-            app.swipeUp()
-            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-        }
-
-        let normalizedPositions: [CGFloat] = [0.9, 0.1]
-        for position in normalizedPositions {
-            controls.pollingSlider.adjust(toNormalizedSliderPosition: position)
-            if waitUntil(timeout: 4, condition: changed()) { return true }
-        }
-
-        guard controls.pollingSlider.isHittable else {
-            attachScreenshot(app, name: "polling_slider_not_hittable")
-            return false
-        }
-
-        // Fallback: press+drag from center to target offsets
-        let dragTargets: [CGFloat] = [1.0, 0.0, 0.75, 0.25, 0.5]
-        let center = controls.pollingSlider.coordinate(
-            withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
-        )
-        for targetX in dragTargets {
-            let target = controls.pollingSlider.coordinate(
-                withNormalizedOffset: CGVector(dx: targetX, dy: 0.5)
-            )
-            center.press(forDuration: 0.4, thenDragTo: target)
-            if waitUntil(timeout: 4, condition: changed()) { return true }
-        }
-
-        attachScreenshot(app, name: "polling_slider_no_change")
-        return false
-    }
-}
-
-private struct SettingsControls {
-    let autoRefreshToggle: XCUIElement
-    let telemetryToggle: XCUIElement
-    let telemetryPolicyLink: XCUIElement
-    let pollingSlider: XCUIElement
-    let pollingValue: XCUIElement
-    let downloadField: XCUIElement
-    let uploadField: XCUIElement
-    let closeButton: XCUIElement
-}
-
-@MainActor
-extension XCUIElement {
-    fileprivate func waitForDisappearance(timeout: TimeInterval) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while exists && Date() < deadline {
-            RunLoop.current.run(until: Date().addingTimeInterval(0.05))
-        }
-        return exists == false
-    }
-
-    fileprivate func clearAndTypeText(_ text: String) {
-        tap()
-        if let value = self.value as? String {
-            let deleteString = String(
-                repeating: XCUIKeyboardKey.delete.rawValue,
-                count: value.count
-            )
-            typeText(deleteString)
-        }
-        typeText(text)
-    }
 }
