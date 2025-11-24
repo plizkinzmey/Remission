@@ -25,9 +25,10 @@ struct CredentialsRepositoryTests {
             load: { _ in nil },
             delete: { _ in }
         )
-        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger { event in
-            events.append(event)
-        }
+        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger(
+            appLogger: .noop,
+            eventSink: { event in events.append(event) }
+        )
         let repository: CredentialsRepository = CredentialsRepository.live(
             keychain: keychain,
             auditLogger: auditLogger
@@ -69,9 +70,10 @@ struct CredentialsRepositoryTests {
             load: { _ in nil },
             delete: { _ in }
         )
-        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger { event in
-            events.append(event)
-        }
+        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger(
+            appLogger: .noop,
+            eventSink: { event in events.append(event) }
+        )
         let repository: CredentialsRepository = CredentialsRepository.live(
             keychain: keychain,
             auditLogger: auditLogger
@@ -114,9 +116,10 @@ struct CredentialsRepositoryTests {
             load: { _ in nil },
             delete: { _ in }
         )
-        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger { event in
-            events.append(event)
-        }
+        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger(
+            appLogger: .noop,
+            eventSink: { event in events.append(event) }
+        )
         let repository: CredentialsRepository = CredentialsRepository.live(
             keychain: keychain,
             auditLogger: auditLogger
@@ -151,9 +154,10 @@ struct CredentialsRepositoryTests {
             load: { _ in nil },
             delete: { _ in throw DummyError.failed }
         )
-        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger { event in
-            events.append(event)
-        }
+        let auditLogger: CredentialsAuditLogger = CredentialsAuditLogger(
+            appLogger: .noop,
+            eventSink: { event in events.append(event) }
+        )
         let repository: CredentialsRepository = CredentialsRepository.live(
             keychain: keychain,
             auditLogger: auditLogger

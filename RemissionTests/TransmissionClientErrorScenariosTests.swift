@@ -201,10 +201,10 @@ struct TransmissionClientErrorScenariosTests {
             )
         )
 
-        let logs: TransmissionLogCollector = TransmissionLogCollector()
-        let logger: DefaultTransmissionLogger = DefaultTransmissionLogger { message in
-            logs.append(message)
-        }
+        let logs: DiagnosticsLogCollector = DiagnosticsLogCollector()
+        let logger: DefaultTransmissionLogger = DefaultTransmissionLogger(
+            appLogger: logs.makeLogger(category: "transmission.test")
+        )
         let config: TransmissionClientConfig = TransmissionClientConfig(
             baseURL: transmissionTestsBaseURL,
             username: "user",
@@ -364,23 +364,6 @@ private func makeRetryingClient(
     return RetryingClientSetup(
         client: client
     )
-}
-
-private final class TransmissionLogCollector: @unchecked Sendable {
-    private let lock: NSLock = NSLock()
-    private var storage: [String] = []
-
-    func append(_ message: String) {
-        lock.lock()
-        storage.append(message)
-        lock.unlock()
-    }
-
-    var messages: [String] {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage
-    }
 }
 
 private final class RecordingClock: Clock, @unchecked Sendable {

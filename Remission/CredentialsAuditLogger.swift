@@ -69,26 +69,43 @@ enum CredentialsAuditEvent: Equatable, Sendable {
 
 /// Логгер аудита с маскировкой чувствительных данных.
 struct CredentialsAuditLogger: Sendable {
-    var log: @Sendable (CredentialsAuditEvent) -> Void
+    private var appLogger: AppLogger
+    private var eventSink: (@Sendable (CredentialsAuditEvent) -> Void)?
 
-    init(log: @escaping @Sendable (CredentialsAuditEvent) -> Void) {
-        self.log = log
+    init(
+        appLogger: AppLogger,
+        eventSink: (@Sendable (CredentialsAuditEvent) -> Void)? = nil
+    ) {
+        self.appLogger = appLogger
+        self.eventSink = eventSink
     }
 
     func callAsFunction(_ event: CredentialsAuditEvent) {
-        log(event)
+        let message: String = event.message()
+        let descriptor: CredentialsServerDescriptor? = event.serverDescriptor
+        let maskedUsername: String = descriptor?.maskedUsername ?? "<n/a>"
+        let metadata: [String: String] = [
+            "endpoint": descriptor?.endpointDescription ?? "<unknown>",
+            "user": maskedUsername
+        ]
+
+        eventSink?(event)
+
+        switch event {
+        case .saveSucceeded, .loadSucceeded, .deleteSucceeded, .loadMissing:
+            appLogger.info(message, metadata: metadata)
+        case .saveFailed, .loadFailed, .deleteFailed:
+            appLogger.warning(message, metadata: metadata)
+        }
     }
 }
 
 extension CredentialsAuditLogger {
-    static let `default`: CredentialsAuditLogger = CredentialsAuditLogger { event in
-        let message: String = event.message()
-        let descriptor: CredentialsServerDescriptor? = event.serverDescriptor
-        let maskedUsername: String = descriptor?.maskedUsername ?? "<n/a>"
-        print("\(message) | user=\(maskedUsername)")
+    static func live(appLogger: AppLogger) -> CredentialsAuditLogger {
+        CredentialsAuditLogger(appLogger: appLogger.withCategory("credentials.audit"))
     }
 
-    static let noop: CredentialsAuditLogger = CredentialsAuditLogger { _ in }
+    static let noop: CredentialsAuditLogger = CredentialsAuditLogger(appLogger: .noop)
 }
 
 extension CredentialsAuditEvent {
@@ -108,7 +125,10 @@ extension CredentialsAuditEvent {
 
 #if canImport(ComposableArchitecture)
     private enum CredentialsAuditLoggerKey: DependencyKey {
-        static let liveValue: CredentialsAuditLogger = .default
+        static var liveValue: CredentialsAuditLogger {
+            @Dependency(\.appLogger) var appLogger
+            return .live(appLogger: appLogger)
+        }
         static let testValue: CredentialsAuditLogger = .noop
         static let previewValue: CredentialsAuditLogger = .noop
     }
