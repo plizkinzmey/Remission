@@ -31,7 +31,7 @@ RemissionTests/Fixtures/
 4. После добавления фикстуры выполните smoke-тесты загрузки:
 
    ```bash
-   xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'
+   xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16e'
    ```
 
 5. При расширении набора обязательно обновите список в `TransmissionFixtureName`

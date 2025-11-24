@@ -35,7 +35,9 @@
         "RemissionUITests/RemissionUITests/testSelectingServerOpensDetailScreen",
         "RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh",
         "RemissionUITests/RemissionUITests/testOnboardingFlowAddsServer",
-        "RemissionUITests/RemissionUITests/testTorrentDetailFlow"
+        "RemissionUITests/RemissionUITests/testTorrentDetailFlow",
+        "RemissionUITests/RemissionUITests/testSettingsScreenShowsControls",
+        "RemissionUITests/RemissionUITests/testSettingsScreenShowsControlsAndAllowsEditing"
       ]
     }
   ],

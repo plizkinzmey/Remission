@@ -26,8 +26,8 @@
 - Сборка и тесты из терминала:
 
 ```bash
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14' build
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 14'
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e' build
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e'
 ```
 
 - Сборка проекта через SwiftPM не поддерживается (проект не оформлен как Swift Package); используйте Xcode или `xcodebuild`.

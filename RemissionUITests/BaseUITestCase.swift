@@ -69,30 +69,85 @@ class BaseUITestCase: XCTestCase {
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
         settingsButton.tap()
 
+        // Дождаться завершения загрузки настроек
+        let loadingText = app.staticTexts["Загружаем настройки…"]
+        if loadingText.waitForExistence(timeout: 2) {
+            _ = loadingText.waitForDisappearance(timeout: 5)
+        }
+
         let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
-        XCTAssertTrue(autoRefreshToggle.waitForExistence(timeout: 5), "Auto-refresh toggle missing")
+            .firstMatch
+
+        #if os(macOS)
+            // Form на macOS может открываться не в начале: скроллим вверх, чтобы материализовать верхние элементы.
+            let scrollBar = app.scrollBars.element(boundBy: 0)
+            if scrollBar.waitForExistence(timeout: 2) {
+                scrollBar.adjust(toNormalizedSliderPosition: 0.0)
+            }
+        #else
+            // На iOS Form основана на UITableView/UICollectionView/UIScrollView — прокручиваем вверх, пока не появится toggle.
+            let table = app.tables.firstMatch
+            let collection = app.collectionViews.firstMatch
+            let scrollView = app.scrollViews.firstMatch
+
+            for _ in 0..<15 where autoRefreshToggle.exists == false {
+                if table.exists { table.swipeDown() }
+                if collection.exists { collection.swipeDown() }
+                if scrollView.exists { scrollView.swipeDown() }
+                app.swipeDown()
+                // короткая задержка, чтобы UI успел отрисовать новые ячейки
+                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            }
+
+            // Если не нашли — выполнить drag до верхнего края основного scrollable container.
+            if autoRefreshToggle.exists == false {
+                if collection.exists {
+                    let start = collection.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
+                    let end = collection.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
+                    start.press(forDuration: 0.01, thenDragTo: end)
+                } else if table.exists {
+                    let start = table.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
+                    let end = table.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
+                    start.press(forDuration: 0.01, thenDragTo: end)
+                } else if scrollView.exists {
+                    let start = scrollView.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
+                    let end = scrollView.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
+                    start.press(forDuration: 0.01, thenDragTo: end)
+                }
+                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+            }
+        #endif
+
+        // autoRefreshSection теперь первая секция в Form и должна быть видна сразу
+        if autoRefreshToggle.waitForExistence(timeout: 5) == false {
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "settings_auto_refresh_missing"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            let tree = app.debugDescription
+            let path = "/tmp/remission-ui-tree.txt"
+            try? tree.write(toFile: path, atomically: true, encoding: .utf8)
+            XCTFail("Auto-refresh toggle missing. Tree written to \(path)")
+        }
 
         let telemetryToggle = app.descendants(matching: .any)["settings_telemetry_toggle"]
         XCTAssertTrue(telemetryToggle.waitForExistence(timeout: 5), "Telemetry toggle missing")
 
         let telemetryPolicyLink =
             app.descendants(matching: .any)["settings_telemetry_policy_link"]
-        XCTAssertTrue(
-            telemetryPolicyLink.waitForExistence(timeout: 5),
-            "Telemetry policy link missing"
-        )
+        assertExists(telemetryPolicyLink, in: app, message: "Telemetry policy link missing")
 
         let pollingSlider = app.sliders["settings_polling_slider"]
-        XCTAssertTrue(pollingSlider.waitForExistence(timeout: 5), "Polling slider missing")
+        assertExists(pollingSlider, in: app, message: "Polling slider missing")
 
         let pollingValue = app.staticTexts["settings_polling_value"]
-        XCTAssertTrue(pollingValue.waitForExistence(timeout: 2), "Polling value missing")
+        assertExists(pollingValue, in: app, message: "Polling value missing")
 
         let downloadField = app.textFields["settings_download_limit_field"]
-        XCTAssertTrue(downloadField.waitForExistence(timeout: 5), "Download limit field missing")
+        assertExists(downloadField, in: app, message: "Download limit field missing")
 
         let uploadField = app.textFields["settings_upload_limit_field"]
-        XCTAssertTrue(uploadField.waitForExistence(timeout: 5), "Upload limit field missing")
+        assertExists(uploadField, in: app, message: "Upload limit field missing")
 
         let closeButton = app.buttons["settings_close_button"]
         XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
@@ -107,6 +162,35 @@ class BaseUITestCase: XCTestCase {
             uploadField: uploadField,
             closeButton: closeButton
         )
+    }
+
+    private func assertExists(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        message: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        #if os(iOS)
+            if element.waitForExistence(timeout: 3) == false {
+                let scrollable: XCUIElement
+                if app.tables.firstMatch.exists {
+                    scrollable = app.tables.firstMatch
+                } else if app.collectionViews.firstMatch.exists {
+                    scrollable = app.collectionViews.firstMatch
+                } else if app.scrollViews.firstMatch.exists {
+                    scrollable = app.scrollViews.firstMatch
+                } else {
+                    scrollable = app
+                }
+
+                for _ in 0..<10 where element.exists == false {
+                    scrollable.swipeUp()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                }
+            }
+        #endif
+        XCTAssertTrue(element.waitForExistence(timeout: 2), message, file: file, line: line)
     }
 
     @MainActor

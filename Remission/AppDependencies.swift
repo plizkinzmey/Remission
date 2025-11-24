@@ -185,6 +185,9 @@ extension DependencyValues {
     static func appDefault() -> DependencyValues {
         var dependencies = DependencyValues()
         dependencies.useAppDefaults()
+        let logStore = DiagnosticsLogStore.live()
+        dependencies.diagnosticsLogStore = logStore
+        dependencies.appLogger = dependencies.appLogger.withDiagnosticsSink(logStore.makeSink())
         return dependencies
     }
 
@@ -193,6 +196,7 @@ extension DependencyValues {
         var dependencies = DependencyValues()
         dependencies.useAppDefaults()
         dependencies.appLogger = .noop
+        dependencies.diagnosticsLogStore = .placeholder
         dependencies.appClock = .placeholder
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder
@@ -208,6 +212,7 @@ extension DependencyValues {
         var dependencies = DependencyValues()
         dependencies.useAppDefaults()
         dependencies.appLogger = .noop
+        dependencies.diagnosticsLogStore = .inMemory()
         dependencies.appClock = .placeholder
         dependencies.mainQueueExecutor = .placeholder
         dependencies.dateProvider = .placeholder

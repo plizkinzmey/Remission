@@ -96,8 +96,8 @@
 
 ### Стартовые команды:
   - `open Remission.xcodeproj` - запуск Xcode (схема `Remission`).
-  - `xcodebuild -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15' build` - CLI-сборка.
-  - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` - unit + UI тесты; запускайте перед любым PR.
+  - `xcodebuild -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16e' build` - CLI-сборка.
+  - `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16e'` - unit + UI тесты; запускайте перед любым PR.
 
 **VS Code Tasks (рекомендуется для AI-агентов):**
 Проект настроен с готовыми tasks в `.vscode/tasks.json`. Используйте их через Command Palette (`Cmd+Shift+P` → "Tasks: Run Task"):
@@ -264,7 +264,7 @@ func serverConnectionFailureShowsAlert() async {
 - **Инструменты**: xcov или встроенные Code Coverage инструменты Xcode
 - **Запуск с отчётом**:
 ```bash
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12' \
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e' \
   -resultBundlePath ./build/test.xcresult -code-coverage
 xcov report --workspace Remission.xcworkspace --scheme Remission --output_directory ./coverage
 ```
@@ -424,13 +424,13 @@ Every research task (like RTC-16) follows this pattern:
 
 ```bash
 # iOS Simulator
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12' build
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e' build
 
 # macOS
 xcodebuild -scheme Remission -sdk macosx build
 
 # Все тесты
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 12'
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e'
 xcodebuild test -scheme Remission -sdk macosx
 ```
 
@@ -492,5 +492,5 @@ bash Scripts/prepare-hooks.sh  # если ещё не установлены hoo
 git status                      # проверка изменений
 swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests
 swiftlint lint
-xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
+xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e'
 ```

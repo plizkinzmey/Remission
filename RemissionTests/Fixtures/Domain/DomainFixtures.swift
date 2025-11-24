@@ -133,4 +133,22 @@ enum DomainFixtures {
     ) -> InMemoryUserPreferencesRepositoryStore {
         InMemoryUserPreferencesRepositoryStore(preferences: preferences)
     }
+
+    // MARK: - Diagnostics
+
+    static func diagnosticsEntry(
+        message: String = "Сообщение",
+        level: AppLogLevel = .info,
+        category: String = "test",
+        metadata: [String: String] = [:],
+        timestamp: Date = Date()
+    ) -> DiagnosticsLogEntry {
+        DiagnosticsLogEntry(
+            timestamp: timestamp,
+            level: level,
+            message: message,
+            category: category,
+            metadata: metadata
+        )
+    }
 }
