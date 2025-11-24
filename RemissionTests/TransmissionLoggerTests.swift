@@ -3,36 +3,47 @@ import Testing
 
 @testable import Remission
 
+/// Thread-safe collector used to capture AppLogger diagnostics in tests.
+final class DiagnosticsLogCollector: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [DiagnosticsLogEntry] = []
+
+    func append(_ entry: DiagnosticsLogEntry) {
+        lock.lock()
+        storage.append(entry)
+        lock.unlock()
+    }
+
+    var entries: [DiagnosticsLogEntry] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    var messages: [String] {
+        entries.map(\.message)
+    }
+
+    func makeLogger(category: String = "test") -> AppLogger {
+        AppLogger.noop
+            .withCategory(category)
+            .withDiagnosticsSink { [weak self] entry in
+                self?.append(entry)
+            }
+    }
+}
+
 // swiftlint:disable explicit_type_interface
 @MainActor
 @Suite("TransmissionLogger Tests")
 struct TransmissionLoggerTests {
+
     // MARK: - LoggerMasking Tests
-
-    // Thread-safe log collector for capturing logger outputs from a @Sendable closure.
-    final class LogStore: @unchecked Sendable {
-        private let lock: NSLock = NSLock()
-        private var _messages: [String] = []
-
-        func append(_ message: String) {
-            lock.lock()
-            defer { lock.unlock() }
-            _messages.append(message)
-        }
-
-        func all() -> [String] {
-            lock.lock()
-            defer { lock.unlock() }
-            return _messages
-        }
-    }
 
     @Test("DefaultLogger маскирует Authorization header")
     func testDefaultLoggerMasksAuthorizationHeader() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("Basic dXNlcjpwYXNzd29yZA==", forHTTPHeaderField: "Authorization")
@@ -43,7 +54,7 @@ struct TransmissionLoggerTests {
             context: .init(serverID: UUID(), host: "localhost")
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("[debug]"))
@@ -56,10 +67,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger маскирует Session ID")
     func testDefaultLoggerMasksSessionID() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("1a2b3c4d5e6f7g8h9i0j", forHTTPHeaderField: "X-Transmission-Session-Id")
@@ -70,7 +79,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost")
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         // Проверяем, что session-id замаскирован (первые 4 + ... + последние 4)
@@ -81,10 +90,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger маскирует короткий Session ID")
     func testDefaultLoggerMasksShortSessionID() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         var request = URLRequest(url: URL(string: "http://localhost:9091/transmission/rpc")!)
         request.setValue("12345", forHTTPHeaderField: "X-Transmission-Session-Id")
@@ -95,7 +102,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost")
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         // Для коротких session-id должно быть "****"
@@ -106,10 +113,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger логирует успешный ответ")
     func testDefaultLoggerLogsSuccessfulResponse() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         let responseData: Data = Data(
             """
@@ -128,7 +133,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost", durationMs: 15)
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("[info]"))
@@ -141,10 +146,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger логирует ошибочный ответ")
     func testDefaultLoggerLogsErrorResponse() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         let responseData: Data = Data(
             """
@@ -162,7 +165,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost", durationMs: 20)
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("[warning]"))
@@ -174,10 +177,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger усекает длинные ответы")
     func testDefaultLoggerTruncatesLongResponse() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         // Создаем очень длинный ответ (>500 символов)
         var responseDict: [String: AnyCodable] = [:]
@@ -197,7 +198,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost", durationMs: 30)
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("array(count: 100)"))
@@ -208,10 +209,8 @@ struct TransmissionLoggerTests {
 
     @Test("DefaultLogger логирует ошибки")
     func testDefaultLoggerLogsErrors() throws {
-        let store = LogStore()
-        let logger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let logger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         let testError = APIError.networkUnavailable
         logger.logError(
@@ -220,7 +219,7 @@ struct TransmissionLoggerTests {
             context: .init(host: "localhost")
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("[error]"))
@@ -271,10 +270,8 @@ struct TransmissionLoggerTests {
     @Test("TransmissionClientConfig может быть инициализирована с кастомным логгером")
     func testConfigInitializesWithCustomLogger() throws {
         let url = URL(string: "http://localhost:9091/transmission/rpc")!
-        let store = LogStore()
-        let customLogger = DefaultTransmissionLogger { message in
-            store.append(message)
-        }
+        let collector = DiagnosticsLogCollector()
+        let customLogger = DefaultTransmissionLogger(appLogger: collector.makeLogger())
 
         let config = TransmissionClientConfig(
             baseURL: url,
@@ -291,19 +288,18 @@ struct TransmissionLoggerTests {
             request: request,
             context: .init(host: "localhost")
         )
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(!loggedMessages.isEmpty)
     }
 
     @Test("DefaultLogger добавляет контекст и тайминги")
     func testDefaultLoggerAddsContextAndTiming() throws {
-        let store = LogStore()
+        let collector = DiagnosticsLogCollector()
         let serverID = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!
         let logger = DefaultTransmissionLogger(
+            appLogger: collector.makeLogger(),
             baseContext: .init(serverID: serverID, host: "seedbox.example.com")
-        ) { message in
-            store.append(message)
-        }
+        )
 
         let responseData: Data = Data(
             """
@@ -321,7 +317,7 @@ struct TransmissionLoggerTests {
             context: .init(durationMs: 42)
         )
 
-        let loggedMessages = store.all()
+        let loggedMessages = collector.messages
         #expect(loggedMessages.count == 1)
         let logMessage = loggedMessages[0]
         #expect(logMessage.contains("seedbox.example.com"))

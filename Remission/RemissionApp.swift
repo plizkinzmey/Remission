@@ -44,11 +44,10 @@ struct RemissionApp: App {
 }
 
 extension TransmissionClientBootstrap {
-    private static let logger: AppLogger = AppLogger(label: "app.remission", category: "bootstrap")
-
     static func makeLiveDependency(
         dependencies: DependencyValues
     ) -> TransmissionClientDependency {
+        let logger = dependencies.appLogger.withCategory("bootstrap")
         logger.debug("Начало инициализации live dependency TransmissionClient.")
         guard
             let config = makeConfig(
@@ -83,7 +82,7 @@ extension TransmissionClientBootstrap {
 
         let mapper = TransmissionDomainMapper()
         guard let server = try? mapper.mapServerConfig(record: record, credentials: nil) else {
-            logger.error("Не удалось преобразовать сохранённую конфигурацию сервера.")
+            appLogger.error("Не удалось преобразовать сохранённую конфигурацию сервера.")
             return nil
         }
 
@@ -92,7 +91,7 @@ extension TransmissionClientBootstrap {
             do {
                 return try credentialsStore.load(credentialsKey)?.password
             } catch {
-                logger.error(
+                appLogger.error(
                     "Не удалось загрузить пароль из Keychain: \(error.localizedDescription)")
                 return nil
             }

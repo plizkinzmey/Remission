@@ -111,24 +111,19 @@ public protocol TransmissionLogger: Sendable {
 /// Маскирует Authorization заголовки и X-Transmission-Session-Id, не раскрывает содержимое JSON,
 /// усекает слишком длинные данные. Потокобезопасна и не требует главного потока.
 public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
-    private let appLogger: AppLogger?
-    /// Функция логирования (по умолчанию print).
-    private let logFn: @Sendable (String) -> Void
+    private let appLogger: AppLogger
     private let baseContext: TransmissionLogContext
 
-    /// Инициализация с пользовательской функцией логирования.
+    /// Инициализация с dependency-based логгером.
     /// - Parameters:
-    ///   - appLogger: Опциональный AppLogger для единообразных уровней.
+    ///   - appLogger: Dependency-интегрированный AppLogger (используйте .noop или test sink для тестов).
     ///   - baseContext: Базовый контекст (server/host/path), дополняется контекстом вызова.
-    ///   - logFn: Функция для вывода логов (по умолчанию print).
     public init(
-        appLogger: AppLogger? = nil,
-        baseContext: TransmissionLogContext = .init(),
-        logFn: @escaping @Sendable (String) -> Void = { print($0) }
+        appLogger: AppLogger = .noop,
+        baseContext: TransmissionLogContext = .init()
     ) {
         self.appLogger = appLogger
         self.baseContext = baseContext
-        self.logFn = logFn
     }
 
     public func logRequest(
@@ -178,19 +173,15 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         message: String,
         metadata: [String: String]
     ) {
-        if let appLogger {
-            switch level {
-            case .debug:
-                appLogger.debug(message, metadata: metadata)
-            case .info:
-                appLogger.info(message, metadata: metadata)
-            case .warning:
-                appLogger.warning(message, metadata: metadata)
-            case .error:
-                appLogger.error(message, metadata: metadata)
-            }
-        } else {
-            logFn(message)
+        switch level {
+        case .debug:
+            appLogger.debug(message, metadata: metadata)
+        case .info:
+            appLogger.info(message, metadata: metadata)
+        case .warning:
+            appLogger.warning(message, metadata: metadata)
+        case .error:
+            appLogger.error(message, metadata: metadata)
         }
     }
 

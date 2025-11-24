@@ -26,6 +26,7 @@
   }
   ```
 - Пример (Transmission logger): при создании `TransmissionClientConfig` передайте `enableLogging: true` и `logger: DefaultTransmissionLogger(appLogger: appLogger)`, чтобы RPC логи писались в тот же sink с маскировкой.
+- Все логгеры берут sink только из `DependencyValues.appLogger` (swift-log); прямые `print`/`os.Logger` запрещены даже в временном коде и тестах.
 
 ## Включение расширенного логирования
 - Базовое логирование (info/error) включено всегда.
