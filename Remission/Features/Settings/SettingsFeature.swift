@@ -16,6 +16,7 @@ struct SettingsReducer {
             uploadKilobytesPerSecond: nil
         )
         @Presents var alert: AlertState<AlertAction>?
+        @Presents var diagnostics: DiagnosticsReducer.State?
     }
 
     enum Action: Equatable {
@@ -29,6 +30,9 @@ struct SettingsReducer {
         case preferencesResponse(TaskResult<UserPreferences>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
+        case diagnosticsButtonTapped
+        case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
+        case diagnosticsDismissed
     }
 
     enum AlertAction: Equatable {
@@ -61,13 +65,17 @@ struct SettingsReducer {
                 )
 
             case .teardown:
-                return .merge(
+                var effects: [Effect<Action>] = [
                     .cancel(id: CancelID.observation),
                     .cancel(id: CancelID.updatePollingInterval),
                     .cancel(id: CancelID.setAutoRefresh),
                     .cancel(id: CancelID.setTelemetry),
                     .cancel(id: CancelID.updateSpeedLimits)
-                )
+                ]
+                if state.diagnostics != nil {
+                    effects.append(.send(.diagnostics(.presented(.teardown))))
+                }
+                return .merge(effects)
 
             case .pollingIntervalChanged(let seconds):
                 state.pollingIntervalSeconds = seconds
@@ -127,9 +135,38 @@ struct SettingsReducer {
 
             case .delegate:
                 return .none
+
+            case .diagnosticsButtonTapped:
+                state.diagnostics = DiagnosticsReducer.State()
+                return .none
+
+            case .diagnostics(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.diagnostics(.presented(.teardown))),
+                    .send(.diagnosticsDismissed)
+                )
+
+            case .diagnostics(.dismiss):
+                return .concatenate(
+                    .send(.diagnostics(.presented(.teardown))),
+                    .send(.diagnosticsDismissed)
+                )
+
+            case .diagnosticsDismissed:
+                state.diagnostics = nil
+                return .none
+
+            case .diagnostics(.presented) where state.diagnostics == nil:
+                return .none
+
+            case .diagnostics:
+                return .none
             }
         }
         .ifLet(\.$alert, action: \.alert)
+        .ifLet(\.$diagnostics, action: \.diagnostics) {
+            DiagnosticsReducer()
+        }
     }
 
     private func loadPreferences() -> Effect<Action> {

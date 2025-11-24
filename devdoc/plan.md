@@ -34,7 +34,7 @@
    xcodebuild test \
      -scheme Remission \
      -sdk iphonesimulator \
-     -destination 'platform=iOS Simulator,name=iPhone 15' \
+     -destination 'platform=iOS Simulator,name=iPhone 16e' \
      -resultBundlePath build/TestResults/Remission.xcresult \
      -enableCodeCoverage YES
    ```

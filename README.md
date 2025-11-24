@@ -99,7 +99,7 @@ git commit --no-verify
 
 **Сборка для iOS Simulator:**
 ```bash
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e' build
 ```
 
 **Сборка для macOS:**

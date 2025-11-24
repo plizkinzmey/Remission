@@ -139,42 +139,16 @@ final class RemissionUITests: BaseUITestCase {
     func testSettingsScreenShowsControls() {
         let app = launchApp()
 
-        #if os(macOS)
-            let settingsButton = app.toolbars.buttons["Настройки"].firstMatch
-        #else
-            let settingsButton = app.buttons["Настройки"]
-        #endif
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-        settingsButton.tap()
+        let controls = openSettingsControls(app)
+        waitForSettingsLoaded(app)
 
-        let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
-        if autoRefreshToggle.waitForExistence(timeout: 8) == false {
-            // Возможно, sheet не открылся с первого раза — попробуем ещё раз
-            settingsButton.tap()
-        }
-        let toggleExists = autoRefreshToggle.waitForExistence(timeout: 5)
-        if toggleExists == false {
-            attachScreenshot(app, name: "settings_toggle_missing")
-        }
-        XCTAssertTrue(toggleExists, "Auto-refresh toggle missing")
+        XCTAssertTrue(controls.autoRefreshToggle.exists, "Auto-refresh toggle missing")
+        XCTAssertTrue(controls.pollingSlider.exists, "Polling slider missing")
+        XCTAssertTrue(controls.downloadField.exists, "Download limit field missing")
+        XCTAssertTrue(controls.uploadField.exists, "Upload limit field missing")
 
-        let pollingSlider = app.sliders["settings_polling_slider"]
-        XCTAssertTrue(pollingSlider.waitForExistence(timeout: 5), "Polling slider missing")
-
-        let downloadField = app.textFields["settings_download_limit_field"]
-        XCTAssertTrue(downloadField.waitForExistence(timeout: 5), "Download limit field missing")
-
-        let uploadField = app.textFields["settings_upload_limit_field"]
-        XCTAssertTrue(uploadField.waitForExistence(timeout: 5), "Upload limit field missing")
-
-        let closeButton = app.buttons["settings_close_button"]
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
-        closeButton.tap()
-
-        XCTAssertTrue(
-            autoRefreshToggle.waitForDisappearance(timeout: 3),
-            "Settings sheet did not close"
-        )
+        controls.closeButton.tap()
+        XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
     }
 
     @MainActor

@@ -33,7 +33,7 @@ Store(initialState: state) {
 
 ## Запуск тестов
 
-- `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'` — полный набор unit + UI тестов, включая сценарий онбординга.
+- `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16e'` — полный набор unit + UI тестов, включая сценарий онбординга.
 - `xcodebuild test -scheme Remission -sdk macosx` — smoke для macOS-таргетов.
 - Для точечной проверки редьюсера списка торрентов используйте
   `xcodebuild test -scheme Remission -destination 'platform=macOS,arch=arm64' -only-testing:RemissionTests/TorrentListFeatureTests`.
@@ -41,7 +41,7 @@ Store(initialState: state) {
 
 ### Torrent List smoke-сценарий
 
-- `xcodebuild test -scheme Remission -testPlan RemissionUITests -destination 'platform=iOS Simulator,name=iPhone 15' -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh`
+- `xcodebuild test -scheme Remission -testPlan RemissionUITests -destination 'platform=iOS Simulator,name=iPhone 16e' -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh`
 - Требуемые launch-аргументы:
   - `--ui-testing-fixture=torrent-list-sample`
   - `--ui-testing-scenario=torrent-list-sample`

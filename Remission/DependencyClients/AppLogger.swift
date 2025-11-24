@@ -26,8 +26,13 @@ public struct AppLogger: @unchecked Sendable {
     private var category: String
     private var kind: Kind
     private var handlerFactory: @Sendable (String) -> LogHandler
+    private var diagnosticsSink: (@Sendable (DiagnosticsLogEntry) -> Void)?
 
-    public init(label: String = "app.remission", category: String = "app") {
+    public init(
+        label: String = "app.remission",
+        category: String = "app",
+        diagnosticsSink: (@Sendable (DiagnosticsLogEntry) -> Void)? = nil
+    ) {
         AppLogger.bootstrapIfNeeded()
         self.handlerFactory = { @Sendable label in
             var handler = StreamLogHandler.standardOutput(label: label)
@@ -38,6 +43,7 @@ public struct AppLogger: @unchecked Sendable {
         self.category = category
         self.logger = Logger(label: "\(label).\(category)", factory: handlerFactory)
         self.kind = .live
+        self.diagnosticsSink = diagnosticsSink
     }
 
     init(
@@ -45,13 +51,15 @@ public struct AppLogger: @unchecked Sendable {
         label: String,
         category: String,
         kind: Kind,
-        factory: @escaping @Sendable (String) -> LogHandler
+        factory: @escaping @Sendable (String) -> LogHandler,
+        diagnosticsSink: (@Sendable (DiagnosticsLogEntry) -> Void)? = nil
     ) {
         self.logger = logger
         self.baseLabel = label
         self.category = category
         self.kind = kind
         self.handlerFactory = factory
+        self.diagnosticsSink = diagnosticsSink
     }
 
     public func debug(_ message: String, metadata: [String: String] = [:]) {
@@ -76,11 +84,25 @@ public struct AppLogger: @unchecked Sendable {
             label: baseLabel,
             category: category,
             kind: kind,
-            factory: handlerFactory
+            factory: handlerFactory,
+            diagnosticsSink: diagnosticsSink
         )
     }
 
     public var isNoop: Bool { kind == .noop }
+
+    public func withDiagnosticsSink(
+        _ sink: @escaping @Sendable (DiagnosticsLogEntry) -> Void
+    ) -> AppLogger {
+        AppLogger(
+            logger: logger,
+            label: baseLabel,
+            category: category,
+            kind: kind,
+            factory: handlerFactory,
+            diagnosticsSink: sink
+        )
+    }
 
     private func log(
         _ level: AppLogLevel,
@@ -102,6 +124,19 @@ public struct AppLogger: @unchecked Sendable {
             "\(message)",
             metadata: enriched.mapValues { .string($0) }
         )
+
+        if let diagnosticsSink {
+            var entryMetadata = enriched
+            entryMetadata.removeValue(forKey: "category")
+            let entry = DiagnosticsLogEntry(
+                timestamp: Date(),
+                level: level,
+                message: message,
+                category: category,
+                metadata: entryMetadata
+            )
+            diagnosticsSink(entry)
+        }
     }
 }
 
