@@ -1411,9 +1411,9 @@ return .run { [repository, clock = appClock.clock()] send in
 - Проверка: unit-тесты Settings/TorrentList/ServerDetail reducers, UI-тесты Settings (персистентность + smoke), актуальные команды xcodebuild и ссылки на xcresult в отчёте.
 
 ## Веха 10: Логирование и телеметрия
-- M10.1 Интегрировать `swift-log` (Swift.org official) с согласованными уровнями логирования (debug, info, warning, error) через @Dependency Logger. **Статус:** выполнено (RTC-98/103), единый `AppLogger` подключён, прямые `print/os.Logger` удалены.
-- M10.2 Сохранять сетевые и RPC-ошибки с контекстной метаинформацией. **Статус:** выполнено (RTC-99) — `DefaultTransmissionLogger` маскирует Authorization/SessionID, усечает payload, добавляет host/method/status/retry/duration; тесты `TransmissionLoggerTests` подтверждают отсутствие утечек.
-- M10.3 Добавить опциональный переключатель отправки телеметрии (по умолчанию отключен) в настройках с явным согласием пользователя. **Статус:** выполнено (RTC-100/RTC-104) — `UserPreferences` v2 с `isTelemetryEnabled=false` по умолчанию, миграция v1→v2 в live/in-memory сторах, переключатель в Settings, отправители обязаны проверять `TelemetryConsentDependency`.
+- M10.1 Интегрировать `swift-log` (Swift.org official) с согласованными уровнями логирования (debug, info, warning, error) через @Dependency Logger.
+- M10.2 Сохранять сетевые и RPC-ошибки с контекстной метаинформацией. **КРИТИЧЕСКИ**: никогда не логировать пароли, usernames, токены или sensitive данные.
+- M10.3 Добавить опциональный переключатель отправки телеметрии (по умолчанию отключен) в настройках с явным согласием пользователя.
   - Использовать `TelemetryConsentDependency` для гейта телеметрических отправок:
     ```swift
     @Dependency(\.telemetryConsent) var telemetryConsent
@@ -1432,9 +1432,9 @@ return .run { [repository, clock = appClock.clock()] send in
     }
     ```
   - Миграции `UserPreferences` ставят `isTelemetryEnabled = false` по умолчанию; все отправки должны проверять флаг.
-- M10.4 Подготовить гайд по чтению логов и диагностике для пользователей в документации — см. [LOGGING_GUIDE.md](LOGGING_GUIDE.md). **Статус:** выполнено (RTC-101) — описаны уровни, маскирование, пути логов iOS/macOS, правила безопасности, опт-ин телеметрии.
-- M10.5 Добавить экран диагностики в UI для просмотра последних логов (для разработчиков и support). **Статус:** выполнено (RTC-102) — `DiagnosticsReducer`/`DiagnosticsView` (TCA, @Presents из Settings), локальный кольцевой буфер `DiagnosticsLogStore`, фильтр по уровню/поиску, очистка; записи приходят из sink `appLogger.withDiagnosticsSink`.
-- Проверка Вехи 10 (RTC-105): архитектурный аудит TCA/DependencyValues/безопасности логов — пройдён. Команды: `swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests`; `swiftlint lint`; `xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64'` (xcresult: `~/Library/Developer/Xcode/DerivedData/Remission-hizssvkjniurwvggbezcsopugcdl/Logs/Test/Test-Remission-2025.11.24_22-13-10-+0300.xcresult`). Отклонений от архитектуры и утечек не обнаружено.
+- M10.4 Подготовить гайд по чтению логов и диагностике для пользователей в документации — см. [LOGGING_GUIDE.md](LOGGING_GUIDE.md).
+- M10.5 Добавить экран диагностики в UI для просмотра последних логов (для разработчиков и support).
+- Проверка: модульные тесты форматирования логов с использованием Swift Testing @Test и ручная проверка поведения переключателя. Убедиться, что credentials никогда не логируются.
 
 ### QA справка по логам и телеметрии (RTC-101)
 - Гайд: [LOGGING_GUIDE.md](LOGGING_GUIDE.md) (включение расширенного логирования, пути логов для iOS/macOS, правила безопасности, телеметрия off по умолчанию).

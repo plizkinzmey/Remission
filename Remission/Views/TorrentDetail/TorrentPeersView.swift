@@ -18,11 +18,18 @@ struct TorrentPeersView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityIdentifier("torrent-peer-\(peer.id)")
-                    .accessibilityLabel("\(peer.name): \(peer.count) источников")
+                    .accessibilityLabel(
+                        String(
+                            format: L10n.tr("torrentDetail.peers.accessibility"),
+                            locale: Locale.current,
+                            peer.name,
+                            peer.count
+                        )
+                    )
                 }
             }
         } label: {
-            Text("Источники пиров")
+            Text(L10n.tr("torrentDetail.peers.title"))
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-peers-section")

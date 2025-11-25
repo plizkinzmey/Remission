@@ -53,10 +53,10 @@ struct ServerListView: View {
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
                 #if os(iOS)
                     .swipeActions(edge: .trailing) {
-                        Button("Удалить", role: .destructive) {
+                        Button(L10n.tr("serverList.action.delete"), role: .destructive) {
                             store.send(.deleteButtonTapped(server.id))
                         }
-                        Button("Изменить") {
+                        Button(L10n.tr("serverList.action.edit")) {
                             store.send(.editButtonTapped(server.id))
                         }
                         .tint(.blue)
@@ -64,10 +64,10 @@ struct ServerListView: View {
                 #endif
                 #if os(macOS)
                     .contextMenu {
-                        Button("Изменить") {
+                        Button(L10n.tr("serverList.action.edit")) {
                             store.send(.editButtonTapped(server.id))
                         }
-                        Button("Удалить", role: .destructive) {
+                        Button(L10n.tr("serverList.action.delete"), role: .destructive) {
                             store.send(.deleteButtonTapped(server.id))
                         }
                     }
@@ -87,16 +87,16 @@ struct ServerListView: View {
                 .imageScale(.large)
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("Нет подключённых серверов")
+            Text(L10n.tr("serverList.empty.title"))
                 .font(.title3)
                 .accessibilityIdentifier("server_list_empty_title")
-            Text("Добавьте Transmission сервер, чтобы управлять торрентами.")
+            Text(L10n.tr("serverList.empty.message"))
                 .font(.body)
                 .foregroundStyle(.secondary)
             Button {
                 store.send(.addButtonTapped)
             } label: {
-                Label("Добавить сервер", systemImage: "plus")
+                Label(L10n.tr("serverList.action.addServer"), systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("server_list_add_button")
@@ -118,7 +118,7 @@ struct ServerListView: View {
     private func securityBadge(for server: ServerConfig) -> some View {
         Group {
             if server.isSecure {
-                Label("HTTPS", systemImage: "lock.fill")
+                Label(L10n.tr("serverList.badge.https"), systemImage: "lock.fill")
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -127,18 +127,20 @@ struct ServerListView: View {
                             .fill(Color.green.opacity(0.2))
                     )
                     .foregroundStyle(.green)
-                    .accessibilityLabel("Безопасный сервер")
+                    .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
             } else {
-                Label("HTTP", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.orange.opacity(0.2))
-                    )
-                    .foregroundStyle(.orange)
-                    .accessibilityLabel("Небезопасный сервер")
+                Label(
+                    L10n.tr("serverList.badge.http"), systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.orange.opacity(0.2))
+                )
+                .foregroundStyle(.orange)
+                .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
             }
         }
     }

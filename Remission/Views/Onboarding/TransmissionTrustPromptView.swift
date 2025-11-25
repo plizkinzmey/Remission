@@ -15,10 +15,13 @@ struct TransmissionTrustPromptView: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 16) {
-                Label("Ненадёжный сертификат", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.title3.bold())
-                Text("Не удалось подтвердить сертификат сервера. Доверять этому сертификату?")
+                Label(
+                    L10n.tr("onboarding.trustPrompt.title"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(.orange)
+                .font(.title3.bold())
+                Text(L10n.tr("onboarding.trustPrompt.message"))
                     .font(.body)
 
                 certificateDetails
@@ -29,7 +32,7 @@ struct TransmissionTrustPromptView: View {
                     Button(role: .destructive) {
                         store.send(.cancelled)
                     } label: {
-                        Text("Отмена")
+                        Text(L10n.tr("onboarding.trustPrompt.cancel"))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
@@ -37,24 +40,28 @@ struct TransmissionTrustPromptView: View {
                     Button {
                         store.send(.trustConfirmed)
                     } label: {
-                        Text("Доверять")
+                        Text(L10n.tr("onboarding.trustPrompt.trust"))
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
                 }
             }
             .padding()
-            .navigationTitle("Доверие сертификату")
+            .navigationTitle(L10n.tr("onboarding.trustPrompt.navigationTitle"))
         }
     }
 
     private var certificateDetails: some View {
         VStack(alignment: .leading, spacing: 8) {
-            detailRow(title: "Сервер", value: challenge.identity.canonicalIdentifier)
+            detailRow(
+                title: L10n.tr("onboarding.trustPrompt.server"),
+                value: challenge.identity.canonicalIdentifier
+            )
             if let cn = certificate.commonName, cn.isEmpty == false {
-                detailRow(title: "CN", value: cn)
+                detailRow(title: L10n.tr("onboarding.trustPrompt.commonName"), value: cn)
             }
-            detailRow(title: "Отпечаток SHA‑256", value: fingerprintFormatted)
+            detailRow(
+                title: L10n.tr("onboarding.trustPrompt.fingerprint"), value: fingerprintFormatted)
         }
         .padding()
         .background(

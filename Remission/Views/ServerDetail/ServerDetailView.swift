@@ -34,7 +34,7 @@ struct ServerDetailView: View {
                 TorrentDetailView(store: detailStore)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Закрыть") {
+                            Button(L10n.tr("serverDetail.button.close")) {
                                 detailStore.send(.delegate(.closeRequested))
                             }
                         }
@@ -48,7 +48,7 @@ struct ServerDetailView: View {
                 AddTorrentView(store: addStore)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("Закрыть") {
+                            Button(L10n.tr("serverDetail.button.close")) {
                                 addStore.send(.closeButtonTapped)
                             }
                         }
@@ -63,7 +63,7 @@ struct ServerDetailView: View {
         )
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button("Изменить") {
+                Button(L10n.tr("serverDetail.button.edit")) {
                     store.send(.editButtonTapped)
                 }
             }
@@ -71,10 +71,11 @@ struct ServerDetailView: View {
     }
 
     private var serverSection: some View {
-        Section("Сервер") {
-            LabeledContent("Название", value: store.server.name)
-            LabeledContent("Адрес", value: store.server.displayAddress)
-            LabeledContent("Протокол") {
+        Section(L10n.tr("serverDetail.section.server")) {
+            LabeledContent(L10n.tr("serverDetail.field.name"), value: store.server.name)
+            LabeledContent(
+                L10n.tr("serverDetail.field.address"), value: store.server.displayAddress)
+            LabeledContent(L10n.tr("serverDetail.field.protocol")) {
                 securityBadge
             }
         }
@@ -98,22 +99,24 @@ struct ServerDetailView: View {
     }
 
     private var connectionSection: some View {
-        Section("Подключение") {
+        Section(L10n.tr("serverDetail.section.connection")) {
             switch store.connectionState.phase {
             case .idle:
-                Text("Ожидаем начало подключения.")
+                Text(L10n.tr("serverDetail.status.waiting"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
             case .connecting:
                 HStack(spacing: 12) {
                     ProgressView()
-                    Text("Подключаемся к серверу…")
+                    Text(L10n.tr("serverDetail.status.connecting"))
                 }
 
             case .ready(let ready):
-                Label("Подключено", systemImage: "checkmark.circle.fill")
-                    .foregroundStyle(.green)
+                Label(
+                    L10n.tr("serverDetail.status.connected"), systemImage: "checkmark.circle.fill"
+                )
+                .foregroundStyle(.green)
                 if let description = ready.handshake.serverVersionDescription {
                     if description.isEmpty == false {
                         Text(description)
@@ -122,17 +125,22 @@ struct ServerDetailView: View {
                     }
                 }
 
-                Text("RPC v\(ready.handshake.rpcVersion)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    String(
+                        format: L10n.tr("serverDetail.status.rpcVersion"),
+                        Int64(ready.handshake.rpcVersion)
+                    )
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             case .failed(let failure):
-                Label("Ошибка подключения", systemImage: "xmark.octagon.fill")
+                Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
                     .foregroundStyle(.red)
                 Text(failure.message)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                Button("Повторить подключение") {
+                Button(L10n.tr("serverDetail.action.retry")) {
                     store.send(.retryConnectionButtonTapped)
                 }
                 .buttonStyle(.borderedProminent)
@@ -141,19 +149,22 @@ struct ServerDetailView: View {
     }
 
     private var securitySection: some View {
-        Section("Безопасность") {
+        Section(L10n.tr("serverDetail.section.security")) {
             if store.server.isSecure {
-                Label("HTTPS соединение", systemImage: "lock.fill")
+                Label(L10n.tr("serverDetail.security.https"), systemImage: "lock.fill")
                     .foregroundStyle(.green)
                 if case .https(let allowUntrusted) = store.server.security, allowUntrusted {
-                    Text("Разрешены недоверенные сертификаты.")
+                    Text(L10n.tr("serverForm.security.allowUntrusted"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Label("HTTP (небезопасно)", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                Text("Данные передаются без шифрования. Рекомендуем включить HTTPS.")
+                Label(
+                    L10n.tr("serverDetail.security.httpWarning"),
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .foregroundStyle(.orange)
+                Text(L10n.tr("serverDetail.security.httpHint"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -163,49 +174,55 @@ struct ServerDetailView: View {
     private var securityBadge: some View {
         Group {
             if store.server.isSecure {
-                Label("HTTPS", systemImage: "lock.fill")
+                Label(L10n.tr("serverList.badge.https"), systemImage: "lock.fill")
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(Capsule().fill(Color.green.opacity(0.15)))
                     .foregroundStyle(.green)
             } else {
-                Label("HTTP", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.orange.opacity(0.15)))
-                    .foregroundStyle(.orange)
+                Label(
+                    L10n.tr("serverList.badge.http"), systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color.orange.opacity(0.15)))
+                .foregroundStyle(.orange)
             }
         }
         .accessibilityLabel(
             store.server.isSecure
-                ? "Безопасное подключение"
-                : "Небезопасное подключение"
+                ? L10n.tr("serverDetail.security.state.secure")
+                : L10n.tr("serverDetail.security.state.insecure")
         )
     }
 
     private var trustSection: some View {
-        Section("Доверие") {
+        Section(L10n.tr("serverDetail.section.trust")) {
             Button(role: .destructive) {
                 store.send(.resetTrustButtonTapped)
             } label: {
-                Label("Сбросить доверие", systemImage: "arrow.counterclockwise")
+                Label(
+                    L10n.tr("serverDetail.action.resetTrust"), systemImage: "arrow.counterclockwise"
+                )
             }
             Button {
                 store.send(.httpWarningResetButtonTapped)
             } label: {
-                Label("Сбросить предупреждения HTTP", systemImage: "exclamationmark.shield")
+                Label(
+                    L10n.tr("serverDetail.action.resetHttpWarnings"),
+                    systemImage: "exclamationmark.shield")
             }
         }
     }
 
     private var actionsSection: some View {
-        Section("Действия") {
+        Section(L10n.tr("serverDetail.section.actions")) {
             Button(role: .destructive) {
                 store.send(.deleteButtonTapped)
             } label: {
-                Label("Удалить сервер", systemImage: "trash")
+                Label(L10n.tr("serverDetail.action.delete"), systemImage: "trash")
             }
         }
     }

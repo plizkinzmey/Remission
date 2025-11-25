@@ -21,16 +21,16 @@ struct OnboardingView: View {
             }
             .disabled(store.isSubmitting)
             .overlay(submissionOverlay)
-            .navigationTitle("Новый сервер")
+            .navigationTitle(L10n.tr("onboarding.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") {
+                    Button(L10n.tr("onboarding.action.cancel")) {
                         store.send(.cancelButtonTapped)
                     }
                     .accessibilityIdentifier("onboarding_cancel_button")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить сервер") {
+                    Button(L10n.tr("onboarding.action.saveServer")) {
                         store.send(.connectButtonTapped)
                     }
                     .disabled(store.isSaveButtonDisabled)
@@ -49,7 +49,7 @@ struct OnboardingView: View {
     }
 
     private var statusSection: some View {
-        Section("Статус подключения") {
+        Section(L10n.tr("onboarding.section.connectionStatus")) {
             Button {
                 if OnboardingViewEnvironment.isOnboardingUITest {
                     store.send(.uiTestBypassConnection)
@@ -57,7 +57,7 @@ struct OnboardingView: View {
                     store.send(.checkConnectionButtonTapped)
                 }
             } label: {
-                Label("Проверить подключение", systemImage: "arrow.clockwise")
+                Label(L10n.tr("onboarding.action.checkConnection"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.bordered)
             .disabled(store.connectionStatus == .testing || store.form.isFormValid == false)
@@ -65,26 +65,28 @@ struct OnboardingView: View {
 
             switch store.connectionStatus {
             case .idle:
-                Text("Проверка не выполнялась")
+                Text(L10n.tr("onboarding.status.notTested"))
                     .foregroundStyle(.secondary)
 
             case .testing:
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("Проверяем соединение…")
+                    Text(L10n.tr("onboarding.status.testing"))
                 }
                 .accessibilityIdentifier("onboarding_connection_testing")
 
             case .success(let handshake):
                 VStack(alignment: .leading, spacing: 4) {
-                    Label("Соединение подтверждено", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                    Text(
-                        handshake.serverVersionDescription
-                            ?? "RPC \(handshake.rpcVersion)"
+                    Label(
+                        L10n.tr("onboarding.status.success"), systemImage: "checkmark.circle.fill"
                     )
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.green)
+                    let rpcText = String(
+                        format: L10n.tr("onboarding.status.rpcVersion"), Int64(handshake.rpcVersion)
+                    )
+                    Text(handshake.serverVersionDescription ?? rpcText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 .accessibilityIdentifier("onboarding_connection_success")
 
@@ -103,7 +105,7 @@ struct OnboardingView: View {
             ZStack {
                 Color.black.opacity(0.1)
                     .ignoresSafeArea()
-                ProgressView("Подключение…")
+                ProgressView(L10n.tr("onboarding.status.connecting"))
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)

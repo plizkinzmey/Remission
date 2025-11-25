@@ -13,11 +13,11 @@ struct TorrentErrorView: View {
                     .font(.callout)
                     .multilineTextAlignment(.leading)
                 Spacer()
-                Button("Закрыть", action: onDismiss)
+                Button(L10n.tr("torrentDetail.error.close"), action: onDismiss)
                     .buttonStyle(.bordered)
             }
         } label: {
-            Text("Ошибка")
+            Text(L10n.tr("torrentDetail.error.title"))
                 .font(.headline)
                 .foregroundStyle(.red)
         }

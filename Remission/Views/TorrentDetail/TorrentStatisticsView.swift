@@ -8,19 +8,19 @@ struct TorrentStatisticsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
                 TorrentDetailLabelValueRow(
-                    label: "Скорость загрузки:",
+                    label: L10n.tr("torrentDetail.stats.downloadSpeed"),
                     value: TorrentDetailFormatters.speed(store.rateDownload)
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Скорость отдачи:",
+                    label: L10n.tr("torrentDetail.stats.uploadSpeed"),
                     value: TorrentDetailFormatters.speed(store.rateUpload)
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Коэффициент:",
+                    label: L10n.tr("torrentDetail.stats.ratio"),
                     value: String(format: "%.2f", store.uploadRatio)
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Пиров подключено:",
+                    label: L10n.tr("torrentDetail.stats.peers"),
                     value: "\(store.peersConnected)"
                 )
 
@@ -30,7 +30,7 @@ struct TorrentStatisticsView: View {
                 uploadLimitControls
             }
         } label: {
-            Text("Статистика")
+            Text(L10n.tr("torrentDetail.stats.title"))
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-statistics-section")
@@ -38,7 +38,7 @@ struct TorrentStatisticsView: View {
 
     private var downloadLimitControls: some View {
         TorrentLimitControl(
-            title: "Лимит загрузки:",
+            title: L10n.tr("torrentDetail.stats.downloadLimit"),
             isEnabled: Binding(
                 get: { store.downloadLimited },
                 set: { store.send(.toggleDownloadLimit($0)) }
@@ -52,7 +52,7 @@ struct TorrentStatisticsView: View {
 
     private var uploadLimitControls: some View {
         TorrentLimitControl(
-            title: "Лимит отдачи:",
+            title: L10n.tr("torrentDetail.stats.uploadLimit"),
             isEnabled: Binding(
                 get: { store.uploadLimited },
                 set: { store.send(.toggleUploadLimit($0)) }
@@ -83,16 +83,18 @@ private struct TorrentLimitControl: View {
 
             if isEnabled.wrappedValue {
                 HStack {
-                    Text("Значение (КБ/с):")
+                    Text(L10n.tr("torrentDetail.stats.valueLabel"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    TextField("КБ/с", value: value, format: .number)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 100)
-                        #if os(macOS)
-                            .controlSize(.small)
-                        #endif
+                    TextField(
+                        L10n.tr("torrentDetail.stats.placeholder"), value: value, format: .number
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 100)
+                    #if os(macOS)
+                        .controlSize(.small)
+                    #endif
                 }
             }
         }

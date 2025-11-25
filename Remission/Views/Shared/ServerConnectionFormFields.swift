@@ -10,36 +10,36 @@ struct ServerConnectionFormFields: View {
     }
 
     private var connectionSection: some View {
-        Section("Подключение") {
-            TextField("Имя сервера", text: $form.name)
+        Section(L10n.tr("serverForm.section.connection")) {
+            TextField(L10n.tr("serverForm.placeholder.name"), text: $form.name)
             #if os(iOS)
-                TextField("Host", text: $form.host)
+                TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             #else
-                TextField("Host", text: $form.host)
+                TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
                     .textContentType(.URL)
             #endif
             #if os(iOS)
-                TextField("Порт", text: $form.port)
+                TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
                     .keyboardType(.numberPad)
             #else
-                TextField("Порт", text: $form.port)
+                TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
             #endif
             #if os(iOS)
-                TextField("Путь", text: $form.path)
+                TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             #else
-                TextField("Путь", text: $form.path)
+                TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
             #endif
         }
     }
 
     private var securitySection: some View {
-        Section("Безопасность") {
-            Picker("Протокол", selection: $form.transport) {
+        Section(L10n.tr("serverForm.section.security")) {
+            Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
                 ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                     Text(transport.title).tag(transport)
                 }
@@ -48,19 +48,19 @@ struct ServerConnectionFormFields: View {
 
             if form.transport == .https {
                 Toggle(
-                    "Разрешить недоверенные сертификаты",
+                    L10n.tr("serverForm.security.allowUntrusted"),
                     isOn: $form.allowUntrustedCertificates
                 )
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("HTTP небезопасен")
+                    Text(L10n.tr("serverForm.security.httpWarning.title"))
                         .font(.subheadline)
                         .bold()
-                    Text("Данные (включая логин и пароль) передаются без шифрования.")
+                    Text(L10n.tr("serverForm.security.httpWarning.message"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     Toggle(
-                        "Не предупреждать для этого сервера",
+                        L10n.tr("serverForm.security.httpWarning.suppress"),
                         isOn: $form.suppressInsecureWarning
                     )
                     .toggleStyle(.switch)
@@ -70,15 +70,15 @@ struct ServerConnectionFormFields: View {
     }
 
     private var credentialsSection: some View {
-        Section("Учетные данные") {
+        Section(L10n.tr("serverForm.section.credentials")) {
             #if os(iOS)
-                TextField("Имя пользователя", text: $form.username)
+                TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
             #else
-                TextField("Имя пользователя", text: $form.username)
+                TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
             #endif
-            SecureField("Пароль", text: $form.password)
+            SecureField(L10n.tr("serverForm.placeholder.password"), text: $form.password)
         }
     }
 }

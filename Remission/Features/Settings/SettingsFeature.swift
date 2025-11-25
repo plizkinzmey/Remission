@@ -116,10 +116,10 @@ struct SettingsReducer {
                     state.defaultSpeedLimits = persisted.defaultSpeedLimits
                 }
                 state.alert = AlertState {
-                    TextState("Не удалось сохранить настройки")
+                    TextState(L10n.tr("settings.alert.saveFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Закрыть")
+                        TextState(L10n.tr("settings.alert.close"))
                     }
                 } message: {
                     TextState(describe(error))

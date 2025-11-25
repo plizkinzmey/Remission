@@ -98,7 +98,7 @@ final class RemissionUITests: BaseUITestCase {
             XCTAssertTrue(serverCell.waitForExistence(timeout: 5), "Server cell not found")
             serverCell.tap()
 
-            let torrentsHeader = app.staticTexts["Торренты"]
+            let torrentsHeader = app.staticTexts["torrent_list_header"]
             XCTAssertTrue(torrentsHeader.waitForExistence(timeout: 5), "Torrent section missing")
 
             let ubuntuName = app.staticTexts["Ubuntu 25.04 Desktop"]
@@ -246,7 +246,7 @@ final class RemissionUITests: BaseUITestCase {
             XCTAssertTrue(serverCell.waitForExistence(timeout: 5), "Server cell not found")
             serverCell.tap()
 
-            let torrentsHeader = app.staticTexts["Торренты"]
+            let torrentsHeader = app.staticTexts["torrent_list_header"]
             XCTAssertTrue(torrentsHeader.waitForExistence(timeout: 5), "Torrent section missing")
 
             let torrentRowButton = app.buttons["torrent_list_item_1001"]

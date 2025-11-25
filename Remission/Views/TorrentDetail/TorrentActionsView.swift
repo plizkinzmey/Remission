@@ -9,7 +9,9 @@ struct TorrentActionsView: View {
             VStack(spacing: 12) {
                 HStack(spacing: 12) {
                     actionButton(
-                        title: isActive ? "Пауза" : "Старт",
+                        title: isActive
+                            ? L10n.tr("torrentDetail.actions.pause")
+                            : L10n.tr("torrentDetail.actions.start"),
                         systemImage: isActive ? "pause.fill" : "play.fill",
                         color: isActive ? .orange : .green,
                         lockCategory: isActive ? .pause : .start
@@ -18,7 +20,7 @@ struct TorrentActionsView: View {
                     }
 
                     actionButton(
-                        title: "Проверить",
+                        title: L10n.tr("torrentDetail.actions.verify"),
                         systemImage: "checkmark.shield.fill",
                         color: .blue,
                         lockCategory: .verify
@@ -28,7 +30,7 @@ struct TorrentActionsView: View {
                 }
 
                 actionButton(
-                    title: "Удалить торрент",
+                    title: L10n.tr("torrentDetail.actions.remove"),
                     systemImage: "trash.fill",
                     color: .red,
                     fullWidth: true,
@@ -38,7 +40,7 @@ struct TorrentActionsView: View {
                 }
             }
         } label: {
-            Text("Действия")
+            Text(L10n.tr("torrentDetail.actions.title"))
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-actions-section")
@@ -65,18 +67,18 @@ struct TorrentActionsView: View {
         .disabled(lockCategory.map(isLocked(for:)) ?? false)
         .accessibilityIdentifier(identifier(for: title))
         .accessibilityLabel(title)
-        .accessibilityHint("Отправляет команду на Transmission")
+        .accessibilityHint(L10n.tr("torrentDetail.actions.hint"))
     }
 
     private func identifier(for title: String) -> String {
         switch title {
-        case "Пауза":
+        case L10n.tr("torrentDetail.actions.pause"):
             return "torrent-action-pause"
-        case "Старт":
+        case L10n.tr("torrentDetail.actions.start"):
             return "torrent-action-start"
-        case "Проверить":
+        case L10n.tr("torrentDetail.actions.verify"):
             return "torrent-action-verify"
-        case "Удалить торрент":
+        case L10n.tr("torrentDetail.actions.remove"):
             return "torrent-action-remove"
         default:
             return "torrent-action-\(title.lowercased())"

@@ -124,7 +124,7 @@ struct OnboardingReducer {
 
             case .connectButtonTapped:
                 guard let context = state.verifiedSubmission else {
-                    state.validationError = "Сначала выполните проверку соединения."
+                    state.validationError = L10n.tr("onboarding.error.validation.checkRequired")
                     return .none
                 }
                 return persistSubmission(state: &state, context: context)
@@ -146,10 +146,10 @@ struct OnboardingReducer {
             case .submissionFinished(.failure(let error)):
                 state.isSubmitting = false
                 state.alert = AlertState {
-                    TextState("Не удалось добавить сервер")
+                    TextState(L10n.tr("onboarding.alert.saveFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .errorDismissed) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(error.message)
@@ -308,7 +308,7 @@ extension OnboardingReducer {
         forceAllowInsecureTransport: Bool
     ) -> SubmissionContext? {
         guard state.form.isFormValid, state.form.portValue != nil else {
-            state.validationError = "Заполните хост и корректный порт."
+            state.validationError = L10n.tr("onboarding.error.validation.hostPort")
             return nil
         }
 
@@ -373,17 +373,17 @@ extension OnboardingReducer {
 
     private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
         AlertState {
-            TextState("Небезопасное подключение")
+            TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
         } actions: {
             ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                TextState("Продолжить")
+                TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
             }
             ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                TextState("Отмена")
+                TextState(L10n.tr("common.cancel"))
             }
         } message: {
             TextState(
-                "Соединение без шифрования. Логин и пароль могут быть перехвачены. Продолжить?"
+                L10n.tr("onboarding.alert.insecureConnection.message")
             )
         }
     }
@@ -400,11 +400,10 @@ extension OnboardingReducer {
     private func localizeConnectionMessage(_ message: String) -> String {
         let lowercased = message.lowercased()
         if lowercased.contains("timeout") || lowercased.contains("timed out") {
-            return
-                "Истекло время ожидания подключения. Проверьте сеть или сервер и попробуйте снова."
+            return L10n.tr("onboarding.connection.timeout")
         }
         if lowercased.contains("cancelled") || lowercased.contains("canceled") {
-            return "Проверка подключения была отменена. Попробуйте ещё раз."
+            return L10n.tr("onboarding.connection.cancelled")
         }
         return message
     }

@@ -19,11 +19,13 @@ struct AddTorrentView: View {
         )
 
         Form {
-            Section("Источник") {
+            Section(L10n.tr("torrentAdd.section.source")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Источник", systemImage: "tray.and.arrow.down.fill")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Label(
+                        L10n.tr("torrentAdd.label.source"), systemImage: "tray.and.arrow.down.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     Text(store.pendingInput.sourceDescription)
                         .font(.body)
                         .bold()
@@ -33,18 +35,18 @@ struct AddTorrentView: View {
                 }
             }
 
-            Section("Каталог загрузки") {
-                TextField("Например, /downloads", text: destinationBinding)
+            Section(L10n.tr("torrentAdd.section.destination")) {
+                TextField(L10n.tr("torrentAdd.placeholder.destination"), text: destinationBinding)
             }
 
-            Section("Параметры") {
-                Toggle("Запустить в паузе", isOn: startPausedBinding)
+            Section(L10n.tr("torrentAdd.section.parameters")) {
+                Toggle(L10n.tr("torrentAdd.toggle.startPaused"), isOn: startPausedBinding)
             }
 
-            Section("Теги") {
+            Section(L10n.tr("torrentAdd.section.tags")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        TextField("Добавить тег", text: newTagBinding)
+                        TextField(L10n.tr("torrentAdd.placeholder.tag"), text: newTagBinding)
                         Button {
                             store.send(.addTagTapped)
                         } label: {
@@ -69,7 +71,7 @@ struct AddTorrentView: View {
                             }
                         }
                     } else {
-                        Text("Теги не заданы")
+                        Text(L10n.tr("torrentAdd.tags.empty"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -83,19 +85,19 @@ struct AddTorrentView: View {
                     if store.isSubmitting {
                         ProgressView()
                     } else {
-                        Text("Добавить")
+                        Text(L10n.tr("torrentAdd.action.add"))
                             .frame(maxWidth: .infinity)
                     }
                 }
                 .buttonStyle(.borderedProminent)
 
-                Button("Отмена") {
+                Button(L10n.tr("torrentAdd.action.cancel")) {
                     store.send(.closeButtonTapped)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
             }
         }
-        .navigationTitle("Добавление торрента")
+        .navigationTitle(L10n.tr("torrentAdd.title"))
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 }

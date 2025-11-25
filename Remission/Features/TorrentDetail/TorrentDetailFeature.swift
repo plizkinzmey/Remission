@@ -273,7 +273,7 @@ struct TorrentDetailReducer {
     ) -> Effect<Action> {
         guard let environment = state.connectionEnvironment else {
             state.isLoading = false
-            state.errorMessage = "Нет подключения к серверу"
+            state.errorMessage = L10n.tr("torrentDetail.error.noConnection")
             return .none
         }
 
@@ -341,7 +341,7 @@ struct TorrentDetailReducer {
         guard let environment = state.connectionEnvironment else {
             return .send(
                 .commandResponse(
-                    .failure(command, "Нет подключения к серверу")
+                    .failure(command, L10n.tr("torrentDetail.error.noConnection"))
                 )
             )
         }
@@ -402,13 +402,13 @@ struct TorrentDetailReducer {
     ) -> Effect<Action> {
         switch command {
         case .start:
-            return .send(.commandDidFinish("Торрент запущен"))
+            return .send(.commandDidFinish(L10n.tr("torrentDetail.status.started")))
         case .pause:
-            return .send(.commandDidFinish("Торрент остановлен"))
+            return .send(.commandDidFinish(L10n.tr("torrentDetail.status.stopped")))
         case .verify:
-            return .send(.commandDidFinish("Проверка запущена"))
+            return .send(.commandDidFinish(L10n.tr("torrentDetail.status.verify")))
         case .priority:
-            return .send(.commandDidFinish("Приоритет обновлён"))
+            return .send(.commandDidFinish(L10n.tr("torrentDetail.status.priority")))
         case .remove:
             return .send(.delegate(.torrentRemoved(torrentID)))
         }
@@ -452,7 +452,7 @@ struct TorrentDetailReducer {
 
             switch result {
             case .success:
-                await send(.commandDidFinish("Настройки скоростей обновлены"))
+                await send(.commandDidFinish(L10n.tr("torrentDetail.status.speedUpdated")))
             case .failure(let error):
                 await send(.commandFailed(Self.describe(error)))
             }

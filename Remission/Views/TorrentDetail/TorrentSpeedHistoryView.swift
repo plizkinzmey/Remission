@@ -13,8 +13,8 @@ struct TorrentSpeedHistoryView: View {
                 if samples.isEmpty {
                     EmptyPlaceholderView(
                         systemImage: "waveform.path",
-                        title: "Нет истории",
-                        message: "История скоростей появится после нескольких обновлений."
+                        title: L10n.tr("torrentDetail.speedHistory.empty.title"),
+                        message: L10n.tr("torrentDetail.speedHistory.empty.message")
                     )
                     .accessibilityIdentifier("torrent-speed-history-empty")
                 } else {
@@ -23,15 +23,21 @@ struct TorrentSpeedHistoryView: View {
                             .frame(height: 180)
                             .accessibilityIdentifier("torrent-speed-history-chart")
                     #else
-                        Text("Диаграмма недоступна для этой платформы.")
+                        Text(L10n.tr("torrentDetail.speedHistory.unavailable"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     #endif
                     HStack(spacing: 12) {
-                        Label("Загрузка", systemImage: "arrow.down.circle.fill")
-                            .foregroundStyle(.green)
-                        Label("Отдача", systemImage: "arrow.up.circle.fill")
-                            .foregroundStyle(.blue)
+                        Label(
+                            L10n.tr("torrentDetail.speedHistory.download"),
+                            systemImage: "arrow.down.circle.fill"
+                        )
+                        .foregroundStyle(.green)
+                        Label(
+                            L10n.tr("torrentDetail.speedHistory.upload"),
+                            systemImage: "arrow.up.circle.fill"
+                        )
+                        .foregroundStyle(.blue)
                     }
                     .font(.caption)
                     Divider()
@@ -39,7 +45,7 @@ struct TorrentSpeedHistoryView: View {
                 }
             }
         } label: {
-            Text("История скоростей")
+            Text(L10n.tr("torrentDetail.speedHistory.title"))
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-speed-history-section")
@@ -62,9 +68,12 @@ struct TorrentSpeedHistoryView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
-                    "Время \(sample.timestamp.formatted(date: .omitted, time: .shortened)). "
-                        + "Загрузка \(TorrentDetailFormatters.speed(sample.downloadRate)). "
-                        + "Отдача \(TorrentDetailFormatters.speed(sample.uploadRate))."
+                    String(
+                        format: L10n.tr("torrentDetail.speedHistory.accessibility"),
+                        sample.timestamp.formatted(date: .omitted, time: .shortened),
+                        TorrentDetailFormatters.speed(sample.downloadRate),
+                        TorrentDetailFormatters.speed(sample.uploadRate)
+                    )
                 )
             }
         }
@@ -83,15 +92,19 @@ struct TorrentSpeedHistoryView: View {
             Chart {
                 ForEach(samples, id: \.timestamp) { sample in
                     LineMark(
-                        x: .value("Время", sample.timestamp),
-                        y: .value("Загрузка", kilobytes(sample.downloadRate))
+                        x: .value(L10n.tr("torrentDetail.speedHistory.axis.x"), sample.timestamp),
+                        y: .value(
+                            L10n.tr("torrentDetail.speedHistory.download"),
+                            kilobytes(sample.downloadRate))
                     )
                     .foregroundStyle(.green)
                     .interpolationMethod(.catmullRom)
 
                     LineMark(
-                        x: .value("Время", sample.timestamp),
-                        y: .value("Отдача", kilobytes(sample.uploadRate))
+                        x: .value(L10n.tr("torrentDetail.speedHistory.axis.x"), sample.timestamp),
+                        y: .value(
+                            L10n.tr("torrentDetail.speedHistory.upload"),
+                            kilobytes(sample.uploadRate))
                     )
                     .foregroundStyle(.blue)
                     .interpolationMethod(.catmullRom)
@@ -103,9 +116,9 @@ struct TorrentSpeedHistoryView: View {
             .chartXAxis {
                 AxisMarks(values: .automatic(desiredCount: 4))
             }
-            .chartYAxisLabel("КБ/с")
-            .chartXAxisLabel("Время")
-            .accessibilityLabel("График скоростей торрента")
+            .chartYAxisLabel(L10n.tr("torrentDetail.speedHistory.axis.y"))
+            .chartXAxisLabel(L10n.tr("torrentDetail.speedHistory.axis.x"))
+            .accessibilityLabel(L10n.tr("torrentDetail.speedHistory.title"))
         }
 
         private func kilobytes(_ value: Int) -> Double {

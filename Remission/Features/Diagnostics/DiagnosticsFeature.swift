@@ -72,10 +72,10 @@ struct DiagnosticsReducer {
             case .logsResponse(.failure(let error)):
                 state.isLoading = false
                 state.alert = AlertState {
-                    TextState("Не удалось загрузить логи")
+                    TextState(L10n.tr("diagnostics.alert.loadFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Закрыть")
+                        TextState(L10n.tr("diagnostics.close"))
                     }
                 } message: {
                     TextState(describe(error))

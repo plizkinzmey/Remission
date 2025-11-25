@@ -19,15 +19,15 @@ struct ServerEditorView: View {
             }
             .disabled(store.isSaving)
             .overlay(saveOverlay)
-            .navigationTitle("Редактирование")
+            .navigationTitle(L10n.tr("serverEditor.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Отмена") {
+                    Button(L10n.tr("common.cancel")) {
                         store.send(.cancelButtonTapped)
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") {
+                    Button(L10n.tr("serverEditor.save")) {
                         store.send(.saveButtonTapped)
                     }
                     .disabled(store.form.isFormValid == false || store.isSaving)
@@ -43,7 +43,7 @@ struct ServerEditorView: View {
         if store.isSaving {
             ZStack {
                 Color.black.opacity(0.1).ignoresSafeArea()
-                ProgressView("Сохраняем…")
+                ProgressView(L10n.tr("serverEditor.saving"))
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
