@@ -5,14 +5,17 @@ struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
 
     var body: some View {
-        Section("Торренты") {
+        Section {
             content
             if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                Text("Автообновление отключено в настройках.")
+                Text(L10n.tr("torrentList.autorefresh.disabled"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("torrentlist_autorefresh_disabled")
             }
+        } header: {
+            Text(L10n.tr("torrentList.section.title"))
+                .accessibilityIdentifier("torrent_list_header")
         }
         .safeAreaInset(edge: .top) {
             if store.isRefreshing {
@@ -24,7 +27,7 @@ struct TorrentListView: View {
         .searchable(
             text: searchBinding,
             placement: .automatic,
-            prompt: Text("Поиск по названию или ETA")
+            prompt: Text(L10n.tr("torrentList.search.prompt"))
         ) {
             ForEach(searchSuggestions, id: \.self) { suggestion in
                 Text(suggestion)
@@ -114,10 +117,10 @@ struct TorrentListView: View {
 
     private var disconnectedView: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Нет подключения")
+            Text(L10n.tr("torrentList.state.noConnection.title"))
                 .font(.subheadline)
                 .bold()
-            Text("Дождитесь установления соединения с сервером, чтобы увидеть список торрентов.")
+            Text(L10n.tr("torrentList.state.noConnection.message"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -128,19 +131,19 @@ struct TorrentListView: View {
             Image(systemName: "tray")
                 .font(.largeTitle)
                 .foregroundStyle(.secondary)
-            Text("Нет активных торрентов")
+            Text(L10n.tr("torrentList.empty.title"))
                 .font(.subheadline)
                 .bold()
-            Text("Импортируйте .torrent/magnet или измените фильтры выше.")
+            Text(L10n.tr("torrentList.empty.message"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             HStack(spacing: 12) {
-                Button("Обновить") {
+                Button(L10n.tr("torrentList.action.refresh")) {
                     store.send(.refreshRequested)
                 }
                 .buttonStyle(.bordered)
 
-                Button("Добавить торрент") {
+                Button(L10n.tr("torrentList.action.add")) {
                     store.send(.addTorrentButtonTapped)
                 }
                 .buttonStyle(.borderedProminent)
@@ -154,12 +157,12 @@ struct TorrentListView: View {
 
     private func errorView(message: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("Не удалось обновить список", systemImage: "exclamationmark.circle")
+            Label(L10n.tr("torrentList.error.title"), systemImage: "exclamationmark.circle")
                 .foregroundStyle(.red)
-            Text(message.isEmpty ? "Попробуйте повторить попытку позже." : message)
+            Text(message.isEmpty ? L10n.tr("torrentList.error.message.default") : message)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-            Button("Повторить") {
+            Button(L10n.tr("common.retry")) {
                 store.send(.refreshRequested)
             }
             .buttonStyle(.borderedProminent)
@@ -205,7 +208,7 @@ struct TorrentListView: View {
 
     private var filterSegmentedControl: some View {
         Picker(
-            "Фильтр",
+            L10n.tr("torrentList.filter.title"),
             selection: Binding(
                 get: { store.selectedFilter },
                 set: { store.send(.filterChanged($0)) }
@@ -221,7 +224,7 @@ struct TorrentListView: View {
 
     private var sortPicker: some View {
         Picker(
-            "Сортировка",
+            L10n.tr("torrentList.sort.title"),
             selection: Binding(
                 get: { store.sortOrder },
                 set: { store.send(.sortChanged($0)) }
@@ -239,7 +242,7 @@ struct TorrentListView: View {
         Button {
             store.send(.refreshRequested)
         } label: {
-            Label("Обновить список", systemImage: "arrow.clockwise")
+            Label(L10n.tr("torrentList.refresh.label"), systemImage: "arrow.clockwise")
         }
         .accessibilityIdentifier("torrentlist_refresh_button")
     }
@@ -248,7 +251,7 @@ struct TorrentListView: View {
         Button {
             store.send(.addTorrentButtonTapped)
         } label: {
-            Label("Добавить торрент", systemImage: "plus")
+            Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
         }
         .accessibilityIdentifier("torrentlist_add_button")
     }
@@ -258,7 +261,7 @@ extension TorrentListView {
     private var refreshIndicator: some View {
         HStack(spacing: 8) {
             ProgressView()
-            Text("Обновляем список…")
+            Text(L10n.tr("torrentList.refresh.progress"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -344,14 +347,14 @@ private struct TorrentRowView: View {
 
     private var statusTitle: String {
         switch item.torrent.status {
-        case .stopped: return "Пауза"
-        case .checkWaiting: return "Ожидает проверку"
-        case .checking: return "Проверка"
-        case .downloadWaiting: return "В очереди"
-        case .downloading: return "Скачивание"
-        case .seedWaiting: return "Ожидает раздачу"
-        case .seeding: return "Раздача"
-        case .isolated: return "Ошибка"
+        case .stopped: return L10n.tr("torrentList.status.paused")
+        case .checkWaiting: return L10n.tr("torrentList.status.checkWaiting")
+        case .checking: return L10n.tr("torrentList.status.checking")
+        case .downloadWaiting: return L10n.tr("torrentList.status.downloadWaiting")
+        case .downloading: return L10n.tr("torrentList.status.downloading")
+        case .seedWaiting: return L10n.tr("torrentList.status.seedWaiting")
+        case .seeding: return L10n.tr("torrentList.status.seeding")
+        case .isolated: return L10n.tr("torrentList.status.error")
         }
     }
 

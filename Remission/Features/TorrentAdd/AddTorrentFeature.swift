@@ -51,11 +51,14 @@ struct AddTorrentReducer {
         var message: String {
             switch self {
             case .unauthorized:
-                return "Проверьте логин/пароль и повторите попытку."
+                return L10n.tr("torrentAdd.error.auth")
             case .sessionConflict:
-                return "Сессия устарела. Попробуйте снова подключиться и повторить добавление."
+                return L10n.tr("torrentAdd.error.session")
             case .mapping(let details):
-                return "Некорректный ответ Transmission: \(details)"
+                return String(
+                    format: L10n.tr("torrentAdd.error.badResponse"),
+                    details
+                )
             case .failed(let value):
                 return value
             }
@@ -113,10 +116,10 @@ struct AddTorrentReducer {
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = false
                 state.alert = AlertState {
-                    TextState("Не удалось добавить торрент")
+                    TextState(L10n.tr("torrentAdd.alert.addFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(error.message)
@@ -153,13 +156,13 @@ struct AddTorrentReducer {
         )
         guard destination.isEmpty == false else {
             state.alert = AlertState {
-                TextState("Укажите каталог загрузки")
+                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Поле каталога загрузки не может быть пустым.")
+                TextState(L10n.tr("torrentAdd.alert.destinationRequired.message"))
             }
             state.closeOnAlertDismiss = false
             return .none
@@ -167,13 +170,13 @@ struct AddTorrentReducer {
 
         guard let environment = state.connectionEnvironment else {
             state.alert = AlertState {
-                TextState("Нет подключения к серверу")
+                TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Не удалось получить окружение подключения. Повторите попытку позже.")
+                TextState(L10n.tr("torrentAdd.alert.noConnection.message"))
             }
             state.closeOnAlertDismiss = false
             return .none
@@ -215,18 +218,28 @@ struct AddTorrentReducer {
         let isDuplicate: Bool = result.status == .duplicate
         let title: TextState =
             isDuplicate
-            ? TextState("Торрент уже добавлен")
-            : TextState("Торрент добавлен")
+            ? TextState(L10n.tr("torrentAdd.alert.duplicate.title"))
+            : TextState(L10n.tr("torrentAdd.alert.added.title"))
         let message: TextState =
             isDuplicate
-            ? TextState("Переданный торрент уже есть в списке: \(result.name)")
-            : TextState("Добавлен торрент \(result.name)")
+            ? TextState(
+                String(
+                    format: L10n.tr("torrentAdd.alert.duplicate.message"),
+                    result.name
+                )
+            )
+            : TextState(
+                String(
+                    format: L10n.tr("torrentAdd.alert.added.message"),
+                    result.name
+                )
+            )
 
         return AlertState {
             title
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Понятно")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             message

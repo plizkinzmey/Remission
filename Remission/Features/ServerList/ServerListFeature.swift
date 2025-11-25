@@ -159,10 +159,10 @@ struct ServerListReducer {
             case .serverRepositoryResponse(.failure(let error)):
                 state.isLoading = false
                 state.alert = AlertState {
-                    TextState("Не удалось обновить список серверов")
+                    TextState(L10n.tr("serverList.alert.refreshFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(error.localizedDescription)
@@ -205,16 +205,21 @@ struct ServerListReducer {
         DeleteConfirmationAction
     > {
         ConfirmationDialogState {
-            TextState("Удалить «\(server.name)»?")
+            TextState(
+                String(
+                    format: L10n.tr("serverList.alert.delete.title"),
+                    server.name
+                )
+            )
         } actions: {
             ButtonState(role: .destructive, action: .confirm) {
-                TextState("Удалить")
+                TextState(L10n.tr("serverList.alert.delete.confirm"))
             }
             ButtonState(role: .cancel, action: .cancel) {
-                TextState("Отмена")
+                TextState(L10n.tr("serverList.alert.delete.cancel"))
             }
         } message: {
-            TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
+            TextState(L10n.tr("serverList.alert.delete.message"))
         }
     }
 }

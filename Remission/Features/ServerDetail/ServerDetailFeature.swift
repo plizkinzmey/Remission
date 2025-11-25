@@ -109,10 +109,10 @@ struct ServerDetailReducer {
             case .deleteCompleted(.failure(let error)):
                 state.isDeleting = false
                 state.alert = AlertState {
-                    TextState("Не удалось удалить сервер")
+                    TextState(L10n.tr("serverDetail.alert.delete.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(error.message)
@@ -122,51 +122,49 @@ struct ServerDetailReducer {
             case .httpWarningResetButtonTapped:
                 httpWarningPreferencesStore.reset(state.server.httpWarningFingerprint)
                 state.alert = AlertState {
-                    TextState("Предупреждения сброшены")
+                    TextState(L10n.tr("serverDetail.alert.httpWarningsReset.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Готово")
+                        TextState(L10n.tr("serverDetail.alert.httpWarningsReset.button"))
                     }
                 } message: {
-                    TextState("Мы снова предупредим перед подключением по HTTP.")
+                    TextState(L10n.tr("serverDetail.alert.httpWarningsReset.message"))
                 }
                 return .none
 
             case .resetTrustButtonTapped:
                 state.alert = AlertState {
-                    TextState("Сбросить доверие?")
+                    TextState(L10n.tr("serverDetail.alert.trustReset.title"))
                 } actions: {
                     ButtonState(role: .destructive, action: .confirmReset) {
-                        TextState("Сбросить")
+                        TextState(L10n.tr("serverDetail.alert.trustReset.confirm"))
                     }
                     ButtonState(role: .cancel, action: .cancelReset) {
-                        TextState("Отмена")
+                        TextState(L10n.tr("serverDetail.alert.trustReset.cancel"))
                     }
                 } message: {
-                    TextState(
-                        "Удалим сохранённые отпечатки сертификатов и решения \"Не предупреждать\"."
-                    )
+                    TextState(L10n.tr("serverDetail.alert.trustReset.message"))
                 }
                 return .none
 
             case .resetTrustSucceeded:
                 state.alert = AlertState {
-                    TextState("Доверие сброшено")
+                    TextState(L10n.tr("serverDetail.alert.trustResetDone.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Готово")
+                        TextState(L10n.tr("serverDetail.alert.trustResetDone.button"))
                     }
                 } message: {
-                    TextState("При следующем подключении мы снова спросим подтверждение.")
+                    TextState(L10n.tr("serverDetail.alert.trustResetDone.message"))
                 }
                 return .none
 
             case .resetTrustFailed(let message):
                 state.alert = AlertState {
-                    TextState("Не удалось сбросить доверие")
+                    TextState(L10n.tr("serverDetail.alert.trustResetFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .dismiss) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(message)
@@ -540,16 +538,16 @@ struct ServerDetailReducer {
 
     private func makeDeleteAlert() -> AlertState<AlertAction> {
         AlertState {
-            TextState("Удалить сервер?")
+            TextState(L10n.tr("serverDetail.alert.delete.title"))
         } actions: {
             ButtonState(role: .destructive, action: .confirmDeletion) {
-                TextState("Удалить")
+                TextState(L10n.tr("serverDetail.alert.delete.confirm"))
             }
             ButtonState(role: .cancel, action: .cancelDeletion) {
-                TextState("Отмена")
+                TextState(L10n.tr("serverDetail.alert.delete.cancel"))
             }
         } message: {
-            TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
+            TextState(L10n.tr("serverDetail.alert.delete.message"))
         }
     }
 
@@ -572,10 +570,10 @@ private func describe(_ error: Error) -> String {
 extension AlertState where Action == ServerDetailReducer.AlertAction {
     static func connectionFailure(message: String) -> Self {
         AlertState {
-            TextState("Не удалось подключиться")
+            TextState(L10n.tr("serverDetail.alert.connectionFailed.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Понятно")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             TextState(message)

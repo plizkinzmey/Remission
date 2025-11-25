@@ -99,7 +99,7 @@ struct ServerEditorReducer {
 
             case .saveButtonTapped:
                 guard state.form.isFormValid else {
-                    state.validationError = "Заполните хост и корректный порт."
+                    state.validationError = L10n.tr("onboarding.error.validation.hostPort")
                     return .none
                 }
                 return persistChanges(state: &state, forceAllowInsecureTransport: false)
@@ -115,10 +115,10 @@ struct ServerEditorReducer {
             case .saveCompleted(.failure(let error)):
                 state.isSaving = false
                 state.alert = AlertState {
-                    TextState("Не удалось сохранить сервер")
+                    TextState(L10n.tr("serverEditor.alert.saveFailed.title"))
                 } actions: {
                     ButtonState(role: .cancel, action: .errorDismissed) {
-                        TextState("Понятно")
+                        TextState(L10n.tr("common.ok"))
                     }
                 } message: {
                     TextState(error.message)
@@ -228,17 +228,17 @@ struct ServerEditorReducer {
 
     private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
         AlertState {
-            TextState("Небезопасное подключение")
+            TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
         } actions: {
             ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                TextState("Продолжить")
+                TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
             }
             ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                TextState("Отмена")
+                TextState(L10n.tr("common.cancel"))
             }
         } message: {
             TextState(
-                "Соединение без шифрования. Логин и пароль могут быть перехвачены. Продолжить?"
+                L10n.tr("onboarding.alert.insecureConnection.message")
             )
         }
     }

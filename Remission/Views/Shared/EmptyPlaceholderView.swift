@@ -33,8 +33,8 @@ struct EmptyPlaceholderView: View {
     #Preview {
         EmptyPlaceholderView(
             systemImage: "tray",
-            title: "Нет данных",
-            message: "Сервер еще не передал детали для этого торрента."
+            title: L10n.tr("placeholder.default.title"),
+            message: L10n.tr("placeholder.default.message")
         )
         .padding()
     }

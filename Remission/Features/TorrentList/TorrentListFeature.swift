@@ -93,10 +93,10 @@ struct TorrentListReducer {
 
         var title: String {
             switch self {
-            case .all: return "Все"
-            case .downloading: return "Загрузки"
-            case .seeding: return "Раздачи"
-            case .errors: return "Ошибки"
+            case .all: return L10n.tr("torrentList.filter.all")
+            case .downloading: return L10n.tr("torrentList.filter.downloading")
+            case .seeding: return L10n.tr("torrentList.filter.seeding")
+            case .errors: return L10n.tr("torrentList.filter.errors")
             }
         }
 
@@ -124,10 +124,10 @@ struct TorrentListReducer {
 
         var title: String {
             switch self {
-            case .name: return "Имя"
-            case .progress: return "Прогресс"
-            case .downloadSpeed: return "Скорость"
-            case .eta: return "ETA"
+            case .name: return L10n.tr("torrentList.sort.name")
+            case .progress: return L10n.tr("torrentList.sort.progress")
+            case .downloadSpeed: return L10n.tr("torrentList.sort.speed")
+            case .eta: return L10n.tr("torrentList.sort.eta")
             }
         }
 
@@ -559,10 +559,10 @@ struct TorrentListReducer {
 extension AlertState where Action == TorrentListReducer.AlertAction {
     static func networkError(message: String) -> AlertState {
         AlertState {
-            TextState("Не удалось обновить список торрентов")
+            TextState(L10n.tr("torrentList.alert.loadFailed.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Понятно")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             TextState(message)
@@ -571,10 +571,10 @@ extension AlertState where Action == TorrentListReducer.AlertAction {
 
     static func preferencesError(message: String) -> AlertState {
         AlertState {
-            TextState("Не удалось загрузить настройки")
+            TextState(L10n.tr("torrentList.alert.preferencesFailed.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Закрыть")
+                TextState(L10n.tr("settings.alert.close"))
             }
         } message: {
             TextState(message)

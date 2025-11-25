@@ -12,7 +12,7 @@ struct AppView: View {
             ServerListView(
                 store: store.scope(state: \.serverList, action: \.serverList)
             )
-            .navigationTitle("Remission")
+            .navigationTitle(L10n.tr("app.title"))
             .toolbar {
                 #if os(macOS)
                     ToolbarItem(placement: .primaryAction) { addServerButton }
@@ -38,7 +38,7 @@ struct AppView: View {
         Button {
             store.send(.serverList(.addButtonTapped))
         } label: {
-            Label("Добавить", systemImage: "plus")
+            Label(L10n.tr("app.action.addServer"), systemImage: "plus")
         }
     }
 
@@ -46,8 +46,9 @@ struct AppView: View {
         Button {
             store.send(.settingsButtonTapped)
         } label: {
-            Label("Настройки", systemImage: "gearshape")
+            Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
         }
+        .accessibilityIdentifier("app_settings_button")
     }
 }
 

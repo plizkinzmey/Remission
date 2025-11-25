@@ -4,14 +4,14 @@ import SwiftUI
 enum TorrentDetailFormatters {
     static func statusText(for status: Int) -> String {
         switch status {
-        case 0: return "Остановлен"
-        case 1: return "Проверка очереди"
-        case 2: return "Проверка"
-        case 3: return "Очередь загрузки"
-        case 4: return "Загрузка"
-        case 5: return "Очередь раздачи"
-        case 6: return "Раздача"
-        default: return "Неизвестно"
+        case 0: return L10n.tr("torrentDetail.statusText.stopped")
+        case 1: return L10n.tr("torrentDetail.statusText.queueCheck")
+        case 2: return L10n.tr("torrentDetail.statusText.checking")
+        case 3: return L10n.tr("torrentDetail.statusText.downloadQueue")
+        case 4: return L10n.tr("torrentDetail.statusText.downloading")
+        case 5: return L10n.tr("torrentDetail.statusText.seedQueue")
+        case 6: return L10n.tr("torrentDetail.statusText.seeding")
+        default: return L10n.tr("torrentDetail.statusText.unknown")
         }
     }
 
@@ -27,7 +27,7 @@ enum TorrentDetailFormatters {
     }
 
     static func speed(_ bytesPerSecond: Int) -> String {
-        guard bytesPerSecond > 0 else { return "0 КБ/с" }
+        guard bytesPerSecond > 0 else { return L10n.tr("torrentDetail.speed.zero") }
         let formatter: ByteCountFormatter = ByteCountFormatter()
         formatter.countStyle = .binary
         return formatter.string(fromByteCount: Int64(bytesPerSecond)) + "/с"
@@ -42,21 +42,28 @@ enum TorrentDetailFormatters {
     }
 
     static func eta(_ seconds: Int) -> String {
-        if seconds < 0 { return "—" }
+        if seconds < 0 { return L10n.tr("torrentDetail.eta.placeholder") }
         let hours: Int = seconds / 3600
         let minutes: Int = (seconds % 3600) / 60
         if hours > 0 {
-            return "\(hours) ч \(minutes) мин"
+            return String(
+                format: L10n.tr("torrentDetail.eta.hoursMinutes"),
+                Int64(hours),
+                Int64(minutes)
+            )
         } else {
-            return "\(minutes) мин"
+            return String(
+                format: L10n.tr("torrentDetail.eta.minutes"),
+                Int64(minutes)
+            )
         }
     }
 
     static func priorityText(_ priority: Int) -> String {
         switch priority {
-        case 0: return "Низкий"
-        case 2: return "Высокий"
-        default: return "Нормальный"
+        case 0: return L10n.tr("torrentDetail.priority.low")
+        case 2: return L10n.tr("torrentDetail.priority.high")
+        default: return L10n.tr("torrentDetail.priority.normal")
         }
     }
 

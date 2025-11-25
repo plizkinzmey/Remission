@@ -11,29 +11,29 @@ struct DiagnosticsView: View {
                     .padding(.horizontal)
 
                 if store.isLoading && store.entries.isEmpty {
-                    ProgressView("Загружаем логи…")
+                    ProgressView(L10n.tr("diagnostics.loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if store.entries.isEmpty {
                     ContentUnavailableView(
-                        "Пока нет записей",
+                        L10n.tr("diagnostics.empty.title"),
                         systemImage: "doc.text.magnifyingglass",
                         description: Text(
-                            "Логи появятся после сетевых операций или действий в приложении.")
+                            L10n.tr("diagnostics.empty.message"))
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     logList
                 }
             }
-            .navigationTitle("Диагностика")
+            .navigationTitle(L10n.tr("diagnostics.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Закрыть") {
+                    Button(L10n.tr("diagnostics.close")) {
                         store.send(.delegate(.closeRequested))
                     }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Очистить") {
+                    Button(L10n.tr("diagnostics.clear")) {
                         store.send(.clearTapped)
                     }
                     .disabled(store.entries.isEmpty || store.isLoading)
@@ -51,13 +51,13 @@ struct DiagnosticsView: View {
     private var filterBar: some View {
         VStack(alignment: .leading, spacing: 10) {
             Picker(
-                "Уровень",
+                L10n.tr("diagnostics.level"),
                 selection: Binding<AppLogLevel?>(
                     get: { store.selectedLevel },
                     set: { store.send(.levelSelected($0)) }
                 )
             ) {
-                Text("Все").tag(AppLogLevel?.none)
+                Text(L10n.tr("diagnostics.level.all")).tag(AppLogLevel?.none)
                 ForEach(levelOptions, id: \.self) { level in
                     Text(levelLabel(level)).tag(AppLogLevel?.some(level))
                 }
@@ -66,7 +66,7 @@ struct DiagnosticsView: View {
             .accessibilityIdentifier("diagnostics_level_picker")
 
             TextField(
-                "Поиск по тексту, источнику или контексту",
+                L10n.tr("diagnostics.search.placeholder"),
                 text: Binding(
                     get: { store.query },
                     set: { store.send(.queryChanged($0)) }
@@ -141,10 +141,10 @@ struct DiagnosticsView: View {
 
     private func levelLabel(_ level: AppLogLevel) -> String {
         switch level {
-        case .debug: return "Debug"
-        case .info: return "Info"
-        case .warning: return "Warn"
-        case .error: return "Error"
+        case .debug: return L10n.tr("diagnostics.level.debug")
+        case .info: return L10n.tr("diagnostics.level.info")
+        case .warning: return L10n.tr("diagnostics.level.warn")
+        case .error: return L10n.tr("diagnostics.level.error")
         }
     }
 

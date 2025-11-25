@@ -8,56 +8,56 @@ struct TorrentMainInfoView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
                 TorrentDetailLabelValueRow(
-                    label: "Имя:",
+                    label: L10n.tr("torrentDetail.mainInfo.name"),
                     value: store.name
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Статус:",
+                    label: L10n.tr("torrentDetail.mainInfo.status"),
                     value: TorrentDetailFormatters.statusText(for: store.status)
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Прогресс:",
+                    label: L10n.tr("torrentDetail.mainInfo.progress"),
                     value: store.hasLoadedMetadata
                         ? TorrentDetailFormatters.progress(store.percentDone)
-                        : "Недоступно"
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Размер:",
+                    label: L10n.tr("torrentDetail.mainInfo.size"),
                     value: store.hasLoadedMetadata && store.totalSize > 0
                         ? TorrentDetailFormatters.bytes(store.totalSize)
-                        : "Неизвестно"
+                        : L10n.tr("torrentDetail.mainInfo.unknown")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Загружено:",
+                    label: L10n.tr("torrentDetail.mainInfo.downloaded"),
                     value: store.hasLoadedMetadata
                         ? TorrentDetailFormatters.bytes(store.downloadedEver)
-                        : "Недоступно"
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Отдано:",
+                    label: L10n.tr("torrentDetail.mainInfo.uploaded"),
                     value: store.hasLoadedMetadata
                         ? TorrentDetailFormatters.bytes(store.uploadedEver)
-                        : "Недоступно"
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Путь:",
+                    label: L10n.tr("torrentDetail.mainInfo.path"),
                     value: store.hasLoadedMetadata && store.downloadDir.isEmpty == false
                         ? store.downloadDir
-                        : "Неизвестно"
+                        : L10n.tr("torrentDetail.mainInfo.unknown")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Дата добавления:",
+                    label: L10n.tr("torrentDetail.mainInfo.added"),
                     value: store.hasLoadedMetadata && store.dateAdded > 0
                         ? TorrentDetailFormatters.date(from: store.dateAdded)
-                        : "Недоступно"
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
                 TorrentDetailLabelValueRow(
-                    label: "Осталось:",
+                    label: L10n.tr("torrentDetail.mainInfo.eta"),
                     value: etaDescription
                 )
             }
         } label: {
-            Text("Основная информация")
+            Text(L10n.tr("torrentDetail.mainInfo.title"))
                 .font(.headline)
         }
         .accessibilityIdentifier("torrent-main-info")
@@ -67,7 +67,9 @@ struct TorrentMainInfoView: View {
         if store.eta > 0 {
             return TorrentDetailFormatters.eta(store.eta)
         }
-        return store.hasLoadedMetadata ? "Неизвестно" : "Ожидание метаданных"
+        return store.hasLoadedMetadata
+            ? L10n.tr("torrentDetail.mainInfo.unknown")
+            : L10n.tr("torrentDetail.mainInfo.waitingMetadata")
     }
 }
 

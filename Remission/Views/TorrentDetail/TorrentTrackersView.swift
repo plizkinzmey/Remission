@@ -15,8 +15,13 @@ struct TorrentTrackersView: View {
                 }
             }
         } label: {
-            Text("Трекеры (\(store.trackers.count))")
-                .font(.headline)
+            Text(
+                String(
+                    format: L10n.tr("torrentDetail.trackers.title"),
+                    Int64(store.trackers.count)
+                )
+            )
+            .font(.headline)
         }
         .accessibilityIdentifier("torrent-trackers-section")
     }
@@ -54,7 +59,13 @@ private struct TorrentTrackerRow: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("torrent-tracker-\(tracker.id)")
         .accessibilityLabel(
-            "\(tracker.displayName), \(tracker.announce), сидающих \(stats?.seederCount ?? 0), качающих \(stats?.leecherCount ?? 0)"
+            String(
+                format: L10n.tr("torrentDetail.trackers.accessibility"),
+                tracker.displayName,
+                tracker.announce,
+                stats?.seederCount ?? 0,
+                stats?.leecherCount ?? 0
+            )
         )
     }
 }

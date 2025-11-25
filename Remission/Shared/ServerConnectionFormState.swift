@@ -9,8 +9,8 @@ struct ServerConnectionFormState: Equatable, Sendable {
 
         var title: String {
             switch self {
-            case .https: return "HTTPS"
-            case .http: return "HTTP"
+            case .https: return L10n.tr("serverForm.transport.https")
+            case .http: return L10n.tr("serverForm.transport.http")
             }
         }
     }

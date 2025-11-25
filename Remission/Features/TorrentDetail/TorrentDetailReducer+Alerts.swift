@@ -4,10 +4,10 @@ import Foundation
 extension AlertState where Action == TorrentDetailReducer.AlertAction {
     static func info(message: String) -> AlertState {
         AlertState {
-            TextState("Готово")
+            TextState(L10n.tr("common.ok"))
         } actions: {
             ButtonState(action: .dismiss) {
-                TextState("OK")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             TextState(message)
@@ -16,10 +16,10 @@ extension AlertState where Action == TorrentDetailReducer.AlertAction {
 
     static func error(message: String) -> AlertState {
         AlertState {
-            TextState("Ошибка")
+            TextState(L10n.tr("torrentDetail.error.title"))
         } actions: {
             ButtonState(action: .dismiss) {
-                TextState("Понятно")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             TextState(message)
@@ -27,7 +27,7 @@ extension AlertState where Action == TorrentDetailReducer.AlertAction {
     }
 
     static func connectionMissing() -> AlertState {
-        .error(message: "Нет подключения к серверу")
+        .error(message: L10n.tr("torrentAdd.alert.noConnection.title"))
     }
 }
 
@@ -35,16 +35,21 @@ extension ConfirmationDialogState
 where Action == TorrentDetailReducer.RemoveConfirmationAction {
     static func removeTorrent(name: String) -> ConfirmationDialogState {
         ConfirmationDialogState {
-            TextState("Удалить торрент «\(name.isEmpty ? "Без названия" : name)»?")
+            TextState(
+                String(
+                    format: L10n.tr("torrentDetail.actions.removePrompt"),
+                    name.isEmpty ? L10n.tr("torrentDetail.title.fallback") : name
+                )
+            )
         } actions: {
             ButtonState(role: .destructive, action: .deleteTorrentOnly) {
-                TextState("Удалить торрент")
+                TextState(L10n.tr("torrentDetail.actions.remove.confirm"))
             }
             ButtonState(role: .destructive, action: .deleteWithData) {
-                TextState("Удалить с данными")
+                TextState(L10n.tr("torrentDetail.actions.removeWithData"))
             }
             ButtonState(role: .cancel, action: .cancel) {
-                TextState("Отмена")
+                TextState(L10n.tr("torrentDetail.actions.cancel"))
             }
         }
     }
@@ -54,21 +59,30 @@ extension APIError {
     var userFriendlyMessage: String {
         switch self {
         case .networkUnavailable:
-            return "Сеть недоступна"
+            return L10n.tr("torrentDetail.api.networkUnavailable")
         case .unauthorized:
-            return "Ошибка аутентификации"
+            return L10n.tr("torrentDetail.api.unauthorized")
         case .sessionConflict:
-            return "Конфликт сессии"
+            return L10n.tr("torrentDetail.api.sessionConflict")
         case .tlsTrustDeclined:
-            return "Подключение отклонено: сертификат не доверен"
+            return L10n.tr("torrentDetail.api.tlsDeclined")
         case .tlsEvaluationFailed(let details):
-            return "Ошибка проверки сертификата: \(details)"
+            return String(
+                format: L10n.tr("torrentDetail.api.tlsFailed"),
+                details
+            )
         case .versionUnsupported(let version):
-            return "Версия Transmission не поддерживается (\(version))"
+            return String(
+                format: L10n.tr("torrentDetail.api.versionUnsupported"),
+                version
+            )
         case .decodingFailed:
-            return "Ошибка парсирования ответа"
+            return L10n.tr("torrentDetail.api.decodingFailed")
         case .unknown(let details):
-            return "Ошибка: \(details)"
+            return String(
+                format: L10n.tr("torrentDetail.api.unknown"),
+                details
+            )
         }
     }
 }

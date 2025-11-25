@@ -191,6 +191,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ru,
 				Base,
 			);
 			mainGroup = 15AA8C322EA1C9360025EF81;
@@ -257,6 +258,7 @@
 				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
 				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
 				"fi",
+				"",
 				"",
 				"",
 				"",

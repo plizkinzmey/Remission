@@ -15,8 +15,13 @@ struct TorrentFilesView: View {
                 }
             }
         } label: {
-            Text("Файлы (\(store.files.count))")
-                .font(.headline)
+            Text(
+                String(
+                    format: L10n.tr("torrentDetail.files.title"),
+                    Int64(store.files.count)
+                )
+            )
+            .font(.headline)
         }
         .accessibilityIdentifier("torrent-files-section")
         .disabled(isPriorityLocked)
@@ -46,7 +51,7 @@ private struct TorrentFileRow: View {
             HStack {
                 ProgressView(value: file.progress)
                     .progressViewStyle(.linear)
-                    .accessibilityLabel("Прогресс файла")
+                    .accessibilityLabel(L10n.tr("torrentDetail.files.progress.accessibility"))
                     .accessibilityValue(progressText)
                 Text("\(Int(file.progress * 100))%")
                     .font(.caption2.monospacedDigit())
@@ -54,9 +59,9 @@ private struct TorrentFileRow: View {
                     .frame(width: 40, alignment: .trailing)
 
                 Menu {
-                    Button("Низкий") { onPriorityChange(0) }
-                    Button("Нормальный") { onPriorityChange(1) }
-                    Button("Высокий") { onPriorityChange(2) }
+                    Button(L10n.tr("torrentDetail.priority.low")) { onPriorityChange(0) }
+                    Button(L10n.tr("torrentDetail.priority.normal")) { onPriorityChange(1) }
+                    Button(L10n.tr("torrentDetail.priority.high")) { onPriorityChange(2) }
                 } label: {
                     Text(TorrentDetailFormatters.priorityText(file.priority))
                         .font(.caption2)
@@ -72,21 +77,32 @@ private struct TorrentFileRow: View {
                 }
                 .accessibilityIdentifier("torrent-file-priority-\(file.index)")
                 .accessibilityLabel(
-                    "Приоритет \(TorrentDetailFormatters.priorityText(file.priority))"
+                    String(
+                        format: L10n.tr("torrentDetail.files.priority.accessibilityLabel"),
+                        TorrentDetailFormatters.priorityText(file.priority)
+                    )
                 )
-                .accessibilityHint("Двойной тап покажет доступные уровни")
+                .accessibilityHint(L10n.tr("torrentDetail.files.priority.hint"))
             }
         }
         .padding(.vertical, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("torrent-file-\(file.index)")
         .accessibilityLabel(
-            "\(file.name), готово \(progressText), размер \(TorrentDetailFormatters.bytes(file.length))"
+            String(
+                format: L10n.tr("torrentDetail.files.accessibility.label"),
+                file.name,
+                progressText,
+                TorrentDetailFormatters.bytes(file.length)
+            )
         )
     }
 
     private var progressText: String {
-        "\(Int(file.progress * 100)) процентов"
+        String(
+            format: L10n.tr("torrentDetail.files.progress.percent"),
+            Int(file.progress * 100)
+        )
     }
 }
 

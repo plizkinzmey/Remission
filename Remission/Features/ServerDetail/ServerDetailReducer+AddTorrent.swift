@@ -5,13 +5,13 @@ extension ServerDetailReducer {
     func handleFileImport(url: URL, state: inout State) -> Effect<Action> {
         guard url.pathExtension.lowercased() == "torrent" else {
             state.alert = AlertState {
-                TextState("Неверный файл")
+                TextState(L10n.tr("serverDetail.addTorrent.invalidFile.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Выберите файл с расширением .torrent.")
+                TextState(L10n.tr("serverDetail.addTorrent.invalidFile.message"))
             }
             return .none
         }
@@ -38,10 +38,10 @@ extension ServerDetailReducer {
         state: inout State
     ) -> Effect<Action> {
         state.alert = AlertState {
-            TextState("Не удалось открыть файл")
+            TextState(L10n.tr("serverDetail.addTorrent.readFileFailed.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Понятно")
+                TextState(L10n.tr("common.ok"))
             }
         } message: {
             TextState(message)
@@ -65,10 +65,10 @@ extension ServerDetailReducer {
         case .failure(let error):
             state.isFileImporterPresented = false
             state.alert = AlertState {
-                TextState("Не удалось прочитать файл")
+                TextState(L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState(error.message)
@@ -88,13 +88,13 @@ extension ServerDetailReducer {
                     url.scheme?.lowercased() == "magnet"
                 else {
                     state.alert = AlertState {
-                        TextState("Неверная magnet-ссылка")
+                        TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.title"))
                     } actions: {
                         ButtonState(role: .cancel, action: .dismiss) {
-                            TextState("Понятно")
+                            TextState(L10n.tr("common.ok"))
                         }
                     } message: {
-                        TextState("Проверьте корректность magnet ссылки и повторите попытку.")
+                        TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
                     }
                     return .none
                 }
@@ -112,10 +112,10 @@ extension ServerDetailReducer {
 
         case .failure(let error):
             state.alert = AlertState {
-                TextState("Не удалось обработать magnet")
+                TextState(L10n.tr("serverDetail.addTorrent.processMagnetFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState(error.message)

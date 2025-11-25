@@ -61,13 +61,20 @@ class BaseUITestCase: XCTestCase {
 
     @MainActor
     func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
+        let settingsButton = app.buttons["app_settings_button"].firstMatch
         #if os(macOS)
-            let settingsButton = app.toolbars.buttons["Настройки"].firstMatch
+            let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
+            if settingsButton.exists == false && toolbarFallback.exists {
+                toolbarFallback.tap()
+            } else {
+                XCTAssertTrue(
+                    settingsButton.waitForExistence(timeout: 5), "Settings button missing")
+                settingsButton.tap()
+            }
         #else
-            let settingsButton = app.buttons["Настройки"]
+            XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
+            settingsButton.tap()
         #endif
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-        settingsButton.tap()
 
         // Дождаться завершения загрузки настроек
         let loadingText = app.staticTexts["Загружаем настройки…"]

@@ -17,10 +17,10 @@ struct SettingsView: View {
                 diagnosticsSection
                 loadingSection
             }
-            .navigationTitle("Настройки")
+            .navigationTitle(L10n.tr("settings.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Закрыть") {
+                    Button(L10n.tr("common.close")) {
                         store.send(.delegate(.closeRequested))
                     }
                     .accessibilityIdentifier("settings_close_button")
@@ -51,25 +51,25 @@ struct SettingsView: View {
     }
 
     private var autoRefreshSection: some View {
-        Section("Автообновление") {
+        Section(L10n.tr("settings.autoRefresh.section")) {
             Toggle(
-                "Обновлять список автоматически",
+                L10n.tr("settings.autoRefresh.toggle"),
                 isOn: Binding(
                     get: { store.isAutoRefreshEnabled },
                     set: { store.send(.autoRefreshToggled($0)) }
                 )
             )
             .accessibilityIdentifier("settings_auto_refresh_toggle")
-            Text("Отключите, чтобы обновлять торренты вручную.")
+            Text(L10n.tr("settings.autoRefresh.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
     }
 
     private var telemetrySection: some View {
-        Section("Телеметрия") {
+        Section(L10n.tr("settings.telemetry.section")) {
             Toggle(
-                "Отправлять анонимную телеметрию",
+                L10n.tr("settings.telemetry.toggle"),
                 isOn: Binding(
                     get: { store.isTelemetryEnabled },
                     set: { store.send(.telemetryToggled($0)) }
@@ -77,12 +77,12 @@ struct SettingsView: View {
             )
             .accessibilityIdentifier("settings_telemetry_toggle")
 
-            Text("По умолчанию выключено. Включите, чтобы помочь улучшить Remission.")
+            Text(L10n.tr("settings.telemetry.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
             if let policyURL {
-                Link("Политика конфиденциальности", destination: policyURL)
+                Link(L10n.tr("settings.telemetry.policy"), destination: policyURL)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("settings_telemetry_policy_link")
@@ -91,7 +91,7 @@ struct SettingsView: View {
             if isUITesting {
                 // Дублирующий toggle для UI-тестов, чтобы элемент гарантированно присутствовал в дереве на iOS.
                 Toggle(
-                    "Обновлять список автоматически (UI Test)",
+                    L10n.tr("settings.telemetry.uiTestToggle"),
                     isOn: Binding(
                         get: { store.isAutoRefreshEnabled },
                         set: { store.send(.autoRefreshToggled($0)) }
@@ -105,7 +105,7 @@ struct SettingsView: View {
     }
 
     private var pollingSection: some View {
-        Section("Интервал опроса") {
+        Section(L10n.tr("settings.polling.section")) {
             VStack(alignment: .leading, spacing: 12) {
                 Slider(
                     value: Binding(
@@ -120,7 +120,7 @@ struct SettingsView: View {
                 Text(intervalLabel)
                     .bold()
                     .accessibilityIdentifier("settings_polling_value")
-                Text("Укажите, как часто Remission будет опрашивать Transmission.")
+                Text(L10n.tr("settings.polling.note"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -128,11 +128,11 @@ struct SettingsView: View {
     }
 
     private var speedLimitsSection: some View {
-        Section("Лимиты скорости (КБ/с)") {
+        Section(L10n.tr("settings.speed.section")) {
             VStack(alignment: .leading, spacing: 12) {
                 LabeledContent {
                     TextField(
-                        "Не ограничивать",
+                        L10n.tr("settings.speed.unlimited"),
                         text: Binding(
                             get: {
                                 limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
@@ -144,12 +144,12 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 120)
                 } label: {
-                    Text("Скачивание")
+                    Text(L10n.tr("settings.speed.download"))
                 }
 
                 LabeledContent {
                     TextField(
-                        "Не ограничивать",
+                        L10n.tr("settings.speed.unlimited"),
                         text: Binding(
                             get: {
                                 limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
@@ -161,10 +161,10 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 120)
                 } label: {
-                    Text("Отдача")
+                    Text(L10n.tr("settings.speed.upload"))
                 }
 
-                Text("Оставьте поле пустым, чтобы не ограничивать скорость.")
+                Text(L10n.tr("settings.speed.note"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -172,12 +172,13 @@ struct SettingsView: View {
     }
 
     private var diagnosticsSection: some View {
-        Section("Диагностика") {
+        Section(L10n.tr("settings.diagnostics.section")) {
             Button {
                 store.send(.diagnosticsButtonTapped)
             } label: {
                 HStack {
-                    Label("Открыть логи", systemImage: "doc.text.below.ecg")
+                    Label(
+                        L10n.tr("settings.diagnostics.openLogs"), systemImage: "doc.text.below.ecg")
                     Spacer()
                     Image(systemName: "chevron.right")
                         .foregroundStyle(Color.secondary)
@@ -185,7 +186,7 @@ struct SettingsView: View {
             }
             .accessibilityIdentifier("settings_diagnostics_button")
 
-            Text("Просмотр последних записей логов для диагностики. Данные остаются на устройстве.")
+            Text(L10n.tr("settings.diagnostics.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -197,7 +198,7 @@ struct SettingsView: View {
                 Section {
                     HStack {
                         ProgressView()
-                        Text("Загружаем настройки…")
+                        Text(L10n.tr("settings.loading"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
