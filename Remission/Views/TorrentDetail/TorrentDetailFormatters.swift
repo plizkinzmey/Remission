@@ -30,7 +30,8 @@ enum TorrentDetailFormatters {
         guard bytesPerSecond > 0 else { return L10n.tr("torrentDetail.speed.zero") }
         let formatter: ByteCountFormatter = ByteCountFormatter()
         formatter.countStyle = .binary
-        return formatter.string(fromByteCount: Int64(bytesPerSecond)) + "/с"
+        let value = formatter.string(fromByteCount: Int64(bytesPerSecond))
+        return String(format: L10n.tr("torrentDetail.speed.format"), value)
     }
 
     static func date(from timestamp: Int) -> String {

@@ -262,55 +262,55 @@ struct ServerDetailLifecycleTests {
 extension AlertState where Action == ServerDetailReducer.AlertAction {
     fileprivate static var resetTrustConfirmation: Self {
         AlertState {
-            TextState("Сбросить доверие?")
+            TextState(L10n.tr("serverDetail.alert.trustReset.title"))
         } actions: {
             ButtonState(role: .destructive, action: .confirmReset) {
-                TextState("Сбросить")
+                TextState(L10n.tr("serverDetail.alert.trustReset.confirm"))
             }
             ButtonState(role: .cancel, action: .cancelReset) {
-                TextState("Отмена")
+                TextState(L10n.tr("serverDetail.alert.trustReset.cancel"))
             }
         } message: {
-            TextState("Удалим сохранённые отпечатки сертификатов и решения \"Не предупреждать\".")
+            TextState(L10n.tr("serverDetail.alert.trustReset.message"))
         }
     }
 
     fileprivate static var resetTrustCompletion: Self {
         AlertState {
-            TextState("Доверие сброшено")
+            TextState(L10n.tr("serverDetail.alert.trustResetDone.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Готово")
+                TextState(L10n.tr("serverDetail.alert.trustResetDone.button"))
             }
         } message: {
-            TextState("При следующем подключении мы снова спросим подтверждение.")
+            TextState(L10n.tr("serverDetail.alert.trustResetDone.message"))
         }
     }
 
     fileprivate static var httpWarningsReset: Self {
         AlertState {
-            TextState("Предупреждения сброшены")
+            TextState(L10n.tr("serverDetail.alert.httpWarningsReset.title"))
         } actions: {
             ButtonState(role: .cancel, action: .dismiss) {
-                TextState("Готово")
+                TextState(L10n.tr("serverDetail.alert.httpWarningsReset.button"))
             }
         } message: {
-            TextState("Мы снова предупредим перед подключением по HTTP.")
+            TextState(L10n.tr("serverDetail.alert.httpWarningsReset.message"))
         }
     }
 
     fileprivate static var deleteConfirmation: Self {
         AlertState {
-            TextState("Удалить сервер?")
+            TextState(L10n.tr("serverDetail.alert.delete.title"))
         } actions: {
             ButtonState(role: .destructive, action: .confirmDeletion) {
-                TextState("Удалить")
+                TextState(L10n.tr("serverDetail.alert.delete.confirm"))
             }
             ButtonState(role: .cancel, action: .cancelDeletion) {
-                TextState("Отмена")
+                TextState(L10n.tr("serverDetail.alert.delete.cancel"))
             }
         } message: {
-            TextState("Сервер и сохранённые креды будут удалены без возможности восстановления.")
+            TextState(L10n.tr("serverDetail.alert.delete.message"))
         }
     }
 }

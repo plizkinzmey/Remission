@@ -74,13 +74,18 @@ struct AddTorrentFeatureTests {
             $0.isSubmitting = false
             $0.closeOnAlertDismiss = true
             $0.alert = AlertState {
-                TextState("Торрент добавлен")
+                TextState(L10n.tr("torrentAdd.alert.added.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Добавлен торрент Demo torrent")
+                TextState(
+                    String(
+                        format: L10n.tr("torrentAdd.alert.added.message"),
+                        addResult.name
+                    )
+                )
             }
         }
         await store.receive(.delegate(.addCompleted(addResult)))
@@ -145,13 +150,18 @@ struct AddTorrentFeatureTests {
         ) {
             $0.isSubmitting = false
             $0.alert = AlertState {
-                TextState("Торрент уже добавлен")
+                TextState(L10n.tr("torrentAdd.alert.duplicate.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Переданный торрент уже есть в списке: Existing Torrent")
+                TextState(
+                    String(
+                        format: L10n.tr("torrentAdd.alert.duplicate.message"),
+                        addResult.name
+                    )
+                )
             }
             $0.closeOnAlertDismiss = true
         }
@@ -198,13 +208,13 @@ struct AddTorrentFeatureTests {
         await store.receive(.submitResponse(.failure(.unauthorized))) {
             $0.isSubmitting = false
             $0.alert = AlertState {
-                TextState("Не удалось добавить торрент")
+                TextState(L10n.tr("torrentAdd.alert.addFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Проверьте логин/пароль и повторите попытку.")
+                TextState(AddTorrentReducer.SubmitError.unauthorized.message)
             }
             $0.closeOnAlertDismiss = false
         }
@@ -236,13 +246,13 @@ struct AddTorrentFeatureTests {
 
         await store.send(.submitButtonTapped) {
             $0.alert = AlertState {
-                TextState("Укажите каталог загрузки")
+                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Поле каталога загрузки не может быть пустым.")
+                TextState(L10n.tr("torrentAdd.alert.destinationRequired.message"))
             }
         }
     }
@@ -282,13 +292,13 @@ struct AddTorrentFeatureTests {
         await store.receive(.submitResponse(.failure(.sessionConflict))) {
             $0.isSubmitting = false
             $0.alert = AlertState {
-                TextState("Не удалось добавить торрент")
+                TextState(L10n.tr("torrentAdd.alert.addFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Сессия устарела. Попробуйте снова подключиться и повторить добавление.")
+                TextState(AddTorrentReducer.SubmitError.sessionConflict.message)
             }
             $0.closeOnAlertDismiss = false
         }
@@ -335,13 +345,15 @@ struct AddTorrentFeatureTests {
         {
             $0.isSubmitting = false
             $0.alert = AlertState {
-                TextState("Не удалось добавить торрент")
+                TextState(L10n.tr("torrentAdd.alert.addFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Некорректный ответ Transmission: \(mappingError.localizedDescription)")
+                TextState(
+                    AddTorrentReducer.SubmitError.mapping(mappingError.localizedDescription).message
+                )
             }
             $0.closeOnAlertDismiss = false
         }
@@ -369,13 +381,13 @@ struct AddTorrentFeatureTests {
 
         await store.send(.submitButtonTapped) {
             $0.alert = AlertState {
-                TextState("Нет подключения к серверу")
+                TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Не удалось получить окружение подключения. Повторите попытку позже.")
+                TextState(L10n.tr("torrentAdd.alert.noConnection.message"))
             }
             $0.closeOnAlertDismiss = false
             $0.isSubmitting = false

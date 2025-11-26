@@ -6,10 +6,18 @@ import Testing
 struct TorrentDetailFormattersTests {
     @Test
     func statusTextMapping() {
-        #expect(TorrentDetailFormatters.statusText(for: 0) == "Остановлен")
-        #expect(TorrentDetailFormatters.statusText(for: 4) == "Загрузка")
-        #expect(TorrentDetailFormatters.statusText(for: 6) == "Раздача")
-        #expect(TorrentDetailFormatters.statusText(for: 999) == "Неизвестно")
+        #expect(
+            TorrentDetailFormatters.statusText(for: 0)
+                == L10n.tr("torrentDetail.statusText.stopped"))
+        #expect(
+            TorrentDetailFormatters.statusText(for: 4)
+                == L10n.tr("torrentDetail.statusText.downloading"))
+        #expect(
+            TorrentDetailFormatters.statusText(for: 6)
+                == L10n.tr("torrentDetail.statusText.seeding"))
+        #expect(
+            TorrentDetailFormatters.statusText(for: 999)
+                == L10n.tr("torrentDetail.statusText.unknown"))
     }
 
     @Test
@@ -35,22 +43,35 @@ struct TorrentDetailFormattersTests {
     func speedFormattingAppendsSuffix() {
         let formatter: ByteCountFormatter = ByteCountFormatter()
         formatter.countStyle = .binary
-        let expected: String = formatter.string(fromByteCount: 256_000) + "/с"
+        let expected: String = String(
+            format: L10n.tr("torrentDetail.speed.format"),
+            formatter.string(fromByteCount: 256_000)
+        )
         #expect(TorrentDetailFormatters.speed(256_000) == expected)
-        #expect(TorrentDetailFormatters.speed(0) == "0 КБ/с")
+        #expect(TorrentDetailFormatters.speed(0) == L10n.tr("torrentDetail.speed.zero"))
     }
 
     @Test
     func etaFormattingHandlesNegativeAndPositive() {
-        #expect(TorrentDetailFormatters.eta(-1) == "—")
-        #expect(TorrentDetailFormatters.eta(59) == "0 мин")
-        #expect(TorrentDetailFormatters.eta(3_661) == "1 ч 1 мин")
+        #expect(TorrentDetailFormatters.eta(-1) == L10n.tr("torrentDetail.eta.placeholder"))
+        #expect(
+            TorrentDetailFormatters.eta(59)
+                == String(format: L10n.tr("torrentDetail.eta.minutes"), Int64(0))
+        )
+        #expect(
+            TorrentDetailFormatters.eta(3_661)
+                == String(
+                    format: L10n.tr("torrentDetail.eta.hoursMinutes"),
+                    Int64(1),
+                    Int64(1)
+                )
+        )
     }
 
     @Test
     func priorityTextMapping() {
-        #expect(TorrentDetailFormatters.priorityText(0) == "Низкий")
-        #expect(TorrentDetailFormatters.priorityText(1) == "Нормальный")
-        #expect(TorrentDetailFormatters.priorityText(2) == "Высокий")
+        #expect(TorrentDetailFormatters.priorityText(0) == L10n.tr("torrentDetail.priority.low"))
+        #expect(TorrentDetailFormatters.priorityText(1) == L10n.tr("torrentDetail.priority.normal"))
+        #expect(TorrentDetailFormatters.priorityText(2) == L10n.tr("torrentDetail.priority.high"))
     }
 }

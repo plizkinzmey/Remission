@@ -132,17 +132,17 @@ struct OnboardingFeatureTests {
             $0.form.transport = .http
             $0.pendingWarningFingerprint = "seedbox.example.com:80:"
             $0.alert = AlertState<AlertAction> {
-                TextState("Небезопасное подключение")
+                TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
             } actions: {
                 ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                    TextState("Продолжить")
+                    TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
                 }
                 ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                    TextState("Отмена")
+                    TextState(L10n.tr("common.cancel"))
                 }
             } message: {
                 TextState(
-                    "Соединение без шифрования. Логин и пароль могут быть перехвачены. Продолжить?"
+                    L10n.tr("onboarding.alert.insecureConnection.message")
                 )
             }
         }

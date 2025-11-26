@@ -114,10 +114,10 @@ struct DiagnosticsFeatureTests {
         await store.receive(.logsResponse(.failure(DummyError.failed))) {
             $0.isLoading = false
             $0.alert = AlertState {
-                TextState("Не удалось загрузить логи")
+                TextState(L10n.tr("diagnostics.alert.loadFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Закрыть")
+                    TextState(L10n.tr("diagnostics.close"))
                 }
             } message: {
                 TextState("diagnostics failed")
