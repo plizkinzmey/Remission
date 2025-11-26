@@ -122,19 +122,21 @@ struct ServerListFeatureTests {
         await store.send(.deleteButtonTapped(server.id)) {
             $0.pendingDeletion = server
             $0.deleteConfirmation = ConfirmationDialogState {
-                TextState("Удалить «\(server.name)»?")
+                TextState(
+                    String(
+                        format: L10n.tr("serverList.alert.delete.title"),
+                        server.name
+                    )
+                )
             } actions: {
                 ButtonState(role: .destructive, action: .confirm) {
-                    TextState("Удалить")
+                    TextState(L10n.tr("serverList.alert.delete.confirm"))
                 }
                 ButtonState(role: .cancel, action: .cancel) {
-                    TextState("Отмена")
+                    TextState(L10n.tr("serverList.alert.delete.cancel"))
                 }
             } message: {
-                TextState(
-                    "Сервер и сохранённые креды будут удалены без "
-                        + "возможности восстановления."
-                )
+                TextState(L10n.tr("serverList.alert.delete.message"))
             }
         }
 

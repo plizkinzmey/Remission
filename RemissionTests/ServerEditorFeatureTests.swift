@@ -135,10 +135,10 @@ struct ServerEditorFeatureTests {
         ) {
             $0.isSaving = false
             $0.alert = AlertState {
-                TextState("Не удалось сохранить сервер")
+                TextState(L10n.tr("serverEditor.alert.saveFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .errorDismissed) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState("Stub failure")

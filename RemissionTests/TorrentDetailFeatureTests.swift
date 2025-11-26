@@ -34,7 +34,7 @@ struct TorrentDetailFeatureTests {
 
         await store.receive(.detailsResponse(.failure(APIError.networkUnavailable))) {
             $0.isLoading = false
-            $0.errorMessage = "Сеть недоступна"
+            $0.errorMessage = L10n.tr("torrentDetail.api.networkUnavailable")
         }
     }
 
@@ -158,8 +158,8 @@ struct TorrentDetailFeatureTests {
         await store.receive(.commandResponse(.success(.start))) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandDidFinish("Торрент запущен")) {
-            $0.alert = .info(message: "Торрент запущен")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.started"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.started"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -205,11 +205,18 @@ struct TorrentDetailFeatureTests {
             $0.pendingCommands = []
             $0.activeCommand = .start
         }
-        await store.receive(.commandResponse(.failure(.start, "Сеть недоступна"))) {
+        await store.receive(
+            .commandResponse(
+                .failure(
+                    .start,
+                    L10n.tr("torrentDetail.api.networkUnavailable")
+                )
+            )
+        ) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandFailed("Сеть недоступна")) {
-            $0.alert = .error(message: "Сеть недоступна")
+        await store.receive(.commandFailed(L10n.tr("torrentDetail.api.networkUnavailable"))) {
+            $0.alert = .error(message: L10n.tr("torrentDetail.api.networkUnavailable"))
         }
     }
 
@@ -233,8 +240,8 @@ struct TorrentDetailFeatureTests {
         await store.receive(.commandResponse(.success(.pause))) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandDidFinish("Торрент остановлен")) {
-            $0.alert = .info(message: "Торрент остановлен")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.stopped"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.stopped"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -306,8 +313,8 @@ struct TorrentDetailFeatureTests {
         await store.receive(.commandResponse(.success(.verify))) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandDidFinish("Проверка запущена")) {
-            $0.alert = .info(message: "Проверка запущена")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.verify"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.verify"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -387,8 +394,8 @@ struct TorrentDetailFeatureTests {
         await store.send(.toggleDownloadLimit(true)) {
             $0.downloadLimited = true
         }
-        await store.receive(.commandDidFinish("Настройки скоростей обновлены")) {
-            $0.alert = .info(message: "Настройки скоростей обновлены")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.speedUpdated"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.speedUpdated"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -433,8 +440,8 @@ struct TorrentDetailFeatureTests {
         await store.receive(.commandResponse(.success(.priority(indices: [0], priority: .high)))) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandDidFinish("Приоритет обновлён")) {
-            $0.alert = .info(message: "Приоритет обновлён")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.priority"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.priority"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -606,8 +613,8 @@ struct TorrentDetailFeatureTests {
             $0.activeCommand = .pause
             $0.pendingCommands = []
         }
-        await store.receive(.commandDidFinish("Торрент запущен")) {
-            $0.alert = .info(message: "Торрент запущен")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.started"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.started"))
             $0.activeCommand = .pause
         }
         await store.receive(.refreshRequested) {
@@ -636,8 +643,8 @@ struct TorrentDetailFeatureTests {
         await store.receive(.commandResponse(.success(.pause))) {
             $0.activeCommand = nil
         }
-        await store.receive(.commandDidFinish("Торрент остановлен")) {
-            $0.alert = .info(message: "Торрент остановлен")
+        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.stopped"))) {
+            $0.alert = .info(message: L10n.tr("torrentDetail.status.stopped"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true

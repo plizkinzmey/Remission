@@ -86,13 +86,13 @@ struct ServerDetailImportTests {
         await store.send(.torrentList(.delegate(.addTorrentRequested)))
         await store.receive(.magnetLinkResponse(.success("http://example.com"))) {
             $0.alert = AlertState {
-                TextState("Неверная magnet-ссылка")
+                TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
-                TextState("Проверьте корректность magnet ссылки и повторите попытку.")
+                TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
             }
         }
     }
@@ -170,10 +170,10 @@ struct ServerDetailImportTests {
         await store.send(.torrentList(.delegate(.addTorrentRequested)))
         await store.receive(.magnetLinkResponse(.failure(.failed("Magnet access failed")))) {
             $0.alert = AlertState {
-                TextState("Не удалось обработать magnet")
+                TextState(L10n.tr("serverDetail.addTorrent.processMagnetFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState("Magnet access failed")
@@ -199,10 +199,10 @@ struct ServerDetailImportTests {
 
         await store.send(.fileImportResult(.failure("Permission denied"))) {
             $0.alert = AlertState {
-                TextState("Не удалось открыть файл")
+                TextState(L10n.tr("serverDetail.addTorrent.readFileFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState("Permission denied")
@@ -228,10 +228,10 @@ struct ServerDetailImportTests {
         await store.send(.fileImportLoaded(.failure(.failed("Corrupted file")))) {
             $0.isFileImporterPresented = false
             $0.alert = AlertState {
-                TextState("Не удалось прочитать файл")
+                TextState(L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Понятно")
+                    TextState(L10n.tr("common.ok"))
                 }
             } message: {
                 TextState("Corrupted file")

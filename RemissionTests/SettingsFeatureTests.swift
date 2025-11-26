@@ -320,10 +320,10 @@ struct SettingsFeatureTests {
         await store.receive(.preferencesResponse(.failure(DummyError.failed))) {
             $0.isLoading = false
             $0.alert = AlertState {
-                TextState("Не удалось сохранить настройки")
+                TextState(L10n.tr("settings.alert.saveFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Закрыть")
+                    TextState(L10n.tr("settings.alert.close"))
                 }
             } message: {
                 TextState("ошибка")
@@ -388,10 +388,10 @@ struct SettingsFeatureTests {
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.persistedPreferences = preferences
             $0.alert = AlertState {
-                TextState("Не удалось сохранить настройки")
+                TextState(L10n.tr("settings.alert.saveFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Закрыть")
+                    TextState(L10n.tr("settings.alert.close"))
                 }
             } message: {
                 TextState(expectedError.errorDescription ?? "")
@@ -429,10 +429,10 @@ struct SettingsFeatureTests {
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.persistedPreferences = preferences
             $0.alert = AlertState {
-                TextState("Не удалось сохранить настройки")
+                TextState(L10n.tr("settings.alert.saveFailed.title"))
             } actions: {
                 ButtonState(role: .cancel, action: .dismiss) {
-                    TextState("Закрыть")
+                    TextState(L10n.tr("settings.alert.close"))
                 }
             } message: {
                 TextState(expectedError.errorDescription ?? "")

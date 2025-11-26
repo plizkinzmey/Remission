@@ -38,7 +38,10 @@ struct SettingsView: View {
 
     private var intervalLabel: String {
         let seconds = Int(store.pollingIntervalSeconds.rounded())
-        return "\(seconds) сек."
+        return String(
+            format: L10n.tr("settings.polling.interval"),
+            Int64(seconds)
+        )
     }
 
     private var policyURL: URL? {
