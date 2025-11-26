@@ -25,12 +25,16 @@ struct ServerEditorView: View {
                     Button(L10n.tr("common.cancel")) {
                         store.send(.cancelButtonTapped)
                     }
+                    .accessibilityIdentifier("server_editor_cancel_button")
+                    .accessibilityHint(L10n.tr("common.cancel"))
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.tr("serverEditor.save")) {
                         store.send(.saveButtonTapped)
                     }
                     .disabled(store.form.isFormValid == false || store.isSaving)
+                    .accessibilityIdentifier("server_editor_save_button")
+                    .accessibilityHint(L10n.tr("serverEditor.save"))
                 }
             }
         }

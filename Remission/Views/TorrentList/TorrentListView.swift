@@ -287,6 +287,7 @@ private struct TorrentRowView: View {
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
+                .accessibilityValue(item.metrics.progressText)
 
             HStack(spacing: 12) {
                 Label(item.metrics.progressText, systemImage: "circle.dashed")
@@ -326,6 +327,11 @@ private struct TorrentRowView: View {
         }
         .padding(.vertical, 6)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(item.torrent.name), \(statusTitle), \(item.metrics.progressText), \(item.metrics.speedSummary)"
+        )
+        .accessibilityHint("Open torrent details")
     }
 
     private var peersText: String {

@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Foundation
 import SwiftUI
 
 struct AddTorrentView: View {
@@ -29,43 +30,56 @@ struct AddTorrentView: View {
                     Text(store.pendingInput.sourceDescription)
                         .font(.body)
                         .bold()
+                        .accessibilityIdentifier("torrent_add_source_description")
                     Text(store.pendingInput.displayName)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("torrent_add_source_name")
                 }
             }
 
             Section(L10n.tr("torrentAdd.section.destination")) {
                 TextField(L10n.tr("torrentAdd.placeholder.destination"), text: destinationBinding)
+                    .textContentType(.URL)
+                    .accessibilityIdentifier("torrent_add_destination_field")
+                    .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
             }
 
             Section(L10n.tr("torrentAdd.section.parameters")) {
                 Toggle(L10n.tr("torrentAdd.toggle.startPaused"), isOn: startPausedBinding)
+                    .accessibilityIdentifier("torrent_add_start_paused_toggle")
             }
 
             Section(L10n.tr("torrentAdd.section.tags")) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
                         TextField(L10n.tr("torrentAdd.placeholder.tag"), text: newTagBinding)
+                            .accessibilityIdentifier("torrent_add_tag_field")
                         Button {
                             store.send(.addTagTapped)
                         } label: {
                             Image(systemName: "plus.circle.fill")
                         }
                         .buttonStyle(.plain)
+                        .accessibilityIdentifier("torrent_add_tag_button")
+                        .accessibilityHint(L10n.tr("torrentAdd.placeholder.tag"))
                     }
                     if store.tags.isEmpty == false {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(store.tags, id: \.self) { tag in
+                                let tagId = sanitizedTagIdentifier(tag)
                                 HStack(spacing: 12) {
                                     Text(tag)
                                         .font(.subheadline)
+                                        .accessibilityIdentifier("torrent_add_tag_label_\(tagId)")
                                     Button {
                                         store.send(.removeTag(tag))
                                     } label: {
                                         Image(systemName: "xmark.circle.fill")
                                     }
                                     .buttonStyle(.plain)
+                                    .accessibilityIdentifier("torrent_add_tag_remove_\(tagId)")
+                                    .accessibilityLabel("Remove tag \(tag)")
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -90,15 +104,24 @@ struct AddTorrentView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("torrent_add_submit_button")
+                .accessibilityHint(L10n.tr("torrentAdd.action.add"))
 
                 Button(L10n.tr("torrentAdd.action.cancel")) {
                     store.send(.closeButtonTapped)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
+                .accessibilityIdentifier("torrent_add_cancel_button")
             }
         }
         .navigationTitle(L10n.tr("torrentAdd.title"))
         .alert($store.scope(state: \.alert, action: \.alert))
+    }
+}
+
+extension AddTorrentView {
+    fileprivate func sanitizedTagIdentifier(_ tag: String) -> String {
+        tag.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression)
     }
 }
 

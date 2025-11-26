@@ -61,12 +61,13 @@ final class ServerUITests: BaseUITestCase {
 
     private func verifyServerDetailScreen(_ app: XCUIApplication) {
         #if os(macOS)
-            let addressLabelRu = app.staticTexts["Адрес"]
-            let addressLabelEn = app.staticTexts["Address"]
-            let addressExists =
-                addressLabelRu.waitForExistence(timeout: 5)
-                || addressLabelEn.waitForExistence(timeout: 5)
-            XCTAssertTrue(addressExists)
+            // На macOS используем accessibilityIdentifier вместо поиска по тексту
+            let addressElement = app.descendants(matching: .any)["server_detail_address"]
+            let addressExists = addressElement.waitForExistence(timeout: 5)
+            if addressExists == false {
+                attachScreenshot(app, name: "server_detail_address_not_found_macos")
+            }
+            XCTAssertTrue(addressExists, "Server detail address element not found on macOS")
         #else
             let detailNavBar = app.navigationBars["UI Test NAS"]
             let detailTitle = app.staticTexts["UI Test NAS"]

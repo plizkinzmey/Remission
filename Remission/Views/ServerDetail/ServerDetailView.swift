@@ -66,19 +66,41 @@ struct ServerDetailView: View {
                 Button(L10n.tr("serverDetail.button.edit")) {
                     store.send(.editButtonTapped)
                 }
+                .accessibilityIdentifier("server_detail_edit_button")
+                .accessibilityHint(L10n.tr("serverDetail.button.edit"))
             }
         }
     }
 
     private var serverSection: some View {
         Section(L10n.tr("serverDetail.section.server")) {
-            LabeledContent(L10n.tr("serverDetail.field.name"), value: store.server.name)
             LabeledContent(
-                L10n.tr("serverDetail.field.address"), value: store.server.displayAddress)
+                L10n.tr("serverDetail.field.name"),
+                value: store.server.name
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(nameAccessibilityLabel)
+            .accessibilityIdentifier("server_detail_name")
+            LabeledContent(
+                L10n.tr("serverDetail.field.address"),
+                value: store.server.displayAddress
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(addressAccessibilityLabel)
+            .accessibilityIdentifier("server_detail_address")
             LabeledContent(L10n.tr("serverDetail.field.protocol")) {
                 securityBadge
             }
+            .accessibilityIdentifier("server_detail_protocol")
         }
+    }
+
+    private var nameAccessibilityLabel: String {
+        "\(L10n.tr("serverDetail.field.name")): \(store.server.name)"
+    }
+
+    private var addressAccessibilityLabel: String {
+        "\(L10n.tr("serverDetail.field.address")): \(store.server.displayAddress)"
     }
 
     private var fileImporterBinding: Binding<Bool> {
@@ -105,34 +127,49 @@ struct ServerDetailView: View {
                 Text(L10n.tr("serverDetail.status.waiting"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("server_detail_status_idle")
 
             case .connecting:
                 HStack(spacing: 12) {
                     ProgressView()
                     Text(L10n.tr("serverDetail.status.connecting"))
                 }
+                .accessibilityIdentifier("server_detail_status_connecting")
 
             case .ready(let ready):
-                Label(
-                    L10n.tr("serverDetail.status.connected"), systemImage: "checkmark.circle.fill"
-                )
-                .foregroundStyle(.green)
-                if let description = ready.handshake.serverVersionDescription {
-                    if description.isEmpty == false {
+                let statusLabel = [
+                    L10n.tr("serverDetail.status.connected"),
+                    ready.handshake.serverVersionDescription ?? "",
+                    "RPC \(ready.handshake.rpcVersion)"
+                ]
+                .filter { $0.isEmpty == false }
+                .joined(separator: ", ")
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(
+                        L10n.tr("serverDetail.status.connected"),
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    .foregroundStyle(.green)
+                    if let description = ready.handshake.serverVersionDescription,
+                        description.isEmpty == false
+                    {
                         Text(description)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                }
 
-                Text(
-                    String(
-                        format: L10n.tr("serverDetail.status.rpcVersion"),
-                        Int64(ready.handshake.rpcVersion)
+                    Text(
+                        String(
+                            format: L10n.tr("serverDetail.status.rpcVersion"),
+                            Int64(ready.handshake.rpcVersion)
+                        )
                     )
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("server_detail_status_connected")
+                .accessibilityLabel(statusLabel)
 
             case .failed(let failure):
                 Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
@@ -144,6 +181,8 @@ struct ServerDetailView: View {
                     store.send(.retryConnectionButtonTapped)
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("server_detail_status_failed")
+                .accessibilityHint(L10n.tr("serverDetail.action.retry"))
             }
         }
     }
@@ -207,6 +246,7 @@ struct ServerDetailView: View {
                     L10n.tr("serverDetail.action.resetTrust"), systemImage: "arrow.counterclockwise"
                 )
             }
+            .accessibilityIdentifier("server_detail_reset_trust_button")
             Button {
                 store.send(.httpWarningResetButtonTapped)
             } label: {
@@ -214,6 +254,7 @@ struct ServerDetailView: View {
                     L10n.tr("serverDetail.action.resetHttpWarnings"),
                     systemImage: "exclamationmark.shield")
             }
+            .accessibilityIdentifier("server_detail_reset_http_warning_button")
         }
     }
 
@@ -224,6 +265,8 @@ struct ServerDetailView: View {
             } label: {
                 Label(L10n.tr("serverDetail.action.delete"), systemImage: "trash")
             }
+            .accessibilityIdentifier("server_detail_delete_button")
+            .accessibilityHint(L10n.tr("serverDetail.action.delete"))
         }
     }
 

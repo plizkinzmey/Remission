@@ -31,6 +31,7 @@ struct DiagnosticsView: View {
                     Button(L10n.tr("diagnostics.close")) {
                         store.send(.delegate(.closeRequested))
                     }
+                    .accessibilityIdentifier("diagnostics_close_button")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.tr("diagnostics.clear")) {
@@ -126,6 +127,10 @@ struct DiagnosticsView: View {
             }
         }
         .accessibilityIdentifier("diagnostics_log_row_\(entry.id.uuidString)")
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(timeFormatter.string(from: entry.timestamp)), \(levelLabel(entry.level)): \(entry.message)"
+        )
     }
 
     private func levelBadge(for level: AppLogLevel) -> some View {
