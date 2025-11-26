@@ -12,27 +12,34 @@ struct ServerConnectionFormFields: View {
     private var connectionSection: some View {
         Section(L10n.tr("serverForm.section.connection")) {
             TextField(L10n.tr("serverForm.placeholder.name"), text: $form.name)
+                .accessibilityIdentifier("server_form_name_field")
             #if os(iOS)
                 TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("server_form_host_field")
             #else
                 TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
                     .textContentType(.URL)
+                    .accessibilityIdentifier("server_form_host_field")
             #endif
             #if os(iOS)
                 TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
                     .keyboardType(.numberPad)
+                    .accessibilityIdentifier("server_form_port_field")
             #else
                 TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
+                    .accessibilityIdentifier("server_form_port_field")
             #endif
             #if os(iOS)
                 TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("server_form_path_field")
             #else
                 TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
+                    .accessibilityIdentifier("server_form_path_field")
             #endif
         }
     }
@@ -44,6 +51,7 @@ struct ServerConnectionFormFields: View {
                     Text(transport.title).tag(transport)
                 }
             }
+            .accessibilityIdentifier("server_form_transport_picker")
             .pickerStyle(.segmented)
 
             if form.transport == .https {
@@ -51,6 +59,8 @@ struct ServerConnectionFormFields: View {
                     L10n.tr("serverForm.security.allowUntrusted"),
                     isOn: $form.allowUntrustedCertificates
                 )
+                .accessibilityIdentifier("server_form_allow_untrusted_toggle")
+                .accessibilityHint(L10n.tr("serverForm.security.allowUntrusted"))
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.tr("serverForm.security.httpWarning.title"))
@@ -64,6 +74,8 @@ struct ServerConnectionFormFields: View {
                         isOn: $form.suppressInsecureWarning
                     )
                     .toggleStyle(.switch)
+                    .accessibilityIdentifier("server_form_suppress_warning_toggle")
+                    .accessibilityHint(L10n.tr("serverForm.security.httpWarning.suppress"))
                 }
             }
         }
@@ -75,10 +87,13 @@ struct ServerConnectionFormFields: View {
                 TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .accessibilityIdentifier("server_form_username_field")
             #else
                 TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
+                    .accessibilityIdentifier("server_form_username_field")
             #endif
             SecureField(L10n.tr("serverForm.placeholder.password"), text: $form.password)
+                .accessibilityIdentifier("server_form_password_field")
         }
     }
 }

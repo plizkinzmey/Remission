@@ -79,6 +79,7 @@ private struct TorrentLimitControl: View {
                 Spacer()
                 Toggle("", isOn: isEnabled)
                     .labelsHidden()
+                    .accessibilityIdentifier("torrent_limit_toggle_\(identifierSuffix)")
             }
 
             if isEnabled.wrappedValue {
@@ -91,13 +92,19 @@ private struct TorrentLimitControl: View {
                         L10n.tr("torrentDetail.stats.placeholder"), value: value, format: .number
                     )
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
+                    .frame(maxWidth: 180)
+                    .minimumScaleFactor(0.9)
+                    .accessibilityIdentifier("torrent_limit_value_\(identifierSuffix)")
                     #if os(macOS)
                         .controlSize(.small)
                     #endif
                 }
             }
         }
+    }
+
+    private var identifierSuffix: String {
+        title.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression)
     }
 }
 

@@ -145,7 +145,8 @@ struct SettingsView: View {
                     )
                     .accessibilityIdentifier("settings_download_limit_field")
                     .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 120)
+                    .frame(maxWidth: 220, alignment: .trailing)
+                    .minimumScaleFactor(0.85)
                 } label: {
                     Text(L10n.tr("settings.speed.download"))
                 }
@@ -162,7 +163,8 @@ struct SettingsView: View {
                     )
                     .accessibilityIdentifier("settings_upload_limit_field")
                     .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 120)
+                    .frame(maxWidth: 220, alignment: .trailing)
+                    .minimumScaleFactor(0.85)
                 } label: {
                     Text(L10n.tr("settings.speed.upload"))
                 }

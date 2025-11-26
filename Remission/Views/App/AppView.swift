@@ -40,6 +40,8 @@ struct AppView: View {
         } label: {
             Label(L10n.tr("app.action.addServer"), systemImage: "plus")
         }
+        .accessibilityIdentifier("app_add_server_button")
+        .accessibilityHint(L10n.tr("serverList.action.addServer"))
     }
 
     private var settingsButton: some View {
