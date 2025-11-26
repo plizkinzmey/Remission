@@ -95,6 +95,15 @@ swiftlint --fix
 git commit --no-verify
 ```
 
+### Проверка локализаций
+
+- Скрипт `Scripts/check-localizations.sh` проверяет `Remission/Localizable.xcstrings` на отсутствие переводов и несовпадение плейсхолдеров между `ru` и `en`.
+- Запускать вручную из корня репозитория:  
+  ```bash
+  Scripts/check-localizations.sh
+  ```
+- Проверка встроена в Xcode build phase **Localizations Check**; при ошибках сборка завершится с кодом 1.
+
 ### Сборка из командной строки
 
 **Сборка для iOS Simulator:**

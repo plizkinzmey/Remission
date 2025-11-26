@@ -290,6 +290,7 @@ CI pipeline автоматически запускает проверки пр�
 
 - ✅ `swift-format lint --configuration .swift-format --recursive --strict`
 - ✅ `swiftlint lint` (0 violations)
+- ✅ `Scripts/check-localizations.sh` (или Xcode build phase “Localizations Check”) — падение сборки при пропущенных переводах/плейсхолдерах
 - ✅ `xcodebuild build`
 - ✅ `xcodebuild test` (unit + UI тесты)
 - ✅ Покрытие тестами >= 60% на ключевых компонентах

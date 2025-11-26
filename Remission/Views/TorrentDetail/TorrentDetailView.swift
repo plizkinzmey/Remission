@@ -249,7 +249,14 @@ private struct SummaryMetricRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(value)")
+        .accessibilityLabel(
+            String(
+                format: L10n.tr("%@: %@"),
+                locale: Locale.current,
+                title,
+                value
+            )
+        )
     }
 }
 

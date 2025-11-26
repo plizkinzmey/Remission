@@ -27,6 +27,13 @@ struct TorrentDetailLabelValueRow: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)")
+        .accessibilityLabel(
+            String(
+                format: L10n.tr("%@: %@"),
+                locale: Locale.current,
+                label,
+                value
+            )
+        )
     }
 }
