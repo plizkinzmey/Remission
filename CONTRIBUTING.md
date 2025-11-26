@@ -81,6 +81,9 @@ swiftlint lint
 
 # Подробный отчёт SwiftLint
 swiftlint lint --reporter xcode
+
+# Проверить локализации (отсутствующие ключи/плейсхолдеры)
+Scripts/check-localizations.sh
 ```
 
 ## Пропуск hook'а (только в крайних случаях)

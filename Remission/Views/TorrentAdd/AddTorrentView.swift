@@ -79,7 +79,13 @@ struct AddTorrentView: View {
                                     }
                                     .buttonStyle(.plain)
                                     .accessibilityIdentifier("torrent_add_tag_remove_\(tagId)")
-                                    .accessibilityLabel("Remove tag \(tag)")
+                                    .accessibilityLabel(
+                                        String(
+                                            format: L10n.tr("Remove tag %@"),
+                                            locale: Locale.current,
+                                            tag
+                                        )
+                                    )
                                 }
                                 .padding(.vertical, 4)
                             }

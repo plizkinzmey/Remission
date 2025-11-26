@@ -329,9 +329,16 @@ private struct TorrentRowView: View {
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(item.torrent.name), \(statusTitle), \(item.metrics.progressText), \(item.metrics.speedSummary)"
+            String(
+                format: L10n.tr("%@, %@, %@, %@"),
+                locale: Locale.current,
+                item.torrent.name,
+                statusTitle,
+                item.metrics.progressText,
+                item.metrics.speedSummary
+            )
         )
-        .accessibilityHint("Open torrent details")
+        .accessibilityHint(L10n.tr("Open torrent details"))
     }
 
     private var peersText: String {

@@ -129,7 +129,13 @@ struct DiagnosticsView: View {
         .accessibilityIdentifier("diagnostics_log_row_\(entry.id.uuidString)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(timeFormatter.string(from: entry.timestamp)), \(levelLabel(entry.level)): \(entry.message)"
+            String(
+                format: L10n.tr("%@, %@: %@"),
+                locale: Locale.current,
+                timeFormatter.string(from: entry.timestamp),
+                levelLabel(entry.level),
+                entry.message
+            )
         )
     }
 

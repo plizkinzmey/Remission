@@ -103,6 +103,7 @@
 			buildConfigurationList = 15AA8C5C2EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "Remission" */;
 			buildPhases = (
 				15AA8C6A2EA1CA570025EF81 /* ShellScript */,
+				15F6B6B32F10A00000A0A111 /* Localizations Check */,
 				15AA8C372EA1C9360025EF81 /* Sources */,
 				15AA8C382EA1C9360025EF81 /* Frameworks */,
 				15AA8C392EA1C9360025EF81 /* Resources */,
@@ -296,6 +297,23 @@
 				"",
 				"",
 				"",
+			);
+		};
+		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"$(SRCROOT)/Scripts/check-localizations.sh",
+				"$(SRCROOT)/Remission/Localizable.xcstrings",
+			);
+			name = "Localizations Check";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/LocalizationsCheckDone",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"cd \"${SRCROOT}\"",
+				"Scripts/check-localizations.sh",
 			);
 		};
 /* End PBXShellScriptBuildPhase section */

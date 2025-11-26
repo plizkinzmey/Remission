@@ -25,7 +25,14 @@ struct EmptyPlaceholderView: View {
                 .fill(Color.secondary.opacity(0.08))
         )
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(title). \(message)")
+        .accessibilityLabel(
+            String(
+                format: L10n.tr("%@. %@"),
+                locale: Locale.current,
+                title,
+                message
+            )
+        )
     }
 }
 
