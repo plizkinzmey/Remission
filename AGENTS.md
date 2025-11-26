@@ -404,6 +404,8 @@ Every research task (like RTC-16) follows this pattern:
 | **SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY** | YES | Включение предстоящих фич Swift 6 для лучшей совместимости |
 | **STRING_CATALOG_GENERATE_SYMBOLS** | YES (основное) / NO (тесты) | Генерация символов из строковых каталогов для основного приложения |
 
+**Локализация**: единственный источник строк — String Catalog `Remission/Localizable.xcstrings`; основная цель собирается с `SWIFT_EMIT_LOC_STRINGS=YES` и `STRING_CATALOG_GENERATE_SYMBOLS=YES`, тестовые цели — с `NO`. Скрипт `Scripts/check-localizations.sh` и build phase **Localizations Check** валятся при пропущенных переводах или несоответствии плейсхолдеров.
+
 ### Отличия между целями
 
 **Основная цель (Remission app):**
