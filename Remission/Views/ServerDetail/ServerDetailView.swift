@@ -150,6 +150,7 @@ struct ServerDetailView: View {
                         systemImage: "checkmark.circle.fill"
                     )
                     .foregroundStyle(.green)
+
                     if let description = ready.handshake.serverVersionDescription,
                         description.isEmpty == false
                     {
