@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import Remission
@@ -103,5 +104,27 @@ struct InMemoryRepositoryTests {
         await #expect(throws: InMemoryUserPreferencesRepositoryError.self) {
             _ = try await repository.load()
         }
+    }
+
+    // MARK: - Server Snapshot Cache
+
+    @Test
+    func serverSnapshotCachePersistsAndClears() async throws {
+        let now = Date(timeIntervalSince1970: 1_000)
+        let cache = ServerSnapshotCache.inMemory(now: { now })
+        let serverID = UUID()
+        let client = cache.client(serverID)
+
+        _ = try await client.updateTorrents([Torrent.previewDownloading])
+        _ = try await client.updateSession(SessionState.previewActive)
+
+        let loaded = try await client.load()
+        #expect(loaded?.torrents?.value.first?.id == .init(rawValue: 1))
+        #expect(loaded?.session?.value.rpc.rpcVersion == SessionState.previewActive.rpc.rpcVersion)
+        #expect(loaded?.torrents?.updatedAt == now)
+
+        try await client.clear()
+        let cleared = try await client.load()
+        #expect(cleared == nil)
     }
 }

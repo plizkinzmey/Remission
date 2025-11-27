@@ -20,11 +20,13 @@ struct ServerDetailReducer {
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
         var torrentList: TorrentListReducer.State = .init()
+        var connectionRetryAttempts: Int = 0
         var preferences: UserPreferences?
         var lastAppliedDefaultSpeedLimits: UserPreferences.DefaultSpeedLimits?
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
+            self.torrentList.serverID = server.id
             if startEditing {
                 self.editor = ServerEditorReducer.State(server: server)
             }
@@ -77,6 +79,8 @@ struct ServerDetailReducer {
     @Dependency(\.magnetLinkClient) var magnetLinkClient
     @Dependency(\.torrentFileLoader) var torrentFileLoader
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
+    @Dependency(\.appClock) var appClock
+    @Dependency(\.serverSnapshotCache) var serverSnapshotCache
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -85,11 +89,16 @@ struct ServerDetailReducer {
                 return .merge(
                     loadPreferences(),
                     observePreferences(),
-                    startConnectionIfNeeded(state: &state)
+                    startConnectionIfNeeded(state: &state),
+                    .send(.torrentList(.restoreCachedSnapshot))
                 )
 
             case .retryConnectionButtonTapped:
-                return startConnection(state: &state, force: true)
+                state.connectionRetryAttempts = 0
+                return .merge(
+                    .cancel(id: ConnectionCancellationID.connectionRetry),
+                    startConnection(state: &state, force: true)
+                )
 
             case .editButtonTapped:
                 state.editor = ServerEditorReducer.State(server: state.server)
@@ -199,6 +208,7 @@ struct ServerDetailReducer {
             case .connectionResponse(.success(let response)):
                 state.connectionEnvironment = response.environment
                 state.torrentDetail?.applyConnectionEnvironment(response.environment)
+                state.connectionRetryAttempts = 0
                 state.connectionState.phase = .ready(
                     .init(
                         fingerprint: response.environment.fingerprint,
@@ -211,6 +221,7 @@ struct ServerDetailReducer {
                     .send(.torrentList(.refreshRequested))
                 )
                 return .merge(
+                    .cancel(id: ConnectionCancellationID.connectionRetry),
                     effects,
                     applyDefaultSpeedLimitsIfNeeded(state: &state)
                 )
@@ -219,25 +230,37 @@ struct ServerDetailReducer {
                 state.connectionEnvironment = nil
                 state.lastAppliedDefaultSpeedLimits = nil
                 state.torrentDetail?.applyConnectionEnvironment(nil)
+                state.torrentList.connectionEnvironment = nil
                 let message = describe(error)
-                state.connectionState.phase = .failed(.init(message: message))
+                state.connectionRetryAttempts += 1
+                state.connectionState.phase = .offline(
+                    .init(
+                        message: message,
+                        attempt: state.connectionRetryAttempts
+                    )
+                )
                 state.alert = AlertState.connectionFailure(message: message)
-                let teardown: Effect<Action> =
-                    state.torrentList.connectionEnvironment != nil
-                    ? .send(.torrentList(.teardown))
-                    : .none
-                state.torrentList = .init()
-                return teardown
+                let teardown: Effect<Action> = .send(.torrentList(.teardown))
+                let offlineEffect: Effect<Action> = .send(
+                    .torrentList(.goOffline(message: message))
+                )
+                return .merge(
+                    teardown,
+                    offlineEffect,
+                    scheduleConnectionRetry(state: &state)
+                )
 
             case .editor(.presented(.delegate(.didUpdate(let server)))):
                 let shouldReconnect =
                     state.server.connectionFingerprint != server.connectionFingerprint
                 state.server = server
                 state.editor = nil
+                state.torrentList.serverID = server.id
                 let teardownEffect: Effect<Action> =
                     shouldReconnect ? .send(.torrentList(.teardown)) : .none
                 if shouldReconnect {
                     state.torrentList = .init()
+                    state.torrentList.serverID = server.id
                     state.connectionEnvironment = nil
                     state.lastAppliedDefaultSpeedLimits = nil
                 }
@@ -371,6 +394,7 @@ struct ServerDetailReducer {
         case preferences
         case preferencesUpdates
         case defaultSpeedLimits
+        case connectionRetry
     }
 
     /// Проверяет, нужно ли переустанавливать подключение (изменился ли fingerprint
@@ -399,7 +423,11 @@ struct ServerDetailReducer {
             state.connectionEnvironment = nil
             state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
-            return connect(server: state.server)
+            state.connectionRetryAttempts = 0
+            return .merge(
+                .cancel(id: ConnectionCancellationID.connectionRetry),
+                connect(server: state.server)
+            )
         }
 
         return .none
@@ -445,6 +473,8 @@ struct ServerDetailReducer {
                 if let key = server.credentialsKey {
                     try await credentialsRepository.delete(key: key)
                 }
+                let snapshot = serverSnapshotCache.client(server.id)
+                try await snapshot.clear()
                 httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
                 let identity = TransmissionServerTrustIdentity(
                     host: server.connection.host,
@@ -535,6 +565,41 @@ struct ServerDetailReducer {
             cancelInFlight: true
         )
     }
+
+    private func scheduleConnectionRetry(
+        state: inout State
+    ) -> Effect<Action> {
+        guard state.connectionRetryAttempts < maxConnectionRetryAttempts else {
+            return .none
+        }
+        let delay = backoffDelay(for: state.connectionRetryAttempts)
+        return .run { send in
+            let clock = appClock.clock()
+            do {
+                try await clock.sleep(for: delay)
+                await send(.retryConnectionButtonTapped)
+            } catch is CancellationError {
+                return
+            }
+        }
+        .cancellable(id: ConnectionCancellationID.connectionRetry, cancelInFlight: true)
+    }
+
+    private func backoffDelay(for failures: Int) -> Duration {
+        guard failures > 0 else { return .seconds(1) }
+        let values: [Duration] = [
+            .seconds(1),
+            .seconds(2),
+            .seconds(4),
+            .seconds(8),
+            .seconds(16),
+            .seconds(30)
+        ]
+        let index = min(failures - 1, values.count - 1)
+        return values[index]
+    }
+
+    private var maxConnectionRetryAttempts: Int { 5 }
 
     private func makeDeleteAlert() -> AlertState<AlertAction> {
         AlertState {

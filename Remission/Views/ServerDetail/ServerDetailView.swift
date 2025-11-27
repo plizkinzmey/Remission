@@ -172,6 +172,21 @@ struct ServerDetailView: View {
                 .accessibilityIdentifier("server_detail_status_connected")
                 .accessibilityLabel(statusLabel)
 
+            case .offline(let offline):
+                Label(
+                    L10n.tr("serverDetail.status.error"),
+                    systemImage: "wifi.slash"
+                )
+                .foregroundStyle(.orange)
+                Text(offline.message)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Button(L10n.tr("common.retry")) {
+                    store.send(.retryConnectionButtonTapped)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("server_detail_status_offline")
+
             case .failed(let failure):
                 Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
                     .foregroundStyle(.red)

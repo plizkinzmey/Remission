@@ -111,7 +111,13 @@ struct ServerDetailConnectionBasicsTests {
             $0.torrentList.items = [TorrentListItem.State(torrent: torrent)]
         }
         await store.receive(.torrentList(.refreshRequested))
-        await store.receive(.torrentList(.torrentsResponse(.success([torrent])))) {
+        await store.receive(
+            .torrentList(
+                .torrentsResponse(
+                    .success(.init(torrents: [torrent], isFromCache: false, snapshotDate: nil))
+                )
+            )
+        ) {
             $0.torrentList.phase = .loaded
             $0.torrentList.items = [TorrentListItem.State(torrent: torrent)]
         }
@@ -183,8 +189,74 @@ struct ServerDetailConnectionBasicsTests {
 
         await store.receive(.connectionResponse(.failure(expectedError)), timeout: .seconds(1)) {
             $0.connectionEnvironment = nil
-            $0.connectionState.phase = .failed(.init(message: expectedError.errorDescription ?? ""))
+            $0.connectionRetryAttempts = 1
+            $0.connectionState.phase = .offline(
+                .init(
+                    message: expectedError.errorDescription ?? "",
+                    attempt: 1
+                )
+            )
             $0.alert = .connectionFailure(message: expectedError.errorDescription ?? "")
+        }
+    }
+
+    @Test
+    func connectionFailureSchedulesRetry() async {
+        enum DummyError: Error, LocalizedError, Equatable {
+            case failed
+            var errorDescription: String? { "failed" }
+        }
+
+        let clock = TestClock<Duration>()
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+            dependencies.appClock = .test(clock: clock)
+            dependencies.serverConnectionEnvironmentFactory = .init { _ in
+                throw DummyError.failed
+            }
+            dependencies.userPreferencesRepository = .serverDetailTestValue(
+                preferences: DomainFixtures.userPreferences
+            )
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.connectionState.phase = .connecting
+        }
+
+        await store.receive(.connectionResponse(.failure(DummyError.failed))) {
+            $0.connectionEnvironment = nil
+            $0.connectionRetryAttempts = 1
+            $0.connectionState.phase = .offline(.init(message: "failed", attempt: 1))
+            $0.torrentList.connectionEnvironment = nil
+            $0.alert = .connectionFailure(message: "failed")
+        }
+        await store.receive(.torrentList(.teardown))
+        await store.receive(.torrentList(.goOffline(message: "failed"))) {
+            $0.torrentList.offlineState = .init(message: "failed", lastUpdatedAt: nil)
+            $0.torrentList.phase = .offline(.init(message: "failed", lastUpdatedAt: nil))
+        }
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.retryConnectionButtonTapped) {
+            $0.connectionState.phase = .connecting
+            $0.connectionRetryAttempts = 0
+        }
+        await store.receive(.connectionResponse(.failure(DummyError.failed))) {
+            $0.connectionEnvironment = nil
+            $0.connectionRetryAttempts = 1
+            $0.connectionState.phase = .offline(.init(message: "failed", attempt: 1))
+        }
+        await store.receive(.torrentList(.teardown))
+        await store.receive(.torrentList(.goOffline(message: "failed"))) {
+            $0.torrentList.offlineState = .init(message: "failed", lastUpdatedAt: nil)
+            $0.torrentList.phase = .offline(.init(message: "failed", lastUpdatedAt: nil))
         }
     }
 
@@ -270,7 +342,9 @@ struct ServerDetailConnectionBasicsTests {
             $0.server = updatedServer
             $0.editor = nil
             $0.connectionEnvironment = nil
+            $0.lastAppliedDefaultSpeedLimits = nil
             $0.torrentList = TorrentListReducer.State()
+            $0.torrentList.serverID = updatedServer.id
         }
 
         await store.receive(.torrentList(.teardown))

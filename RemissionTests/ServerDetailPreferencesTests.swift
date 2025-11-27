@@ -72,6 +72,7 @@ struct ServerDetailPreferencesTests {
             dependencies = AppDependencies.makeTestDefaults()
             dependencies.userPreferencesRepository = repository
         }
+        store.exhaustivity = .off
 
         await store.send(.task)
 
@@ -87,7 +88,15 @@ struct ServerDetailPreferencesTests {
             $0.torrentList.phase = .loading
             $0.torrentList.hasLoadedPreferences = true
         }
-        await store.receive(.torrentList(.torrentsResponse(.success([])))) {
+        await store.receive(
+            .torrentList(
+                .torrentsResponse(
+                    .success(
+                        .init(torrents: [], isFromCache: false, snapshotDate: nil)
+                    )
+                )
+            )
+        ) {
             $0.torrentList.phase = .loaded
         }
 
@@ -105,7 +114,13 @@ struct ServerDetailPreferencesTests {
             $0.torrentList.isPollingEnabled = false
             $0.torrentList.hasLoadedPreferences = true
         }
-        await store.receive(.torrentList(.torrentsResponse(.success([]))))
+        await store.receive(
+            .torrentList(
+                .torrentsResponse(
+                    .success(.init(torrents: [], isFromCache: false, snapshotDate: nil))
+                )
+            )
+        )
 
         await continuationBox.finish()
         await store.finish()

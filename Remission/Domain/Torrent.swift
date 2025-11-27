@@ -6,9 +6,9 @@ import Foundation
 /// Объединяет краткое (`Summary`) и детализированное (`Details`) представление,
 /// чтобы одна структура могла обслуживать список и экран деталей.
 /// Все поля документированы ссылками на исходные Transmission RPC поля.
-public struct Torrent: Equatable, Sendable, Identifiable {
+public struct Torrent: Equatable, Sendable, Identifiable, Codable {
     /// Уникальный идентификатор торрента (`torrent-get` → `id`).
-    public struct Identifier: RawRepresentable, Hashable, Sendable {
+    public struct Identifier: RawRepresentable, Hashable, Sendable, Codable {
         public var rawValue: Int
 
         public init(rawValue: Int) {
@@ -39,7 +39,7 @@ public struct Torrent: Equatable, Sendable, Identifiable {
 
 extension Torrent {
     /// Статус из Transmission (`torrent-get` → `status`).
-    public enum Status: Int, Equatable, Sendable {
+    public enum Status: Int, Equatable, Sendable, Codable {
         /// 0 – останавливается/остановлен.
         case stopped = 0
         /// 1 – ожидает проверку.
@@ -59,7 +59,7 @@ extension Torrent {
     }
 
     /// Краткая сводка, используемая списком торрентов.
-    public struct Summary: Equatable, Sendable {
+    public struct Summary: Equatable, Sendable, Codable {
         public var progress: Progress
         public var transfer: Transfer
         public var peers: Peers
@@ -72,7 +72,7 @@ extension Torrent {
     }
 
     /// Прогресс по размеру и времени (`torrent-get` → `percentDone`, `totalSize`, `downloadedEver`, `uploadedEver`, `eta`).
-    public struct Progress: Equatable, Sendable {
+    public struct Progress: Equatable, Sendable, Codable {
         public var percentDone: Double
         public var totalSize: Int
         public var downloadedEver: Int
@@ -100,8 +100,8 @@ extension Torrent {
     }
 
     /// Текущие скорости и лимиты (`torrent-get` → `rateDownload`, `rateUpload`, `downloadLimit`, `downloadLimited`, `uploadLimit`, `uploadLimited`).
-    public struct Transfer: Equatable, Sendable {
-        public struct SpeedLimit: Equatable, Sendable {
+    public struct Transfer: Equatable, Sendable, Codable {
+        public struct SpeedLimit: Equatable, Sendable, Codable {
             /// Флаг `*_limited` о включённости глобального лимита.
             public var isEnabled: Bool
             /// Значение лимита в КБ/c (`downloadLimit`, `uploadLimit`).
@@ -134,7 +134,7 @@ extension Torrent {
     }
 
     /// Информация о пирах (`torrent-get` → `peersConnected`, `peersFrom`).
-    public struct Peers: Equatable, Sendable {
+    public struct Peers: Equatable, Sendable, Codable {
         /// Количество активно подключённых пиров (`peersConnected`).
         public var connected: Int
         /// Источники пиров с количеством.
@@ -147,7 +147,7 @@ extension Torrent {
     }
 
     /// Источник пиров (`torrent-get` → `peersFrom`).
-    public struct PeerSource: Equatable, Sendable, Identifiable {
+    public struct PeerSource: Equatable, Sendable, Identifiable, Codable {
         /// Ключ источника (`peersFrom` → ключ словаря, например `fromCache`).
         public var id: String { name }
         public var name: String
@@ -160,7 +160,7 @@ extension Torrent {
     }
 
     /// Детализированная часть для экрана подробностей.
-    public struct Details: Equatable, Sendable {
+    public struct Details: Equatable, Sendable, Codable {
         /// Путь загрузки (`torrent-get` → `downloadDir`).
         public var downloadDirectory: String
         /// Дата добавления торрента (`torrent-get` → `dateAdded`, Unix timestamp).
@@ -192,7 +192,7 @@ extension Torrent {
     }
 
     /// Файл из массива `files`.
-    public struct File: Equatable, Sendable, Identifiable {
+    public struct File: Equatable, Sendable, Identifiable, Codable {
         public var id: Int { index }
         /// Индекс файла (`files[index]`).
         public var index: Int
@@ -225,7 +225,7 @@ extension Torrent {
     }
 
     /// Трекер (`trackers`).
-    public struct Tracker: Equatable, Sendable, Identifiable {
+    public struct Tracker: Equatable, Sendable, Identifiable, Codable {
         /// Встроенный идентификатор (`trackers[index].id`).
         public var id: Int
         /// Адрес анонса (`trackers[index].announce`).
@@ -241,7 +241,7 @@ extension Torrent {
     }
 
     /// Статистика трекера (`trackerStats`).
-    public struct TrackerStat: Equatable, Sendable, Identifiable {
+    public struct TrackerStat: Equatable, Sendable, Identifiable, Codable {
         public var id: Int { trackerId }
         /// Идентификатор трекера (`trackerStats[index].id`).
         public var trackerId: Int
@@ -266,7 +266,7 @@ extension Torrent {
     }
 
     /// Сэмпл скоростей для графика.
-    public struct SpeedSample: Equatable, Sendable {
+    public struct SpeedSample: Equatable, Sendable, Codable {
         public var timestamp: Date
         public var downloadRate: Int
         public var uploadRate: Int

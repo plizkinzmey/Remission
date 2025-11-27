@@ -61,9 +61,13 @@ struct TorrentListView: View {
 
     @ViewBuilder
     private var content: some View {
-        if store.connectionEnvironment == nil {
+        if store.connectionEnvironment == nil && store.items.isEmpty {
             disconnectedView
         } else {
+            if let offline = store.offlineState {
+                offlineBanner(offline)
+                    .padding(.bottom, 4)
+            }
             controls
             switch store.phase {
             case .idle:
@@ -74,9 +78,13 @@ struct TorrentListView: View {
                     loadingView
                 }
 
-            case .loaded:
+            case .loaded, .offline:
                 if store.visibleItems.isEmpty {
-                    emptyStateView
+                    if case .offline(let offline) = store.phase {
+                        offlineView(message: offline.message)
+                    } else {
+                        emptyStateView
+                    }
                 } else {
                     torrentRows
                 }
@@ -124,6 +132,36 @@ struct TorrentListView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func offlineBanner(_ offline: TorrentListReducer.State.OfflineState) -> some View {
+        HStack(spacing: 8) {
+            Label(L10n.tr("torrentList.state.noConnection.title"), systemImage: "wifi.slash")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            if let timestamp = offline.lastUpdatedAt {
+                Text(timestamp, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func offlineView(message: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(L10n.tr("torrentList.state.noConnection.title"), systemImage: "wifi.slash")
+                .foregroundStyle(.orange)
+            Text(message.isEmpty ? L10n.tr("torrentList.state.noConnection.message") : message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button(L10n.tr("common.retry")) {
+                store.send(.refreshRequested)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("torrent_list_offline_retry")
+        }
+        .padding(.vertical, 8)
     }
 
     private var emptyStateView: some View {
