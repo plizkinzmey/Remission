@@ -61,6 +61,9 @@ struct ServerDetailView: View {
             allowsMultipleSelection: false,
             onCompletion: handleFileImport
         )
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button(L10n.tr("serverDetail.button.edit")) {
@@ -122,6 +125,15 @@ struct ServerDetailView: View {
 
     private var connectionSection: some View {
         Section(L10n.tr("serverDetail.section.connection")) {
+            if let banner = store.errorPresenter.banner {
+                ErrorBannerView(
+                    message: banner.message,
+                    onRetry: banner.retry == nil
+                        ? nil
+                        : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                    onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                )
+            }
             switch store.connectionState.phase {
             case .idle:
                 Text(L10n.tr("serverDetail.status.waiting"))

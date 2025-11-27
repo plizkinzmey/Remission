@@ -88,7 +88,10 @@ struct ServerDetailLifecycleTests {
             $0.connectionRetryAttempts = 1
             $0.connectionState.phase = .offline(.init(message: "failure", attempt: 1))
             $0.torrentList.connectionEnvironment = nil
-            $0.alert = .connectionFailure(message: "failure")
+            $0.errorPresenter.banner = .init(
+                message: "failure",
+                retry: .reconnect
+            )
         }
 
         await store.receive(.torrentList(.teardown))

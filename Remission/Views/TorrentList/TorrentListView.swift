@@ -56,7 +56,9 @@ struct TorrentListView: View {
                 #endif
             }
         }
-        .alert($store.scope(state: \.alert, action: \.alert))
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
     }
 
     @ViewBuilder
@@ -64,6 +66,16 @@ struct TorrentListView: View {
         if store.connectionEnvironment == nil && store.items.isEmpty {
             disconnectedView
         } else {
+            if let banner = store.errorPresenter.banner {
+                ErrorBannerView(
+                    message: banner.message,
+                    onRetry: banner.retry == nil
+                        ? nil
+                        : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                    onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                )
+                .padding(.bottom, 6)
+            }
             if let offline = store.offlineState {
                 offlineBanner(offline)
                     .padding(.bottom, 4)
@@ -562,7 +574,12 @@ extension TorrentListReducer.State {
 
     fileprivate static func previewError() -> Self {
         var state = previewBase()
-        state.phase = .error("Не удалось подключиться к Transmission")
+        state.phase = .offline(
+            .init(message: "Не удалось подключиться к Transmission", lastUpdatedAt: nil))
+        state.errorPresenter.banner = .init(
+            message: "Не удалось подключиться к Transmission",
+            retry: .refresh
+        )
         state.items = []
         return state
     }

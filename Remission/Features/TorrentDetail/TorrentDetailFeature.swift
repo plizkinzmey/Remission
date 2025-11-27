@@ -24,6 +24,7 @@ struct TorrentDetailReducer {
         case commandDidFinish(String)
         case commandFailed(String)
         case dismissError
+        case errorPresenter(ErrorPresenter<ErrorRetry>.Action)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -85,6 +86,11 @@ struct TorrentDetailReducer {
         case failure(CommandKind, String)
     }
 
+    enum ErrorRetry: Equatable {
+        case reloadDetails
+        case command(CommandKind)
+    }
+
     @Dependency(\.dateProvider) var dateProvider
 
     private enum FetchTrigger {
@@ -118,7 +124,7 @@ struct TorrentDetailReducer {
 
             case .detailsResponse(.success(let response)):
                 state.isLoading = false
-                state.errorMessage = nil
+                state.errorPresenter.banner = nil
                 state.apply(response.torrent)
                 state.speedHistory.append(
                     timestamp: response.timestamp,
@@ -134,7 +140,10 @@ struct TorrentDetailReducer {
             case .detailsResponse(.failure(let error)):
                 state.isLoading = false
                 let message = Self.describe(error)
-                state.errorMessage = message
+                state.errorPresenter.banner = .init(
+                    message: message,
+                    retry: .reloadDetails
+                )
                 state.pendingListSync = false
                 return .none
 
@@ -249,7 +258,16 @@ struct TorrentDetailReducer {
                 return .none
 
             case .dismissError:
-                state.errorMessage = nil
+                state.errorPresenter.banner = nil
+                return .none
+
+            case .errorPresenter(.retryRequested(.reloadDetails)):
+                return .send(.refreshRequested)
+
+            case .errorPresenter(.retryRequested(.command(let command))):
+                return enqueueCommand(command, state: &state)
+
+            case .errorPresenter:
                 return .none
 
             case .alert(.presented(.dismiss)):
@@ -265,6 +283,9 @@ struct TorrentDetailReducer {
         }
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$removeConfirmation, action: \.removeConfirmation)
+        Scope(state: \.errorPresenter, action: \.errorPresenter) {
+            ErrorPresenter<ErrorRetry>()
+        }
     }
 
     private func loadDetails(
@@ -273,7 +294,10 @@ struct TorrentDetailReducer {
     ) -> Effect<Action> {
         guard let environment = state.connectionEnvironment else {
             state.isLoading = false
-            state.errorMessage = L10n.tr("torrentDetail.error.noConnection")
+            state.errorPresenter.banner = .init(
+                message: L10n.tr("torrentDetail.error.noConnection"),
+                retry: nil
+            )
             return .none
         }
 
@@ -284,7 +308,7 @@ struct TorrentDetailReducer {
             state.isLoading = true
         }
 
-        state.errorMessage = nil
+        state.errorPresenter.banner = nil
         let torrentID = state.torrentID
         return .run { send in
             await send(

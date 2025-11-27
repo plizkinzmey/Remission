@@ -54,7 +54,7 @@ extension TorrentDetailReducer {
         var activeCommand: TorrentDetailReducer.CommandKind?
         var pendingCommands: [TorrentDetailReducer.CommandKind] = []
         var isLoading: Bool = false
-        var errorMessage: String?
+        var errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init()
         var pendingListSync: Bool = false
         @Presents var alert: AlertState<AlertAction>?
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
@@ -88,7 +88,7 @@ extension TorrentDetailReducer {
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
-            errorMessage: String? = nil,
+            errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
         ) {
             self.torrentID = torrentID
@@ -119,7 +119,7 @@ extension TorrentDetailReducer {
             self.activeCommand = activeCommand
             self.pendingCommands = pendingCommands
             self.isLoading = isLoading
-            self.errorMessage = errorMessage
+            self.errorPresenter = errorPresenter
             self.pendingListSync = pendingListSync
         }
 
@@ -173,7 +173,7 @@ extension TorrentDetailReducer {
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
             isLoading: Bool = false,
-            errorMessage: String? = nil,
+            errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
         ) {
             self.init(
@@ -205,7 +205,7 @@ extension TorrentDetailReducer {
                 activeCommand: activeCommand,
                 pendingCommands: pendingCommands,
                 isLoading: isLoading,
-                errorMessage: errorMessage,
+                errorPresenter: errorPresenter,
                 pendingListSync: pendingListSync
             )
         }

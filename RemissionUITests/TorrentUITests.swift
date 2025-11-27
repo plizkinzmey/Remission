@@ -59,6 +59,36 @@ final class TorrentUITests: BaseUITestCase {
         #endif
     }
 
+    func testTorrentListOfflineBanner() throws {
+        #if os(macOS)
+            throw XCTSkip("Офлайн баннер проверяется только в iOS среде.")
+        #else
+            let app = launchApp(
+                arguments: [
+                    "--ui-testing-fixture=torrent-list-sample",
+                    "--ui-testing-scenario=torrent-list-offline"
+                ]
+            )
+            let serverIdentifier = "server_list_item_AAAA1111-B222-C333-D444-EEEEEEEEEEEE"
+            let serverCell = app.buttons[serverIdentifier]
+            XCTAssertTrue(serverCell.waitForExistence(timeout: 5), "Server cell not found")
+            serverCell.tap()
+
+            let banner = app.descendants(matching: .any)
+                .matching(identifier: "error-banner")
+                .firstMatch
+            XCTAssertTrue(banner.waitForExistence(timeout: 8), "Offline banner missing")
+
+            // Retry should be present and tap-able even в офлайне.
+            let retryButton = app.buttons["error-banner-retry"]
+            if retryButton.exists {
+                retryButton.tap()
+            }
+
+            attachScreenshot(app, name: "torrent_list_offline_banner")
+        #endif
+    }
+
     // MARK: - Torrent Detail Tests
 
     func testTorrentDetailFlow() throws {

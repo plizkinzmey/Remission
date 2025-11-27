@@ -3333,6 +3333,7 @@
       }
     },
     "torrentDetail.error.close" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4837,6 +4838,7 @@
       }
     },
     "torrentList.alert.loadFailed.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
