@@ -108,17 +108,25 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
     var fetchStateClosure: @Sendable () async throws -> SessionState
     var updateStateClosure: @Sendable (SessionUpdate) async throws -> SessionState
     var checkCompatibilityClosure: @Sendable () async throws -> Compatibility
+    var cacheStateClosure: @Sendable (SessionState) async throws -> Void
+    var loadCachedStateClosure: @Sendable () async throws -> CachedSnapshot<SessionState>?
 
     init(
         performHandshake: @escaping @Sendable () async throws -> Handshake,
         fetchState: @escaping @Sendable () async throws -> SessionState,
         updateState: @escaping @Sendable (SessionUpdate) async throws -> SessionState,
-        checkCompatibility: @escaping @Sendable () async throws -> Compatibility
+        checkCompatibility: @escaping @Sendable () async throws -> Compatibility,
+        cacheState: @escaping @Sendable (SessionState) async throws -> Void = { _ in },
+        loadCachedState: @escaping @Sendable () async throws -> CachedSnapshot<SessionState>? = {
+            nil
+        }
     ) {
         self.performHandshakeClosure = performHandshake
         self.fetchStateClosure = fetchState
         self.updateStateClosure = updateState
         self.checkCompatibilityClosure = checkCompatibility
+        self.cacheStateClosure = cacheState
+        self.loadCachedStateClosure = loadCachedState
     }
 
     func performHandshake() async throws -> Handshake {
@@ -135,6 +143,14 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
 
     func checkCompatibility() async throws -> Compatibility {
         try await checkCompatibilityClosure()
+    }
+
+    func cacheState(_ state: SessionState) async throws {
+        try await cacheStateClosure(state)
+    }
+
+    func loadCachedState() async throws -> CachedSnapshot<SessionState>? {
+        try await loadCachedStateClosure()
     }
 }
 
@@ -186,9 +202,20 @@ extension SessionRepository {
     /// Live-реализация, основанная на TransmissionClientDependency и доменном маппере.
     static func live(
         transmissionClient: TransmissionClientDependency,
-        mapper: TransmissionDomainMapper = .init()
+        mapper: TransmissionDomainMapper = .init(),
+        snapshot: ServerSnapshotClient? = nil
     ) -> SessionRepository {
-        SessionRepository(
+        let cacheState: @Sendable (SessionState) async throws -> Void = { state in
+            guard let snapshot else { return }
+            _ = try await snapshot.updateSession(state)
+        }
+
+        let loadCachedState: @Sendable () async throws -> CachedSnapshot<SessionState>? = {
+            guard let snapshot else { return nil }
+            return try await snapshot.load()?.session
+        }
+
+        return SessionRepository(
             performHandshake: {
                 try await transmissionClient.performHandshake()
                     .asSessionRepositoryHandshake()
@@ -196,26 +223,31 @@ extension SessionRepository {
             fetchState: {
                 let session = try await transmissionClient.sessionGet()
                 let stats = try await transmissionClient.sessionStats()
-                return try mapper.mapSessionState(
+                let state = try mapper.mapSessionState(
                     sessionResponse: session,
                     statsResponse: stats
                 )
+                try await cacheState(state)
+                return state
             },
             updateState: { update in
                 let arguments = makeSessionSetArguments(update: update)
                 guard let arguments else {
                     return try await SessionRepository.live(
                         transmissionClient: transmissionClient,
-                        mapper: mapper
+                        mapper: mapper,
+                        snapshot: snapshot
                     ).fetchState()
                 }
                 _ = try await transmissionClient.sessionSet(arguments)
                 let session = try await transmissionClient.sessionGet()
                 let stats = try await transmissionClient.sessionStats()
-                return try mapper.mapSessionState(
+                let state = try mapper.mapSessionState(
                     sessionResponse: session,
                     statsResponse: stats
                 )
+                try await cacheState(state)
+                return state
             },
             checkCompatibility: {
                 let result = try await transmissionClient.performHandshake()
@@ -223,7 +255,9 @@ extension SessionRepository {
                     isCompatible: result.isCompatible,
                     rpcVersion: result.rpcVersion
                 )
-            }
+            },
+            cacheState: cacheState,
+            loadCachedState: loadCachedState
         )
     }
 }

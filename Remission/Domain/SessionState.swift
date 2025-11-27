@@ -4,8 +4,8 @@ import Foundation
 
 /// Доменное представление состояния сессии Transmission.
 /// Комбинирует данные `session-get` и `session-stats`.
-public struct SessionState: Equatable, Sendable {
-    public struct RPC: Equatable, Sendable {
+public struct SessionState: Equatable, Sendable, Codable {
+    public struct RPC: Equatable, Sendable, Codable {
         /// Версия RPC API (`session-get` → `rpc-version`).
         public var rpcVersion: Int
         /// Минимальная поддерживаемая версия (`session-get` → `rpc-version-minimum`).
@@ -20,7 +20,7 @@ public struct SessionState: Equatable, Sendable {
         }
     }
 
-    public struct SpeedLimits: Equatable, Sendable {
+    public struct SpeedLimits: Equatable, Sendable, Codable {
         /// Глобальный лимит скачивания (`session-get` → `speed-limit-down`, `speed-limit-down-enabled`).
         public var download: Limit
         /// Глобальный лимит отдачи (`session-get` → `speed-limit-up`, `speed-limit-up-enabled`).
@@ -34,7 +34,7 @@ public struct SessionState: Equatable, Sendable {
             self.alternative = alternative
         }
 
-        public struct Limit: Equatable, Sendable {
+        public struct Limit: Equatable, Sendable, Codable {
             public var isEnabled: Bool
             /// Значение лимита в КБ/с.
             public var kilobytesPerSecond: Int
@@ -45,7 +45,7 @@ public struct SessionState: Equatable, Sendable {
             }
         }
 
-        public struct Alternative: Equatable, Sendable {
+        public struct Alternative: Equatable, Sendable, Codable {
             public var isEnabled: Bool
             public var downloadKilobytesPerSecond: Int
             public var uploadKilobytesPerSecond: Int
@@ -62,7 +62,7 @@ public struct SessionState: Equatable, Sendable {
         }
     }
 
-    public struct Queue: Equatable, Sendable {
+    public struct Queue: Equatable, Sendable, Codable {
         /// Лимит на количество скачивающих торрентов (`session-get` → `download-queue-size`, `download-queue-enabled`).
         public var downloadLimit: QueueLimit
         /// Лимит на количество раздающих торрентов (`session-get` → `seed-queue-size`, `seed-queue-enabled`).
@@ -83,7 +83,7 @@ public struct SessionState: Equatable, Sendable {
             self.stalledMinutes = stalledMinutes
         }
 
-        public struct QueueLimit: Equatable, Sendable {
+        public struct QueueLimit: Equatable, Sendable, Codable {
             public var isEnabled: Bool
             public var count: Int
 
@@ -94,7 +94,7 @@ public struct SessionState: Equatable, Sendable {
         }
     }
 
-    public struct Throughput: Equatable, Sendable {
+    public struct Throughput: Equatable, Sendable, Codable {
         /// Текущее количество активных торрентов (`session-stats` → `activeTorrentCount`).
         public var activeTorrentCount: Int
         /// Количество приостановленных торрентов (`session-stats` → `pausedTorrentCount`).
@@ -121,7 +121,7 @@ public struct SessionState: Equatable, Sendable {
         }
     }
 
-    public struct LifetimeStats: Equatable, Sendable {
+    public struct LifetimeStats: Equatable, Sendable, Codable {
         /// Количество добавленных файлов (`*stats` → `filesAdded`).
         public var filesAdded: Int
         /// Скачано байтов (`*stats` → `downloadedBytes`).

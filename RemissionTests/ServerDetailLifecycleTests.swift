@@ -81,15 +81,23 @@ struct ServerDetailLifecycleTests {
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
         }
+        store.exhaustivity = .off
 
         await store.send(.connectionResponse(.failure(DummyError.failure))) {
             $0.connectionEnvironment = nil
-            $0.connectionState.phase = .failed(.init(message: "failure"))
-            $0.torrentList = TorrentListReducer.State()
+            $0.connectionRetryAttempts = 1
+            $0.connectionState.phase = .offline(.init(message: "failure", attempt: 1))
+            $0.torrentList.connectionEnvironment = nil
             $0.alert = .connectionFailure(message: "failure")
         }
 
         await store.receive(.torrentList(.teardown))
+        await store.receive(.torrentList(.goOffline(message: "failure"))) {
+            $0.torrentList.offlineState = .init(message: "failure", lastUpdatedAt: nil)
+            $0.torrentList.phase = .offline(
+                .init(message: "failure", lastUpdatedAt: nil)
+            )
+        }
     }
 
     @Test
@@ -122,14 +130,19 @@ struct ServerDetailLifecycleTests {
         let deletedFingerprints = ServerDetailLockedValue<[String]>([])
         let deletedIds = ServerDetailLockedValue<[UUID]>([])
         let deletedIdentity = ServerDetailLockedValue<TransmissionServerTrustIdentity?>(nil)
+        let snapshotCache = ServerSnapshotCache.inMemory()
 
         let server = ServerConfig.previewSecureSeedbox
+        let snapshotClient = snapshotCache.client(server.id)
+        _ = try? await snapshotClient.updateTorrents([Torrent.previewDownloading])
+
         let store = TestStore(
             initialState: ServerDetailReducer.State(server: server)
         ) {
             ServerDetailReducer()
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
+            dependencies.serverSnapshotCache = snapshotCache
             dependencies.credentialsRepository = CredentialsRepository(
                 save: { _ in },
                 load: { _ in nil },
@@ -167,6 +180,8 @@ struct ServerDetailLifecycleTests {
         }
 
         await store.receive(.delegate(.serverDeleted(server.id)))
+        let snapshot = try? await snapshotClient.load()
+        #expect(snapshot == nil)
 
         #expect(deletedIds.value == [server.id])
         #expect(deletedKeys.value == [server.credentialsKey!])

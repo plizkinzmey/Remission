@@ -56,20 +56,30 @@ extension ServerDetailReducer {
             var message: String
         }
 
+        struct Offline: Equatable {
+            var message: String
+            var attempt: Int
+        }
+
         enum Phase: Equatable {
             case idle
             case connecting
             case ready(Ready)
+            case offline(Offline)
             case failed(Failure)
         }
 
         var phase: Phase = .idle
 
         var failureMessage: String? {
-            if case .failed(let failure) = phase {
+            switch phase {
+            case .failed(let failure):
                 return failure.message
+            case .offline(let offline):
+                return offline.message
+            default:
+                return nil
             }
-            return nil
         }
     }
 

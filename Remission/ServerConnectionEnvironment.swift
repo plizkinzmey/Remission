@@ -12,6 +12,7 @@ struct ServerConnectionEnvironment: Sendable {
     var serverID: UUID
     var fingerprint: String
     var dependencies: DependencyOverrides
+    var snapshot: ServerSnapshotClient
 
     func isValid(for server: ServerConfig) -> Bool {
         server.connectionFingerprint == fingerprint
@@ -46,12 +47,15 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
         @Dependency(\.appClock) var appClock
         @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
         @Dependency(\.appLogger) var appLogger
+        @Dependency(\.serverSnapshotCache) var serverSnapshotCache
 
         return Self { server in
             let password = try await loadPassword(
                 server: server,
                 credentialsRepository: credentialsRepository
             )
+            let snapshotClient = serverSnapshotCache.client(server.id)
+            let mapper = TransmissionDomainMapper()
 
             let loggerContext = TransmissionLogContext(
                 serverID: server.id,
@@ -76,10 +80,15 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
 
             let dependency = TransmissionClientDependency.live(client: client)
-            let torrentRepository = TorrentRepository.live(transmissionClient: dependency)
+            let torrentRepository = TorrentRepository.live(
+                transmissionClient: dependency,
+                mapper: mapper,
+                snapshot: snapshotClient
+            )
             let sessionRepository = SessionRepository.live(
                 transmissionClient: dependency,
-                mapper: TransmissionDomainMapper()
+                mapper: mapper,
+                snapshot: snapshotClient
             )
             return ServerConnectionEnvironment(
                 serverID: server.id,
@@ -88,7 +97,8 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                     transmissionClient: dependency,
                     torrentRepository: torrentRepository,
                     sessionRepository: sessionRepository
-                )
+                ),
+                snapshot: snapshotClient
             )
         }
     }
@@ -171,7 +181,8 @@ extension ServerConnectionEnvironment {
                 transmissionClient: client,
                 torrentRepository: .previewValue,
                 sessionRepository: .placeholder
-            )
+            ),
+            snapshot: ServerSnapshotCache.inMemory().client(server.id)
         )
     }
 
@@ -188,7 +199,8 @@ extension ServerConnectionEnvironment {
                 transmissionClient: transmissionClient,
                 torrentRepository: torrentRepository,
                 sessionRepository: sessionRepository
-            )
+            ),
+            snapshot: ServerSnapshotCache.inMemory().client(server.id)
         )
     }
 

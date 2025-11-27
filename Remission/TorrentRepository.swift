@@ -101,6 +101,8 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         @Sendable (TransferSettings, [Torrent.Identifier]) async throws -> Void
     var updateFileSelectionClosure:
         @Sendable ([FileSelectionUpdate], Torrent.Identifier) async throws -> Void
+    var cacheListClosure: @Sendable ([Torrent]) async throws -> Void
+    var loadCachedListClosure: @Sendable () async throws -> CachedSnapshot<[Torrent]>?
 
     init(
         fetchList: @escaping @Sendable () async throws -> [Torrent],
@@ -118,7 +120,9 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
             async throws -> Void,
         updateFileSelection:
             @escaping @Sendable ([FileSelectionUpdate], Torrent.Identifier)
-            async throws -> Void
+            async throws -> Void,
+        cacheList: @escaping @Sendable ([Torrent]) async throws -> Void = { _ in },
+        loadCachedList: @escaping @Sendable () async throws -> CachedSnapshot<[Torrent]>? = { nil }
     ) {
         self.fetchListClosure = fetchList
         self.fetchDetailsClosure = fetchDetails
@@ -129,6 +133,8 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         self.verifyClosure = verify
         self.updateTransferSettingsClosure = updateTransferSettings
         self.updateFileSelectionClosure = updateFileSelection
+        self.cacheListClosure = cacheList
+        self.loadCachedListClosure = loadCachedList
     }
 
     func fetchList() async throws -> [Torrent] {
@@ -177,6 +183,14 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     ) async throws {
         try await updateFileSelectionClosure(updates, torrentID)
     }
+
+    func cacheList(_ torrents: [Torrent]) async throws {
+        try await cacheListClosure(torrents)
+    }
+
+    func loadCachedList() async throws -> CachedSnapshot<[Torrent]>? {
+        try await loadCachedListClosure()
+    }
 }
 
 #if canImport(ComposableArchitecture)
@@ -213,11 +227,24 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
             transmissionClient: TransmissionClientDependency,
             mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
             fields: [String] = TorrentListFields.summary,
-            detailFields: [String] = TorrentListFields.details
+            detailFields: [String] = TorrentListFields.details,
+            snapshot: ServerSnapshotClient? = nil
         ) -> TorrentRepository {
+            let cacheList: @Sendable ([Torrent]) async throws -> Void = { torrents in
+                guard let snapshot else { return }
+                _ = try await snapshot.updateTorrents(torrents)
+            }
+
+            let loadCachedList: @Sendable () async throws -> CachedSnapshot<[Torrent]>? = {
+                guard let snapshot else { return nil }
+                return try await snapshot.load()?.torrents
+            }
+
             let fetchList: @Sendable () async throws -> [Torrent] = {
                 let response = try await transmissionClient.torrentGet(nil, fields)
-                return try mapper.mapTorrentList(from: response)
+                let torrents = try mapper.mapTorrentList(from: response)
+                try await cacheList(torrents)
+                return torrents
             }
 
             let fetchDetails: @Sendable (Torrent.Identifier) async throws -> Torrent =
@@ -304,7 +331,9 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
                 remove: remove,
                 verify: verify,
                 updateTransferSettings: updateTransferSettings,
-                updateFileSelection: updateFileSelection
+                updateFileSelection: updateFileSelection,
+                cacheList: cacheList,
+                loadCachedList: loadCachedList
             )
         }
         // swiftlint:enable function_body_length

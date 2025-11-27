@@ -15,8 +15,21 @@ struct TorrentListReducer {
             case loading
             case loaded
             case error(String)
+            case offline(OfflineState)
         }
 
+        struct OfflineState: Equatable {
+            var message: String
+            var lastUpdatedAt: Date?
+        }
+
+        struct FetchSuccess: Equatable {
+            var torrents: [Torrent]
+            var isFromCache: Bool
+            var snapshotDate: Date?
+        }
+
+        var serverID: UUID?
         var connectionEnvironment: ServerConnectionEnvironment?
         var phase: Phase = .idle
         var items: IdentifiedArrayOf<TorrentListItem.State> = []
@@ -28,6 +41,8 @@ struct TorrentListReducer {
         var failedAttempts: Int = 0
         var pollingInterval: Duration = .seconds(5)
         var hasLoadedPreferences: Bool = false
+        var offlineState: OfflineState?
+        var lastSnapshotAt: Date?
         @Presents var alert: AlertState<AlertAction>?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
@@ -68,7 +83,9 @@ struct TorrentListReducer {
         case addTorrentButtonTapped
         case pollingTick
         case userPreferencesResponse(TaskResult<UserPreferences>)
-        case torrentsResponse(TaskResult<[Torrent]>)
+        case restoreCachedSnapshot
+        case torrentsResponse(TaskResult<State.FetchSuccess>)
+        case goOffline(message: String)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -170,12 +187,14 @@ struct TorrentListReducer {
 
     @Dependency(\.appClock) var appClock
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
+    @Dependency(\.serverSnapshotCache) var serverSnapshotCache
 
     private enum CancelID: Hashable {
         case fetch
         case polling
         case preferences
         case preferencesUpdates
+        case cache
     }
 
     var body: some Reducer<State, Action> {
@@ -186,21 +205,24 @@ struct TorrentListReducer {
                     state.phase = .loading
                 }
                 state.alert = nil
-                return .none
+                return .send(.restoreCachedSnapshot)
 
             case .teardown:
                 state.isRefreshing = false
                 state.hasLoadedPreferences = false
+                state.offlineState = nil
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
                     .cancel(id: CancelID.preferences),
-                    .cancel(id: CancelID.preferencesUpdates)
+                    .cancel(id: CancelID.preferencesUpdates),
+                    .cancel(id: CancelID.cache)
                 )
 
             case .refreshRequested:
                 state.alert = nil
                 state.failedAttempts = 0
+                state.offlineState = nil
                 return fetchTorrents(state: &state, trigger: .manualRefresh)
 
             case .searchQueryChanged(let query):
@@ -247,14 +269,41 @@ struct TorrentListReducer {
                 state.alert = .preferencesError(message: describe(error))
                 return effect
 
-            case .torrentsResponse(.success(let torrents)):
-                state.phase = .loaded
+            case .restoreCachedSnapshot:
+                guard let serverID = state.serverID else {
+                    return .none
+                }
+                return loadCachedSnapshot(serverID: serverID)
+
+            case .goOffline(let message):
+                let offline = State.OfflineState(
+                    message: message,
+                    lastUpdatedAt: state.lastSnapshotAt
+                )
+                state.offlineState = offline
+                state.phase = .offline(offline)
                 state.isRefreshing = false
-                state.failedAttempts = 0
+                return .send(.restoreCachedSnapshot)
+
+            case .torrentsResponse(.success(let payload)):
+                state.isRefreshing = false
                 state.alert = nil
-                state.items = merge(items: state.items, with: torrents)
-                guard state.isPollingEnabled, state.connectionEnvironment != nil else {
-                    return .cancel(id: CancelID.polling)
+                state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
+                state.items = merge(items: state.items, with: payload.torrents)
+                if payload.isFromCache == false {
+                    state.failedAttempts = 0
+                    state.offlineState = nil
+                    state.phase = .loaded
+                } else if let offline = state.offlineState {
+                    state.phase = .offline(offline)
+                } else {
+                    state.phase = .loaded
+                }
+                guard payload.isFromCache == false,
+                    state.isPollingEnabled,
+                    state.connectionEnvironment != nil
+                else {
+                    return payload.isFromCache ? .none : .cancel(id: CancelID.polling)
                 }
                 return schedulePolling(after: state.pollingInterval)
 
@@ -265,11 +314,17 @@ struct TorrentListReducer {
                 let message = describe(error)
                 state.isRefreshing = false
                 state.failedAttempts += 1
-                if state.items.isEmpty {
-                    state.phase = .error(message)
-                }
+                let offline = State.OfflineState(
+                    message: message,
+                    lastUpdatedAt: state.lastSnapshotAt
+                )
+                state.offlineState = offline
+                state.phase = .offline(offline)
                 state.alert = .networkError(message: message)
-                guard state.isPollingEnabled, state.connectionEnvironment != nil else {
+                guard state.isPollingEnabled,
+                    state.connectionEnvironment != nil,
+                    state.failedAttempts < maxRetryAttempts
+                else {
                     return .cancel(id: CancelID.polling)
                 }
                 return schedulePolling(after: backoffDelay(for: state.failedAttempts))
@@ -314,6 +369,14 @@ struct TorrentListReducer {
         case command
     }
 
+    private enum TorrentListOfflineError: Error, LocalizedError {
+        case connectionUnavailable
+
+        var errorDescription: String? {
+            L10n.tr("torrentList.state.noConnection.message")
+        }
+    }
+
     /// Загружает пользовательские настройки, чтобы инициализировать polling interval
     /// и другие параметры обновления списка.
     private func loadPreferences() -> Effect<Action> {
@@ -342,16 +405,35 @@ struct TorrentListReducer {
         .cancellable(id: CancelID.preferencesUpdates, cancelInFlight: true)
     }
 
+    /// Загружает кешированный список торрентов, если он доступен, и пробрасывает его в reducer.
+    private func loadCachedSnapshot(serverID: UUID) -> Effect<Action> {
+        .run { send in
+            let client = serverSnapshotCache.client(serverID)
+            guard let snapshot = try await client.load(),
+                let cached = snapshot.torrents
+            else { return }
+            await send(
+                .torrentsResponse(
+                    .success(
+                        State.FetchSuccess(
+                            torrents: cached.value,
+                            isFromCache: true,
+                            snapshotDate: cached.updatedAt
+                        )
+                    )
+                )
+            )
+        }
+        .cancellable(id: CancelID.cache, cancelInFlight: true)
+    }
+
     /// Выполняет запрос списка торрентов с учётом выбранного триггера (initial/manual/polling).
     private func fetchTorrents(
         state: inout State,
         trigger: FetchTrigger
     ) -> Effect<Action> {
-        guard let environment = state.connectionEnvironment else {
-            // Edge case: сервер ещё не прошёл handshake — сеть не готова. Просто очищаем UI-флажки
-            // и ждём, пока ServerDetailReducer передаст окружение.
-            state.isRefreshing = false
-            return .none
+        if state.serverID == nil {
+            state.serverID = state.connectionEnvironment?.serverID
         }
 
         switch trigger {
@@ -371,19 +453,71 @@ struct TorrentListReducer {
 
         state.alert = nil
 
+        guard let environment = state.connectionEnvironment else {
+            state.isRefreshing = false
+            guard let serverID = state.serverID else { return .none }
+            return .run { send in
+                let client = serverSnapshotCache.client(serverID)
+                if let snapshot = try await client.load(),
+                    let cached = snapshot.torrents
+                {
+                    await send(
+                        .torrentsResponse(
+                            .success(
+                                State.FetchSuccess(
+                                    torrents: cached.value,
+                                    isFromCache: true,
+                                    snapshotDate: cached.updatedAt
+                                )
+                            )
+                        )
+                    )
+                }
+                await send(
+                    .torrentsResponse(.failure(TorrentListOfflineError.connectionUnavailable)))
+            }
+            .cancellable(id: CancelID.fetch, cancelInFlight: true)
+        }
+
         return .run { send in
-            await send(
-                .torrentsResponse(
-                    TaskResult {
-                        try await withDependencies {
-                            environment.apply(to: &$0)
-                        } operation: {
-                            @Dependency(\.torrentRepository) var repository: TorrentRepository
-                            return try await repository.fetchList()
-                        }
-                    }
+            do {
+                let torrents = try await withDependencies {
+                    environment.apply(to: &$0)
+                } operation: {
+                    @Dependency(\.torrentRepository) var repository: TorrentRepository
+                    return try await repository.fetchList()
+                }
+                let snapshot = (try? await environment.snapshot.load()) ?? nil
+                let updatedAt = snapshot?.torrents?.updatedAt
+                await send(
+                    .torrentsResponse(
+                        .success(
+                            State.FetchSuccess(
+                                torrents: torrents,
+                                isFromCache: false,
+                                snapshotDate: updatedAt
+                            )
+                        )
+                    )
                 )
-            )
+            } catch {
+                if let snapshot = try? await environment.snapshot.load(),
+                    let cached = snapshot.torrents
+                {
+                    await send(
+                        .torrentsResponse(
+                            .success(
+                                State.FetchSuccess(
+                                    torrents: cached.value,
+                                    isFromCache: true,
+                                    snapshotDate: cached.updatedAt
+                                )
+                            )
+                        )
+                    )
+                }
+                await send(.torrentsResponse(.failure(error)))
+            }
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
     }
@@ -539,6 +673,8 @@ struct TorrentListReducer {
         let index = min(failures - 1, values.count - 1)
         return values[index]
     }
+
+    private var maxRetryAttempts: Int { 5 }
 
     private func duration(from interval: TimeInterval) -> Duration {
         .milliseconds(Int(interval * 1_000))

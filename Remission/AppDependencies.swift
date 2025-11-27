@@ -21,6 +21,7 @@ enum AppDependencies {
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .previewValue
+        dependencies.serverSnapshotCache = .previewValue
         return dependencies
     }
 
@@ -31,6 +32,7 @@ enum AppDependencies {
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .testValue
+        dependencies.serverSnapshotCache = .testValue
         return dependencies
     }
 
@@ -49,6 +51,7 @@ enum AppDependencies {
         dependencies.httpWarningPreferencesStore = .inMemory()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .testValue
+        dependencies.serverSnapshotCache = .previewValue
 
         let resolvedScenario: AppBootstrap.UITestingScenario?
         if let scenario {
@@ -159,7 +162,8 @@ enum AppDependencies {
                         transmissionClient: transmissionClient,
                         torrentRepository: fixtureRepository,
                         sessionRepository: .placeholder
-                    )
+                    ),
+                    snapshot: ServerSnapshotCache.inMemory().client(targetServer.id)
                 )
             }
         case .none:

@@ -38,7 +38,7 @@ struct TorrentListFeatureTests {
             uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
         )
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
             $0.items = expectedItems
             $0.failedAttempts = 0
@@ -49,9 +49,49 @@ struct TorrentListFeatureTests {
         await clock.advance(by: interval)
 
         await store.receive(.pollingTick)
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.items = expectedItems
             $0.failedAttempts = 0
+        }
+    }
+
+    @Test("task подтягивает кешированный снимок при офлайне")
+    func taskRestoresCachedSnapshotOffline() async {
+        let server = ServerConfig.previewLocalHTTP
+        let now = Date(timeIntervalSince1970: 500)
+        let cache = ServerSnapshotCache.inMemory(now: { now })
+        let client = cache.client(server.id)
+        _ = try? await client.updateTorrents(DomainFixtures.torrents)
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.serverID = server.id
+                state.phase = .loading
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.serverSnapshotCache = cache
+            }
+        )
+
+        await store.send(.task) {
+            $0.phase = .loading
+        }
+
+        await store.receive(.restoreCachedSnapshot)
+        await store.receive(
+            .torrentsResponse(
+                .success(
+                    makeFetchSuccess(DomainFixtures.torrents, isFromCache: true, snapshotDate: now))
+            )
+        ) {
+            $0.items = IdentifiedArray(
+                uniqueElements: DomainFixtures.torrents.map { TorrentListItem.State(torrent: $0) }
+            )
+            $0.lastSnapshotAt = now
+            $0.phase = .loaded
         }
     }
 
@@ -68,6 +108,7 @@ struct TorrentListFeatureTests {
             initialState: {
                 var state = TorrentListReducer.State()
                 state.connectionEnvironment = .preview(server: .previewLocalHTTP)
+                state.serverID = ServerConfig.previewLocalHTTP.id
                 return state
             }(),
             reducer: { TorrentListReducer() },
@@ -87,7 +128,7 @@ struct TorrentListFeatureTests {
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
 
-        await store.send(.torrentsResponse(.success(DomainFixtures.torrents))) {
+        await store.send(.torrentsResponse(.success(makeFetchSuccess(DomainFixtures.torrents)))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: DomainFixtures.torrents.map {
@@ -133,6 +174,7 @@ struct TorrentListFeatureTests {
             initialState: {
                 var state = TorrentListReducer.State()
                 state.connectionEnvironment = environment
+                state.serverID = environment.serverID
                 return state
             }(),
             reducer: { TorrentListReducer() },
@@ -156,7 +198,7 @@ struct TorrentListFeatureTests {
             uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
         )
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
             $0.items = expectedItems
             $0.failedAttempts = 0
@@ -200,7 +242,12 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
-            $0.phase = .error("failed")
+            let offline = TorrentListReducer.State.OfflineState(
+                message: "failed",
+                lastUpdatedAt: nil
+            )
+            $0.phase = .offline(offline)
+            $0.offlineState = offline
             $0.alert = .networkError(message: "failed")
             $0.failedAttempts = 1
             $0.isRefreshing = false
@@ -210,6 +257,7 @@ struct TorrentListFeatureTests {
         await store.receive(.pollingTick)
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
             $0.failedAttempts = 2
+            $0.offlineState?.message = "failed"
         }
     }
 
@@ -244,7 +292,12 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
-            $0.phase = .error("failed")
+            let offline = TorrentListReducer.State.OfflineState(
+                message: "failed",
+                lastUpdatedAt: nil
+            )
+            $0.phase = .offline(offline)
+            $0.offlineState = offline
             $0.alert = .networkError(message: "failed")
             $0.failedAttempts = 1
             $0.isRefreshing = false
@@ -257,6 +310,12 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            let offline = TorrentListReducer.State.OfflineState(
+                message: "failed",
+                lastUpdatedAt: nil
+            )
+            $0.offlineState = offline
+            $0.phase = .offline(offline)
             $0.failedAttempts = 1
             $0.isRefreshing = false
         }
@@ -300,7 +359,7 @@ struct TorrentListFeatureTests {
             $0.isRefreshing = false
         }
 
-        await store.receive(.torrentsResponse(.success([updatedTorrent]))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess([updatedTorrent])))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: [TorrentListItem.State(torrent: updatedTorrent)]
@@ -354,9 +413,15 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            let offline = TorrentListReducer.State.OfflineState(
+                message: "failed",
+                lastUpdatedAt: nil
+            )
+            $0.offlineState = offline
             $0.alert = .networkError(message: "failed")
             $0.failedAttempts = 1
             $0.isRefreshing = false
+            $0.phase = .offline(offline)
         }
     }
 
@@ -396,7 +461,7 @@ struct TorrentListFeatureTests {
             $0.isRefreshing = false
         }
 
-        await store.receive(.torrentsResponse(.success([remaining]))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess([remaining])))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: [TorrentListItem.State(torrent: remaining)]
@@ -430,6 +495,7 @@ struct TorrentListFeatureTests {
         var initialState = TorrentListReducer.State()
         initialState.connectionEnvironment = environment
         initialState.isPollingEnabled = false
+        initialState.serverID = environment.serverID
 
         let store = TestStoreFactory.make(
             initialState: initialState,
@@ -448,7 +514,7 @@ struct TorrentListFeatureTests {
             #expect($0.items[id: addResult.id]?.torrent.status == .downloadWaiting)
         }
 
-        await store.receive(.torrentsResponse(.success([fetchedTorrent]))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess([fetchedTorrent])))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: [TorrentListItem.State(torrent: fetchedTorrent)]
@@ -501,6 +567,12 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.torrentsResponse(.failure(DummyError.failed))) {
+            let offline = TorrentListReducer.State.OfflineState(
+                message: "failed",
+                lastUpdatedAt: nil
+            )
+            $0.offlineState = offline
+            $0.phase = .offline(offline)
             $0.alert = .networkError(message: "failed")
             $0.failedAttempts = 1
             $0.isRefreshing = false
@@ -584,7 +656,7 @@ struct TorrentListFeatureTests {
 
         await clock.advance(by: .milliseconds(10))
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
@@ -633,6 +705,7 @@ struct TorrentListFeatureTests {
             initialState: {
                 var state = TorrentListReducer.State()
                 state.connectionEnvironment = environment
+                state.serverID = environment.serverID
                 return state
             }(),
             reducer: { TorrentListReducer() },
@@ -655,7 +728,7 @@ struct TorrentListFeatureTests {
             uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
         )
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
             $0.items = expectedItems
             $0.isRefreshing = false
@@ -673,7 +746,7 @@ struct TorrentListFeatureTests {
             $0.isPollingEnabled = false
         }
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.items = expectedItems
             $0.failedAttempts = 0
             $0.isRefreshing = false
@@ -704,6 +777,7 @@ struct TorrentListFeatureTests {
             initialState: {
                 var state = TorrentListReducer.State()
                 state.connectionEnvironment = environment
+                state.serverID = environment.serverID
                 return state
             }(),
             reducer: { TorrentListReducer() },
@@ -721,7 +795,7 @@ struct TorrentListFeatureTests {
             $0.alert = .preferencesError(message: "preferences failed")
         }
 
-        await store.receive(.torrentsResponse(.success(torrents))) {
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
             $0.items = IdentifiedArray(
                 uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
@@ -750,6 +824,7 @@ private func makeStore(
         initialState: {
             var state = TorrentListReducer.State()
             state.connectionEnvironment = environment
+            state.serverID = server.id
             return state
         }(),
         reducer: { TorrentListReducer() },
@@ -763,11 +838,24 @@ private func makeStore(
 private func makeLoadedState(torrents: [Torrent]) -> TorrentListReducer.State {
     var state = TorrentListReducer.State()
     state.connectionEnvironment = .preview(server: .previewLocalHTTP)
+    state.serverID = ServerConfig.previewLocalHTTP.id
     state.phase = .loaded
     state.items = IdentifiedArray(
         uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
     )
     return state
+}
+
+private func makeFetchSuccess(
+    _ torrents: [Torrent],
+    isFromCache: Bool = false,
+    snapshotDate: Date? = nil
+) -> TorrentListReducer.State.FetchSuccess {
+    TorrentListReducer.State.FetchSuccess(
+        torrents: torrents,
+        isFromCache: isFromCache,
+        snapshotDate: snapshotDate
+    )
 }
 
 private final class RecordingClock: Clock, @unchecked Sendable {
