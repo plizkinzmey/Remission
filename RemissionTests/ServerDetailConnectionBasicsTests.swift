@@ -196,7 +196,10 @@ struct ServerDetailConnectionBasicsTests {
                     attempt: 1
                 )
             )
-            $0.alert = .connectionFailure(message: expectedError.errorDescription ?? "")
+            $0.errorPresenter.banner = .init(
+                message: expectedError.errorDescription ?? "",
+                retry: .reconnect
+            )
         }
     }
 
@@ -234,7 +237,10 @@ struct ServerDetailConnectionBasicsTests {
             $0.connectionRetryAttempts = 1
             $0.connectionState.phase = .offline(.init(message: "failed", attempt: 1))
             $0.torrentList.connectionEnvironment = nil
-            $0.alert = .connectionFailure(message: "failed")
+            $0.errorPresenter.banner = .init(
+                message: "failed",
+                retry: .reconnect
+            )
         }
         await store.receive(.torrentList(.teardown))
         await store.receive(.torrentList(.goOffline(message: "failed"))) {

@@ -78,7 +78,7 @@ enum AppDependencies {
                 hasCompletedOnboarding: { true },
                 setCompletedOnboarding: { _ in }
             )
-        case .torrentListSample:
+        case .torrentListSample, .torrentListOffline:
             let server = AppBootstrap.torrentListSampleServer()
             dependencies.serverConfigRepository = .inMemory(initial: [server])
             dependencies.onboardingProgressRepository = OnboardingProgressRepository(
@@ -98,34 +98,48 @@ enum AppDependencies {
                 torrents: AppBootstrap.torrentListSampleTorrents()
             )
             let baseRepository = TorrentRepository.inMemory(store: torrentStore)
-            let fixtureRepository = TorrentRepository(
-                fetchList: {
-                    try await Task.sleep(nanoseconds: 1_200_000_000)
-                    return try await baseRepository.fetchList()
-                },
-                fetchDetails: { id in try await baseRepository.fetchDetails(id) },
-                add: { input, destination, startPaused, tags in
-                    try await baseRepository.add(
-                        input,
-                        destinationPath: destination,
-                        startPaused: startPaused,
-                        tags: tags
-                    )
-                },
-                start: { ids in try await baseRepository.start(ids) },
-                stop: { ids in try await baseRepository.stop(ids) },
-                remove: { ids, delete in
-                    try await baseRepository.remove(ids, deleteLocalData: delete)
-                },
-                verify: { ids in try await baseRepository.verify(ids) },
-                updateTransferSettings: { settings, ids in
-                    try await baseRepository.updateTransferSettings(settings, for: ids)
-                },
-                updateFileSelection: { updates, id in
-                    try await baseRepository.updateFileSelection(updates, in: id)
-                }
-            )
-            dependencies.torrentRepository = fixtureRepository
+            if resolvedScenario == .torrentListOffline {
+                dependencies.torrentRepository = TorrentRepository(
+                    fetchList: { throw APIError.networkUnavailable },
+                    fetchDetails: { _ in throw APIError.networkUnavailable },
+                    add: { _, _, _, _ in throw APIError.networkUnavailable },
+                    start: { _ in throw APIError.networkUnavailable },
+                    stop: { _ in throw APIError.networkUnavailable },
+                    remove: { _, _ in throw APIError.networkUnavailable },
+                    verify: { _ in throw APIError.networkUnavailable },
+                    updateTransferSettings: { _, _ in throw APIError.networkUnavailable },
+                    updateFileSelection: { _, _ in throw APIError.networkUnavailable }
+                )
+            } else {
+                let fixtureRepository = TorrentRepository(
+                    fetchList: {
+                        try await Task.sleep(nanoseconds: 1_200_000_000)
+                        return try await baseRepository.fetchList()
+                    },
+                    fetchDetails: { id in try await baseRepository.fetchDetails(id) },
+                    add: { input, destination, startPaused, tags in
+                        try await baseRepository.add(
+                            input,
+                            destinationPath: destination,
+                            startPaused: startPaused,
+                            tags: tags
+                        )
+                    },
+                    start: { ids in try await baseRepository.start(ids) },
+                    stop: { ids in try await baseRepository.stop(ids) },
+                    remove: { ids, delete in
+                        try await baseRepository.remove(ids, deleteLocalData: delete)
+                    },
+                    verify: { ids in try await baseRepository.verify(ids) },
+                    updateTransferSettings: { settings, ids in
+                        try await baseRepository.updateTransferSettings(settings, for: ids)
+                    },
+                    updateFileSelection: { updates, id in
+                        try await baseRepository.updateFileSelection(updates, in: id)
+                    }
+                )
+                dependencies.torrentRepository = fixtureRepository
+            }
             let preferencesStore = InMemoryUserPreferencesRepositoryStore(
                 preferences: UserPreferences(
                     pollingInterval: 2,
@@ -140,6 +154,49 @@ enum AppDependencies {
             dependencies.userPreferencesRepository = .inMemory(store: preferencesStore)
             let testClock = TestClock<Duration>()
             dependencies.appClock = .test(clock: testClock)
+            let fixtureRepository: TorrentRepository
+            if resolvedScenario == .torrentListOffline {
+                fixtureRepository = TorrentRepository(
+                    fetchList: { throw APIError.networkUnavailable },
+                    fetchDetails: { _ in throw APIError.networkUnavailable },
+                    add: { _, _, _, _ in throw APIError.networkUnavailable },
+                    start: { _ in throw APIError.networkUnavailable },
+                    stop: { _ in throw APIError.networkUnavailable },
+                    remove: { _, _ in throw APIError.networkUnavailable },
+                    verify: { _ in throw APIError.networkUnavailable },
+                    updateTransferSettings: { _, _ in throw APIError.networkUnavailable },
+                    updateFileSelection: { _, _ in throw APIError.networkUnavailable }
+                )
+            } else {
+                fixtureRepository = TorrentRepository(
+                    fetchList: {
+                        try await Task.sleep(nanoseconds: 1_200_000_000)
+                        return try await baseRepository.fetchList()
+                    },
+                    fetchDetails: { id in try await baseRepository.fetchDetails(id) },
+                    add: { input, destination, startPaused, tags in
+                        try await baseRepository.add(
+                            input,
+                            destinationPath: destination,
+                            startPaused: startPaused,
+                            tags: tags
+                        )
+                    },
+                    start: { ids in try await baseRepository.start(ids) },
+                    stop: { ids in try await baseRepository.stop(ids) },
+                    remove: { ids, delete in
+                        try await baseRepository.remove(ids, deleteLocalData: delete)
+                    },
+                    verify: { ids in try await baseRepository.verify(ids) },
+                    updateTransferSettings: { settings, ids in
+                        try await baseRepository.updateTransferSettings(settings, for: ids)
+                    },
+                    updateFileSelection: { updates, id in
+                        try await baseRepository.updateFileSelection(updates, in: id)
+                    }
+                )
+            }
+            dependencies.torrentRepository = fixtureRepository
             dependencies.serverConnectionEnvironmentFactory = .init { targetServer in
                 guard targetServer.id == server.id else {
                     return try await ServerConnectionEnvironmentFactory.previewValue

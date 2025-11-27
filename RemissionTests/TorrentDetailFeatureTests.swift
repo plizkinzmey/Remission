@@ -29,12 +29,15 @@ struct TorrentDetailFeatureTests {
 
         await store.send(.task) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
 
         await store.receive(.detailsResponse(.failure(APIError.networkUnavailable))) {
             $0.isLoading = false
-            $0.errorMessage = L10n.tr("torrentDetail.api.networkUnavailable")
+            $0.errorPresenter.banner = .init(
+                message: L10n.tr("torrentDetail.api.networkUnavailable"),
+                retry: .reloadDetails
+            )
         }
     }
 
@@ -64,7 +67,7 @@ struct TorrentDetailFeatureTests {
 
         await store.send(.task) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
 
         await store.receive(
@@ -114,7 +117,7 @@ struct TorrentDetailFeatureTests {
 
         await store.send(.task) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         await store.send(.task)
 
@@ -163,7 +166,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.status = .downloading
@@ -181,6 +184,7 @@ struct TorrentDetailFeatureTests {
                     uploadRate: expected.summary.transfer.uploadRate
                 )
             ]
+            $0.errorPresenter.banner = nil
         }
     }
 
@@ -245,7 +249,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.status = .stopped
@@ -263,6 +267,7 @@ struct TorrentDetailFeatureTests {
                     uploadRate: expected.summary.transfer.uploadRate
                 )
             ]
+            $0.errorPresenter.banner = nil
         }
     }
 
@@ -318,7 +323,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.status = .checking
@@ -336,6 +341,7 @@ struct TorrentDetailFeatureTests {
                     uploadRate: expected.summary.transfer.uploadRate
                 )
             ]
+            $0.errorPresenter.banner = nil
         }
     }
 
@@ -399,7 +405,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.summary.transfer.downloadLimit = .init(isEnabled: true, kilobytesPerSecond: 512)
@@ -417,6 +423,7 @@ struct TorrentDetailFeatureTests {
                     uploadRate: expected.summary.transfer.uploadRate
                 )
             ]
+            $0.errorPresenter.banner = nil
         }
     }
 
@@ -445,7 +452,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.details?.files[0].priority = TorrentRepository.FilePriority.high.rawValue
@@ -463,6 +470,7 @@ struct TorrentDetailFeatureTests {
                     uploadRate: expected.summary.transfer.uploadRate
                 )
             ]
+            $0.errorPresenter.banner = nil
         }
     }
 
@@ -619,7 +627,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         var expected = torrent
         expected.status = .downloading
@@ -648,7 +656,7 @@ struct TorrentDetailFeatureTests {
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
         expected.status = .stopped
         await store.receive(
@@ -698,7 +706,7 @@ struct TorrentDetailFeatureTests {
 
         await store.send(.detailsResponse(.success(response))) {
             $0.isLoading = false
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
             $0.apply(response.torrent)
             $0.speedHistory.samples = [
                 SpeedSample(

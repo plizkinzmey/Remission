@@ -29,6 +29,10 @@ struct TorrentListReducer {
             var snapshotDate: Date?
         }
 
+        enum Retry: Equatable {
+            case refresh
+        }
+
         var serverID: UUID?
         var connectionEnvironment: ServerConnectionEnvironment?
         var phase: Phase = .idle
@@ -43,7 +47,7 @@ struct TorrentListReducer {
         var hasLoadedPreferences: Bool = false
         var offlineState: OfflineState?
         var lastSnapshotAt: Date?
-        @Presents var alert: AlertState<AlertAction>?
+        var errorPresenter: ErrorPresenter<Retry>.State = .init()
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
@@ -81,17 +85,13 @@ struct TorrentListReducer {
         case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
         case addTorrentButtonTapped
+        case errorPresenter(ErrorPresenter<State.Retry>.Action)
         case pollingTick
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case restoreCachedSnapshot
         case torrentsResponse(TaskResult<State.FetchSuccess>)
         case goOffline(message: String)
-        case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
-    }
-
-    enum AlertAction: Equatable {
-        case dismiss
     }
 
     enum Delegate: Equatable {
@@ -204,13 +204,13 @@ struct TorrentListReducer {
                 if state.items.isEmpty {
                     state.phase = .loading
                 }
-                state.alert = nil
                 return .send(.restoreCachedSnapshot)
 
             case .teardown:
                 state.isRefreshing = false
                 state.hasLoadedPreferences = false
                 state.offlineState = nil
+                state.errorPresenter.banner = nil
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -220,7 +220,6 @@ struct TorrentListReducer {
                 )
 
             case .refreshRequested:
-                state.alert = nil
                 state.failedAttempts = 0
                 state.offlineState = nil
                 return fetchTorrents(state: &state, trigger: .manualRefresh)
@@ -266,8 +265,17 @@ struct TorrentListReducer {
 
             case .userPreferencesResponse(.failure(let error)):
                 let effect = fetchTorrents(state: &state, trigger: .initial)
-                state.alert = .preferencesError(message: describe(error))
-                return effect
+                let message = describe(error)
+                let alert = Effect<Action>.send(
+                    .errorPresenter(
+                        .showAlert(
+                            title: L10n.tr("torrentList.alert.preferencesFailed.title"),
+                            message: message,
+                            retry: .refresh
+                        )
+                    )
+                )
+                return .merge(effect, alert)
 
             case .restoreCachedSnapshot:
                 guard let serverID = state.serverID else {
@@ -283,11 +291,19 @@ struct TorrentListReducer {
                 state.offlineState = offline
                 state.phase = .offline(offline)
                 state.isRefreshing = false
-                return .send(.restoreCachedSnapshot)
+                let banner = Effect<Action>.send(
+                    .errorPresenter(
+                        .showBanner(
+                            message: message,
+                            retry: .refresh
+                        )
+                    )
+                )
+                return .merge(.send(.restoreCachedSnapshot), banner)
 
             case .torrentsResponse(.success(let payload)):
                 state.isRefreshing = false
-                state.alert = nil
+                state.errorPresenter.banner = nil
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
                 state.items = merge(items: state.items, with: payload.torrents)
                 if payload.isFromCache == false {
@@ -320,20 +336,23 @@ struct TorrentListReducer {
                 )
                 state.offlineState = offline
                 state.phase = .offline(offline)
-                state.alert = .networkError(message: message)
+                state.errorPresenter.banner = .init(
+                    message: message,
+                    retry: .refresh
+                )
                 guard state.isPollingEnabled,
                     state.connectionEnvironment != nil,
                     state.failedAttempts < maxRetryAttempts
                 else {
                     return .cancel(id: CancelID.polling)
                 }
-                return schedulePolling(after: backoffDelay(for: state.failedAttempts))
+                let retryEffect = schedulePolling(after: backoffDelay(for: state.failedAttempts))
+                return retryEffect
 
-            case .alert(.presented(.dismiss)):
-                state.alert = nil
-                return .none
+            case .errorPresenter(.retryRequested(.refresh)):
+                return .send(.refreshRequested)
 
-            case .alert:
+            case .errorPresenter:
                 return .none
 
             case .delegate(.detailUpdated(let torrent)):
@@ -358,7 +377,9 @@ struct TorrentListReducer {
                 return .none
             }
         }
-        .ifLet(\.$alert, action: \.alert)
+        Scope(state: \.errorPresenter, action: \.errorPresenter) {
+            ErrorPresenter<TorrentListReducer.State.Retry>()
+        }
     }
 
     private enum FetchTrigger {
@@ -451,7 +472,7 @@ struct TorrentListReducer {
             state.isRefreshing = false
         }
 
-        state.alert = nil
+        state.errorPresenter.banner = nil
 
         guard let environment = state.connectionEnvironment else {
             state.isRefreshing = false
@@ -540,7 +561,7 @@ struct TorrentListReducer {
             state.items.append(TorrentListItem.State(torrent: torrent))
         }
         state.phase = .loaded
-        state.alert = nil
+        state.errorPresenter.banner = nil
         state.failedAttempts = 0
         state.isRefreshing = false
         return detailSyncEffect(state: &state)
@@ -560,7 +581,7 @@ struct TorrentListReducer {
             state.items.append(TorrentListItem.State(torrent: placeholder))
         }
         state.phase = .loaded
-        state.alert = nil
+        state.errorPresenter.banner = nil
         state.failedAttempts = 0
         state.isRefreshing = false
 
@@ -577,7 +598,7 @@ struct TorrentListReducer {
     ) -> Effect<Action> {
         state.items.remove(id: identifier)
         state.phase = .loaded
-        state.alert = nil
+        state.errorPresenter.banner = nil
         state.failedAttempts = 0
         state.isRefreshing = false
         return detailSyncEffect(state: &state)
@@ -689,32 +710,6 @@ struct TorrentListReducer {
             }
         }
         return String(describing: error)
-    }
-}
-
-extension AlertState where Action == TorrentListReducer.AlertAction {
-    static func networkError(message: String) -> AlertState {
-        AlertState {
-            TextState(L10n.tr("torrentList.alert.loadFailed.title"))
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState(L10n.tr("common.ok"))
-            }
-        } message: {
-            TextState(message)
-        }
-    }
-
-    static func preferencesError(message: String) -> AlertState {
-        AlertState {
-            TextState(L10n.tr("torrentList.alert.preferencesFailed.title"))
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState(L10n.tr("settings.alert.close"))
-            }
-        } message: {
-            TextState(message)
-        }
     }
 }
 

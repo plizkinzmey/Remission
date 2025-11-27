@@ -248,7 +248,7 @@ struct TorrentListFeatureTests {
             )
             $0.phase = .offline(offline)
             $0.offlineState = offline
-            $0.alert = .networkError(message: "failed")
+            $0.errorPresenter.banner = .init(message: "failed", retry: .refresh)
             $0.failedAttempts = 1
             $0.isRefreshing = false
         }
@@ -298,13 +298,13 @@ struct TorrentListFeatureTests {
             )
             $0.phase = .offline(offline)
             $0.offlineState = offline
-            $0.alert = .networkError(message: "failed")
+            $0.errorPresenter.banner = .init(message: "failed", retry: .refresh)
             $0.failedAttempts = 1
             $0.isRefreshing = false
         }
 
         await store.send(.refreshRequested) {
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = true
         }
@@ -354,7 +354,7 @@ struct TorrentListFeatureTests {
         await store.send(.delegate(.detailUpdated(updatedTorrent))) {
             $0.items[id: updatedTorrent.id]?.update(with: updatedTorrent)
             $0.phase = .loaded
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
@@ -407,7 +407,7 @@ struct TorrentListFeatureTests {
         await store.send(.delegate(.detailUpdated(updatedTorrent))) {
             $0.items[id: updatedTorrent.id]?.update(with: updatedTorrent)
             $0.phase = .loaded
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
@@ -418,7 +418,7 @@ struct TorrentListFeatureTests {
                 lastUpdatedAt: nil
             )
             $0.offlineState = offline
-            $0.alert = .networkError(message: "failed")
+            $0.errorPresenter.banner = .init(message: "failed", retry: .refresh)
             $0.failedAttempts = 1
             $0.isRefreshing = false
             $0.phase = .offline(offline)
@@ -456,7 +456,7 @@ struct TorrentListFeatureTests {
         await store.send(.delegate(.detailRemoved(torrents[0].id))) {
             $0.items.remove(id: torrents[0].id)
             $0.phase = .loaded
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
@@ -507,7 +507,7 @@ struct TorrentListFeatureTests {
 
         await store.send(.delegate(.added(addResult))) {
             $0.phase = .loaded
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = false
             #expect($0.items[id: addResult.id]?.torrent.name == addResult.name)
@@ -559,7 +559,7 @@ struct TorrentListFeatureTests {
 
         await store.send(.delegate(.added(addResult))) {
             $0.phase = .loaded
-            $0.alert = nil
+            $0.errorPresenter.banner = nil
             $0.failedAttempts = 0
             $0.isRefreshing = false
             #expect($0.items[id: addResult.id]?.torrent.name == addResult.name)
@@ -573,7 +573,7 @@ struct TorrentListFeatureTests {
             )
             $0.offlineState = offline
             $0.phase = .offline(offline)
-            $0.alert = .networkError(message: "failed")
+            $0.errorPresenter.banner = .init(message: "failed", retry: .refresh)
             $0.failedAttempts = 1
             $0.isRefreshing = false
         }
@@ -791,8 +791,19 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.failure(PrefError.failed))) {
-            $0.alert = .preferencesError(message: "preferences failed")
+        await store.send(.userPreferencesResponse(.failure(PrefError.failed)))
+
+        await store.receive(
+            .errorPresenter(
+                .showAlert(
+                    title: L10n.tr("torrentList.alert.preferencesFailed.title"),
+                    message: "preferences failed",
+                    retry: .refresh
+                )
+            )
+        ) {
+            #expect($0.errorPresenter.alert != nil)
+            #expect($0.errorPresenter.pendingRetry == .refresh)
         }
 
         await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {

@@ -31,7 +31,7 @@ struct TorrentDetailFeatureLoadTests {
 
         await store.send(.task) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
 
         await store.receive(
@@ -40,6 +40,7 @@ struct TorrentDetailFeatureLoadTests {
             )
         ) { state in
             state.isLoading = false
+            state.errorPresenter.banner = nil
             state.apply(expectedTorrent)
             state.speedHistory.samples = [
                 SpeedSample(
@@ -76,7 +77,7 @@ struct TorrentDetailFeatureLoadTests {
 
         await store.send(.task) {
             $0.isLoading = true
-            $0.errorMessage = nil
+            $0.errorPresenter.banner = nil
         }
 
         await store.receive(
@@ -85,6 +86,7 @@ struct TorrentDetailFeatureLoadTests {
             )
         ) { state in
             state.isLoading = false
+            state.errorPresenter.banner = nil
             state.apply(expectedTorrent)
             state.speedHistory.samples = [
                 SpeedSample(

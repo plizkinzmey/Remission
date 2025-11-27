@@ -9,9 +9,12 @@ struct TorrentDetailView: View {
             LazyVStack(alignment: .leading, spacing: 24) {
                 summarySection
 
-                if let errorMessage = store.errorMessage {
-                    TorrentErrorView(
-                        message: errorMessage,
+                if let banner = store.errorPresenter.banner {
+                    ErrorBannerView(
+                        message: banner.message,
+                        onRetry: banner.retry == nil
+                            ? nil
+                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
                         onDismiss: { store.send(.dismissError) }
                     )
                 }
@@ -58,6 +61,9 @@ struct TorrentDetailView: View {
         .alert(
             $store.scope(state: \.alert, action: \.alert)
         )
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
         .confirmationDialog(
             $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
         )
@@ -81,7 +87,7 @@ struct TorrentDetailView: View {
 
     private var shouldShowMetadataFallback: Bool {
         store.isLoading == false
-            && store.errorMessage == nil
+            && store.errorPresenter.banner == nil
             && store.hasLoadedMetadata == false
             && store.files.isEmpty
             && store.trackers.isEmpty
@@ -313,8 +319,7 @@ private struct SummaryMetricRow: View {
                         seederCount: 350
                     )
                 ],
-                isLoading: false,
-                errorMessage: nil
+                isLoading: false
             )
             state.hasLoadedMetadata = true
             state.speedHistory.samples = [

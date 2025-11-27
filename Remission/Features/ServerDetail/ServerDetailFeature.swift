@@ -12,6 +12,7 @@ struct ServerDetailReducer {
     struct State: Equatable {
         var server: ServerConfig
         @Presents var alert: AlertState<AlertAction>?
+        var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
         @Presents var editor: ServerEditorReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
@@ -43,6 +44,7 @@ struct ServerDetailReducer {
         case resetTrustSucceeded
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
+        case errorPresenter(ErrorPresenter<ErrorRetry>.Action)
         case connectionResponse(TaskResult<ConnectionResponse>)
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
@@ -55,6 +57,10 @@ struct ServerDetailReducer {
         case magnetLinkResponse(Result<String?, MagnetImportError>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
+    }
+
+    enum ErrorRetry: Equatable {
+        case reconnect
     }
 
     enum AlertAction: Equatable {
@@ -95,6 +101,7 @@ struct ServerDetailReducer {
 
             case .retryConnectionButtonTapped:
                 state.connectionRetryAttempts = 0
+                state.errorPresenter.banner = nil
                 return .merge(
                     .cancel(id: ConnectionCancellationID.connectionRetry),
                     startConnection(state: &state, force: true)
@@ -239,7 +246,10 @@ struct ServerDetailReducer {
                         attempt: state.connectionRetryAttempts
                     )
                 )
-                state.alert = AlertState.connectionFailure(message: message)
+                state.errorPresenter.banner = .init(
+                    message: message,
+                    retry: .reconnect
+                )
                 let teardown: Effect<Action> = .send(.torrentList(.teardown))
                 let offlineEffect: Effect<Action> = .send(
                     .torrentList(.goOffline(message: message))
@@ -370,6 +380,12 @@ struct ServerDetailReducer {
             case .userPreferencesResponse(.failure):
                 return .none
 
+            case .errorPresenter(.retryRequested(.reconnect)):
+                return .send(.retryConnectionButtonTapped)
+
+            case .errorPresenter:
+                return .none
+
             case .delegate:
                 return .none
             }
@@ -386,6 +402,9 @@ struct ServerDetailReducer {
         }
         Scope(state: \.torrentList, action: \.torrentList) {
             TorrentListReducer()
+        }
+        Scope(state: \.errorPresenter, action: \.errorPresenter) {
+            ErrorPresenter<ErrorRetry>()
         }
     }
 

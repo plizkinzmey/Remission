@@ -19,6 +19,7 @@ enum AppBootstrap {
         case onboardingFlow = "onboarding-flow"
         case serverListSample = "server-list-sample"
         case torrentListSample = "torrent-list-sample"
+        case torrentListOffline = "torrent-list-offline"
     }
 
     /// Возвращает стартовое состояние приложения, учитывая аргументы процесса.
