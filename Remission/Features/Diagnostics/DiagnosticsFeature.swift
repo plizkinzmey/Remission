@@ -10,10 +10,17 @@ struct DiagnosticsReducer {
         var query: String = ""
         var selectedLevel: AppLogLevel?
         var maxEntries: Int?
+        var pageSize: Int = 100
+        var visibleCount: Int = 100
         @Presents var alert: AlertState<AlertAction>?
 
         var filter: DiagnosticsLogFilter {
             DiagnosticsLogFilter(level: selectedLevel, searchText: query)
+        }
+
+        var visibleEntries: IdentifiedArrayOf<DiagnosticsLogEntry> {
+            let slice = entries.prefix(visibleCount)
+            return IdentifiedArrayOf(uniqueElements: Array(slice))
         }
     }
 
@@ -29,6 +36,7 @@ struct DiagnosticsReducer {
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
         case shareAllTapped
+        case loadMoreIfNeeded
     }
 
     enum AlertAction: Equatable {
@@ -52,6 +60,7 @@ struct DiagnosticsReducer {
             case .task:
                 state.isLoading = true
                 state.maxEntries = diagnosticsLogStore.maxEntries
+                state.visibleCount = state.pageSize
                 let filter = state.filter
                 return .merge(
                     loadLogs(filter: filter),
@@ -85,6 +94,10 @@ struct DiagnosticsReducer {
             case .logsResponse(.success(let entries)):
                 state.isLoading = false
                 state.entries = IdentifiedArrayOf(uniqueElements: entries)
+                state.visibleCount = min(
+                    max(state.visibleCount, state.pageSize),
+                    state.entries.count
+                )
                 return .none
 
             case .logsResponse(.failure(let error)):
@@ -102,6 +115,10 @@ struct DiagnosticsReducer {
 
             case .logsStreamUpdated(let entries):
                 state.entries = IdentifiedArrayOf(uniqueElements: entries)
+                state.visibleCount = min(
+                    max(state.visibleCount, state.pageSize),
+                    state.entries.count
+                )
                 return .none
 
             case .clearTapped:
@@ -123,6 +140,11 @@ struct DiagnosticsReducer {
                 return .none
 
             case .alert:
+                return .none
+
+            case .loadMoreIfNeeded:
+                guard state.entries.count > state.visibleCount else { return .none }
+                state.visibleCount = min(state.visibleCount + state.pageSize, state.entries.count)
                 return .none
 
             case .delegate:

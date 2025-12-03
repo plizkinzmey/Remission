@@ -5,8 +5,6 @@ import Testing
 
 @testable import Remission
 
-// swiftlint:disable function_body_length type_body_length
-
 @Suite("TorrentListReducer")
 @MainActor
 struct TorrentListFeatureTests {
@@ -29,7 +27,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.success(preferences))) {
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -74,11 +72,14 @@ struct TorrentListFeatureTests {
                 state.serverID = server.id
                 state.phase = .loading
                 state.cacheKey = cacheKey
+                state.hasLoadedPreferences = true
                 return state
             }(),
             reducer: { TorrentListReducer() },
             configure: { dependencies in
                 dependencies.offlineCacheRepository = cache
+                dependencies.userPreferencesRepository = .testValue(
+                    preferences: DomainFixtures.userPreferences)
             }
         )
 
@@ -87,6 +88,11 @@ struct TorrentListFeatureTests {
         }
 
         await store.receive(.restoreCachedSnapshot)
+        await store.receive(.userPreferencesResponse(.success(DomainFixtures.userPreferences))) {
+            $0.pollingInterval = .milliseconds(
+                Int(DomainFixtures.userPreferences.pollingInterval * 1_000))
+            $0.isPollingEnabled = DomainFixtures.userPreferences.isAutoRefreshEnabled
+        }
         await store.receive(
             .torrentsResponse(
                 .success(
@@ -108,7 +114,7 @@ struct TorrentListFeatureTests {
         let preferencesOverride = preferences
 
         let baseClock = TestClock<Duration>()
-        let recordingClock = RecordingClock(base: baseClock)
+        let recordingClock = TorrentListRecordingClock(base: baseClock)
 
         let store = TestStoreFactory.make(
             initialState: {
@@ -195,7 +201,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.success(preferences))) {
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -242,7 +248,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.success(preferences))) {
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -292,7 +298,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.success(preferences))) {
+        await store.receive(.userPreferencesResponse(.success(preferences))) {
             $0.pollingInterval = .milliseconds(Int(preferences.pollingInterval * 1_000))
             $0.isPollingEnabled = preferences.isAutoRefreshEnabled
         }
@@ -725,7 +731,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.success(basePreferences))) {
+        await store.receive(.userPreferencesResponse(.success(basePreferences))) {
             $0.pollingInterval = .milliseconds(Int(basePreferences.pollingInterval * 1_000))
             $0.isPollingEnabled = basePreferences.isAutoRefreshEnabled
         }
@@ -797,7 +803,7 @@ struct TorrentListFeatureTests {
             $0.phase = .loading
         }
 
-        await store.send(.userPreferencesResponse(.failure(PrefError.failed)))
+        await store.receive(.userPreferencesResponse(.failure(PrefError.failed)))
 
         await store.receive(
             .errorPresenter(
@@ -820,132 +826,5 @@ struct TorrentListFeatureTests {
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
-    }
-}
-
-// MARK: - Helpers
-
-@MainActor
-private func makeStore(
-    clock: TestClock<Duration>,
-    repository: TorrentRepository,
-    preferences: UserPreferences
-) -> TestStoreOf<TorrentListReducer> {
-    let server = ServerConfig.previewLocalHTTP
-    let environment = ServerConnectionEnvironment.testEnvironment(
-        server: server,
-        torrentRepository: repository
-    )
-
-    return TestStoreFactory.make(
-        initialState: {
-            var state = TorrentListReducer.State()
-            state.connectionEnvironment = environment
-            state.serverID = server.id
-            return state
-        }(),
-        reducer: { TorrentListReducer() },
-        configure: { dependencies in
-            dependencies.appClock = .test(clock: clock)
-            dependencies.userPreferencesRepository = .testValue(preferences: preferences)
-            dependencies.offlineCacheRepository = .inMemory()
-        }
-    )
-}
-
-private func makeLoadedState(torrents: [Torrent]) -> TorrentListReducer.State {
-    var state = TorrentListReducer.State()
-    state.connectionEnvironment = .preview(server: .previewLocalHTTP)
-    state.serverID = ServerConfig.previewLocalHTTP.id
-    state.phase = .loaded
-    state.items = IdentifiedArray(
-        uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) }
-    )
-    return state
-}
-
-private func makeFetchSuccess(
-    _ torrents: [Torrent],
-    isFromCache: Bool = false,
-    snapshotDate: Date? = nil
-) -> TorrentListReducer.State.FetchSuccess {
-    TorrentListReducer.State.FetchSuccess(
-        torrents: torrents,
-        isFromCache: isFromCache,
-        snapshotDate: snapshotDate
-    )
-}
-
-private final class RecordingClock: Clock, @unchecked Sendable {
-    typealias Duration = Swift.Duration
-    typealias Instant = TestClock<Duration>.Instant
-
-    private let base: TestClock<Duration>
-    private(set) var sleepHistory: [Duration] = []
-
-    init(base: TestClock<Duration>) {
-        self.base = base
-    }
-
-    var now: Instant { base.now }
-    var minimumResolution: Duration { base.minimumResolution }
-
-    func sleep(until deadline: Instant, tolerance: Duration? = nil) async throws {
-        let interval = base.now.duration(to: deadline)
-        sleepHistory.append(interval)
-        try await base.sleep(until: deadline, tolerance: tolerance)
-    }
-
-    func sleep(for duration: Duration, tolerance: Duration? = nil) async throws {
-        sleepHistory.append(duration)
-        try await base.sleep(for: duration, tolerance: tolerance)
-    }
-}
-
-extension UserPreferencesRepository {
-    fileprivate static func testValue(preferences: UserPreferences) -> UserPreferencesRepository {
-        UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
-                AsyncStream { continuation in
-                    continuation.finish()
-                }
-            }
-        )
-    }
-
-    fileprivate static func failingLoad(error: any Error) -> UserPreferencesRepository {
-        UserPreferencesRepository(
-            load: { throw error },
-            updatePollingInterval: { interval in
-                var prefs = DomainFixtures.userPreferences
-                prefs.pollingInterval = interval
-                return prefs
-            },
-            setAutoRefreshEnabled: { isEnabled in
-                var prefs = DomainFixtures.userPreferences
-                prefs.isAutoRefreshEnabled = isEnabled
-                return prefs
-            },
-            setTelemetryEnabled: { isEnabled in
-                var prefs = DomainFixtures.userPreferences
-                prefs.isTelemetryEnabled = isEnabled
-                return prefs
-            },
-            updateDefaultSpeedLimits: { limits in
-                var prefs = DomainFixtures.userPreferences
-                prefs.defaultSpeedLimits = limits
-                return prefs
-            },
-            observe: {
-                AsyncStream { continuation in
-                    continuation.finish()
-                }
-            }
-        )
     }
 }

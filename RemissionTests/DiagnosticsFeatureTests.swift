@@ -36,17 +36,20 @@ struct DiagnosticsFeatureTests {
         await store.send(.task) {
             $0.isLoading = true
             $0.maxEntries = 500
+            $0.visibleCount = 100
         }
 
         await store.receive(.logsResponse(.success(initial))) {
             $0.isLoading = false
             $0.entries = IdentifiedArrayOf(uniqueElements: initial)
+            $0.visibleCount = 1
         }
 
         await streamBox.yield([update])
 
         await store.receive(.logsStreamUpdated([update])) {
             $0.entries = IdentifiedArrayOf(uniqueElements: [update])
+            $0.visibleCount = 1
         }
     }
 
@@ -68,6 +71,7 @@ struct DiagnosticsFeatureTests {
         await store.send(.task) {
             $0.isLoading = true
             $0.maxEntries = 500
+            $0.visibleCount = 100
         }
 
         let expected = Array(initial.reversed())
@@ -75,6 +79,7 @@ struct DiagnosticsFeatureTests {
         await store.receive(.logsResponse(.success(expected))) {
             $0.isLoading = false
             $0.entries = IdentifiedArrayOf(uniqueElements: expected)
+            $0.visibleCount = expected.count
         }
 
         await store.send(.clearTapped) {
@@ -84,6 +89,7 @@ struct DiagnosticsFeatureTests {
         await store.receive(.logsResponse(.success([]))) {
             $0.isLoading = false
             $0.entries = []
+            $0.visibleCount = 0
         }
     }
 
@@ -112,6 +118,7 @@ struct DiagnosticsFeatureTests {
         await store.send(.task) {
             $0.isLoading = true
             $0.maxEntries = 500
+            $0.visibleCount = 100
         }
 
         await store.receive(.logsResponse(.failure(DummyError.failed))) {
@@ -185,6 +192,43 @@ struct DiagnosticsFeatureTests {
         await store.send(.levelSelected(.error)) {
             $0.selectedLevel = .error
             $0.query = ""
+        }
+    }
+
+    @Test("loadMoreIfNeeded увеличивает видимую выборку постранично")
+    func loadMoreIncreasesVisibleEntries() async {
+        let entries = (0..<150).map {
+            DomainFixtures.diagnosticsEntry(message: "entry-\($0)", level: .info)
+        }
+
+        let store = TestStore(
+            initialState: DiagnosticsReducer.State()
+        ) {
+            DiagnosticsReducer()
+        } withDependencies: {
+            $0.diagnosticsLogStore = DiagnosticsLogStore(
+                load: { _ in entries },
+                observe: { _ in AsyncStream { $0.finish() } },
+                append: { _ in },
+                clear: {}
+            )
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.isLoading = true
+            $0.maxEntries = 500
+            $0.visibleCount = 100
+        }
+
+        await store.receive(.logsResponse(.success(entries))) {
+            $0.isLoading = false
+            $0.entries = IdentifiedArrayOf(uniqueElements: entries)
+            $0.visibleCount = 100
+        }
+
+        await store.send(.loadMoreIfNeeded) {
+            $0.visibleCount = 150
         }
     }
 

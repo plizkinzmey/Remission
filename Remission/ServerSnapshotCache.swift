@@ -310,8 +310,8 @@ private actor OfflineCacheFileStore {
         baseDirectory.appendingPathComponent("\(serverID.uuidString).json", isDirectory: false)
     }
 
-    private func metadata(for key: OfflineCacheKey, extra: [String: String] = [:]) -> [String:
-        String]
+    private func metadata(for key: OfflineCacheKey, extra: [String: String] = [:])
+        -> [String: String]
     {
         var metadata: [String: String] = [
             "server_id": key.serverID.uuidString,

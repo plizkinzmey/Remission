@@ -163,12 +163,12 @@ struct ServerDetailView: View {
                     )
                     .foregroundStyle(.green)
 
-                    if let description = ready.handshake.serverVersionDescription,
-                        description.isEmpty == false
-                    {
-                        Text(description)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    if let description = ready.handshake.serverVersionDescription {
+                        if description.isEmpty == false {
+                            Text(description)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Text(

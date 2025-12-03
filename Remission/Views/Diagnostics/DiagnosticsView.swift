@@ -118,9 +118,15 @@ struct DiagnosticsView: View {
     private var logList: some View {
         List {
             Section {
-                ForEach(store.entries) { entry in
+                ForEach(store.visibleEntries) { entry in
+                    let isLast = entry.id == store.visibleEntries.last?.id
                     logRow(entry)
                         .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
+                        .onAppear {
+                            if isLast {
+                                store.send(.loadMoreIfNeeded)
+                            }
+                        }
                 }
             }
         }
@@ -161,14 +167,7 @@ struct DiagnosticsView: View {
             }
 
             if metadata.isEmpty == false {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(metadata, id: \.self) { item in
-                            metadataBadge(item)
-                        }
-                    }
-                    .padding(.horizontal, 2)
-                }
+                metadataRow(metadata)
             }
         }
         .padding(.vertical, 2)
@@ -182,15 +181,7 @@ struct DiagnosticsView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(for: entry))
         .overlay(alignment: .topLeading) {
-            if isOffline {
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .accessibilityIdentifier("diagnostics_offline_badge")
-            } else if isNetworkIssue {
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .accessibilityIdentifier("diagnostics_network_badge")
-            }
+            accessibilityOverlay(isOffline: isOffline, isNetworkIssue: isNetworkIssue)
         }
     }
 
@@ -202,6 +193,31 @@ struct DiagnosticsView: View {
         }
         .tint(.accentColor)
         .accessibilityIdentifier("diagnostics_copy_\(entry.id.uuidString)")
+    }
+
+    private func metadataRow(_ metadata: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(metadata, id: \.self) { item in
+                    metadataBadge(item)
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+    }
+
+    private func accessibilityOverlay(isOffline: Bool, isNetworkIssue: Bool) -> some View {
+        Group {
+            if isOffline {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("diagnostics_offline_badge")
+            } else if isNetworkIssue {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("diagnostics_network_badge")
+            }
+        }
     }
 
     @ViewBuilder

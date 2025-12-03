@@ -51,6 +51,35 @@ struct OfflineCacheRepositoryTests {
         let originalAfterMismatch = try await client.load()
         #expect(originalAfterMismatch == nil)
     }
+
+    @Test("Превышение лимита размера очищает кеш и возвращает ошибку")
+    func cacheEvictedOnSizeLimit() async throws {
+        let tinyPolicy = OfflineCachePolicy(timeToLive: 60, maxBytesPerServer: 1)
+        let cache = OfflineCacheRepository.inMemory(policy: tinyPolicy)
+        let key = OfflineCacheKey(
+            serverID: UUID(),
+            cacheFingerprint: "size-fixture",
+            rpcVersion: 20
+        )
+        let client = cache.client(key)
+
+        do {
+            _ = try await client.updateTorrents([.previewDownloading])
+            Issue.record("Expected size limit error")
+        } catch let error as OfflineCacheError {
+            switch error {
+            case .exceedsSizeLimit:
+                break
+            default:
+                Issue.record("Unexpected error: \(error)")
+            }
+        } catch {
+            Issue.record("Unexpected error type: \(error)")
+        }
+
+        let afterEviction = try? await client.load()
+        #expect(afterEviction == nil)
+    }
 }
 
 private final class DateBox: @unchecked Sendable {
