@@ -175,14 +175,18 @@ struct KeychainCredentialsStore: Sendable {
     }
 
     private func baseQuery(for key: TransmissionServerCredentialsKey) -> [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Constants.serviceIdentifier,
             kSecAttrAccount as String: key.accountIdentifier,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
-            kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean,
-            kSecUseDataProtectionKeychain as String: true
+            kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean
         ]
+        #if !os(macOS)
+            // Data protection keychain доступен на iOS/watchOS/tvOS/visionOS; на macOS без entitlements может вернуть errSecMissingEntitlement.
+            query[kSecUseDataProtectionKeychain as String] = true
+        #endif
+        return query
     }
 
     private func mapStatus(_ status: OSStatus) -> KeychainCredentialsStoreError {

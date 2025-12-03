@@ -183,14 +183,18 @@ public struct TransmissionTrustStore: Sendable {
     }
 
     private func baseQuery(for identity: TransmissionServerTrustIdentity) -> [String: Any] {
-        [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Constants.serviceIdentifier,
             kSecAttrAccount as String: identity.canonicalIdentifier,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
-            kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean,
-            kSecUseDataProtectionKeychain as String: true
+            kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean
         ]
+        #if !os(macOS)
+            // Data protection keychain требует соответствующих entitlements; на macOS может вернуть errSecMissingEntitlement.
+            query[kSecUseDataProtectionKeychain as String] = true
+        #endif
+        return query
     }
 
     private func mapStatus(_ status: OSStatus) -> TransmissionTrustStoreError {
