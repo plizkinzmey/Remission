@@ -125,11 +125,17 @@ extension TransmissionClientBootstrap {
 #if os(macOS)
     import AppKit
 
+    private enum WindowConstants {
+        // Минимальный размер окна, чтобы таблицы и панели не схлопывались.
+        static let minimumSize = NSSize(width: 960, height: 640)
+    }
+
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
         func applicationDidFinishLaunching(_ notification: Notification) {
             DispatchQueue.main.async {
                 NSApp.activate(ignoringOtherApps: true)
                 for window in NSApp.windows {
+                    window.contentMinSize = WindowConstants.minimumSize
                     window.makeKeyAndOrderFront(nil)
                 }
             }
