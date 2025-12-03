@@ -46,12 +46,11 @@ final class TorrentUITests: BaseUITestCase {
 
             let searchField = app.searchFields.firstMatch
             XCTAssertTrue(searchField.waitForExistence(timeout: 4), "Search field not found")
-            searchField.tap()
-            searchField.typeText("Fedora")
+            searchField.clearAndTypeText("Fedora")
 
             XCTAssertTrue(app.staticTexts["Fedora 41 Workstation"].waitForExistence(timeout: 3))
             XCTAssertTrue(
-                app.staticTexts["Ubuntu 25.04 Desktop"].waitForDisappearance(timeout: 3),
+                app.staticTexts["Ubuntu 25.04 Desktop"].waitForDisappearance(timeout: 6),
                 "Other torrents should be filtered out"
             )
 

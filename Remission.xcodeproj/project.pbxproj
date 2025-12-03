@@ -300,6 +300,7 @@
 				"",
 				"",
 				"",
+				"",
 			);
 		};
 		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
@@ -317,6 +318,7 @@
 			shellScript = (
 				"cd \"${SRCROOT}\"",
 				"Scripts/check-localizations.sh",
+				"",
 				"",
 				"",
 				"",

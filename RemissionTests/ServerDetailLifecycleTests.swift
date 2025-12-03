@@ -133,10 +133,15 @@ struct ServerDetailLifecycleTests {
         let deletedFingerprints = ServerDetailLockedValue<[String]>([])
         let deletedIds = ServerDetailLockedValue<[UUID]>([])
         let deletedIdentity = ServerDetailLockedValue<TransmissionServerTrustIdentity?>(nil)
-        let snapshotCache = ServerSnapshotCache.inMemory()
+        let offlineCache = OfflineCacheRepository.inMemory()
 
         let server = ServerConfig.previewSecureSeedbox
-        let snapshotClient = snapshotCache.client(server.id)
+        let cacheKey = OfflineCacheKey(
+            serverID: server.id,
+            cacheFingerprint: "fixture-cache",
+            rpcVersion: nil
+        )
+        let snapshotClient = offlineCache.client(cacheKey)
         _ = try? await snapshotClient.updateTorrents([Torrent.previewDownloading])
 
         let store = TestStore(
@@ -145,7 +150,7 @@ struct ServerDetailLifecycleTests {
             ServerDetailReducer()
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
-            dependencies.serverSnapshotCache = snapshotCache
+            dependencies.offlineCacheRepository = offlineCache
             dependencies.credentialsRepository = CredentialsRepository(
                 save: { _ in },
                 load: { _ in nil },

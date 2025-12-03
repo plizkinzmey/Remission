@@ -21,7 +21,7 @@ enum AppDependencies {
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .previewValue
-        dependencies.serverSnapshotCache = .previewValue
+        dependencies.offlineCacheRepository = .previewValue
         return dependencies
     }
 
@@ -32,7 +32,7 @@ enum AppDependencies {
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .testValue
-        dependencies.serverSnapshotCache = .testValue
+        dependencies.offlineCacheRepository = .testValue
         return dependencies
     }
 
@@ -51,7 +51,7 @@ enum AppDependencies {
         dependencies.httpWarningPreferencesStore = .inMemory()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
         dependencies.userPreferencesRepository = .testValue
-        dependencies.serverSnapshotCache = .previewValue
+        dependencies.offlineCacheRepository = .previewValue
 
         let resolvedScenario: AppBootstrap.UITestingScenario?
         if let scenario {
@@ -197,6 +197,7 @@ enum AppDependencies {
                 )
             }
             dependencies.torrentRepository = fixtureRepository
+            let offlineCache = dependencies.offlineCacheRepository
             dependencies.serverConnectionEnvironmentFactory = .init { targetServer in
                 guard targetServer.id == server.id else {
                     return try await ServerConnectionEnvironmentFactory.previewValue
@@ -212,6 +213,15 @@ enum AppDependencies {
                         isCompatible: true
                     )
                 }
+                let credentialsFingerprint = OfflineCacheKey.credentialsFingerprint(
+                    credentialsKey: targetServer.credentialsKey,
+                    password: "torrent-fixture-password"
+                )
+                let cacheKey = OfflineCacheKey.make(
+                    server: targetServer,
+                    credentialsFingerprint: credentialsFingerprint,
+                    rpcVersion: 20
+                )
                 return ServerConnectionEnvironment(
                     serverID: targetServer.id,
                     fingerprint: targetServer.connectionFingerprint,
@@ -220,7 +230,9 @@ enum AppDependencies {
                         torrentRepository: fixtureRepository,
                         sessionRepository: .placeholder
                     ),
-                    snapshot: ServerSnapshotCache.inMemory().client(targetServer.id)
+                    cacheKey: cacheKey,
+                    snapshot: offlineCache.client(cacheKey),
+                    makeSnapshotClient: offlineCache.client
                 )
             }
         case .diagnosticsSample:

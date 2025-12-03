@@ -59,8 +59,13 @@ struct TorrentListFeatureTests {
     func taskRestoresCachedSnapshotOffline() async {
         let server = ServerConfig.previewLocalHTTP
         let now = Date(timeIntervalSince1970: 500)
-        let cache = ServerSnapshotCache.inMemory(now: { now })
-        let client = cache.client(server.id)
+        let cache = OfflineCacheRepository.inMemory(now: { now })
+        let cacheKey = OfflineCacheKey(
+            serverID: server.id,
+            cacheFingerprint: "fixture#offline",
+            rpcVersion: nil
+        )
+        let client = cache.client(cacheKey)
         _ = try? await client.updateTorrents(DomainFixtures.torrents)
 
         let store = TestStoreFactory.make(
@@ -68,11 +73,12 @@ struct TorrentListFeatureTests {
                 var state = TorrentListReducer.State()
                 state.serverID = server.id
                 state.phase = .loading
+                state.cacheKey = cacheKey
                 return state
             }(),
             reducer: { TorrentListReducer() },
             configure: { dependencies in
-                dependencies.serverSnapshotCache = cache
+                dependencies.offlineCacheRepository = cache
             }
         )
 
@@ -842,6 +848,7 @@ private func makeStore(
         configure: { dependencies in
             dependencies.appClock = .test(clock: clock)
             dependencies.userPreferencesRepository = .testValue(preferences: preferences)
+            dependencies.offlineCacheRepository = .inMemory()
         }
     )
 }

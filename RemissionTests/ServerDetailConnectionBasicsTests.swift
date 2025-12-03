@@ -45,11 +45,13 @@ struct ServerDetailConnectionBasicsTests {
         await store.send(
             .connectionResponse(.success(.init(environment: environment, handshake: handshake)))
         ) {
-            $0.connectionEnvironment = environment
+            let updatedEnvironment = environment.updatingRPCVersion(handshake.rpcVersion)
+            $0.connectionEnvironment = updatedEnvironment
             $0.connectionState.phase = .ready(
-                .init(fingerprint: environment.fingerprint, handshake: handshake)
+                .init(fingerprint: updatedEnvironment.fingerprint, handshake: handshake)
             )
-            $0.torrentList.connectionEnvironment = environment
+            $0.torrentList.connectionEnvironment = updatedEnvironment
+            $0.torrentList.cacheKey = updatedEnvironment.cacheKey
             $0.lastAppliedDefaultSpeedLimits = preferences.defaultSpeedLimits
         }
         await store.receive(.torrentList(.task)) {
@@ -101,11 +103,13 @@ struct ServerDetailConnectionBasicsTests {
             .connectionResponse(.success(.init(environment: environment, handshake: handshake)))
         )
         await store.receive(.torrentList(.task)) {
-            $0.connectionEnvironment = environment
+            let updatedEnvironment = environment.updatingRPCVersion(handshake.rpcVersion)
+            $0.connectionEnvironment = updatedEnvironment
             $0.connectionState.phase = .ready(
-                .init(fingerprint: environment.fingerprint, handshake: handshake)
+                .init(fingerprint: updatedEnvironment.fingerprint, handshake: handshake)
             )
-            $0.torrentList.connectionEnvironment = environment
+            $0.torrentList.connectionEnvironment = updatedEnvironment
+            $0.torrentList.cacheKey = updatedEnvironment.cacheKey
             $0.lastAppliedDefaultSpeedLimits = preferences.defaultSpeedLimits
             $0.torrentList.phase = .loaded
             $0.torrentList.items = [TorrentListItem.State(torrent: torrent)]
@@ -123,7 +127,10 @@ struct ServerDetailConnectionBasicsTests {
         }
 
         await store.send(.torrentList(.delegate(.openTorrent(torrent.id)))) {
-            #expect($0.torrentDetail?.connectionEnvironment == environment)
+            #expect(
+                $0.torrentDetail?.connectionEnvironment
+                    == environment.updatingRPCVersion(handshake.rpcVersion)
+            )
             #expect($0.torrentDetail?.torrentID == torrent.id)
         }
     }
@@ -328,11 +335,13 @@ struct ServerDetailConnectionBasicsTests {
                 .success(.init(environment: firstEnvironment, handshake: firstHandshake))
             )
         ) {
-            $0.connectionEnvironment = firstEnvironment
+            let updatedEnvironment = firstEnvironment.updatingRPCVersion(firstHandshake.rpcVersion)
+            $0.connectionEnvironment = updatedEnvironment
             $0.connectionState.phase = .ready(
-                .init(fingerprint: firstEnvironment.fingerprint, handshake: firstHandshake)
+                .init(fingerprint: updatedEnvironment.fingerprint, handshake: firstHandshake)
             )
-            $0.torrentList.connectionEnvironment = firstEnvironment
+            $0.torrentList.connectionEnvironment = updatedEnvironment
+            $0.torrentList.cacheKey = updatedEnvironment.cacheKey
             $0.lastAppliedDefaultSpeedLimits = preferences.defaultSpeedLimits
         }
         await store.receive(.torrentList(.task)) {
@@ -366,11 +375,14 @@ struct ServerDetailConnectionBasicsTests {
                 )
             )
         ) {
-            $0.connectionEnvironment = secondEnvironment
+            let updatedEnvironment = secondEnvironment.updatingRPCVersion(
+                secondHandshake.rpcVersion)
+            $0.connectionEnvironment = updatedEnvironment
             $0.connectionState.phase = .ready(
-                .init(fingerprint: secondEnvironment.fingerprint, handshake: secondHandshake)
+                .init(fingerprint: updatedEnvironment.fingerprint, handshake: secondHandshake)
             )
-            $0.torrentList.connectionEnvironment = secondEnvironment
+            $0.torrentList.connectionEnvironment = updatedEnvironment
+            $0.torrentList.cacheKey = updatedEnvironment.cacheKey
             $0.lastAppliedDefaultSpeedLimits = preferences.defaultSpeedLimits
         }
         await store.receive(.torrentList(.task)) {

@@ -45,6 +45,7 @@ struct ServerDetailReducer {
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
         case errorPresenter(ErrorPresenter<ErrorRetry>.Action)
+        case cacheKeyPrepared(OfflineCacheKey)
         case connectionResponse(TaskResult<ConnectionResponse>)
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
@@ -86,7 +87,7 @@ struct ServerDetailReducer {
     @Dependency(\.torrentFileLoader) var torrentFileLoader
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
     @Dependency(\.appClock) var appClock
-    @Dependency(\.serverSnapshotCache) var serverSnapshotCache
+    @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -212,17 +213,26 @@ struct ServerDetailReducer {
             case .alert(.dismiss):
                 return .none
 
+            case .cacheKeyPrepared(let key):
+                let changed = state.torrentList.cacheKey != key
+                state.torrentList.cacheKey = key
+                return changed ? .send(.torrentList(.restoreCachedSnapshot)) : .none
+
             case .connectionResponse(.success(let response)):
-                state.connectionEnvironment = response.environment
-                state.torrentDetail?.applyConnectionEnvironment(response.environment)
+                let environment = response.environment.updatingRPCVersion(
+                    response.handshake.rpcVersion
+                )
+                state.connectionEnvironment = environment
+                state.torrentDetail?.applyConnectionEnvironment(environment)
                 state.connectionRetryAttempts = 0
                 state.connectionState.phase = .ready(
                     .init(
-                        fingerprint: response.environment.fingerprint,
+                        fingerprint: environment.fingerprint,
                         handshake: response.handshake
                     )
                 )
-                state.torrentList.connectionEnvironment = response.environment
+                state.torrentList.connectionEnvironment = environment
+                state.torrentList.cacheKey = environment.cacheKey
                 let effects: Effect<Action> = .concatenate(
                     .send(.torrentList(.task)),
                     .send(.torrentList(.refreshRequested))
@@ -254,9 +264,14 @@ struct ServerDetailReducer {
                 let offlineEffect: Effect<Action> = .send(
                     .torrentList(.goOffline(message: message))
                 )
+                let cacheClear: Effect<Action> =
+                    isIncompatibleVersion(error)
+                    ? clearOfflineCache(serverID: state.server.id)
+                    : .none
                 return .merge(
                     teardown,
                     offlineEffect,
+                    cacheClear,
                     scheduleConnectionRetry(state: &state)
                 )
 
@@ -459,6 +474,7 @@ struct ServerDetailReducer {
                 .connectionResponse(
                     TaskResult {
                         let environment = try await serverConnectionEnvironmentFactory.make(server)
+                        await send(.cacheKeyPrepared(environment.cacheKey))
                         let handshake = try await environment.dependencies.transmissionClient
                             .performHandshake()
                         return ConnectionResponse(environment: environment, handshake: handshake)
@@ -492,8 +508,7 @@ struct ServerDetailReducer {
                 if let key = server.credentialsKey {
                     try await credentialsRepository.delete(key: key)
                 }
-                let snapshot = serverSnapshotCache.client(server.id)
-                try await snapshot.clear()
+                try await offlineCacheRepository.clear(server.id)
                 httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
                 let identity = TransmissionServerTrustIdentity(
                     host: server.connection.host,
@@ -508,6 +523,24 @@ struct ServerDetailReducer {
                 await send(.deleteCompleted(.failure(DeletionError(message: message))))
             }
         }
+    }
+
+    private func clearOfflineCache(serverID: UUID) -> Effect<Action> {
+        .run { _ in
+            do {
+                try await offlineCacheRepository.clear(serverID)
+            } catch {
+                // Кеш опционален: игнорируем ошибки очистки, чтобы не блокировать UX.
+            }
+        }
+    }
+
+    private func isIncompatibleVersion(_ error: Error) -> Bool {
+        guard let apiError = error as? APIError else { return false }
+        if case .versionUnsupported = apiError {
+            return true
+        }
+        return false
     }
 
     private func loadPreferences() -> Effect<Action> {

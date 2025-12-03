@@ -203,11 +203,15 @@ extension SessionRepository {
     static func live(
         transmissionClient: TransmissionClientDependency,
         mapper: TransmissionDomainMapper = .init(),
-        snapshot: ServerSnapshotClient? = nil
+        snapshot: OfflineCacheClient? = nil
     ) -> SessionRepository {
         let cacheState: @Sendable (SessionState) async throws -> Void = { state in
             guard let snapshot else { return }
-            _ = try await snapshot.updateSession(state)
+            do {
+                _ = try await snapshot.updateSession(state)
+            } catch OfflineCacheError.exceedsSizeLimit {
+                try await snapshot.clear()
+            }
         }
 
         let loadCachedState: @Sendable () async throws -> CachedSnapshot<SessionState>? = {
