@@ -15,12 +15,20 @@ struct AppView: View {
             .navigationTitle(L10n.tr("app.title"))
             .toolbar {
                 #if os(macOS)
-                    ToolbarItem(placement: .primaryAction) { addServerButton }
-                    ToolbarItem(placement: .primaryAction) { settingsButton }
+                    if shouldShowAddServerToolbarButton {
+                        ToolbarItem(placement: .primaryAction) { addServerButton }
+                    }
+                    if shouldShowSettingsToolbarButton {
+                        ToolbarItem(placement: .primaryAction) { settingsButton }
+                    }
                 #else
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        settingsButton
-                        addServerButton
+                        if shouldShowSettingsToolbarButton {
+                            settingsButton
+                        }
+                        if shouldShowAddServerToolbarButton {
+                            addServerButton
+                        }
                     }
                 #endif
             }
@@ -51,6 +59,14 @@ struct AppView: View {
             Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
         }
         .accessibilityIdentifier("app_settings_button")
+    }
+
+    private var shouldShowAddServerToolbarButton: Bool {
+        store.serverList.servers.isEmpty == false
+    }
+
+    private var shouldShowSettingsToolbarButton: Bool {
+        store.serverList.servers.isEmpty == false
     }
 }
 
