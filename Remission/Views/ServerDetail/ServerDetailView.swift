@@ -11,10 +11,6 @@ struct ServerDetailView: View {
             if store.connectionEnvironment != nil {
                 torrentsSection
             }
-            serverSection
-            securitySection
-            trustSection
-            actionsSection
         }
         .navigationTitle(store.server.name)
         #if !os(macOS)
@@ -73,37 +69,6 @@ struct ServerDetailView: View {
                 .accessibilityHint(L10n.tr("serverDetail.button.edit"))
             }
         }
-    }
-
-    private var serverSection: some View {
-        Section(L10n.tr("serverDetail.section.server")) {
-            LabeledContent(
-                L10n.tr("serverDetail.field.name"),
-                value: store.server.name
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(nameAccessibilityLabel)
-            .accessibilityIdentifier("server_detail_name")
-            LabeledContent(
-                L10n.tr("serverDetail.field.address"),
-                value: store.server.displayAddress
-            )
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(addressAccessibilityLabel)
-            .accessibilityIdentifier("server_detail_address")
-            LabeledContent(L10n.tr("serverDetail.field.protocol")) {
-                securityBadge
-            }
-            .accessibilityIdentifier("server_detail_protocol")
-        }
-    }
-
-    private var nameAccessibilityLabel: String {
-        "\(L10n.tr("serverDetail.field.name")): \(store.server.name)"
-    }
-
-    private var addressAccessibilityLabel: String {
-        "\(L10n.tr("serverDetail.field.address")): \(store.server.displayAddress)"
     }
 
     private var fileImporterBinding: Binding<Bool> {
@@ -212,89 +177,6 @@ struct ServerDetailView: View {
                 .accessibilityIdentifier("server_detail_status_failed")
                 .accessibilityHint(L10n.tr("serverDetail.action.retry"))
             }
-        }
-    }
-
-    private var securitySection: some View {
-        Section(L10n.tr("serverDetail.section.security")) {
-            if store.server.isSecure {
-                Label(L10n.tr("serverDetail.security.https"), systemImage: "lock.fill")
-                    .foregroundStyle(.green)
-                if case .https(let allowUntrusted) = store.server.security, allowUntrusted {
-                    Text(L10n.tr("serverForm.security.allowUntrusted"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Label(
-                    L10n.tr("serverDetail.security.httpWarning"),
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .foregroundStyle(.orange)
-                Text(L10n.tr("serverDetail.security.httpHint"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var securityBadge: some View {
-        Group {
-            if store.server.isSecure {
-                Label(L10n.tr("serverList.badge.https"), systemImage: "lock.fill")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Capsule().fill(Color.green.opacity(0.15)))
-                    .foregroundStyle(.green)
-            } else {
-                Label(
-                    L10n.tr("serverList.badge.http"), systemImage: "exclamationmark.triangle.fill"
-                )
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Capsule().fill(Color.orange.opacity(0.15)))
-                .foregroundStyle(.orange)
-            }
-        }
-        .accessibilityLabel(
-            store.server.isSecure
-                ? L10n.tr("serverDetail.security.state.secure")
-                : L10n.tr("serverDetail.security.state.insecure")
-        )
-    }
-
-    private var trustSection: some View {
-        Section(L10n.tr("serverDetail.section.trust")) {
-            Button(role: .destructive) {
-                store.send(.resetTrustButtonTapped)
-            } label: {
-                Label(
-                    L10n.tr("serverDetail.action.resetTrust"), systemImage: "arrow.counterclockwise"
-                )
-            }
-            .accessibilityIdentifier("server_detail_reset_trust_button")
-            Button {
-                store.send(.httpWarningResetButtonTapped)
-            } label: {
-                Label(
-                    L10n.tr("serverDetail.action.resetHttpWarnings"),
-                    systemImage: "exclamationmark.shield")
-            }
-            .accessibilityIdentifier("server_detail_reset_http_warning_button")
-        }
-    }
-
-    private var actionsSection: some View {
-        Section(L10n.tr("serverDetail.section.actions")) {
-            Button(role: .destructive) {
-                store.send(.deleteButtonTapped)
-            } label: {
-                Label(L10n.tr("serverDetail.action.delete"), systemImage: "trash")
-            }
-            .accessibilityIdentifier("server_detail_delete_button")
-            .accessibilityHint(L10n.tr("serverDetail.action.delete"))
         }
     }
 

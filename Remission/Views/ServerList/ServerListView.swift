@@ -8,13 +8,27 @@ import SwiftUI
 
 struct ServerListView: View {
     @Bindable var store: StoreOf<ServerListReducer>
+    @State private var popoverServerID: UUID?
 
     var body: some View {
         Group {
             if store.servers.isEmpty {
                 emptyState
             } else {
-                serverList
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.tr("Servers"))
+                        .font(.title3.bold())
+                    Text(
+                        L10n.tr(
+                            "Manage connections, security and actions for each Transmission server."
+                        )
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    serverList
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
             }
         }
         .task { await store.send(.task).finish() }
@@ -32,53 +46,78 @@ struct ServerListView: View {
     }
 
     private var serverList: some View {
-        List {
-            ForEach(store.servers) { server in
+        #if os(macOS)
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(store.servers) { server in
+                        serverRow(server)
+                            .accessibilityLabel(server.name)
+                            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+                            .contextMenu {
+                                Button(L10n.tr("serverList.action.edit")) {
+                                    store.send(.editButtonTapped(server.id))
+                                }
+                                Button(L10n.tr("serverList.action.delete"), role: .destructive) {
+                                    store.send(.deleteButtonTapped(server.id))
+                                }
+                            }
+                    }
+                }
+                .padding(.top, 4)
+            }
+        #else
+            List {
+                ForEach(store.servers) { server in
+                    serverRow(server)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(.init(top: 8, leading: 0, bottom: 12, trailing: 0))
+                        .accessibilityLabel(server.name)
+                        .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+                        .swipeActions(edge: .trailing) {
+                            Button(L10n.tr("serverList.action.delete"), role: .destructive) {
+                                store.send(.deleteButtonTapped(server.id))
+                            }
+                            Button(L10n.tr("serverList.action.edit")) {
+                                store.send(.editButtonTapped(server.id))
+                            }
+                            .tint(.blue)
+                        }
+                }
+            }
+            .listStyle(.insetGrouped)
+        #endif
+    }
+
+    private func serverRow(_ server: ServerConfig) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.controlBackgroundColor).opacity(0.18))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.05))
+                )
+                .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 8)
+
+            HStack(spacing: 16) {
                 Button {
                     store.send(.serverTapped(server.id))
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(server.name)
-                                .font(.headline)
-                            Text(server.displayAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        securityBadge(for: server)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(server.name)
+                            .font(.headline)
+                        Text(server.displayAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .accessibilityLabel(server.name)
-                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
-                #if os(iOS)
-                    .swipeActions(edge: .trailing) {
-                        Button(L10n.tr("serverList.action.delete"), role: .destructive) {
-                            store.send(.deleteButtonTapped(server.id))
-                        }
-                        Button(L10n.tr("serverList.action.edit")) {
-                            store.send(.editButtonTapped(server.id))
-                        }
-                        .tint(.blue)
-                    }
-                #endif
-                #if os(macOS)
-                    .contextMenu {
-                        Button(L10n.tr("serverList.action.edit")) {
-                            store.send(.editButtonTapped(server.id))
-                        }
-                        Button(L10n.tr("serverList.action.delete"), role: .destructive) {
-                            store.send(.deleteButtonTapped(server.id))
-                        }
-                    }
-                #endif
+                .buttonStyle(.plain)
+                .contentShape(Rectangle())
+
+                securityBadge(for: server)
             }
+            .padding(16)
         }
-        #if os(macOS)
-            .listStyle(.automatic)
-        #else
-            .listStyle(.insetGrouped)
-        #endif
     }
 
     private var emptyState: some View {
@@ -116,34 +155,98 @@ struct ServerListView: View {
     }
 
     private func securityBadge(for server: ServerConfig) -> some View {
-        Group {
+        HStack(spacing: 8) {
             if server.isSecure {
-                Label(L10n.tr("serverList.badge.https"), systemImage: "lock.fill")
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(Color.green.opacity(0.2))
-                    )
-                    .foregroundStyle(.green)
-                    .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
+                badgeLabel(
+                    text: L10n.tr("serverList.badge.https"),
+                    systemImage: "lock.fill",
+                    fill: Color.green.opacity(0.2),
+                    foreground: Color.green
+                )
+                .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
+                .help(L10n.tr("serverDetail.security.https"))
             } else {
-                Label(
-                    L10n.tr("serverList.badge.http"), systemImage: "exclamationmark.triangle.fill"
-                )
-                .font(.caption)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(Color.orange.opacity(0.2))
-                )
-                .foregroundStyle(.orange)
+                Button {
+                    popoverServerID = server.id
+                } label: {
+                    badgeLabel(
+                        text: L10n.tr("serverList.badge.http"),
+                        systemImage: "exclamationmark.triangle.fill",
+                        fill: Color.orange.opacity(0.25),
+                        foreground: Color.orange
+                    )
+                }
+                .buttonStyle(.plain)
                 .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
+                .popover(
+                    isPresented: Binding(
+                        get: { popoverServerID == server.id },
+                        set: { newValue in
+                            popoverServerID = newValue ? server.id : nil
+                        }
+                    ), attachmentAnchor: .point(.trailing)
+                ) {
+                    securityInfoPopover(for: server)
+                }
             }
+
+            Button {
+                store.send(.deleteButtonTapped(server.id))
+            } label: {
+                Image(systemName: "trash")
+                    .imageScale(.small)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
+            .contentShape(Rectangle())
         }
     }
+
+    @ViewBuilder
+    private func securityInfoPopover(for server: ServerConfig) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                if server.isSecure {
+                    Image(systemName: "lock.fill")
+                        .foregroundStyle(.green)
+                    Text(L10n.tr("serverDetail.security.https"))
+                        .font(.headline)
+                } else {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(L10n.tr("serverDetail.security.httpWarning"))
+                        .font(.headline)
+                }
+                Spacer()
+            }
+            if server.isSecure == false {
+                Text(L10n.tr("serverDetail.security.httpHint"))
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding()
+        .frame(minWidth: 240)
+    }
+
+    private func badgeLabel(
+        text: String,
+        systemImage: String,
+        fill: Color,
+        foreground: Color
+    ) -> some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(fill)
+            )
+            .foregroundStyle(foreground)
+    }
+
 }
 
 #Preview("Empty") {

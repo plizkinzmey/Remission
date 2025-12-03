@@ -201,6 +201,26 @@ struct ServerListReducer {
         }
     }
 
+    private func resetTrust(for server: ServerConfig) -> Effect<Action> {
+        .run { send in
+            let identity = TransmissionServerTrustIdentity(
+                host: server.connection.host,
+                port: server.connection.port,
+                isSecure: server.isSecure
+            )
+            do {
+                try transmissionTrustStoreClient.deleteFingerprint(identity)
+            } catch {
+                // If trust reset fails, surface an alert and continue.
+                await send(
+                    .serverRepositoryResponse(
+                        .failure(error)
+                    )
+                )
+            }
+        }
+    }
+
     private func makeDeleteConfirmation(for server: ServerConfig) -> ConfirmationDialogState<
         DeleteConfirmationAction
     > {
