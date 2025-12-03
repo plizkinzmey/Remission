@@ -35,6 +35,7 @@ struct TorrentListReducer {
         }
 
         var serverID: UUID?
+        var cacheKey: OfflineCacheKey?
         var connectionEnvironment: ServerConnectionEnvironment?
         var phase: Phase = .idle
         var items: IdentifiedArrayOf<TorrentListItem.State> = []
@@ -188,7 +189,7 @@ struct TorrentListReducer {
 
     @Dependency(\.appClock) var appClock
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
-    @Dependency(\.serverSnapshotCache) var serverSnapshotCache
+    @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
     private enum CancelID: Hashable {
         case fetch
@@ -202,6 +203,9 @@ struct TorrentListReducer {
         Reduce { state, action in
             switch action {
             case .task:
+                if let environment = state.connectionEnvironment, state.cacheKey == nil {
+                    state.cacheKey = environment.cacheKey
+                }
                 if state.items.isEmpty {
                     state.phase = .loading
                 }
@@ -279,10 +283,10 @@ struct TorrentListReducer {
                 return .merge(effect, alert)
 
             case .restoreCachedSnapshot:
-                guard let serverID = state.serverID else {
+                guard let cacheKey = state.cacheKey else {
                     return .none
                 }
-                return loadCachedSnapshot(serverID: serverID)
+                return loadCachedSnapshot(cacheKey: cacheKey)
 
             case .goOffline(let message):
                 let offline = State.OfflineState(
@@ -428,9 +432,9 @@ struct TorrentListReducer {
     }
 
     /// Загружает кешированный список торрентов, если он доступен, и пробрасывает его в reducer.
-    private func loadCachedSnapshot(serverID: UUID) -> Effect<Action> {
+    private func loadCachedSnapshot(cacheKey: OfflineCacheKey) -> Effect<Action> {
         .run { send in
-            let client = serverSnapshotCache.client(serverID)
+            let client = offlineCacheRepository.client(cacheKey)
             guard let snapshot = try await client.load(),
                 let cached = snapshot.torrents
             else { return }
@@ -456,7 +460,7 @@ struct TorrentListReducer {
         trigger: FetchTrigger
     ) -> Effect<Action> {
         if state.serverID == nil {
-            state.serverID = state.connectionEnvironment?.serverID
+            state.serverID = state.connectionEnvironment?.serverID ?? state.cacheKey?.serverID
         }
 
         switch trigger {
@@ -478,10 +482,10 @@ struct TorrentListReducer {
 
         guard let environment = state.connectionEnvironment else {
             state.isRefreshing = false
-            guard let serverID = state.serverID else { return .none }
+            guard let cacheKey = state.cacheKey else { return .none }
 
             return .run { send in
-                let client = serverSnapshotCache.client(serverID)
+                let client = offlineCacheRepository.client(cacheKey)
                 guard let snapshot = try await client.load() else { return }
                 guard let cached = snapshot.torrents else { return }
 

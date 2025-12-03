@@ -228,11 +228,15 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
             mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
             fields: [String] = TorrentListFields.summary,
             detailFields: [String] = TorrentListFields.details,
-            snapshot: ServerSnapshotClient? = nil
+            snapshot: OfflineCacheClient? = nil
         ) -> TorrentRepository {
             let cacheList: @Sendable ([Torrent]) async throws -> Void = { torrents in
                 guard let snapshot else { return }
-                _ = try await snapshot.updateTorrents(torrents)
+                do {
+                    _ = try await snapshot.updateTorrents(torrents)
+                } catch OfflineCacheError.exceedsSizeLimit {
+                    try await snapshot.clear()
+                }
             }
 
             let loadCachedList: @Sendable () async throws -> CachedSnapshot<[Torrent]>? = {

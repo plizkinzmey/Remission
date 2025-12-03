@@ -12,7 +12,10 @@ struct ServerConnectionEnvironment: Sendable {
     var serverID: UUID
     var fingerprint: String
     var dependencies: DependencyOverrides
-    var snapshot: ServerSnapshotClient
+    var cacheKey: OfflineCacheKey
+    var snapshot: OfflineCacheClient
+    var makeSnapshotClient: @Sendable (OfflineCacheKey) -> OfflineCacheClient
+    var rebuildRepositoriesOnVersionUpdate: Bool = false
 
     func isValid(for server: ServerConfig) -> Bool {
         server.connectionFingerprint == fingerprint
@@ -23,11 +26,38 @@ struct ServerConnectionEnvironment: Sendable {
         values.torrentRepository = dependencies.torrentRepository
         values.sessionRepository = dependencies.sessionRepository
     }
+
+    func updatingRPCVersion(_ rpcVersion: Int?) -> ServerConnectionEnvironment {
+        var copy = self
+        copy.cacheKey = cacheKey.withRPCVersion(rpcVersion)
+        copy.snapshot = makeSnapshotClient(copy.cacheKey)
+        if rebuildRepositoriesOnVersionUpdate {
+            let mapper = TransmissionDomainMapper()
+            copy.dependencies = .init(
+                transmissionClient: dependencies.transmissionClient,
+                torrentRepository: TorrentRepository.live(
+                    transmissionClient: dependencies.transmissionClient,
+                    mapper: mapper,
+                    snapshot: copy.snapshot
+                ),
+                sessionRepository: SessionRepository.live(
+                    transmissionClient: dependencies.transmissionClient,
+                    mapper: mapper,
+                    snapshot: copy.snapshot
+                )
+            )
+        }
+        return copy
+    }
 }
 
 extension ServerConnectionEnvironment: Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.serverID == rhs.serverID && lhs.fingerprint == rhs.fingerprint
+        lhs.serverID == rhs.serverID
+            && lhs.fingerprint == rhs.fingerprint
+            && lhs.cacheKey == rhs.cacheKey
+            && lhs.rebuildRepositoriesOnVersionUpdate
+                == rhs.rebuildRepositoriesOnVersionUpdate
     }
 }
 
@@ -47,14 +77,23 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
         @Dependency(\.appClock) var appClock
         @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
         @Dependency(\.appLogger) var appLogger
-        @Dependency(\.serverSnapshotCache) var serverSnapshotCache
+        @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
         return Self { server in
             let password = try await loadPassword(
                 server: server,
                 credentialsRepository: credentialsRepository
             )
-            let snapshotClient = serverSnapshotCache.client(server.id)
+            let credentialsFingerprint = OfflineCacheKey.credentialsFingerprint(
+                credentialsKey: server.credentialsKey,
+                password: password
+            )
+            let cacheKey = OfflineCacheKey.make(
+                server: server,
+                credentialsFingerprint: credentialsFingerprint,
+                rpcVersion: nil
+            )
+            let snapshotClient = offlineCacheRepository.client(cacheKey)
             let mapper = TransmissionDomainMapper()
 
             let loggerContext = TransmissionLogContext(
@@ -98,7 +137,10 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                     torrentRepository: torrentRepository,
                     sessionRepository: sessionRepository
                 ),
-                snapshot: snapshotClient
+                cacheKey: cacheKey,
+                snapshot: snapshotClient,
+                makeSnapshotClient: offlineCacheRepository.client,
+                rebuildRepositoriesOnVersionUpdate: true
             )
         }
     }
@@ -174,6 +216,15 @@ extension ServerConnectionEnvironment {
                 isCompatible: true
             )
         }
+        let offlineCache = OfflineCacheRepository.inMemory()
+        let cacheKey = OfflineCacheKey.make(
+            server: server,
+            credentialsFingerprint: OfflineCacheKey.credentialsFingerprint(
+                credentialsKey: server.credentialsKey,
+                password: nil
+            ),
+            rpcVersion: nil
+        )
         return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,
@@ -182,7 +233,9 @@ extension ServerConnectionEnvironment {
                 torrentRepository: .previewValue,
                 sessionRepository: .placeholder
             ),
-            snapshot: ServerSnapshotCache.inMemory().client(server.id)
+            cacheKey: cacheKey,
+            snapshot: offlineCache.client(cacheKey),
+            makeSnapshotClient: offlineCache.client
         )
     }
 
@@ -192,7 +245,16 @@ extension ServerConnectionEnvironment {
         torrentRepository: TorrentRepository = .testValue,
         sessionRepository: SessionRepository = .placeholder
     ) -> ServerConnectionEnvironment {
-        ServerConnectionEnvironment(
+        let offlineCache = OfflineCacheRepository.inMemory()
+        let cacheKey = OfflineCacheKey.make(
+            server: server,
+            credentialsFingerprint: OfflineCacheKey.credentialsFingerprint(
+                credentialsKey: server.credentialsKey,
+                password: nil
+            ),
+            rpcVersion: nil
+        )
+        return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,
             dependencies: .init(
@@ -200,7 +262,9 @@ extension ServerConnectionEnvironment {
                 torrentRepository: torrentRepository,
                 sessionRepository: sessionRepository
             ),
-            snapshot: ServerSnapshotCache.inMemory().client(server.id)
+            cacheKey: cacheKey,
+            snapshot: offlineCache.client(cacheKey),
+            makeSnapshotClient: offlineCache.client
         )
     }
 

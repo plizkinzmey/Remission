@@ -106,14 +106,18 @@ struct InMemoryRepositoryTests {
         }
     }
 
-    // MARK: - Server Snapshot Cache
+    // MARK: - Offline Cache
 
     @Test
-    func serverSnapshotCachePersistsAndClears() async throws {
+    func offlineCachePersistsAndClears() async throws {
         let now = Date(timeIntervalSince1970: 1_000)
-        let cache = ServerSnapshotCache.inMemory(now: { now })
-        let serverID = UUID()
-        let client = cache.client(serverID)
+        let cache = OfflineCacheRepository.inMemory(now: { now })
+        let key = OfflineCacheKey(
+            serverID: UUID(),
+            cacheFingerprint: "fixture",
+            rpcVersion: 20
+        )
+        let client = cache.client(key)
 
         _ = try await client.updateTorrents([Torrent.previewDownloading])
         _ = try await client.updateSession(SessionState.previewActive)
