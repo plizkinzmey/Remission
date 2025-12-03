@@ -9,6 +9,7 @@ struct DiagnosticsReducer {
         var isLoading: Bool = false
         var query: String = ""
         var selectedLevel: AppLogLevel?
+        var maxEntries: Int?
         @Presents var alert: AlertState<AlertAction>?
 
         var filter: DiagnosticsLogFilter {
@@ -22,10 +23,12 @@ struct DiagnosticsReducer {
         case clearTapped
         case levelSelected(AppLogLevel?)
         case queryChanged(String)
+        case copyEntry(DiagnosticsLogEntry)
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
         case logsStreamUpdated([DiagnosticsLogEntry])
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
+        case shareAllTapped
     }
 
     enum AlertAction: Equatable {
@@ -37,6 +40,7 @@ struct DiagnosticsReducer {
     }
 
     @Dependency(\.diagnosticsLogStore) var diagnosticsLogStore
+    @Dependency(\.clipboard) var clipboard
 
     private enum CancelID {
         case observe
@@ -47,6 +51,7 @@ struct DiagnosticsReducer {
             switch action {
             case .task:
                 state.isLoading = true
+                state.maxEntries = diagnosticsLogStore.maxEntries
                 let filter = state.filter
                 return .merge(
                     loadLogs(filter: filter),
@@ -62,7 +67,20 @@ struct DiagnosticsReducer {
 
             case .levelSelected(let level):
                 state.selectedLevel = level
+                state.query = ""
                 return restartObservation(filter: state.filter)
+
+            case .shareAllTapped:
+                let entries = state.entries.elements
+                return .run { _ in
+                    let text = DiagnosticsLogFormatter.copyText(for: entries)
+                    await clipboard.copy(text)
+                }
+
+            case .copyEntry(let entry):
+                return .run { _ in
+                    await clipboard.copy(DiagnosticsLogFormatter.copyText(for: entry))
+                }
 
             case .logsResponse(.success(let entries)):
                 state.isLoading = false
@@ -88,16 +106,16 @@ struct DiagnosticsReducer {
 
             case .clearTapped:
                 state.isLoading = true
+                state.entries.removeAll()
                 let filter = state.filter
                 return .run { send in
-                    await send(
-                        .logsResponse(
-                            TaskResult {
-                                try await diagnosticsLogStore.clear()
-                                return try await diagnosticsLogStore.load(filter)
-                            }
-                        )
-                    )
+                    do {
+                        try await diagnosticsLogStore.clear()
+                        let entries = try await diagnosticsLogStore.load(filter)
+                        await send(.logsResponse(.success(entries)))
+                    } catch {
+                        await send(.logsResponse(.failure(error)))
+                    }
                 }
 
             case .alert(.presented(.dismiss)):
@@ -137,7 +155,7 @@ struct DiagnosticsReducer {
     }
 
     private func restartObservation(filter: DiagnosticsLogFilter) -> Effect<Action> {
-        .merge(
+        .concatenate(
             .cancel(id: CancelID.observe),
             loadLogs(filter: filter),
             observeLogs(filter: filter)

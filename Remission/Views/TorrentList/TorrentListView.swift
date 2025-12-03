@@ -1,4 +1,5 @@
 import ComposableArchitecture
+// swiftlint:disable file_length
 import SwiftUI
 
 struct TorrentListView: View {

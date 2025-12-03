@@ -10,6 +10,11 @@ struct DiagnosticsView: View {
                 filterBar
                     .padding(.horizontal)
 
+                if let limitNotice = limitNoticeText {
+                    limitNoticeView(limitNotice)
+                        .padding(.horizontal)
+                }
+
                 if store.isLoading && store.entries.isEmpty {
                     ProgressView(L10n.tr("diagnostics.loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -20,6 +25,7 @@ struct DiagnosticsView: View {
                         description: Text(
                             L10n.tr("diagnostics.empty.message"))
                     )
+                    .accessibilityIdentifier("diagnostics_empty_state")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     logList
@@ -39,6 +45,19 @@ struct DiagnosticsView: View {
                     }
                     .disabled(store.entries.isEmpty || store.isLoading)
                     .accessibilityIdentifier("diagnostics_clear_button")
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    if let export = exportText {
+                        ShareLink(
+                            item: export,
+                            message: Text(L10n.tr("diagnostics.exportAll"))
+                        ) {
+                            Image(systemName: "square.and.arrow.up")
+                                .accessibilityIdentifier("diagnostics_export_all_button")
+                                .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                        }
+                        .disabled(store.entries.isEmpty)
+                    }
                 }
             }
             .task { await store.send(.task).finish() }
@@ -78,6 +97,24 @@ struct DiagnosticsView: View {
         }
     }
 
+    private var limitNoticeText: String? {
+        guard let maxEntries = store.maxEntries else { return nil }
+        guard store.entries.count >= maxEntries else { return nil }
+        return String(format: L10n.tr("diagnostics.limit.notice"), maxEntries)
+    }
+
+    private func limitNoticeView(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundStyle(.secondary)
+            Text(text)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .accessibilityIdentifier("diagnostics_limit_notice")
+    }
+
     private var logList: some View {
         List {
             Section {
@@ -91,52 +128,151 @@ struct DiagnosticsView: View {
     }
 
     private func logRow(_ entry: DiagnosticsLogEntry) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+        let metadata = DiagnosticsLogFormatter.metadataTags(for: entry)
+        let errorSummary = DiagnosticsLogFormatter.errorSummary(for: entry)
+        let isOffline = DiagnosticsLogFormatter.isOffline(entry)
+        let isNetworkIssue = DiagnosticsLogFormatter.isNetworkIssue(entry)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 levelBadge(for: entry.level)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.message)
                         .font(.subheadline)
                         .foregroundStyle(.primary)
-                        .lineLimit(3)
+                        .lineLimit(4)
                     Text(entry.category)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
+                Spacer(minLength: 12)
                 Text(timeFormatter.string(from: entry.timestamp))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            if metadataHighlights(for: entry).isEmpty == false {
+            networkBadge(isOffline: isOffline, isNetworkIssue: isNetworkIssue)
+
+            if let errorSummary {
+                Text(errorSummary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier("diagnostics_error_summary_\(entry.id.uuidString)")
+            }
+
+            if metadata.isEmpty == false {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(metadataHighlights(for: entry), id: \.self) { item in
-                            Text(item)
-                                .font(.caption)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(Color.secondary.opacity(0.12))
-                                )
+                        ForEach(metadata, id: \.self) { item in
+                            metadataBadge(item)
                         }
                     }
+                    .padding(.horizontal, 2)
                 }
             }
         }
+        .padding(.vertical, 2)
+        .contextMenu { copyButton(for: entry) }
+        #if os(iOS)
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                copyButton(for: entry)
+            }
+        #endif
         .accessibilityIdentifier("diagnostics_log_row_\(entry.id.uuidString)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            String(
-                format: L10n.tr("%@, %@: %@"),
-                locale: Locale.current,
-                timeFormatter.string(from: entry.timestamp),
-                levelLabel(entry.level),
-                entry.message
+        .accessibilityLabel(accessibilityLabel(for: entry))
+        .overlay(alignment: .topLeading) {
+            if isOffline {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("diagnostics_offline_badge")
+            } else if isNetworkIssue {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityIdentifier("diagnostics_network_badge")
+            }
+        }
+    }
+
+    private func copyButton(for entry: DiagnosticsLogEntry) -> some View {
+        Button {
+            store.send(.copyEntry(entry))
+        } label: {
+            Label(L10n.tr("diagnostics.copy"), systemImage: "doc.on.doc")
+        }
+        .tint(.accentColor)
+        .accessibilityIdentifier("diagnostics_copy_\(entry.id.uuidString)")
+    }
+
+    @ViewBuilder
+    private func networkBadge(isOffline: Bool, isNetworkIssue: Bool) -> some View {
+        if isOffline || isNetworkIssue {
+
+            let title =
+                isOffline
+                ? L10n.tr("diagnostics.offline.badge")
+                : L10n.tr("diagnostics.network.badge")
+
+            let imageName = isOffline ? "wifi.slash" : "exclamationmark.triangle.fill"
+            let color: Color = isOffline ? .red : .orange
+
+            Label(title, systemImage: imageName)
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(color.opacity(0.12))
+                .foregroundStyle(color)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(
+                    isOffline ? "diagnostics_offline_badge" : "diagnostics_network_badge"
+                )
+                .overlay(
+                    Text(title)
+                        .font(.caption)
+                        .foregroundStyle(.clear)
+                        .accessibilityHidden(false)
+                        .accessibilityIdentifier(
+                            isOffline
+                                ? "diagnostics_offline_badge_marker"
+                                : "diagnostics_network_badge_marker"
+                        )
+                )
+        }
+    }
+
+    private func metadataBadge(_ text: String) -> some View {
+        Text(text)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.12))
             )
+            .accessibilityLabel(text)
+            .accessibilityIdentifier("diagnostics_metadata_\(text)")
+    }
+
+    private func accessibilityLabel(for entry: DiagnosticsLogEntry) -> String {
+        var label = String(
+            format: L10n.tr("%@, %@: %@"),
+            locale: Locale.current,
+            timeFormatter.string(from: entry.timestamp),
+            levelLabel(entry.level),
+            entry.message
         )
+        if DiagnosticsLogFormatter.isOffline(entry) {
+            label.append(", \(L10n.tr("diagnostics.offline.badge"))")
+        }
+        return label
+    }
+
+    private var exportText: String? {
+        let entries = store.entries.elements
+        guard entries.isEmpty == false else { return nil }
+        return DiagnosticsLogFormatter.copyText(for: entries)
     }
 
     private func levelBadge(for level: AppLogLevel) -> some View {
@@ -172,30 +308,6 @@ struct DiagnosticsView: View {
         }
     }
 
-    private func metadataHighlights(for entry: DiagnosticsLogEntry) -> [String] {
-        var highlights: [String] = []
-
-        if let method = entry.metadata["method"] {
-            highlights.append(method)
-        }
-        if let status = entry.metadata["status"] {
-            highlights.append("status \(status)")
-        }
-        if let host = entry.metadata["host"] {
-            highlights.append(host)
-        }
-        if let path = entry.metadata["path"] {
-            highlights.append(path)
-        }
-        if let server = entry.metadata["server"] {
-            highlights.append("server \(server)")
-        }
-        if let elapsed = entry.metadata["elapsed_ms"] {
-            highlights.append("\(elapsed) ms")
-        }
-        return highlights
-    }
-
     private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.dateStyle = .none
@@ -220,7 +332,10 @@ struct DiagnosticsView: View {
                                 "status": "409",
                                 "elapsed_ms": "124",
                                 "server": "local",
-                                "host": "nas.local"
+                                "host": "nas.local",
+                                "error": "URLError.notConnectedToInternet(-1009)",
+                                "retry_attempt": "1",
+                                "max_retries": "3"
                             ]
                         ),
                         DiagnosticsLogEntry(
@@ -236,7 +351,8 @@ struct DiagnosticsView: View {
                         )
                     ]
                 ),
-                selectedLevel: nil
+                selectedLevel: nil,
+                maxEntries: 2
             )
         ) {
             DiagnosticsReducer()

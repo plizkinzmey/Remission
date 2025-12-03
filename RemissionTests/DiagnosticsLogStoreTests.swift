@@ -65,4 +65,10 @@ struct DiagnosticsLogStoreTests {
         let received = try #require(next?.first)
         #expect(received.message == entry.message)
     }
+
+    @Test("maxEntries доступно для UI")
+    func exposesMaxEntries() async throws {
+        let store = DiagnosticsLogStore.inMemory(maxEntries: 42)
+        #expect(store.maxEntries == 42)
+    }
 }

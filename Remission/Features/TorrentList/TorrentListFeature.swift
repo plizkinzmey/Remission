@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import ComposableArchitecture
 import Dependencies
 import Foundation
@@ -448,6 +449,7 @@ struct TorrentListReducer {
         .cancellable(id: CancelID.cache, cancelInFlight: true)
     }
 
+    // swiftlint:disable cyclomatic_complexity function_body_length
     /// Выполняет запрос списка торрентов с учётом выбранного триггера (initial/manual/polling).
     private func fetchTorrents(
         state: inout State,
@@ -477,23 +479,23 @@ struct TorrentListReducer {
         guard let environment = state.connectionEnvironment else {
             state.isRefreshing = false
             guard let serverID = state.serverID else { return .none }
+
             return .run { send in
                 let client = serverSnapshotCache.client(serverID)
-                if let snapshot = try await client.load(),
-                    let cached = snapshot.torrents
-                {
-                    await send(
-                        .torrentsResponse(
-                            .success(
-                                State.FetchSuccess(
-                                    torrents: cached.value,
-                                    isFromCache: true,
-                                    snapshotDate: cached.updatedAt
-                                )
+                guard let snapshot = try await client.load() else { return }
+                guard let cached = snapshot.torrents else { return }
+
+                await send(
+                    .torrentsResponse(
+                        .success(
+                            State.FetchSuccess(
+                                torrents: cached.value,
+                                isFromCache: true,
+                                snapshotDate: cached.updatedAt
                             )
                         )
                     )
-                }
+                )
                 await send(
                     .torrentsResponse(.failure(TorrentListOfflineError.connectionUnavailable)))
             }
@@ -542,6 +544,7 @@ struct TorrentListReducer {
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
     }
+    // swiftlint:enable cyclomatic_complexity function_body_length
 
     private func restartPolling(state: inout State) -> Effect<Action> {
         .merge(
@@ -714,3 +717,5 @@ struct TorrentListReducer {
 }
 
 // swiftlint:enable nesting type_body_length
+
+// swiftlint:enable file_length

@@ -223,6 +223,49 @@ enum AppDependencies {
                     snapshot: ServerSnapshotCache.inMemory().client(targetServer.id)
                 )
             }
+        case .diagnosticsSample:
+            let now = Date()
+            let entries: [DiagnosticsLogEntry] = [
+                DiagnosticsLogEntry(
+                    timestamp: now.addingTimeInterval(-120),
+                    level: .info,
+                    message: "Проверка состояния соединения",
+                    category: "probe",
+                    metadata: [
+                        "status": "200",
+                        "elapsed_ms": "45",
+                        "server": "local"
+                    ]
+                ),
+                DiagnosticsLogEntry(
+                    timestamp: now.addingTimeInterval(-60),
+                    level: .warning,
+                    message: "Повторная попытка запроса",
+                    category: "rpc",
+                    metadata: [
+                        "method": "session-get",
+                        "status": "503",
+                        "elapsed_ms": "230",
+                        "host": "nas.local"
+                    ]
+                ),
+                DiagnosticsLogEntry(
+                    timestamp: now,
+                    level: .error,
+                    message: "Не удалось связаться с сервером",
+                    category: "transmission",
+                    metadata: [
+                        "method": "torrent-get",
+                        "error": "URLError.notConnectedToInternet(-1009)",
+                        "host": "nas.local",
+                        "retry_attempt": "1",
+                        "max_retries": "3"
+                    ]
+                )
+            ]
+            let logStore = DiagnosticsLogStore.inMemory(initialEntries: entries, maxEntries: 3)
+            dependencies.diagnosticsLogStore = logStore
+            dependencies.appLogger = .noop
         case .none:
             break
         }

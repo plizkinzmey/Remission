@@ -4,7 +4,7 @@ import Testing
 
 @testable import Remission
 
-@Suite("TransmissionClient Error Handling")
+@Suite("TransmissionClient Error Handling", .serialized)
 @MainActor
 // swiftlint:disable:next type_body_length
 struct TransmissionClientErrorHandlingTests {
