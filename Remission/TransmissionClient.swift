@@ -144,7 +144,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = config.requestTimeout
+
+        // Устанавливаем httpBody; httpBodyStream не используем, чтобы избежать опустошения stream в URLProtocol.
         urlRequest.httpBody = jsonData
+
         await applyAuthenticationHeaders(to: &urlRequest)
 
         // Логируем запрос если логирование включено
@@ -157,7 +160,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         // Отправляем запрос с retry логикой
-        return try await sendRequestWithRetry(urlRequest, method: method)
+        return try await sendRequestWithRetry(urlRequest, method: method, bodyData: jsonData)
     }
 
     /// Отправить запрос с поддержкой HTTP 409 handshake и повторов.
@@ -170,7 +173,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// - Throws: APIError при ошибках.
     private func sendRequestWithRetry(
         _ urlRequest: URLRequest,
-        method: String
+        method: String,
+        bodyData: Data
     ) async throws -> TransmissionResponse {
         var mutableRequest: URLRequest = urlRequest
         var remainingRetries: Int = max(config.maxRetries, 0)
@@ -178,6 +182,11 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         var handshakeAttempts: Int = 0
 
         while true {
+            // Восстанавливаем тело запроса на каждой попытке, чтобы повторные отправки
+            // (после 409 или ретраев) не уходили с опустошённым stream.
+            mutableRequest.httpBody = bodyData
+            mutableRequest.httpBodyStream = InputStream(data: bodyData)
+
             let attemptStartedAt = Date()
             do {
                 let (data, response): (Data, URLResponse) = try await session.data(

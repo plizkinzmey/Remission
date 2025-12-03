@@ -17,7 +17,7 @@ import Testing
 // swiftlint:disable explicit_type_interface static_over_final_class
 // Тесты для проверки версии Transmission через реальную реализацию TransmissionClient.
 // Используем URLProtocol мок для подмены сетевого транспорта.
-@Suite("TransmissionClient Version Check Tests")
+@Suite("TransmissionClient Version Check Tests", .serialized)
 @MainActor
 struct TransmissionClientVersionCheckTests {
 

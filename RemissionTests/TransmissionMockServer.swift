@@ -11,7 +11,7 @@ import Testing
 
 // MARK: - Errors
 
-enum TransmissionMockError: Error, LocalizedError, Sendable {
+enum TransmissionMockError: Error, LocalizedError, CustomNSError, Sendable {
     case serverNotRegistered
     case unexpectedRequest(description: String)
     case decodingFailed(String)
@@ -29,6 +29,24 @@ enum TransmissionMockError: Error, LocalizedError, Sendable {
         case .assertionFailed(let description):
             return "TransmissionMockServer assertion не выполнен: \(description)"
         }
+    }
+
+    static var errorDomain: String { "RemissionTests.TransmissionMockError" }
+
+    var errorCode: Int {
+        switch self {
+        case .serverNotRegistered: return 0
+        case .unexpectedRequest: return 1
+        case .decodingFailed: return 2
+        case .assertionFailed: return 3
+        }
+    }
+
+    var errorUserInfo: [String: Any] {
+        if let description = errorDescription {
+            return [NSLocalizedDescriptionKey: description]
+        }
+        return [:]
     }
 }
 
@@ -200,7 +218,7 @@ private struct TransmissionMockPendingStep {
 /// Мок-сервер может использоваться параллельно несколькими потоками тестов.
 /// Состояние защищено `NSLock`, поэтому @unchecked применяется осознанно.
 public final class TransmissionMockServer: @unchecked Sendable {
-    nonisolated(unsafe) static weak var activeServer: TransmissionMockServer?
+    nonisolated(unsafe) static var activeServer: TransmissionMockServer?
     static let activeServerLock: NSLock = NSLock()
 
     private let lock: NSLock = NSLock()
@@ -227,6 +245,14 @@ public final class TransmissionMockServer: @unchecked Sendable {
         lock.lock()
         pendingSteps.removeAll()
         lock.unlock()
+    }
+
+    public func deactivate() {
+        TransmissionMockServer.activeServerLock.lock()
+        if TransmissionMockServer.activeServer === self {
+            TransmissionMockServer.activeServer = nil
+        }
+        TransmissionMockServer.activeServerLock.unlock()
     }
 
     public func makeEphemeralSessionConfiguration() -> URLSessionConfiguration {
@@ -327,6 +353,7 @@ final class TransmissionMockURLProtocol: URLProtocol {
         request
     }
 
+    // swiftlint:disable function_body_length
     override func startLoading() {
         TransmissionMockServer.activeServerLock.lock()
         let server: TransmissionMockServer? = TransmissionMockServer.activeServer
@@ -337,10 +364,31 @@ final class TransmissionMockURLProtocol: URLProtocol {
             return
         }
 
-        guard let body: Data = request.httpBody ?? requestBody(from: request.httpBodyStream) else {
+        // Извлекаем тело запроса из httpBodyStream (приоритет) или httpBody
+        var body: Data?
+
+        // 1. Пробуем stream (основной путь, установлен TransmissionClient)
+        if let stream = request.httpBodyStream {
+            body = requestBody(from: stream)
+        }
+
+        // 2. Fallback на request.httpBody
+        if body == nil || body?.isEmpty == true, let httpBody = request.httpBody,
+            !httpBody.isEmpty
+        {
+            body = httpBody
+        }
+
+        guard let requestBody = body, !requestBody.isEmpty else {
+            let errorMessage = """
+                Пустое тело запроса. 
+                httpBody: \(request.httpBody?.count ?? 0) bytes
+                httpBodyStream: \(request.httpBodyStream != nil)
+                URL: \(request.url?.absoluteString ?? "nil")
+                """
             client?.urlProtocol(
                 self,
-                didFailWithError: TransmissionMockError.decodingFailed("Пустое тело запроса")
+                didFailWithError: TransmissionMockError.decodingFailed(errorMessage)
             )
             return
         }
@@ -350,13 +398,18 @@ final class TransmissionMockURLProtocol: URLProtocol {
                 try server
                 .consumeStep(
                     for: request,
-                    requestBody: body
+                    requestBody: requestBody
                 )
+
+            print(
+                "🔍 MockServer: method=\(transmissionRequest.method), assertions=\(pending.step.assertions.count)"
+            )
 
             for assertion in pending.step.assertions {
                 do {
                     try assertion.evaluate(transmissionRequest, request)
                 } catch {
+                    print("❌ Assertion failed: \(assertion.description) - \(error)")
                     throw TransmissionMockError.assertionFailed(
                         "\(assertion.description): \(error.localizedDescription)"
                     )
@@ -367,9 +420,11 @@ final class TransmissionMockURLProtocol: URLProtocol {
                 plan: pending.step.response, pending: pending, request: transmissionRequest,
                 server: server)
         } catch {
+            print("❌ MockServer error: \(error)")
             client?.urlProtocol(self, didFailWithError: error)
         }
     }
+    // swiftlint:enable function_body_length
 
     override func stopLoading() {}
 

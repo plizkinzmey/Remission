@@ -16,6 +16,7 @@ import Foundation
             }
         var append: @Sendable (DiagnosticsLogEntry) async -> Void = { _ in }
         var clear: @Sendable () async throws -> Void = {}
+        var maxEntries: Int = 500
     }
 
     extension DiagnosticsLogStore {
@@ -34,7 +35,8 @@ import Foundation
                 },
                 clear: {
                     await buffer.clear()
-                }
+                },
+                maxEntries: maxEntries
             )
         }
 
@@ -56,7 +58,8 @@ import Foundation
                 },
                 clear: {
                     await buffer.clear()
-                }
+                },
+                maxEntries: maxEntries
             )
         }
 

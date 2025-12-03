@@ -4,7 +4,7 @@ import Testing
 
 @testable import Remission
 
-@Suite("TransmissionClient Torrent Methods")
+@Suite("TransmissionClient Torrent Methods", .serialized)
 @MainActor
 // swiftlint:disable:next type_body_length
 struct TransmissionClientMethodsTests {
