@@ -13,6 +13,7 @@ struct ServerListReducer {
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
         var pendingDeletion: ServerConfig?
+        var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
 
     enum Action: Equatable {
@@ -25,6 +26,8 @@ struct ServerListReducer {
         case alert(PresentationAction<Alert>)
         case onboarding(PresentationAction<OnboardingReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
+        case connectionProbeRequested(UUID)
+        case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
         case delegate(Delegate)
     }
 
@@ -124,6 +127,7 @@ struct ServerListReducer {
                 state.onboarding = nil
                 return .merge(
                     .send(.delegate(.serverCreated(server))),
+                    .send(.connectionProbeRequested(server.id)),
                     .run { send in
                         await send(
                             .serverRepositoryResponse(
@@ -145,6 +149,12 @@ struct ServerListReducer {
             case .serverRepositoryResponse(.success(let servers)):
                 state.isLoading = false
                 state.servers = IdentifiedArrayOf(uniqueElements: servers)
+                let identifiers = Set(servers.map(\.id))
+                state.connectionStatuses = Dictionary(
+                    uniqueKeysWithValues: state.connectionStatuses.filter {
+                        identifiers.contains($0.key)
+                    }
+                )
                 if servers.isEmpty {
                     let shouldShowOnboarding =
                         state.hasPresentedInitialOnboarding == false
@@ -154,7 +164,11 @@ struct ServerListReducer {
                         state.hasPresentedInitialOnboarding = true
                     }
                 }
-                return .none
+                return .run { [servers] send in
+                    for server in servers {
+                        await send(.connectionProbeRequested(server.id))
+                    }
+                }
 
             case .serverRepositoryResponse(.failure(let error)):
                 state.isLoading = false
@@ -167,6 +181,51 @@ struct ServerListReducer {
                 } message: {
                     TextState(error.localizedDescription)
                 }
+                return .none
+
+            case .connectionProbeRequested(let id):
+                guard let server = state.servers[id: id] else { return .none }
+                if state.connectionStatuses[id]?.isProbing == true {
+                    return .none
+                }
+                state.connectionStatuses[id] = .init(phase: .probing)
+                return .run { [server] send in
+                    do {
+                        let password: String?
+                        if let credentialsKey = server.credentialsKey {
+                            guard
+                                let credentials = try await credentialsRepository.load(
+                                    key: credentialsKey
+                                )
+                            else {
+                                throw ServerConnectionEnvironmentFactoryError.missingCredentials
+                            }
+                            password = credentials.password
+                        } else {
+                            password = nil
+                        }
+                        let result = try await serverConnectionProbe.run(
+                            .init(server: server, password: password),
+                            nil
+                        )
+                        await send(.connectionProbeResponse(server.id, .success(result)))
+                    } catch {
+                        await send(
+                            .connectionProbeResponse(
+                                server.id,
+                                .failure(error)
+                            )
+                        )
+                    }
+                }
+                .cancellable(id: ConnectionCancellationID.connectionProbe(id), cancelInFlight: true)
+
+            case .connectionProbeResponse(let id, .success(let result)):
+                state.connectionStatuses[id] = .init(phase: .connected(result.handshake))
+                return .none
+
+            case .connectionProbeResponse(let id, .failure(let error)):
+                state.connectionStatuses[id] = .init(phase: .failed(describe(error)))
                 return .none
 
             case .delegate:
@@ -221,6 +280,13 @@ struct ServerListReducer {
         }
     }
 
+    private func describe(_ error: Error) -> String {
+        if let probeError = error as? ServerConnectionProbe.ProbeError {
+            return probeError.displayMessage
+        }
+        return (error as NSError).localizedDescription
+    }
+
     private func makeDeleteConfirmation(for server: ServerConfig) -> ConfirmationDialogState<
         DeleteConfirmationAction
     > {
@@ -242,4 +308,26 @@ struct ServerListReducer {
             TextState(L10n.tr("serverList.alert.delete.message"))
         }
     }
+}
+
+extension ServerListReducer {
+    struct ConnectionStatus: Equatable {
+        enum Phase: Equatable {
+            case idle
+            case probing
+            case connected(TransmissionHandshakeResult)
+            case failed(String)
+        }
+
+        var phase: Phase = .idle
+
+        var isProbing: Bool {
+            if case .probing = phase { return true }
+            return false
+        }
+    }
+}
+
+private enum ConnectionCancellationID: Hashable {
+    case connectionProbe(UUID)
 }

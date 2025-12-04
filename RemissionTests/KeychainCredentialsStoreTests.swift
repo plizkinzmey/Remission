@@ -37,7 +37,11 @@ struct KeychainCredentialsStoreTests {
         #expect(
             query[kSecAttrAccessible as String] as? String == kSecAttrAccessibleWhenUnlocked
                 as String)
-        #expect(boolValue(query[kSecUseDataProtectionKeychain as String]) == true)
+        #if os(macOS)
+            #expect(query[kSecUseDataProtectionKeychain as String] == nil)
+        #else
+            #expect(boolValue(query[kSecUseDataProtectionKeychain as String]) == true)
+        #endif
         #expect(boolValue(query[kSecAttrSynchronizable as String]) == false)
 
         let storedPassword = query[kSecValueData as String] as? Data

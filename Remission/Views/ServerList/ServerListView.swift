@@ -51,8 +51,10 @@ struct ServerListView: View {
                 LazyVStack(spacing: 12) {
                     ForEach(store.servers) { server in
                         serverRow(server)
+                            .task {
+                                await store.send(.connectionProbeRequested(server.id)).finish()
+                            }
                             .accessibilityLabel(server.name)
-                            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
                             .contextMenu {
                                 Button(L10n.tr("serverList.action.edit")) {
                                     store.send(.editButtonTapped(server.id))
@@ -71,8 +73,10 @@ struct ServerListView: View {
                     serverRow(server)
                         .listRowBackground(Color.clear)
                         .listRowInsets(.init(top: 8, leading: 0, bottom: 12, trailing: 0))
+                        .task {
+                            await store.send(.connectionProbeRequested(server.id)).finish()
+                        }
                         .accessibilityLabel(server.name)
-                        .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
                         .swipeActions(edge: .trailing) {
                             Button(L10n.tr("serverList.action.delete"), role: .destructive) {
                                 store.send(.deleteButtonTapped(server.id))
@@ -91,33 +95,54 @@ struct ServerListView: View {
     private func serverRow(_ server: ServerConfig) -> some View {
         ZStack {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.controlBackgroundColor).opacity(0.18))
+                .fill(cardBackgroundColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .stroke(Color.white.opacity(0.05))
                 )
                 .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 8)
 
-            HStack(spacing: 16) {
-                Button {
-                    store.send(.serverTapped(server.id))
-                } label: {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(server.name)
-                            .font(.headline)
-                        Text(server.displayAddress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 16) {
+                    Button {
+                        store.send(.serverTapped(server.id))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(server.name)
+                                .font(.headline)
+                            Text(server.displayAddress)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+                    .contentShape(Rectangle())
 
-                securityBadge(for: server)
+                    HStack(spacing: 10) {
+                        connectionStatusChip(for: server)
+                        securityBadge(for: server)
+                        deleteButton(for: server)
+                    }
+                }
+
+                versionSummary(for: server)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .padding(16)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
         }
+    }
+
+    private var cardBackgroundColor: Color {
+        #if os(macOS)
+            Color(nsColor: .controlBackgroundColor).opacity(0.18)
+        #else
+            Color(.secondarySystemGroupedBackground)
+        #endif
     }
 
     private var emptyState: some View {
@@ -155,7 +180,7 @@ struct ServerListView: View {
     }
 
     private func securityBadge(for server: ServerConfig) -> some View {
-        HStack(spacing: 8) {
+        Group {
             if server.isSecure {
                 badgeLabel(
                     text: L10n.tr("serverList.badge.https"),
@@ -189,17 +214,79 @@ struct ServerListView: View {
                     securityInfoPopover(for: server)
                 }
             }
+        }
+    }
 
-            Button {
-                store.send(.deleteButtonTapped(server.id))
-            } label: {
-                Image(systemName: "trash")
-                    .imageScale(.small)
+    private func deleteButton(for server: ServerConfig) -> some View {
+        Button {
+            store.send(.deleteButtonTapped(server.id))
+        } label: {
+            Image(systemName: "trash")
+                .imageScale(.medium)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(
+                    Capsule()
+                        .fill(Color.primary.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func connectionStatusChip(for server: ServerConfig) -> some View {
+        let status = store.connectionStatuses[server.id] ?? .init()
+        let (label, systemImage, tint): (String, String, Color) = {
+            switch status.phase {
+            case .idle, .probing:
+                return (L10n.tr("serverDetail.status.connecting"), "arrow.clockwise", .secondary)
+            case .connected:
+                return (L10n.tr("serverDetail.status.connected"), "checkmark.circle.fill", .green)
+            case .failed:
+                return (L10n.tr("serverDetail.status.error"), "exclamationmark.triangle.fill", .red)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
-            .contentShape(Rectangle())
+        }()
+
+        Label(label, systemImage: systemImage)
+            .font(.footnote)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(tint.opacity(0.15)))
+            .foregroundStyle(tint)
+    }
+
+    @ViewBuilder
+    private func versionSummary(for server: ServerConfig) -> some View {
+        let status = store.connectionStatuses[server.id] ?? .init()
+        switch status.phase {
+        case .connected(let handshake):
+            let description = handshake.serverVersionDescription ?? ""
+            let rpcText = String(
+                format: L10n.tr("serverDetail.status.rpcVersion"),
+                Int64(handshake.rpcVersion)
+            )
+            if description.isEmpty {
+                Text(rpcText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                HStack(spacing: 6) {
+                    Text(description)
+                    Text(rpcText)
+                }
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            }
+        case .failed(let message):
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        default:
+            EmptyView()
         }
     }
 

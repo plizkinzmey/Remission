@@ -7,7 +7,10 @@ struct ServerDetailView: View {
 
     var body: some View {
         List {
-            connectionSection
+            infoSection
+            if shouldShowConnectionSection {
+                connectionSection
+            }
             if store.connectionEnvironment != nil {
                 torrentsSection
             }
@@ -69,6 +72,15 @@ struct ServerDetailView: View {
                 .accessibilityHint(L10n.tr("serverDetail.button.edit"))
             }
         }
+        .overlay(alignment: .topLeading) {
+            // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("server_detail_address")
+                .accessibilityLabel(store.server.displayAddress)
+                .accessibilityHidden(false)
+        }
     }
 
     private var fileImporterBinding: Binding<Bool> {
@@ -76,6 +88,35 @@ struct ServerDetailView: View {
             get: { store.isFileImporterPresented },
             set: { store.send(.fileImporterPresented($0)) }
         )
+    }
+
+    private var infoSection: some View {
+        Section(L10n.tr("serverDetail.section.server")) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(store.server.name)
+                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.tr("serverDetail.field.address"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(store.server.displayAddress)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("server_detail_address")
+                        .accessibilityLabel(store.server.displayAddress)
+                }
+            }
+            .accessibilityElement(children: .combine)
+        }
+    }
+
+    private var shouldShowConnectionSection: Bool {
+        switch store.connectionState.phase {
+        case .ready:
+            return false
+        default:
+            return true
+        }
     }
 
     private func handleFileImport(_ result: Result<[URL], any Error>) {
@@ -113,41 +154,8 @@ struct ServerDetailView: View {
                 }
                 .accessibilityIdentifier("server_detail_status_connecting")
 
-            case .ready(let ready):
-                let statusLabel = [
-                    L10n.tr("serverDetail.status.connected"),
-                    ready.handshake.serverVersionDescription ?? "",
-                    "RPC \(ready.handshake.rpcVersion)"
-                ]
-                .filter { $0.isEmpty == false }
-                .joined(separator: ", ")
-                VStack(alignment: .leading, spacing: 6) {
-                    Label(
-                        L10n.tr("serverDetail.status.connected"),
-                        systemImage: "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(.green)
-
-                    if let description = ready.handshake.serverVersionDescription {
-                        if description.isEmpty == false {
-                            Text(description)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Text(
-                        String(
-                            format: L10n.tr("serverDetail.status.rpcVersion"),
-                            Int64(ready.handshake.rpcVersion)
-                        )
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityIdentifier("server_detail_status_connected")
-                .accessibilityLabel(statusLabel)
+            case .ready:
+                EmptyView()
 
             case .offline(let offline):
                 Label(

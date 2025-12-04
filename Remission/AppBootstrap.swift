@@ -52,7 +52,8 @@ enum AppBootstrap {
         preloadPersistedServersIfNeeded(
             &state,
             existingState: existingState,
-            storageFileURL: storageFileURL
+            storageFileURL: storageFileURL,
+            environment: environment
         )
         if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
             applyFixture(fixture, to: &state)
@@ -112,9 +113,15 @@ enum AppBootstrap {
     private static func preloadPersistedServersIfNeeded(
         _ state: inout AppReducer.State,
         existingState: AppReducer.State?,
-        storageFileURL: URL
+        storageFileURL: URL,
+        environment: [String: String]
     ) {
         guard existingState == nil else { return }
+        if environment["XCTestConfigurationFilePath"] != nil,
+            storageFileURL == ServerConfigStoragePaths.defaultURL()
+        {
+            return
+        }
         let records = ServerConfigStoragePaths.loadSnapshot(fileURL: storageFileURL)
         guard records.isEmpty == false else { return }
 
@@ -136,6 +143,15 @@ enum AppBootstrap {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: serverListSampleServers())
             state.serverList.shouldLoadServersFromRepository = false
+            #if os(macOS)
+                if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil,
+                    state.serverList.servers.isEmpty == false,
+                    state.path.isEmpty
+                {
+                    state.path.append(
+                        ServerDetailReducer.State(server: state.serverList.servers[0]))
+                }
+            #endif
         case .torrentListSample:
             state.serverList.servers = IdentifiedArrayOf(
                 uniqueElements: [torrentListSampleServer()]

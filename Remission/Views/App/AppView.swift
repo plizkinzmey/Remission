@@ -66,7 +66,7 @@ struct AppView: View {
     }
 
     private var shouldShowSettingsToolbarButton: Bool {
-        store.serverList.servers.isEmpty == false
+        true
     }
 }
 

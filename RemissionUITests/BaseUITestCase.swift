@@ -25,26 +25,30 @@ class BaseUITestCase: XCTestCase {
         #if os(macOS)
             app.activate()
             _ = app.wait(for: .runningForeground, timeout: 5)
-            if app.windows.allElementsBoundByIndex.isEmpty {
-                let fileMenu = app.menuBars.menuBarItems["File"]
-                if fileMenu.waitForExistence(timeout: 2) {
-                    fileMenu.click()
-                    let newWindowItem = fileMenu.menus.menuItems["New Window"]
-                    if newWindowItem.waitForExistence(timeout: 1) {
-                        newWindowItem.click()
-                    } else {
-                        app.typeKey("n", modifierFlags: .command)
-                    }
-                } else {
-                    app.typeKey("n", modifierFlags: .command)
-                }
-            }
+            normalizeWindows(app)
         #endif
 
         if dismissOnboarding {
             dismissOnboardingIfNeeded(app)
         }
         return app
+    }
+
+    @MainActor
+    private func normalizeWindows(_ app: XCUIApplication) {
+        if app.windows.allElementsBoundByIndex.isEmpty {
+            app.typeKey("n", modifierFlags: .command)
+        }
+
+        let primaryWindow = app.windows.firstMatch
+        if primaryWindow.waitForExistence(timeout: 2) {
+            if primaryWindow.isHittable {
+                primaryWindow.click()
+            } else {
+                // Если окно не кликается, попробуем активировать приложение.
+                app.activate()
+            }
+        }
     }
 
     @MainActor
@@ -61,7 +65,8 @@ class BaseUITestCase: XCTestCase {
 
     @MainActor
     func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
-        let settingsButton = app.buttons["app_settings_button"].firstMatch
+        let window = app.windows.firstMatch
+        let settingsButton = window.buttons["app_settings_button"].firstMatch
         #if os(macOS)
             let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
             if settingsButton.exists == false && toolbarFallback.exists {
@@ -156,8 +161,17 @@ class BaseUITestCase: XCTestCase {
         let uploadField = app.textFields["settings_upload_limit_field"]
         assertExists(uploadField, in: app, message: "Upload limit field missing")
 
-        let closeButton = app.buttons["settings_close_button"]
-        XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
+        let resolvedClose: XCUIElement
+        #if os(macOS)
+            let closeButton = window.sheets.firstMatch.buttons["settings_close_button"]
+                .firstMatch
+            XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
+            resolvedClose = closeButton
+        #else
+            let closeButton = app.buttons["settings_close_button"].firstMatch
+            XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
+            resolvedClose = closeButton
+        #endif
 
         return SettingsControls(
             autoRefreshToggle: autoRefreshToggle,
@@ -167,7 +181,7 @@ class BaseUITestCase: XCTestCase {
             pollingValue: pollingValue,
             downloadField: downloadField,
             uploadField: uploadField,
-            closeButton: closeButton
+            closeButton: resolvedClose
         )
     }
 

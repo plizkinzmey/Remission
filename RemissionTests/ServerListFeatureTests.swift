@@ -174,6 +174,94 @@ struct ServerListFeatureTests {
         await store.send(.editButtonTapped(server.id))
         await store.receive(.delegate(.serverEditRequested(server)))
     }
+
+    @Test
+    func connectionProbeSuccessUpdatesStatus() async {
+        let server = ServerConfig.previewLocalHTTP
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "session",
+            rpcVersion: 17,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0.6",
+            isCompatible: true
+        )
+        let probeCalls = LockedValue<[UUID]>([])
+
+        let store = TestStoreFactory.makeServerListTestStore(
+            initialState: {
+                var state: ServerListReducer.State = .init()
+                state.servers = [server]
+                return state
+            }(),
+            configure: { dependencies in
+                dependencies.serverConfigRepository = .inMemory(initial: [server])
+                dependencies.onboardingProgressRepository = OnboardingProgressRepository(
+                    hasCompletedOnboarding: { true },
+                    setCompletedOnboarding: { _ in }
+                )
+                dependencies.serverConnectionProbe = ServerConnectionProbe { request, _ in
+                    probeCalls.withValue { $0.append(request.server.id) }
+                    return .init(handshake: handshake)
+                }
+            })
+
+        await store.send(.serverRepositoryResponse(.success([server]))) {
+            $0.servers = [server]
+            $0.connectionStatuses = [:]
+        }
+
+        await store.receive(.connectionProbeRequested(server.id)) {
+            $0.connectionStatuses[server.id] = .init(phase: .probing)
+        }
+
+        await store.receive(
+            .connectionProbeResponse(server.id, .success(.init(handshake: handshake)))
+        ) {
+            $0.connectionStatuses[server.id] = .init(phase: .connected(handshake))
+        }
+
+        #expect(probeCalls.value == [server.id])
+    }
+
+    @Test
+    func connectionProbeMissingCredentialsFails() async {
+        let server: ServerConfig = {
+            var value = ServerConfig.previewSecureSeedbox
+            value.id = UUID()
+            return value
+        }()
+
+        let store = TestStoreFactory.makeServerListTestStore(
+            initialState: {
+                var state: ServerListReducer.State = .init()
+                state.servers = [server]
+                return state
+            }(),
+            configure: { dependencies in
+                dependencies.serverConfigRepository = .inMemory(initial: [server])
+                dependencies.credentialsRepository = .previewMock(load: { _ in nil })
+                dependencies.onboardingProgressRepository = OnboardingProgressRepository(
+                    hasCompletedOnboarding: { true },
+                    setCompletedOnboarding: { _ in }
+                )
+                dependencies.serverConnectionProbe = .placeholder
+            })
+
+        await store.send(.connectionProbeRequested(server.id)) {
+            $0.connectionStatuses[server.id] = .init(phase: .probing)
+        }
+
+        await store.receive(
+            .connectionProbeResponse(
+                server.id,
+                .failure(ServerConnectionEnvironmentFactoryError.missingCredentials)
+            )
+        ) {
+            $0.connectionStatuses[server.id] = .init(
+                phase: .failed("Не удалось найти пароль для выбранного сервера.")
+            )
+        }
+    }
 }
 
 private final class LockedValue<Value>: @unchecked Sendable {

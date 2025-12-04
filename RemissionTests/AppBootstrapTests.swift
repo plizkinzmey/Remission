@@ -8,7 +8,9 @@ import Testing
 struct AppBootstrapTests {
     @Test
     func defaultArgumentsProduceEmptyServerList() {
-        let state = AppBootstrap.makeInitialState(arguments: [])
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("app-bootstrap-empty-\(UUID().uuidString)")
+        let state = AppBootstrap.makeInitialState(arguments: [], storageFileURL: temp)
         #expect(state.serverList.servers.isEmpty)
         #expect(state.path.isEmpty)
         #expect(state.version == .latest)
