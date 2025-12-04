@@ -9,17 +9,42 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                autoRefreshSection
-                // Telemetry is hidden in production for now — keep it visible for
-                // UI tests only so automation and existing tests continue to run.
-                if isUITesting {
-                    telemetrySection
+            ZStack(alignment: .center) {
+                Form {
+                    autoRefreshSection
+                    // Telemetry is hidden in production for now — keep it visible for
+                    // UI tests only so automation and existing tests continue to run.
+                    if isUITesting {
+                        telemetrySection
+                    }
+                    pollingSection
+                    speedLimitsSection
+                    diagnosticsSection
+                    // Loading is presented as an overlay to avoid reflow/jumping of the Form
+                    // when network or async work briefly toggles `isLoading`.
+                    // The overlay does not affect layout size.
+
+                    // end Form
                 }
-                pollingSection
-                speedLimitsSection
-                diagnosticsSection
-                loadingSection
+
+                if store.isLoading {
+                    // Semi-transparent backdrop so user sees content behind the spinner.
+                    Color.primary.opacity(0.06)
+                        .ignoresSafeArea()
+
+                    VStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(1.05, anchor: .center)
+                        Text(L10n.tr("settings.loading"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(12)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(10)
+                    .accessibilityIdentifier("settings_loading_overlay")
+                    .transition(.opacity)
+                }
             }
             .formStyle(.grouped)
             #if os(macOS)
