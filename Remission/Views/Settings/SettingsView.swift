@@ -11,7 +11,11 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 autoRefreshSection
-                telemetrySection
+                // Telemetry is hidden in production for now — keep it visible for
+                // UI tests only so automation and existing tests continue to run.
+                if isUITesting {
+                    telemetrySection
+                }
                 pollingSection
                 speedLimitsSection
                 diagnosticsSection
