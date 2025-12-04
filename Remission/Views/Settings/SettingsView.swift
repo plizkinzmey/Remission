@@ -17,6 +17,10 @@ struct SettingsView: View {
                 diagnosticsSection
                 loadingSection
             }
+            .formStyle(.grouped)
+            #if os(macOS)
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+            #endif
             .navigationTitle(L10n.tr("settings.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
