@@ -57,8 +57,12 @@ struct SettingsReducer {
         Reduce { state, action in
             switch action {
             case .task:
-                state.isLoading = true
                 state.alert = nil
+                if state.persistedPreferences != nil {
+                    state.isLoading = false
+                    return observePreferences()
+                }
+                state.isLoading = true
                 return .merge(
                     loadPreferences(),
                     observePreferences()

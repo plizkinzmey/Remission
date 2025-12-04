@@ -92,9 +92,9 @@ class BaseUITestCase: XCTestCase {
 
         #if os(macOS)
             // Form на macOS может открываться не в начале: скроллим вверх, чтобы материализовать верхние элементы.
-            let scrollBar = app.scrollBars.element(boundBy: 0)
-            if scrollBar.waitForExistence(timeout: 2) {
-                scrollBar.adjust(toNormalizedSliderPosition: 0.0)
+            if let scrollView = app.scrollViews.allElementsBoundByIndex.first {
+                _ = scrollView.waitForExistence(timeout: 1)
+                scrollView.swipeUp()
             }
         #else
             // На iOS Form основана на UITableView/UICollectionView/UIScrollView — прокручиваем вверх, пока не появится toggle.

@@ -9,76 +9,80 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            // Render the Form only when we actually have persisted preferences available.
-            // This avoids rendering a default/placeholder UI and then reflowing when
-            // real values arrive. If the preferences are not yet loaded we keep the
-            // window minimal and only show an error message when loading fails.
-            if store.persistedPreferences == nil {
-                VStack(spacing: 12) {
-                    if store.isLoading {
-                        // While loading we do not render the full form and we avoid
-                        // showing any spinner or performing layout changes. Keep the
-                        // window visually quiet so it doesn't jump.
-                        EmptyView()
-                    } else {
-                        // Not loading and we have no persisted preferences — probably
-                        // an error occurred. Let the alert show (reducer sets it). As
-                        // a fallback show a small message and a retry action.
-                        VStack(spacing: 8) {
-                            Text(L10n.tr("settings.loading"))
-                                .font(.body)
-                                .foregroundStyle(.secondary)
-                            Button(L10n.tr("settings.retry")) {
-                                Task { await store.send(.task).finish() }
+            Group {
+                // Render the Form only when we actually have persisted preferences available.
+                // This avoids rendering a default/placeholder UI and then reflowing when
+                // real values arrive. Until then show a small loading placeholder.
+                if store.persistedPreferences == nil {
+                    VStack(spacing: 12) {
+                        if store.isLoading {
+                            ProgressView {
+                                Text(L10n.tr("settings.loading"))
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
                             }
-                            .keyboardShortcut(.defaultAction)
+                            .controlSize(.large)
+                            .padding(.vertical, 32)
+                        } else {
+                            // Not loading and we have no persisted preferences — probably
+                            // an error occurred. Let the alert show (reducer sets it). As
+                            // a fallback show a small message and a retry action.
+                            VStack(spacing: 8) {
+                                Text(L10n.tr("settings.loading"))
+                                    .font(.body)
+                                    .foregroundStyle(.secondary)
+                                Button(L10n.tr("settings.retry")) {
+                                    store.send(.task)
+                                }
+                                .keyboardShortcut(.defaultAction)
+                            }
+                            .padding(.vertical, 40)
                         }
-                        .padding(.vertical, 40)
                     }
-                }
-            } else {
-                ZStack(alignment: .center) {
-                    Form {
-                        autoRefreshSection
-                        // Telemetry is hidden in production for now — keep it visible for
-                        // UI tests only so automation and existing tests continue to run.
-                        if isUITesting {
-                            telemetrySection
+                } else {
+                    ZStack(alignment: .center) {
+                        Form {
+                            autoRefreshSection
+                            // Telemetry is hidden in production for now — keep it visible for
+                            // UI tests only so automation and existing tests continue to run.
+                            if isUITesting {
+                                telemetrySection
+                            }
+                            pollingSection
+                            speedLimitsSection
+                            diagnosticsSection
+                            // Loading is presented as an overlay to avoid reflow/jumping of the Form
+                            // when network or async work briefly toggles `isLoading`.
+                            // The overlay does not affect layout size.
+
+                            // end Form
                         }
-                        pollingSection
-                        speedLimitsSection
-                        diagnosticsSection
-                        // Loading is presented as an overlay to avoid reflow/jumping of the Form
-                        // when network or async work briefly toggles `isLoading`.
-                        // The overlay does not affect layout size.
+                        .formStyle(.grouped)
 
-                        // end Form
+                        // We no longer show an overlay spinner — the view is only rendered
+                        // after persisted settings are available which avoids jumps.
                     }
-
-                    // We no longer show an overlay spinner — the view is only rendered
-                    // after persisted settings are available which avoids jumps.
                 }
             }
-            .formStyle(.grouped)
-                #if os(macOS)
-                    .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
-                #endif
-                .navigationTitle(L10n.tr("settings.title"))
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L10n.tr("common.close")) {
-                            store.send(.delegate(.closeRequested))
-                        }
-                        .accessibilityIdentifier("settings_close_button")
+            #if os(macOS)
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+            #endif
+            .navigationTitle(L10n.tr("settings.title"))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.tr("common.close")) {
+                        store.send(.delegate(.closeRequested))
                     }
+                    .accessibilityIdentifier("settings_close_button")
                 }
-                .task { await store.send(.task).finish() }
-                .alert($store.scope(state: \.alert, action: \.alert))
-                .sheet(
-                    store: store.scope(state: \.$diagnostics, action: \.diagnostics)
-                ) { diagnosticsStore in
-                    DiagnosticsView(store: diagnosticsStore)
-                }
+            }
+            .task { await store.send(.task).finish() }
+            .alert($store.scope(state: \.alert, action: \.alert))
+            .sheet(
+                store: store.scope(state: \.$diagnostics, action: \.diagnostics)
+            ) { diagnosticsStore in
+                DiagnosticsView(store: diagnosticsStore)
+            }
         }
     }
 
