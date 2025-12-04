@@ -92,16 +92,17 @@ struct SettingsView: View {
             }
 
             if isUITesting {
-                // Дублирующий toggle для UI-тестов, чтобы элемент гарантированно присутствовал в дереве на iOS.
+                // UITests stub — provide a predictable element for automation without
+                // reusing production accessibility identifiers or bindings.
                 Toggle(
                     L10n.tr("settings.telemetry.uiTestToggle"),
                     isOn: Binding(
-                        get: { store.isAutoRefreshEnabled },
-                        set: { store.send(.autoRefreshToggled($0)) }
+                        get: { store.isTelemetryEnabled },
+                        set: { store.send(.telemetryToggled($0)) }
                     )
                 )
                 .labelsHidden()
-                .accessibilityIdentifier("settings_auto_refresh_toggle")
+                .accessibilityIdentifier("settings_telemetry_test_stub")
                 .opacity(0.01)
             }
         }
@@ -133,40 +134,51 @@ struct SettingsView: View {
     private var speedLimitsSection: some View {
         Section(L10n.tr("settings.speed.section")) {
             VStack(alignment: .leading, spacing: 12) {
+                // Use explicit label+control layout to avoid overlap and giant gaps.
                 LabeledContent {
-                    TextField(
-                        L10n.tr("settings.speed.unlimited"),
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 4)
+                        TextField(
+                            L10n.tr("settings.speed.unlimited"),
+                            text: Binding(
+                                get: {
+                                    limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
+                                },
+                                set: { store.send(.downloadLimitChanged($0)) }
+                            )
                         )
-                    )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 220, alignment: .trailing)
-                    .minimumScaleFactor(0.85)
+                        .accessibilityIdentifier("settings_download_limit_field")
+                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 56, maxWidth: 160, alignment: .trailing)
+                        .layoutPriority(1)
+                    }
                 } label: {
                     Text(L10n.tr("settings.speed.download"))
+                        .accessibilityIdentifier("settings_download_limit_label")
                 }
 
                 LabeledContent {
-                    TextField(
-                        L10n.tr("settings.speed.unlimited"),
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
+                    HStack(spacing: 8) {
+                        Spacer(minLength: 4)
+                        TextField(
+                            L10n.tr("settings.speed.unlimited"),
+                            text: Binding(
+                                get: {
+                                    limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
+                                },
+                                set: { store.send(.uploadLimitChanged($0)) }
+                            )
                         )
-                    )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .frame(maxWidth: 220, alignment: .trailing)
-                    .minimumScaleFactor(0.85)
+                        .accessibilityIdentifier("settings_upload_limit_field")
+                        .multilineTextAlignment(.trailing)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(minWidth: 56, maxWidth: 160, alignment: .trailing)
+                        .layoutPriority(1)
+                    }
                 } label: {
                     Text(L10n.tr("settings.speed.upload"))
+                        .accessibilityIdentifier("settings_upload_limit_label")
                 }
 
                 Text(L10n.tr("settings.speed.note"))
