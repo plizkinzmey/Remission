@@ -2570,6 +2570,22 @@
         }
       }
     },
+    "settings.retry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторить"
+          }
+        }
+      }
+    },
     "settings.diagnostics.section" : {
       "localizations" : {
         "en" : {

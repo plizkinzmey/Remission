@@ -9,63 +9,76 @@ struct SettingsView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .center) {
-                Form {
-                    autoRefreshSection
-                    // Telemetry is hidden in production for now — keep it visible for
-                    // UI tests only so automation and existing tests continue to run.
-                    if isUITesting {
-                        telemetrySection
+            // Render the Form only when we actually have persisted preferences available.
+            // This avoids rendering a default/placeholder UI and then reflowing when
+            // real values arrive. If the preferences are not yet loaded we keep the
+            // window minimal and only show an error message when loading fails.
+            if store.persistedPreferences == nil {
+                VStack(spacing: 12) {
+                    if store.isLoading {
+                        // While loading we do not render the full form and we avoid
+                        // showing any spinner or performing layout changes. Keep the
+                        // window visually quiet so it doesn't jump.
+                        EmptyView()
+                    } else {
+                        // Not loading and we have no persisted preferences — probably
+                        // an error occurred. Let the alert show (reducer sets it). As
+                        // a fallback show a small message and a retry action.
+                        VStack(spacing: 8) {
+                            Text(L10n.tr("settings.loading"))
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                            Button(L10n.tr("settings.retry")) {
+                                Task { await store.send(.task).finish() }
+                            }
+                            .keyboardShortcut(.defaultAction)
+                        }
+                        .padding(.vertical, 40)
                     }
-                    pollingSection
-                    speedLimitsSection
-                    diagnosticsSection
-                    // Loading is presented as an overlay to avoid reflow/jumping of the Form
-                    // when network or async work briefly toggles `isLoading`.
-                    // The overlay does not affect layout size.
-
-                    // end Form
                 }
+            } else {
+                ZStack(alignment: .center) {
+                    Form {
+                        autoRefreshSection
+                        // Telemetry is hidden in production for now — keep it visible for
+                        // UI tests only so automation and existing tests continue to run.
+                        if isUITesting {
+                            telemetrySection
+                        }
+                        pollingSection
+                        speedLimitsSection
+                        diagnosticsSection
+                        // Loading is presented as an overlay to avoid reflow/jumping of the Form
+                        // when network or async work briefly toggles `isLoading`.
+                        // The overlay does not affect layout size.
 
-                if store.isLoading {
-                    // Semi-transparent backdrop so user sees content behind the spinner.
-                    Color.primary.opacity(0.06)
-                        .ignoresSafeArea()
-
-                    VStack(spacing: 8) {
-                        ProgressView()
-                            .scaleEffect(1.05, anchor: .center)
-                        Text(L10n.tr("settings.loading"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                        // end Form
                     }
-                    .padding(12)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(10)
-                    .accessibilityIdentifier("settings_loading_overlay")
-                    .transition(.opacity)
+
+                    // We no longer show an overlay spinner — the view is only rendered
+                    // after persisted settings are available which avoids jumps.
                 }
             }
             .formStyle(.grouped)
-            #if os(macOS)
-                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
-            #endif
-            .navigationTitle(L10n.tr("settings.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("common.close")) {
-                        store.send(.delegate(.closeRequested))
+                #if os(macOS)
+                    .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+                #endif
+                .navigationTitle(L10n.tr("settings.title"))
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.tr("common.close")) {
+                            store.send(.delegate(.closeRequested))
+                        }
+                        .accessibilityIdentifier("settings_close_button")
                     }
-                    .accessibilityIdentifier("settings_close_button")
                 }
-            }
-            .task { await store.send(.task).finish() }
-            .alert($store.scope(state: \.alert, action: \.alert))
-            .sheet(
-                store: store.scope(state: \.$diagnostics, action: \.diagnostics)
-            ) { diagnosticsStore in
-                DiagnosticsView(store: diagnosticsStore)
-            }
+                .task { await store.send(.task).finish() }
+                .alert($store.scope(state: \.alert, action: \.alert))
+                .sheet(
+                    store: store.scope(state: \.$diagnostics, action: \.diagnostics)
+                ) { diagnosticsStore in
+                    DiagnosticsView(store: diagnosticsStore)
+                }
         }
     }
 
@@ -266,6 +279,8 @@ struct SettingsView: View {
                     isLoading: false,
                     pollingIntervalSeconds: 3,
                     isAutoRefreshEnabled: true,
+                    isTelemetryEnabled: false,
+                    persistedPreferences: UserPreferences.default,
                     defaultSpeedLimits: .init(
                         downloadKilobytesPerSecond: 2_048,
                         uploadKilobytesPerSecond: 1_024
