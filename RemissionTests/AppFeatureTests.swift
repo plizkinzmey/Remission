@@ -57,10 +57,25 @@ struct AppFeatureTests {
 
     @Test("settings открываются и закрываются через AppReducer")
     func settingsPresentation() async {
-        let store = TestStoreFactory.makeAppTestStore()
+        let preferences = UserPreferences.default
+        let store = TestStoreFactory.makeAppTestStore(configure: { dependencies in
+            dependencies.userPreferencesRepository = .inMemory(
+                store: InMemoryUserPreferencesRepositoryStore(
+                    preferences: preferences
+                )
+            )
+        })
 
-        await store.send(.settingsButtonTapped) {
-            $0.settings = SettingsReducer.State()
+        await store.send(.settingsButtonTapped)
+
+        await store.receive(.settingsLoaded(.success(preferences))) {
+            var settingsState = SettingsReducer.State(isLoading: false)
+            settingsState.persistedPreferences = preferences
+            settingsState.pollingIntervalSeconds = preferences.pollingInterval
+            settingsState.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+            settingsState.isTelemetryEnabled = preferences.isTelemetryEnabled
+            settingsState.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.settings = settingsState
         }
 
         await store.send(.settings(.presented(.delegate(.closeRequested))))

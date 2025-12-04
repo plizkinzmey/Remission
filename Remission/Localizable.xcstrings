@@ -2495,13 +2495,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Disable to update torrents manually."
+            "value" : "Turn off auto-update to update the list manually."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отключите, чтобы обновлять торренты вручную."
+            "value" : "Отключите автообновление, чтобы обновлять список вручную."
           }
         }
       }
@@ -2570,6 +2570,22 @@
         }
       }
     },
+    "settings.retry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторить"
+          }
+        }
+      }
+    },
     "settings.diagnostics.section" : {
       "localizations" : {
         "en" : {
@@ -2605,15 +2621,59 @@
     "settings.polling.interval" : {
       "localizations" : {
         "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld second"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld seconds"
+                }
+              }
+            }
+          },
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld s"
+            "value" : "%lld seconds"
           }
         },
         "ru" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld секунда"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld секунды"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld секунд"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld секунд"
+                }
+              }
+            }
+          },
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld сек."
+            "value" : "%lld секунд"
           }
         }
       }

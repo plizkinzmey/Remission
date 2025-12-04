@@ -140,7 +140,10 @@ extension TransmissionClientBootstrap {
 
     private enum WindowConstants {
         // Минимальный размер окна, чтобы таблицы и панели не схлопывались.
-        static let minimumSize = NSSize(width: 960, height: 640)
+        // Bump the minimum width so modal/Settings sheets can be presented without
+        // forcing scroll content on smaller main windows. This keeps the app
+        // visually balanced and avoids cramped dialogs.
+        static let minimumSize = NSSize(width: 1100, height: 640)
     }
 
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {

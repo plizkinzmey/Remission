@@ -27,7 +27,10 @@ struct AppReducer {
         case settingsButtonTapped
         case settings(PresentationAction<SettingsReducer.Action>)
         case settingsDismissed
+        case settingsLoaded(TaskResult<UserPreferences>)
     }
+
+    @Dependency(\.userPreferencesRepository) var userPreferencesRepository
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -65,8 +68,16 @@ struct AppReducer {
                 return .none
 
             case .settingsButtonTapped:
-                state.settings = SettingsReducer.State()
-                return .none
+                guard state.settings == nil else { return .none }
+                return .run { send in
+                    await send(
+                        .settingsLoaded(
+                            TaskResult {
+                                try await userPreferencesRepository.load()
+                            }
+                        )
+                    )
+                }
 
             case .settings(.presented(.delegate(.closeRequested))):
                 return .concatenate(
@@ -90,6 +101,30 @@ struct AppReducer {
                 return .none
 
             case .settings:
+                return .none
+
+            case .settingsLoaded(.success(let preferences)):
+                var settingsState = SettingsReducer.State(isLoading: false)
+                settingsState.persistedPreferences = preferences
+                settingsState.pollingIntervalSeconds = preferences.pollingInterval
+                settingsState.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+                settingsState.isTelemetryEnabled = preferences.isTelemetryEnabled
+                settingsState.defaultSpeedLimits = preferences.defaultSpeedLimits
+                state.settings = settingsState
+                return .none
+
+            case .settingsLoaded(.failure(let error)):
+                var settingsState = SettingsReducer.State(isLoading: false)
+                settingsState.alert = AlertState {
+                    TextState(L10n.tr("settings.alert.saveFailed.title"))
+                } actions: {
+                    ButtonState(role: .cancel, action: .dismiss) {
+                        TextState(L10n.tr("settings.alert.close"))
+                    }
+                } message: {
+                    TextState(error.localizedDescription)
+                }
+                state.settings = settingsState
                 return .none
             }
         }
