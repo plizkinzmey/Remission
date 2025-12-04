@@ -154,7 +154,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings_download_limit_field")
                         .multilineTextAlignment(.trailing)
                         .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 56, maxWidth: 160, alignment: .trailing)
+                        .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
                         .layoutPriority(1)
                     }
                 } label: {
@@ -177,7 +177,7 @@ struct SettingsView: View {
                         .accessibilityIdentifier("settings_upload_limit_field")
                         .multilineTextAlignment(.trailing)
                         .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 56, maxWidth: 160, alignment: .trailing)
+                        .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
                         .layoutPriority(1)
                     }
                 } label: {
