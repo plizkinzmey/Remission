@@ -355,7 +355,6 @@ struct ServerDetailConnectionBasicsTests {
 
         await store.send(.editor(.presented(.delegate(.didUpdate(updatedServer))))) {
             $0.server = updatedServer
-            $0.editor = nil
             $0.connectionEnvironment = nil
             $0.lastAppliedDefaultSpeedLimits = nil
             $0.torrentList = TorrentListReducer.State()
@@ -364,6 +363,9 @@ struct ServerDetailConnectionBasicsTests {
 
         await store.receive(.torrentList(.teardown))
         await store.receive(.delegate(.serverUpdated(updatedServer)))
+        await store.receive(.editor(.dismiss)) {
+            $0.editor = nil
+        }
 
         await store.send(
             .connectionResponse(

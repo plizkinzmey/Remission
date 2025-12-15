@@ -279,7 +279,6 @@ struct ServerDetailReducer {
                 let shouldReconnect =
                     state.server.connectionFingerprint != server.connectionFingerprint
                 state.server = server
-                state.editor = nil
                 state.torrentList.serverID = server.id
                 let teardownEffect: Effect<Action> =
                     shouldReconnect ? .send(.torrentList(.teardown)) : .none
@@ -292,15 +291,15 @@ struct ServerDetailReducer {
                 let connectionEffect =
                     shouldReconnect
                     ? startConnection(state: &state, force: true) : .none
-                return .merge(
+                return .concatenate(
                     teardownEffect,
+                    .send(.delegate(.serverUpdated(server))),
                     connectionEffect,
-                    .send(.delegate(.serverUpdated(server)))
+                    .send(.editor(.dismiss))
                 )
 
             case .editor(.presented(.delegate(.cancelled))):
-                state.editor = nil
-                return .none
+                return .send(.editor(.dismiss))
 
             case .editor:
                 return .none
@@ -337,12 +336,13 @@ struct ServerDetailReducer {
                 return .send(.torrentList(.delegate(.detailUpdated(torrent))))
 
             case .torrentDetail(.presented(.delegate(.torrentRemoved(let identifier)))):
-                state.torrentDetail = nil
-                return .send(.torrentList(.delegate(.detailRemoved(identifier))))
+                return .concatenate(
+                    .send(.torrentList(.delegate(.detailRemoved(identifier)))),
+                    .send(.torrentDetail(.dismiss))
+                )
 
             case .torrentDetail(.presented(.delegate(.closeRequested))):
-                state.torrentDetail = nil
-                return .none
+                return .send(.torrentDetail(.dismiss))
 
             case .torrentDetail:
                 return .none
@@ -376,8 +376,7 @@ struct ServerDetailReducer {
                 return handleMagnetResponse(result: .failure(error), state: &state)
 
             case .addTorrent(.presented(.delegate(.closeRequested))):
-                state.addTorrent = nil
-                return .none
+                return .send(.addTorrent(.dismiss))
 
             case .addTorrent(.presented(.delegate(.addCompleted(let result)))):
                 return .send(.torrentList(.delegate(.added(result))))

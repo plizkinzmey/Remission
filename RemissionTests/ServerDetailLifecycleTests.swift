@@ -255,10 +255,12 @@ struct ServerDetailLifecycleTests {
 
         await store.send(.editor(.presented(.delegate(.didUpdate(updated))))) {
             $0.server = updated
-            $0.editor = nil
         }
 
         await store.receive(.delegate(.serverUpdated(updated)))
+        await store.receive(.editor(.dismiss)) {
+            $0.editor = nil
+        }
     }
 
     @Test
@@ -276,7 +278,9 @@ struct ServerDetailLifecycleTests {
             $0.editor = ServerEditorReducer.State(server: server)
         }
 
-        await store.send(.editor(.presented(.delegate(.cancelled)))) {
+        await store.send(.editor(.presented(.delegate(.cancelled))))
+
+        await store.receive(.editor(.dismiss)) {
             $0.editor = nil
         }
     }

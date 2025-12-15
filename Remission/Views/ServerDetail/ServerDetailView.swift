@@ -7,7 +7,6 @@ struct ServerDetailView: View {
 
     var body: some View {
         List {
-            infoSection
             if shouldShowConnectionSection {
                 connectionSection
             }
@@ -88,26 +87,6 @@ struct ServerDetailView: View {
             get: { store.isFileImporterPresented },
             set: { store.send(.fileImporterPresented($0)) }
         )
-    }
-
-    private var infoSection: some View {
-        Section(L10n.tr("serverDetail.section.server")) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text(store.server.name)
-                    .font(.headline)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.tr("serverDetail.field.address"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Text(store.server.displayAddress)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("server_detail_address")
-                        .accessibilityLabel(store.server.displayAddress)
-                }
-            }
-            .accessibilityElement(children: .combine)
-        }
     }
 
     private var shouldShowConnectionSection: Bool {
