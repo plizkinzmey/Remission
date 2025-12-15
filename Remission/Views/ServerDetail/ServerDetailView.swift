@@ -6,13 +6,30 @@ struct ServerDetailView: View {
     @Bindable var store: StoreOf<ServerDetailReducer>
 
     var body: some View {
-        List {
-            if shouldShowConnectionSection {
-                connectionSection
-            }
-            if store.connectionEnvironment != nil {
-                torrentsSection
-            }
+        Group {
+            #if os(macOS)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if shouldShowConnectionSection {
+                            connectionCard
+                        }
+                        if store.connectionEnvironment != nil {
+                            torrentsSection
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                }
+            #else
+                List {
+                    if shouldShowConnectionSection {
+                        connectionSection
+                    }
+                    if store.connectionEnvironment != nil {
+                        torrentsSection
+                    }
+                }
+            #endif
         }
         .navigationTitle(store.server.name)
         #if !os(macOS)
@@ -110,60 +127,84 @@ struct ServerDetailView: View {
 
     private var connectionSection: some View {
         Section(L10n.tr("serverDetail.section.connection")) {
-            if let banner = store.errorPresenter.banner {
-                ErrorBannerView(
-                    message: banner.message,
-                    onRetry: banner.retry == nil
-                        ? nil
-                        : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                    onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                )
+            connectionContent
+        }
+    }
+
+    #if os(macOS)
+        private var connectionCard: some View {
+            VStack(alignment: .leading, spacing: 10) {
+                Text(L10n.tr("serverDetail.section.connection"))
+                    .font(.headline)
+                connectionContent
             }
-            switch store.connectionState.phase {
-            case .idle:
-                Text(L10n.tr("serverDetail.status.waiting"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("server_detail_status_idle")
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.primary.opacity(0.08))
+            )
+        }
+    #endif
 
-            case .connecting:
-                HStack(spacing: 12) {
-                    ProgressView()
-                    Text(L10n.tr("serverDetail.status.connecting"))
-                }
-                .accessibilityIdentifier("server_detail_status_connecting")
+    @ViewBuilder
+    private var connectionContent: some View {
+        if let banner = store.errorPresenter.banner {
+            ErrorBannerView(
+                message: banner.message,
+                onRetry: banner.retry == nil
+                    ? nil
+                    : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+            )
+        }
+        switch store.connectionState.phase {
+        case .idle:
+            Text(L10n.tr("serverDetail.status.waiting"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier("server_detail_status_idle")
 
-            case .ready:
-                EmptyView()
-
-            case .offline(let offline):
-                Label(
-                    L10n.tr("serverDetail.status.error"),
-                    systemImage: "wifi.slash"
-                )
-                .foregroundStyle(.orange)
-                Text(offline.message)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(L10n.tr("common.retry")) {
-                    store.send(.retryConnectionButtonTapped)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("server_detail_status_offline")
-
-            case .failed(let failure):
-                Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
-                    .foregroundStyle(.red)
-                Text(failure.message)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Button(L10n.tr("serverDetail.action.retry")) {
-                    store.send(.retryConnectionButtonTapped)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("server_detail_status_failed")
-                .accessibilityHint(L10n.tr("serverDetail.action.retry"))
+        case .connecting:
+            HStack(spacing: 12) {
+                ProgressView()
+                Text(L10n.tr("serverDetail.status.connecting"))
             }
+            .accessibilityIdentifier("server_detail_status_connecting")
+
+        case .ready:
+            EmptyView()
+
+        case .offline(let offline):
+            Label(
+                L10n.tr("serverDetail.status.error"),
+                systemImage: "wifi.slash"
+            )
+            .foregroundStyle(.orange)
+            Text(offline.message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button(L10n.tr("common.retry")) {
+                store.send(.retryConnectionButtonTapped)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("server_detail_status_offline")
+
+        case .failed(let failure):
+            Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
+                .foregroundStyle(.red)
+            Text(failure.message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Button(L10n.tr("serverDetail.action.retry")) {
+                store.send(.retryConnectionButtonTapped)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("server_detail_status_failed")
+            .accessibilityHint(L10n.tr("serverDetail.action.retry"))
         }
     }
 

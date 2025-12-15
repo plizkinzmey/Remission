@@ -6,60 +6,92 @@ struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
 
     var body: some View {
-        Section {
-            content
-            if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                Text(L10n.tr("torrentList.autorefresh.disabled"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+        container
+            .searchable(
+                text: searchBinding,
+                placement: .automatic,
+                prompt: Text(L10n.tr("torrentList.search.prompt"))
+            ) {
+                ForEach(searchSuggestions, id: \.self) { suggestion in
+                    Text(suggestion)
+                        .searchCompletion(suggestion)
+                }
             }
-        } header: {
-            Text(L10n.tr("torrentList.section.title"))
-                .accessibilityIdentifier("torrent_list_header")
-        }
-        .safeAreaInset(edge: .top) {
-            if store.isRefreshing {
-                refreshIndicator
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 16)
+            #if os(iOS)
+                .refreshable {
+                    await store.send(.refreshRequested).finish()
+                }
+            #endif
+            .toolbar {
+                if store.connectionEnvironment != nil {
+                    #if os(macOS)
+                        ToolbarItemGroup {
+                            addButton
+                            refreshButton
+                        }
+                    #else
+                        ToolbarItem(placement: .primaryAction) {
+                            addButton
+                        }
+                        ToolbarItem(placement: .secondaryAction) {
+                            refreshButton
+                        }
+                    #endif
+                }
             }
-        }
-        .searchable(
-            text: searchBinding,
-            placement: .automatic,
-            prompt: Text(L10n.tr("torrentList.search.prompt"))
-        ) {
-            ForEach(searchSuggestions, id: \.self) { suggestion in
-                Text(suggestion)
-                    .searchCompletion(suggestion)
+            .alert(
+                $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+            )
+    }
+
+    @ViewBuilder
+    private var container: some View {
+        #if os(macOS)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .center) {
+                    Spacer(minLength: 0)
+                    Text(L10n.tr("torrentList.section.title"))
+                        .font(.title3.weight(.semibold))
+                        .accessibilityIdentifier("torrent_list_header")
+                    Spacer(minLength: 0)
+                }
+
+                if store.isRefreshing {
+                    refreshIndicator
+                        .padding(.vertical, 2)
+                }
+
+                content
+
+                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                    Text(L10n.tr("torrentList.autorefresh.disabled"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                }
             }
-        }
-        #if os(iOS)
-            .refreshable {
-                await store.send(.refreshRequested).finish()
+        #else
+            Section {
+                content
+                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                    Text(L10n.tr("torrentList.autorefresh.disabled"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                }
+            } header: {
+                Text(L10n.tr("torrentList.section.title"))
+                    .accessibilityIdentifier("torrent_list_header")
+                    .allowsHitTesting(false)
+            }
+            .safeAreaInset(edge: .top) {
+                if store.isRefreshing {
+                    refreshIndicator
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 16)
+                }
             }
         #endif
-        .toolbar {
-            if store.connectionEnvironment != nil {
-                #if os(macOS)
-                    ToolbarItemGroup {
-                        addButton
-                        refreshButton
-                    }
-                #else
-                    ToolbarItem(placement: .primaryAction) {
-                        addButton
-                    }
-                    ToolbarItem(placement: .secondaryAction) {
-                        refreshButton
-                    }
-                #endif
-            }
-        }
-        .alert(
-            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-        )
     }
 
     @ViewBuilder
@@ -99,7 +131,11 @@ struct TorrentListView: View {
                         emptyStateView
                     }
                 } else {
-                    torrentRows
+                    #if os(macOS)
+                        torrentRowsMacOS
+                    #else
+                        torrentRows
+                    #endif
                 }
 
             case .error(let message):
@@ -178,32 +214,46 @@ struct TorrentListView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Image(systemName: "tray")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text(L10n.tr("torrentList.empty.title"))
-                .font(.subheadline)
-                .bold()
-            Text(L10n.tr("torrentList.empty.message"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            HStack(spacing: 12) {
-                Button(L10n.tr("torrentList.action.refresh")) {
-                    store.send(.refreshRequested)
-                }
-                .buttonStyle(.bordered)
+        #if os(macOS)
+            VStack(spacing: 16) {
+                Image(systemName: "tray")
+                    .font(.system(size: 56, weight: .regular))
+                    .foregroundStyle(.secondary)
 
-                Button(L10n.tr("torrentList.action.add")) {
-                    store.send(.addTorrentButtonTapped)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("torrent_list_empty_add_button")
+                Text(L10n.tr("torrentList.empty.title"))
+                    .font(.title2.weight(.semibold))
             }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.vertical, 8)
-        .accessibilityIdentifier("torrent_list_empty_state")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .containerRelativeFrame([.horizontal, .vertical], alignment: .center)
+            .accessibilityIdentifier("torrent_list_empty_state")
+        #else
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "tray")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                Text(L10n.tr("torrentList.empty.title"))
+                    .font(.subheadline)
+                    .bold()
+                Text(L10n.tr("torrentList.empty.message"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                HStack(spacing: 12) {
+                    Button(L10n.tr("torrentList.action.refresh")) {
+                        store.send(.refreshRequested)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(L10n.tr("torrentList.action.add")) {
+                        store.send(.addTorrentButtonTapped)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("torrent_list_empty_add_button")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 8)
+            .accessibilityIdentifier("torrent_list_empty_state")
+        #endif
     }
 
     private func errorView(message: String) -> some View {
@@ -224,17 +274,50 @@ struct TorrentListView: View {
 
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
-            Button {
-                store.send(.rowTapped(item.id))
-            } label: {
-                TorrentRowView(item: item)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-            .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-            .listRowBackground(rowBackground(for: item))
+            #if os(macOS)
+                TorrentRowView(
+                    item: item,
+                    openRequested: { store.send(.rowTapped(item.id)) }
+                )
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+            #else
+                Button {
+                    store.send(.rowTapped(item.id))
+                } label: {
+                    TorrentRowView(item: item)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+            #endif
         }
     }
+
+    #if os(macOS)
+        private var torrentRowsMacOS: some View {
+            LazyVStack(spacing: 10) {
+                ForEach(store.visibleItems) { item in
+                    TorrentRowView(
+                        item: item,
+                        openRequested: { store.send(.rowTapped(item.id)) }
+                    )
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(Color.primary.opacity(0.08))
+                    )
+                }
+            }
+        }
+    #endif
 
     private func rowBackground(for item: TorrentListItem.State) -> some View {
         let color: Color =
@@ -248,14 +331,31 @@ struct TorrentListView: View {
 
     private var controls: some View {
         VStack(alignment: .leading, spacing: 12) {
-            filterSegmentedControl
-            HStack {
-                sortPicker
-                Spacer(minLength: 0)
-            }
+            #if os(macOS)
+                filterAndSortRowMacOS
+            #else
+                filterSegmentedControl
+                HStack {
+                    sortPicker
+                    Spacer(minLength: 0)
+                }
+            #endif
         }
         .padding(.vertical, 4)
     }
+
+    #if os(macOS)
+        private var filterAndSortRowMacOS: some View {
+            ZStack(alignment: .trailing) {
+                filterSegmentedControl
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                sortPicker
+                    .labelsHidden()
+            }
+        }
+    #endif
 
     private var filterSegmentedControl: some View {
         Picker(
@@ -323,16 +423,43 @@ extension TorrentListView {
 
 private struct TorrentRowView: View {
     var item: TorrentListItem.State
+    var openRequested: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(item.torrent.name)
-                    .font(.headline)
-                    .lineLimit(2)
-                    .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+                #if os(macOS)
+                    Text(item.torrent.name)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+                        .onTapGesture {
+                            openRequested?()
+                        }
+                #else
+                    Text(item.torrent.name)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+                #endif
                 Spacer(minLength: 8)
                 statusBadge
+                #if os(macOS)
+                    if let openRequested {
+                        Button(action: openRequested) {
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                                .padding(.leading, 4)
+                                .padding(.vertical, 2)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier(
+                            "torrent_row_open_button_\(item.torrent.id.rawValue)"
+                        )
+                        .accessibilityLabel(L10n.tr("Open torrent details"))
+                    }
+                #endif
             }
 
             ProgressView(value: item.metrics.progressFraction)
@@ -389,7 +516,9 @@ private struct TorrentRowView: View {
                 item.metrics.speedSummary
             )
         )
-        .accessibilityHint(L10n.tr("Open torrent details"))
+        #if !os(macOS)
+            .accessibilityHint(L10n.tr("Open torrent details"))
+        #endif
     }
 
     private var peersText: String {
@@ -475,42 +604,82 @@ private let placeholderCount = 6
 
 #Preview("Loaded list") {
     let state = TorrentListReducer.State.previewLoaded()
-    return NavigationStack {
-        List {
-            TorrentListView(store: .preview(state: state))
+    #if os(macOS)
+        return NavigationStack {
+            ScrollView {
+                TorrentListView(store: .preview(state: state))
+                    .padding()
+            }
         }
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #else
+        return NavigationStack {
+            List {
+                TorrentListView(store: .preview(state: state))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #endif
 }
 
 #Preview("Loading skeletons") {
     let state = TorrentListReducer.State.previewLoading()
-    return NavigationStack {
-        List {
-            TorrentListView(store: .preview(state: state))
+    #if os(macOS)
+        return NavigationStack {
+            ScrollView {
+                TorrentListView(store: .preview(state: state))
+                    .padding()
+            }
         }
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #else
+        return NavigationStack {
+            List {
+                TorrentListView(store: .preview(state: state))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #endif
 }
 
 #Preview("Empty state") {
     let state = TorrentListReducer.State.previewEmpty()
-    return NavigationStack {
-        List {
-            TorrentListView(store: .preview(state: state))
+    #if os(macOS)
+        return NavigationStack {
+            ScrollView {
+                TorrentListView(store: .preview(state: state))
+                    .padding()
+            }
         }
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #else
+        return NavigationStack {
+            List {
+                TorrentListView(store: .preview(state: state))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #endif
 }
 
 #Preview("Error state") {
     let state = TorrentListReducer.State.previewError()
-    return NavigationStack {
-        List {
-            TorrentListView(store: .preview(state: state))
+    #if os(macOS)
+        return NavigationStack {
+            ScrollView {
+                TorrentListView(store: .preview(state: state))
+                    .padding()
+            }
         }
-    }
-    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #else
+        return NavigationStack {
+            List {
+                TorrentListView(store: .preview(state: state))
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    #endif
 }
 
 extension Store where State == TorrentListReducer.State, Action == TorrentListReducer.Action {
