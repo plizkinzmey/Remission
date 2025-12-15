@@ -19,8 +19,12 @@ struct OnboardingView: View {
                     }
                 }
             }
+            .formStyle(.grouped)
             .disabled(store.isSubmitting)
             .overlay(submissionOverlay)
+            #if os(macOS)
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+            #endif
             .navigationTitle(L10n.tr("onboarding.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

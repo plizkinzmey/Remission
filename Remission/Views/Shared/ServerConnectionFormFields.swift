@@ -11,36 +11,88 @@ struct ServerConnectionFormFields: View {
 
     private var connectionSection: some View {
         Section(L10n.tr("serverForm.section.connection")) {
-            TextField(L10n.tr("serverForm.placeholder.name"), text: $form.name)
+            LabeledContent {
+                TextField(
+                    "", text: $form.name, prompt: Text(L10n.tr("serverForm.placeholder.name"))
+                )
+                .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("server_form_name_field")
-            #if os(iOS)
-                TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.name"))
+            }
+
+            LabeledContent {
+                #if os(iOS)
+                    TextField(
+                        "",
+                        text: $form.host,
+                        prompt: Text(L10n.tr("serverForm.placeholder.host"))
+                    )
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_host_field")
-            #else
-                TextField(L10n.tr("serverForm.placeholder.host"), text: $form.host)
+                #else
+                    TextField(
+                        "",
+                        text: $form.host,
+                        prompt: Text(L10n.tr("serverForm.placeholder.host"))
+                    )
                     .textContentType(.URL)
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_host_field")
-            #endif
-            #if os(iOS)
-                TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
+                #endif
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.host"))
+            }
+
+            LabeledContent {
+                #if os(iOS)
+                    TextField(
+                        "",
+                        text: $form.port,
+                        prompt: Text(L10n.tr("serverForm.placeholder.port"))
+                    )
                     .keyboardType(.numberPad)
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_port_field")
-            #else
-                TextField(L10n.tr("serverForm.placeholder.port"), text: $form.port)
+                #else
+                    TextField(
+                        "",
+                        text: $form.port,
+                        prompt: Text(L10n.tr("serverForm.placeholder.port"))
+                    )
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_port_field")
-            #endif
-            #if os(iOS)
-                TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
+                #endif
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.port"))
+            }
+
+            LabeledContent {
+                #if os(iOS)
+                    TextField(
+                        "",
+                        text: $form.path,
+                        prompt: Text(L10n.tr("serverForm.placeholder.path"))
+                    )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_path_field")
-            #else
-                TextField(L10n.tr("serverForm.placeholder.path"), text: $form.path)
+                #else
+                    TextField(
+                        "",
+                        text: $form.path,
+                        prompt: Text(L10n.tr("serverForm.placeholder.path"))
+                    )
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_path_field")
-            #endif
+                #endif
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.path"))
+            }
         }
     }
 
@@ -83,17 +135,41 @@ struct ServerConnectionFormFields: View {
 
     private var credentialsSection: some View {
         Section(L10n.tr("serverForm.section.credentials")) {
-            #if os(iOS)
-                TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
+            LabeledContent {
+                #if os(iOS)
+                    TextField(
+                        "",
+                        text: $form.username,
+                        prompt: Text(L10n.tr("serverForm.placeholder.username"))
+                    )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_username_field")
-            #else
-                TextField(L10n.tr("serverForm.placeholder.username"), text: $form.username)
+                #else
+                    TextField(
+                        "",
+                        text: $form.username,
+                        prompt: Text(L10n.tr("serverForm.placeholder.username"))
+                    )
+                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_username_field")
-            #endif
-            SecureField(L10n.tr("serverForm.placeholder.password"), text: $form.password)
+                #endif
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.username"))
+            }
+
+            LabeledContent {
+                SecureField(
+                    "",
+                    text: $form.password,
+                    prompt: Text(L10n.tr("serverForm.placeholder.password"))
+                )
+                .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("server_form_password_field")
+            } label: {
+                Text(L10n.tr("serverForm.placeholder.password"))
+            }
         }
     }
 }
