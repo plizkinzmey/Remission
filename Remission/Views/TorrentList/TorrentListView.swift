@@ -7,42 +7,96 @@ struct TorrentListView: View {
 
     var body: some View {
         container
-            .searchable(
-                text: searchBinding,
-                placement: .automatic,
-                prompt: Text(L10n.tr("torrentList.search.prompt"))
-            ) {
-                ForEach(searchSuggestions, id: \.self) { suggestion in
-                    Text(suggestion)
-                        .searchCompletion(suggestion)
+            #if os(macOS)
+                .toolbar {
+                    if store.connectionEnvironment != nil {
+                        ToolbarItem(placement: .principal) {
+                            macOSToolbarControls
+                        }
+                    }
                 }
-            }
+            #else
+                .searchable(
+                    text: searchBinding,
+                    placement: .automatic,
+                    prompt: Text(L10n.tr("torrentList.search.prompt"))
+                ) {
+                    ForEach(searchSuggestions, id: \.self) { suggestion in
+                        Text(suggestion)
+                        .searchCompletion(suggestion)
+                    }
+                }
+            #endif
             #if os(iOS)
                 .refreshable {
                     await store.send(.refreshRequested).finish()
                 }
             #endif
-            .toolbar {
-                if store.connectionEnvironment != nil {
-                    #if os(macOS)
-                        ToolbarItemGroup {
-                            addButton
-                            refreshButton
-                        }
-                    #else
+            #if !os(macOS)
+                .toolbar {
+                    if store.connectionEnvironment != nil {
                         ToolbarItem(placement: .primaryAction) {
                             addButton
                         }
                         ToolbarItem(placement: .secondaryAction) {
                             refreshButton
                         }
-                    #endif
+                    }
                 }
-            }
+            #endif
             .alert(
                 $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )
     }
+}
+
+extension TorrentListView {
+    #if os(macOS)
+        private var macOSToolbarControls: some View {
+            HStack(spacing: 10) {
+                Button {
+                    store.send(.addTorrentButtonTapped)
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .semibold))
+                        .frame(width: 28, height: 22)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("torrentlist_add_button")
+
+                Divider()
+                    .frame(height: 18)
+
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .imageScale(.medium)
+                        .foregroundStyle(.secondary)
+                    TextField(
+                        L10n.tr("torrentList.search.prompt"),
+                        text: searchBinding
+                    )
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                }
+                .accessibilityIdentifier("torrentlist_search_field")
+            }
+            .padding(.horizontal, 12)
+            .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
+            .frame(height: macOSToolbarPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12))
+            )
+        }
+    #endif
+
+    #if os(macOS)
+        private var macOSToolbarPillHeight: CGFloat { 34 }
+    #endif
 
     @ViewBuilder
     private var container: some View {
@@ -274,25 +328,15 @@ struct TorrentListView: View {
 
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
-            #if os(macOS)
-                TorrentRowView(
-                    item: item,
-                    openRequested: { store.send(.rowTapped(item.id)) }
-                )
-                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-                .listRowBackground(rowBackground(for: item))
-            #else
-                Button {
-                    store.send(.rowTapped(item.id))
-                } label: {
-                    TorrentRowView(item: item)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-                .listRowBackground(rowBackground(for: item))
-            #endif
+            Button {
+                store.send(.rowTapped(item.id))
+            } label: {
+                TorrentRowView(item: item)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+            .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+            .listRowBackground(rowBackground(for: item))
         }
     }
 
@@ -308,11 +352,11 @@ struct TorrentListView: View {
                     .padding(.vertical, 10)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                            .fill(.regularMaterial)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .stroke(Color.primary.opacity(0.08))
+                            .strokeBorder(Color.primary.opacity(0.12))
                     )
                 }
             }
@@ -330,18 +374,21 @@ struct TorrentListView: View {
     }
 
     private var controls: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            #if os(macOS)
+        #if os(macOS)
+            VStack(alignment: .leading, spacing: 12) {
                 filterAndSortRowMacOS
-            #else
+            }
+            .padding(.vertical, 4)
+        #else
+            VStack(alignment: .leading, spacing: 12) {
                 filterSegmentedControl
                 HStack {
                     sortPicker
                     Spacer(minLength: 0)
                 }
-            #endif
-        }
-        .padding(.vertical, 4)
+            }
+            .padding(.vertical, 4)
+        #endif
     }
 
     #if os(macOS)
@@ -406,9 +453,7 @@ struct TorrentListView: View {
         }
         .accessibilityIdentifier("torrentlist_add_button")
     }
-}
 
-extension TorrentListView {
     private var refreshIndicator: some View {
         HStack(spacing: 8) {
             ProgressView()
@@ -418,7 +463,6 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrent_list_refresh_indicator")
     }
-
 }
 
 private struct TorrentRowView: View {

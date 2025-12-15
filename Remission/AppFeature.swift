@@ -64,6 +64,9 @@ struct AppReducer {
             case .path(.element(id: _, action: .delegate(.torrentSelected))):
                 return .none
 
+            case .path(.element(id: _, action: .delegate(.openSettingsRequested))):
+                return .send(.settingsButtonTapped)
+
             case .path:
                 return .none
 

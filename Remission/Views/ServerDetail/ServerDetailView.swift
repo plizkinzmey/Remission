@@ -80,13 +80,19 @@ struct ServerDetailView: View {
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button(L10n.tr("serverDetail.button.edit")) {
-                    store.send(.editButtonTapped)
+            #if os(macOS)
+                ToolbarItem(placement: .primaryAction) {
+                    macOSSettingsToolbarPill
                 }
-                .accessibilityIdentifier("server_detail_edit_button")
-                .accessibilityHint(L10n.tr("serverDetail.button.edit"))
-            }
+            #else
+                ToolbarItem(placement: .primaryAction) {
+                    Button(L10n.tr("serverDetail.button.edit")) {
+                        store.send(.editButtonTapped)
+                    }
+                    .accessibilityIdentifier("server_detail_edit_button")
+                    .accessibilityHint(L10n.tr("serverDetail.button.edit"))
+                }
+            #endif
         }
         .overlay(alignment: .topLeading) {
             // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
@@ -132,6 +138,47 @@ struct ServerDetailView: View {
     }
 
     #if os(macOS)
+        private var macOSSettingsToolbarPill: some View {
+            HStack(spacing: 10) {
+                Button {
+                    store.send(.editButtonTapped)
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("server_detail_edit_button")
+                .accessibilityLabel(L10n.tr("serverDetail.button.edit"))
+
+                Divider()
+                    .frame(height: 18)
+
+                Button {
+                    store.send(.settingsButtonTapped)
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("server_detail_app_settings_button")
+                .accessibilityLabel(L10n.tr("app.action.settings"))
+            }
+            .padding(.horizontal, 12)
+            .frame(height: macOSToolbarPillHeight)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.regularMaterial)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12))
+            )
+        }
+
+        private var macOSToolbarPillHeight: CGFloat { 34 }
+
         private var connectionCard: some View {
             VStack(alignment: .leading, spacing: 10) {
                 Text(L10n.tr("serverDetail.section.connection"))
@@ -140,12 +187,12 @@ struct ServerDetailView: View {
             }
             .padding(12)
             .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor).opacity(0.6))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(.regularMaterial)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.primary.opacity(0.08))
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12))
             )
         }
     #endif

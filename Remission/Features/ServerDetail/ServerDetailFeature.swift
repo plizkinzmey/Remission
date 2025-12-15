@@ -37,6 +37,7 @@ struct ServerDetailReducer {
     enum Action: Equatable {
         case task
         case editButtonTapped
+        case settingsButtonTapped
         case deleteButtonTapped
         case deleteCompleted(DeletionResult)
         case httpWarningResetButtonTapped
@@ -76,6 +77,7 @@ struct ServerDetailReducer {
         case serverUpdated(ServerConfig)
         case serverDeleted(UUID)
         case torrentSelected(Torrent.Identifier)
+        case openSettingsRequested
     }
 
     @Dependency(\.credentialsRepository) var credentialsRepository
@@ -111,6 +113,9 @@ struct ServerDetailReducer {
             case .editButtonTapped:
                 state.editor = ServerEditorReducer.State(server: state.server)
                 return .none
+
+            case .settingsButtonTapped:
+                return .send(.delegate(.openSettingsRequested))
 
             case .deleteButtonTapped:
                 state.alert = makeDeleteAlert()
