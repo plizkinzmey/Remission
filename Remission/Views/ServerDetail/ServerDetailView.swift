@@ -8,18 +8,17 @@ struct ServerDetailView: View {
     var body: some View {
         Group {
             #if os(macOS)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        if shouldShowConnectionSection {
-                            connectionCard
-                        }
-                        if store.connectionEnvironment != nil {
-                            torrentsSection
-                        }
+                VStack(alignment: .leading, spacing: 16) {
+                    if shouldShowConnectionSection {
+                        connectionCard
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    if store.connectionEnvironment != nil {
+                        torrentsSection
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             #else
                 List {
                     if shouldShowConnectionSection {

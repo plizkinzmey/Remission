@@ -115,7 +115,26 @@ extension TorrentListView {
                         .padding(.vertical, 2)
                 }
 
-                content
+                if let banner = store.errorPresenter.banner {
+                    ErrorBannerView(
+                        message: banner.message,
+                        onRetry: banner.retry == nil
+                            ? nil
+                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                        onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                    )
+                    .padding(.bottom, 6)
+                }
+
+                if let offline = store.offlineState {
+                    offlineBanner(offline)
+                        .padding(.bottom, 4)
+                }
+
+                controls
+
+                macOSScrollableContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
                 if store.connectionEnvironment != nil && store.isPollingEnabled == false {
                     Text(L10n.tr("torrentList.autorefresh.disabled"))
@@ -124,6 +143,7 @@ extension TorrentListView {
                         .accessibilityIdentifier("torrentlist_autorefresh_disabled")
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #else
             Section {
                 content
@@ -148,6 +168,61 @@ extension TorrentListView {
         #endif
     }
 
+    #if os(macOS)
+        @ViewBuilder
+        private var macOSScrollableContent: some View {
+            if store.connectionEnvironment == nil && store.items.isEmpty {
+                disconnectedView
+            } else {
+                switch store.phase {
+                case .idle:
+                    EmptyView()
+
+                case .loading:
+                    if store.isRefreshing == false {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(0..<placeholderCount, id: \.self) { index in
+                                    TorrentRowSkeletonView(index: index)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .fill(.regularMaterial)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .strokeBorder(Color.primary.opacity(0.12))
+                                        )
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .scrollIndicators(.hidden)
+                    }
+
+                case .loaded, .offline:
+                    if store.visibleItems.isEmpty {
+                        if case .offline(let offline) = store.phase {
+                            offlineView(message: offline.message)
+                        } else {
+                            emptyStateView
+                        }
+                    } else {
+                        ScrollView {
+                            torrentRowsMacOS
+                                .padding(.vertical, 2)
+                        }
+                        .scrollIndicators(.hidden)
+                    }
+
+                case .error(let message):
+                    errorView(message: message)
+                }
+            }
+        }
+    #endif
+
     @ViewBuilder
     private var content: some View {
         if store.connectionEnvironment == nil && store.items.isEmpty {
@@ -167,7 +242,10 @@ extension TorrentListView {
                 offlineBanner(offline)
                     .padding(.bottom, 4)
             }
-            controls
+            #if !os(macOS)
+                controls
+            #endif
+
             switch store.phase {
             case .idle:
                 EmptyView()
@@ -278,7 +356,6 @@ extension TorrentListView {
                     .font(.title2.weight(.semibold))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .containerRelativeFrame([.horizontal, .vertical], alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #else
             VStack(alignment: .leading, spacing: 8) {
