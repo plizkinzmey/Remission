@@ -51,7 +51,9 @@ struct RemissionApp: App {
                 width: WindowConstants.minimumSize.width,
                 height: WindowConstants.minimumSize.height
             )
-            .windowResizability(.contentSize)
+            // Важно: .contentSize заставляет окно "подгоняться" под контент при навигации,
+            // из-за чего размер прыгает между экранами. Нам нужен стабильный размер окна.
+            .windowResizability(.contentMinSize)
         #endif
     }
 }
@@ -146,15 +148,36 @@ extension TransmissionClientBootstrap {
         static let minimumSize = NSSize(width: 1100, height: 640)
     }
 
+    @MainActor
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
         func applicationDidFinishLaunching(_ notification: Notification) {
             DispatchQueue.main.async {
+                [self] in
                 NSApp.activate(ignoringOtherApps: true)
                 for window in NSApp.windows {
                     window.contentMinSize = WindowConstants.minimumSize
                     window.makeKeyAndOrderFront(nil)
+
+                    // Если окно создано с дефолтным размером (и нет восстановленного состояния),
+                    // делаем его "на весь экран" в стиле macOS (zoom), чтобы размер не
+                    // воспринимался как "по умолчанию маленький".
+                    let shouldZoomWindow =
+                        window.isZoomed == false
+                        && window.isMiniaturized == false
+                        && self.shouldZoom(window)
+                    if shouldZoomWindow {
+                        window.zoom(nil)
+                    }
                 }
             }
+        }
+
+        @MainActor
+        private func shouldZoom(_ window: NSWindow) -> Bool {
+            let size = window.frame.size
+            let epsilon: CGFloat = 1
+            return abs(size.width - WindowConstants.minimumSize.width) <= epsilon
+                && abs(size.height - WindowConstants.minimumSize.height) <= epsilon
         }
     }
 #endif
