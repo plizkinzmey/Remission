@@ -151,33 +151,55 @@ extension TransmissionClientBootstrap {
     @MainActor
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
         func applicationDidFinishLaunching(_ notification: Notification) {
-            DispatchQueue.main.async {
-                [self] in
+            Task { @MainActor in
                 NSApp.activate(ignoringOtherApps: true)
                 for window in NSApp.windows {
                     window.contentMinSize = WindowConstants.minimumSize
                     window.makeKeyAndOrderFront(nil)
+                }
+                applyInitialPresentationIfNeeded()
+            }
+        }
 
-                    // Если окно создано с дефолтным размером (и нет восстановленного состояния),
-                    // делаем его "на весь экран" в стиле macOS (zoom), чтобы размер не
-                    // воспринимался как "по умолчанию маленький".
-                    let shouldZoomWindow =
-                        window.isZoomed == false
-                        && window.isMiniaturized == false
-                        && self.shouldZoom(window)
-                    if shouldZoomWindow {
-                        window.zoom(nil)
-                    }
+        @MainActor
+        private func shouldApplyInitialPresentation(_ window: NSWindow) -> Bool {
+            let size = window.frame.size
+            let epsilon: CGFloat = 1
+            return abs(size.width - WindowConstants.minimumSize.width) <= epsilon
+                && abs(size.height - WindowConstants.minimumSize.height) <= epsilon
+        }
+
+        @MainActor
+        private func applyInitialPresentationIfNeeded() {
+            guard let window = preferredMainWindow() else { return }
+
+            let shouldApplyInitialPresentation =
+                window.isZoomed == false
+                && window.isMiniaturized == false
+                && shouldApplyInitialPresentation(window)
+
+            guard shouldApplyInitialPresentation else { return }
+
+            window.collectionBehavior.insert(.fullScreenPrimary)
+
+            if window.styleMask.contains(.fullScreen) == false {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    guard window.styleMask.contains(.fullScreen) == false else { return }
+                    window.toggleFullScreen(nil)
                 }
             }
         }
 
         @MainActor
-        private func shouldZoom(_ window: NSWindow) -> Bool {
-            let size = window.frame.size
-            let epsilon: CGFloat = 1
-            return abs(size.width - WindowConstants.minimumSize.width) <= epsilon
-                && abs(size.height - WindowConstants.minimumSize.height) <= epsilon
+        private func preferredMainWindow() -> NSWindow? {
+            if let window = NSApp.mainWindow {
+                return window
+            }
+            if let window = NSApp.keyWindow {
+                return window
+            }
+            return NSApp.windows.first(where: { $0.isVisible }) ?? NSApp.windows.first
         }
     }
 #endif
