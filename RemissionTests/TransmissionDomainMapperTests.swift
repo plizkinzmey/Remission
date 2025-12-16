@@ -107,6 +107,7 @@ struct TransmissionDomainMapperTests {
         )
 
         #expect(state.rpc.rpcVersion == 17)
+        #expect(state.downloadDirectory == "/downloads")
         #expect(state.speedLimits.download.isEnabled)
         #expect(state.speedLimits.download.kilobytesPerSecond == 8192)
         #expect(state.queue.downloadLimit.count == 5)
@@ -219,6 +220,7 @@ extension TransmissionDomainMapperTests {
         TransmissionResponse(
             result: "success",
             arguments: .object([
+                "download-dir": .string("/downloads"),
                 "rpc-version": .int(17),
                 "rpc-version-minimum": .int(14),
                 "version": .string("4.0.3"),

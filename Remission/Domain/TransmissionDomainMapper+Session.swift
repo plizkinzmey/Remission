@@ -15,6 +15,11 @@ extension TransmissionDomainMapper {
         )
 
         let rpcInfo: SessionState.RPC = try makeRPCInfo(from: sessionArguments)
+        let downloadDirectory: String = try requireString(
+            "download-dir",
+            in: sessionArguments,
+            context: "session-get"
+        )
 
         let speedLimits: SessionState.SpeedLimits = makeSpeedLimits(from: sessionArguments)
         let queue: SessionState.Queue = makeQueue(from: sessionArguments)
@@ -33,6 +38,7 @@ extension TransmissionDomainMapper {
 
         return SessionState(
             rpc: rpcInfo,
+            downloadDirectory: downloadDirectory,
             speedLimits: speedLimits,
             queue: queue,
             throughput: throughput,

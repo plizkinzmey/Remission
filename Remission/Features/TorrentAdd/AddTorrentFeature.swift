@@ -8,6 +8,7 @@ struct AddTorrentReducer {
         var pendingInput: PendingTorrentInput
         var connectionEnvironment: ServerConnectionEnvironment?
         var destinationPath: String = ""
+        var serverDownloadDirectory: String = ""
         var startPaused: Bool = false
         var tags: [String] = []
         var newTag: String = ""
@@ -17,6 +18,7 @@ struct AddTorrentReducer {
     }
 
     enum Action: Equatable {
+        case task
         case destinationPathChanged(String)
         case startPausedChanged(Bool)
         case newTagChanged(String)
@@ -24,6 +26,7 @@ struct AddTorrentReducer {
         case removeTag(String)
         case submitButtonTapped
         case submitResponse(Result<SubmitResult, SubmitError>)
+        case defaultDownloadDirectoryResponse(TaskResult<String>)
         case closeButtonTapped
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
@@ -66,14 +69,40 @@ struct AddTorrentReducer {
     }
 
     @Dependency(\.torrentRepository) var torrentRepository
+    @Dependency(\.sessionRepository) var sessionRepository
 
     private enum AddTorrentCancelID {
         case submit
+        case loadDefaults
     }
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
+            case .task:
+                guard
+                    state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                    let environment = state.connectionEnvironment
+                else {
+                    return .none
+                }
+
+                return .run { send in
+                    await send(
+                        .defaultDownloadDirectoryResponse(
+                            TaskResult {
+                                try await withDependencies {
+                                    environment.apply(to: &$0)
+                                } operation: {
+                                    let state = try await sessionRepository.fetchState()
+                                    return state.downloadDirectory
+                                }
+                            }
+                        )
+                    )
+                }
+                .cancellable(id: AddTorrentCancelID.loadDefaults, cancelInFlight: true)
+
             case .destinationPathChanged(let value):
                 state.destinationPath = value
                 return .none
@@ -126,6 +155,16 @@ struct AddTorrentReducer {
                 }
                 return .none
 
+            case .defaultDownloadDirectoryResponse(.success(let directory)):
+                state.serverDownloadDirectory = directory
+                if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    state.destinationPath = directory
+                }
+                return .none
+
+            case .defaultDownloadDirectoryResponse(.failure):
+                return .none
+
             case .closeButtonTapped:
                 return .send(.delegate(.closeRequested))
 
@@ -151,10 +190,10 @@ struct AddTorrentReducer {
     // swiftlint:disable function_body_length
     private func handleSubmit(state: inout State) -> Effect<Action> {
         let input = state.pendingInput
-        let destination = state.destinationPath.trimmingCharacters(
+        let destinationRaw = state.destinationPath.trimmingCharacters(
             in: .whitespacesAndNewlines
         )
-        guard destination.isEmpty == false else {
+        guard destinationRaw.isEmpty == false else {
             state.alert = AlertState {
                 TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
             } actions: {
@@ -168,18 +207,12 @@ struct AddTorrentReducer {
             return .none
         }
 
-        guard isAbsoluteRemotePath(destination) else {
-            state.alert = AlertState {
-                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState("download directory path is not absolute")
-            }
-            state.closeOnAlertDismiss = false
-            return .none
+        let destination = normalizeDestination(
+            destinationRaw,
+            defaultDownloadDirectory: state.serverDownloadDirectory
+        )
+        if destination != destinationRaw {
+            state.destinationPath = destination
         }
 
         guard let environment = state.connectionEnvironment else {
@@ -281,20 +314,24 @@ struct AddTorrentReducer {
         return .failed(error.localizedDescription)
     }
 
-    private func isAbsoluteRemotePath(_ path: String) -> Bool {
-        if path.hasPrefix("/") {
-            return true
+    private func normalizeDestination(
+        _ destination: String,
+        defaultDownloadDirectory: String
+    ) -> String {
+        let base = defaultDownloadDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard base.isEmpty == false else { return destination }
+
+        let hasNestedPath = destination.hasPrefix("/") && destination.dropFirst().contains("/")
+        if hasNestedPath {
+            return destination
         }
-        // Windows-style absolute path: "C:\Downloads"
-        if path.count >= 3 {
-            let scalars = Array(path.unicodeScalars.prefix(3))
-            let isLetter = CharacterSet.letters.contains(scalars[0])
-            let isColon = scalars[1] == ":"
-            let isBackslash = scalars[2] == "\\"
-            if isLetter && isColon && isBackslash {
-                return true
-            }
-        }
-        return false
+
+        let trimmedComponent = destination.trimmingCharacters(
+            in: CharacterSet(charactersIn: "/")
+        )
+        guard trimmedComponent.isEmpty == false else { return destination }
+
+        let normalizedBase = base.hasSuffix("/") ? String(base.dropLast()) : base
+        return normalizedBase + "/" + trimmedComponent
     }
 }

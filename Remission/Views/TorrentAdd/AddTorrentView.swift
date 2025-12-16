@@ -142,6 +142,7 @@ struct AddTorrentView: View {
                 .accessibilityIdentifier("torrent_add_submit_button")
             }
         }
+        .task { await store.send(.task).finish() }
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 }

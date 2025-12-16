@@ -155,6 +155,8 @@ public struct SessionState: Equatable, Sendable, Codable {
     }
 
     public var rpc: RPC
+    /// Директория загрузки по умолчанию (`session-get` → `download-dir`).
+    public var downloadDirectory: String
     public var speedLimits: SpeedLimits
     public var queue: Queue
     public var throughput: Throughput
@@ -165,6 +167,7 @@ public struct SessionState: Equatable, Sendable, Codable {
 
     public init(
         rpc: RPC,
+        downloadDirectory: String,
         speedLimits: SpeedLimits,
         queue: Queue,
         throughput: Throughput,
@@ -172,6 +175,7 @@ public struct SessionState: Equatable, Sendable, Codable {
         currentStats: LifetimeStats
     ) {
         self.rpc = rpc
+        self.downloadDirectory = downloadDirectory
         self.speedLimits = speedLimits
         self.queue = queue
         self.throughput = throughput
@@ -187,6 +191,7 @@ extension SessionState {
     public static let previewActive: SessionState = {
         SessionState(
             rpc: .init(rpcVersion: 17, rpcVersionMinimum: 14, serverVersion: "4.0.4"),
+            downloadDirectory: "/downloads",
             speedLimits: .init(
                 download: .init(isEnabled: true, kilobytesPerSecond: 8192),
                 upload: .init(isEnabled: true, kilobytesPerSecond: 2048),
@@ -230,6 +235,7 @@ extension SessionState {
     public static let previewLimited: SessionState = {
         SessionState(
             rpc: .init(rpcVersion: 17, rpcVersionMinimum: 14, serverVersion: "3.00"),
+            downloadDirectory: "/downloads",
             speedLimits: .init(
                 download: .init(isEnabled: false, kilobytesPerSecond: 0),
                 upload: .init(isEnabled: false, kilobytesPerSecond: 0),
