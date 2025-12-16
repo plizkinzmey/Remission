@@ -6,6 +6,8 @@ struct AddTorrentView: View {
     @Bindable var store: StoreOf<AddTorrentReducer>
 
     var body: some View {
+        let displayName = store.pendingInput.displayName
+        let sourceDescription = store.pendingInput.sourceDescription
         let destinationBinding = Binding<String>(
             get: { store.destinationPath },
             set: { store.send(.destinationPathChanged($0)) }
@@ -22,27 +24,30 @@ struct AddTorrentView: View {
         Form {
             Section(L10n.tr("torrentAdd.section.source")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label(
-                        L10n.tr("torrentAdd.label.source"), systemImage: "tray.and.arrow.down.fill"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    Text(store.pendingInput.sourceDescription)
+                    Text(displayName)
                         .font(.body)
                         .bold()
                         .accessibilityIdentifier("torrent_add_source_description")
-                    Text(store.pendingInput.displayName)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrent_add_source_name")
+
+                    if sourceDescription != displayName {
+                        Text(sourceDescription)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrent_add_source_name")
+                    }
                 }
             }
 
             Section(L10n.tr("torrentAdd.section.destination")) {
-                TextField(L10n.tr("torrentAdd.placeholder.destination"), text: destinationBinding)
-                    .textContentType(.URL)
-                    .accessibilityIdentifier("torrent_add_destination_field")
-                    .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
+                TextField(
+                    "",
+                    text: destinationBinding,
+                    prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
+                )
+                .labelsHidden()
+                .textContentType(.URL)
+                .accessibilityIdentifier("torrent_add_destination_field")
+                .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
             }
 
             Section(L10n.tr("torrentAdd.section.parameters")) {
@@ -52,9 +57,19 @@ struct AddTorrentView: View {
 
             Section(L10n.tr("torrentAdd.section.tags")) {
                 VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        TextField(L10n.tr("torrentAdd.placeholder.tag"), text: newTagBinding)
-                            .accessibilityIdentifier("torrent_add_tag_field")
+                    Text(L10n.tr("torrentAdd.placeholder.tag"))
+                        .font(.subheadline)
+                        .accessibilityIdentifier("torrent_add_tag_title")
+
+                    HStack(spacing: 10) {
+                        TextField(
+                            "",
+                            text: newTagBinding,
+                            prompt: Text(L10n.tr("torrentAdd.placeholder.tag"))
+                        )
+                        .labelsHidden()
+                        .accessibilityIdentifier("torrent_add_tag_field")
+
                         Button {
                             store.send(.addTagTapped)
                         } label: {
@@ -97,30 +112,36 @@ struct AddTorrentView: View {
                     }
                 }
             }
-
-            Section {
-                Button {
-                    store.send(.submitButtonTapped)
-                } label: {
-                    if store.isSubmitting {
-                        ProgressView()
-                    } else {
-                        Text(L10n.tr("torrentAdd.action.add"))
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("torrent_add_submit_button")
-                .accessibilityHint(L10n.tr("torrentAdd.action.add"))
-
+        }
+        .navigationTitle(L10n.tr("torrentAdd.title"))
+        .formStyle(.grouped)
+        #if os(macOS)
+            .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+        #endif
+        .toolbar {
+            ToolbarItemGroup(placement: .cancellationAction) {
                 Button(L10n.tr("torrentAdd.action.cancel")) {
                     store.send(.closeButtonTapped)
                 }
-                .frame(maxWidth: .infinity, alignment: .center)
                 .accessibilityIdentifier("torrent_add_cancel_button")
+
+                Button(L10n.tr("serverDetail.button.close")) {
+                    store.send(.closeButtonTapped)
+                }
+                .accessibilityIdentifier("torrent_add_close_button")
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(L10n.tr("torrentAdd.action.add")) {
+                    store.send(.submitButtonTapped)
+                }
+                .disabled(
+                    store.isSubmitting
+                        || store.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines)
+                            .isEmpty
+                )
+                .accessibilityIdentifier("torrent_add_submit_button")
             }
         }
-        .navigationTitle(L10n.tr("torrentAdd.title"))
         .alert($store.scope(state: \.alert, action: \.alert))
     }
 }

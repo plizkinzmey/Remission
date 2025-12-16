@@ -168,6 +168,20 @@ struct AddTorrentReducer {
             return .none
         }
 
+        guard isAbsoluteRemotePath(destination) else {
+            state.alert = AlertState {
+                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState(L10n.tr("common.ok"))
+                }
+            } message: {
+                TextState("download directory path is not absolute")
+            }
+            state.closeOnAlertDismiss = false
+            return .none
+        }
+
         guard let environment = state.connectionEnvironment else {
             state.alert = AlertState {
                 TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
@@ -253,6 +267,8 @@ struct AddTorrentReducer {
                 return .unauthorized
             case .sessionConflict:
                 return .sessionConflict
+            case .unknown(let details):
+                return .failed(details)
             default:
                 return .failed(apiError.localizedDescription)
             }
@@ -263,5 +279,22 @@ struct AddTorrentReducer {
         }
 
         return .failed(error.localizedDescription)
+    }
+
+    private func isAbsoluteRemotePath(_ path: String) -> Bool {
+        if path.hasPrefix("/") {
+            return true
+        }
+        // Windows-style absolute path: "C:\Downloads"
+        if path.count >= 3 {
+            let scalars = Array(path.unicodeScalars.prefix(3))
+            let isLetter = CharacterSet.letters.contains(scalars[0])
+            let isColon = scalars[1] == ":"
+            let isBackslash = scalars[2] == "\\"
+            if isLetter && isColon && isBackslash {
+                return true
+            }
+        }
+        return false
     }
 }

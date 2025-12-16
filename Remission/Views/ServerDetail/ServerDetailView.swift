@@ -60,13 +60,6 @@ struct ServerDetailView: View {
         ) { addStore in
             NavigationStack {
                 AddTorrentView(store: addStore)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(L10n.tr("serverDetail.button.close")) {
-                                addStore.send(.closeButtonTapped)
-                            }
-                        }
-                    }
             }
         }
         .fileImporter(
