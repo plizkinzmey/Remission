@@ -84,9 +84,6 @@ struct TorrentDetailView: View {
                 loadingOverlay
             }
         }
-        .onDisappear {
-            store.send(.teardown)
-        }
     }
 
     private var shouldShowInitialPlaceholder: Bool {

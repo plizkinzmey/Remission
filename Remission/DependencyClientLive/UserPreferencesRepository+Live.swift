@@ -120,7 +120,14 @@ actor PersistentUserPreferencesStore {
 
     private static func loadSnapshot(defaults: PreferencesUserDefaultsBox) -> UserPreferences {
         guard let data = defaults.data(StorageKey.preferences) else {
-            return .default
+            let preferences: UserPreferences = .default
+            do {
+                let data = try JSONEncoder().encode(preferences)
+                defaults.set(data, forKey: StorageKey.preferences)
+            } catch {
+                // If we can't persist defaults, fall back to in-memory defaults.
+            }
+            return preferences
         }
         do {
             let decoded = try JSONDecoder().decode(UserPreferences.self, from: data)

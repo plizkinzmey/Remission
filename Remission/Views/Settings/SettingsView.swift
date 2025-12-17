@@ -189,7 +189,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Spacer(minLength: 4)
                         TextField(
-                            L10n.tr("settings.speed.unlimited"),
+                            "",
                             text: Binding(
                                 get: {
                                     limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
@@ -212,7 +212,7 @@ struct SettingsView: View {
                     HStack(spacing: 8) {
                         Spacer(minLength: 4)
                         TextField(
-                            L10n.tr("settings.speed.unlimited"),
+                            "",
                             text: Binding(
                                 get: {
                                     limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)

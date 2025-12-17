@@ -61,9 +61,6 @@ struct DiagnosticsView: View {
                 }
             }
             .task { await store.send(.task).finish() }
-            .onDisappear {
-                store.send(.teardown)
-            }
             .alert($store.scope(state: \.alert, action: \.alert))
         }
     }
