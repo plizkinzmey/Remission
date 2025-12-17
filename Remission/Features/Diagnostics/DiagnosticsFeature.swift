@@ -31,6 +31,7 @@ struct DiagnosticsReducer {
         case levelSelected(AppLogLevel?)
         case queryChanged(String)
         case copyEntry(DiagnosticsLogEntry)
+        case debugAddSampleTapped
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
         case logsStreamUpdated([DiagnosticsLogEntry])
         case alert(PresentationAction<AlertAction>)
@@ -89,6 +90,18 @@ struct DiagnosticsReducer {
             case .copyEntry(let entry):
                 return .run { _ in
                     await clipboard.copy(DiagnosticsLogFormatter.copyText(for: entry))
+                }
+
+            case .debugAddSampleTapped:
+                let entry = DiagnosticsLogEntry(
+                    timestamp: Date(),
+                    level: .info,
+                    message: "Diagnostics test entry",
+                    category: "diagnostics",
+                    metadata: ["source": "ui"]
+                )
+                return .run { _ in
+                    await diagnosticsLogStore.append(entry)
                 }
 
             case .logsResponse(.success(let entries)):

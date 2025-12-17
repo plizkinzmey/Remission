@@ -6,7 +6,7 @@ import Logging
 #endif
 
 /// Уровни логирования в приложении.
-public enum AppLogLevel: String, Sendable {
+public enum AppLogLevel: String, Sendable, Codable {
     case debug
     case info
     case warning

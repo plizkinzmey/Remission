@@ -1,7 +1,7 @@
 import Foundation
 
 /// Модель записи диагностического лога для отображения в UI.
-public struct DiagnosticsLogEntry: Identifiable, Equatable, Sendable {
+public struct DiagnosticsLogEntry: Identifiable, Equatable, Sendable, Codable {
     public var id: UUID
     public var timestamp: Date
     public var level: AppLogLevel

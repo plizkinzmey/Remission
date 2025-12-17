@@ -19,13 +19,23 @@ struct DiagnosticsView: View {
                     ProgressView(L10n.tr("diagnostics.loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if store.visibleEntries.isEmpty {
-                    ContentUnavailableView(
-                        L10n.tr("diagnostics.empty.title"),
-                        systemImage: "doc.text.magnifyingglass",
-                        description: Text(
-                            L10n.tr("diagnostics.empty.message"))
-                    )
-                    .accessibilityIdentifier("diagnostics_empty_state")
+                    VStack(spacing: 16) {
+                        ContentUnavailableView(
+                            L10n.tr("diagnostics.empty.title"),
+                            systemImage: "doc.text.magnifyingglass",
+                            description: Text(
+                                L10n.tr("diagnostics.empty.message"))
+                        )
+                        .accessibilityIdentifier("diagnostics_empty_state")
+
+                        #if DEBUG
+                            Button("Add test log") {
+                                store.send(.debugAddSampleTapped)
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("diagnostics_add_test_log_button")
+                        #endif
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     logList
