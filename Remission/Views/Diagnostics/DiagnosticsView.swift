@@ -29,8 +29,11 @@ struct DiagnosticsView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     logList
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .layoutPriority(1)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .navigationTitle(L10n.tr("diagnostics.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

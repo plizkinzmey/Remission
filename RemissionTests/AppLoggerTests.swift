@@ -104,4 +104,22 @@ struct AppLoggerTests {
         let testDeps = DependencyValues.appTest()
         #expect(testDeps.appLogger.isNoop == true)
     }
+
+    @Test("Live appLogger пишет в diagnosticsLogStore")
+    func testDiagnosticsSinkCapturesLogs() async throws {
+        let deps = DependencyValues.appDefault()
+        var iterator = await deps.diagnosticsLogStore.observe(.init()).makeAsyncIterator()
+        _ = await iterator.next()
+
+        deps.appLogger
+            .withCategory("diagnostics.test")
+            .info("Hello diagnostics", metadata: ["k": "v"])
+
+        let entries = try #require(await iterator.next())
+        let entry = try #require(entries.first)
+        #expect(entry.message == "Hello diagnostics")
+        #expect(entry.category == "diagnostics.test")
+        #expect(entry.level == .info)
+        #expect(entry.metadata["k"] == "v")
+    }
 }

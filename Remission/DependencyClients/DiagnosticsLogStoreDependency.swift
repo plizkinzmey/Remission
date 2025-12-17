@@ -68,7 +68,7 @@ import Foundation
         /// Синхронный sink для AppLogger: в фоновом Task добавляет записи в хранилище.
         func makeSink() -> (@Sendable (DiagnosticsLogEntry) -> Void) {
             { entry in
-                Task {
+                Task.detached {
                     await append(entry)
                 }
             }
