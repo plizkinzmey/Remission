@@ -94,10 +94,17 @@ struct DiagnosticsReducer {
             case .logsResponse(.success(let entries)):
                 state.isLoading = false
                 state.entries = IdentifiedArrayOf(uniqueElements: entries)
-                state.visibleCount = min(
-                    max(state.visibleCount, state.pageSize),
-                    state.entries.count
-                )
+                if state.entries.isEmpty {
+                    state.visibleCount = 0
+                } else {
+                    state.visibleCount = max(
+                        1,
+                        min(
+                            max(state.visibleCount, state.pageSize),
+                            state.entries.count
+                        )
+                    )
+                }
                 return .none
 
             case .logsResponse(.failure(let error)):
@@ -115,10 +122,17 @@ struct DiagnosticsReducer {
 
             case .logsStreamUpdated(let entries):
                 state.entries = IdentifiedArrayOf(uniqueElements: entries)
-                state.visibleCount = min(
-                    max(state.visibleCount, state.pageSize),
-                    state.entries.count
-                )
+                if state.entries.isEmpty {
+                    state.visibleCount = 0
+                } else {
+                    state.visibleCount = max(
+                        1,
+                        min(
+                            max(state.visibleCount, state.pageSize),
+                            state.entries.count
+                        )
+                    )
+                }
                 return .none
 
             case .clearTapped:

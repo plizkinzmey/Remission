@@ -15,10 +15,10 @@ struct DiagnosticsView: View {
                         .padding(.horizontal)
                 }
 
-                if store.isLoading && store.entries.isEmpty {
+                if store.isLoading && store.visibleEntries.isEmpty {
                     ProgressView(L10n.tr("diagnostics.loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if store.entries.isEmpty {
+                } else if store.visibleEntries.isEmpty {
                     ContentUnavailableView(
                         L10n.tr("diagnostics.empty.title"),
                         systemImage: "doc.text.magnifyingglass",

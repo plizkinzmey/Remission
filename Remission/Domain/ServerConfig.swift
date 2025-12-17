@@ -32,7 +32,13 @@ struct ServerConfig: Equatable, Sendable, Identifiable {
             requestTimeout: 30,
             maxRetries: 3,
             retryDelay: 1,
-            enableLogging: false
+            enableLogging: {
+                #if DEBUG
+                    return true
+                #else
+                    return false
+                #endif
+            }()
         )
 
         var requestTimeout: TimeInterval
