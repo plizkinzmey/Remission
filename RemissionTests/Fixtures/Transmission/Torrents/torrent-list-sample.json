@@ -1,0 +1,160 @@
+{
+  "result": "success",
+  "arguments": {
+    "torrents": [
+      {
+        "id": 1001,
+        "name": "Ubuntu 25.04 Desktop",
+        "status": 4,
+        "hashString": "a111111111111111111111111111111111111111",
+        "totalSize": 15569256448,
+        "leftUntilDone": 3740000000,
+        "downloadedEver": 11829256448,
+        "uploadedEver": 1250000000,
+        "uploadRatio": 0.138,
+        "percentDone": 0.76,
+        "eta": 2400,
+        "dateAdded": 1704000100,
+        "rateDownload": 3500000,
+        "rateUpload": 420000,
+        "downloadLimit": 0,
+        "downloadLimited": false,
+        "uploadLimit": 0,
+        "uploadLimited": false,
+        "peersConnected": 42,
+        "peersFrom": {
+          "tracker": 25,
+          "cache": 8,
+          "dht": 9
+        },
+        "downloadDir": "/Users/uitester/Downloads/Linux",
+        "files": [
+          {
+            "name": "ubuntu-25.04-desktop-amd64.iso",
+            "length": 15569256448,
+            "bytesCompleted": 9030003712,
+            "priority": 1,
+            "wanted": true
+          }
+        ],
+        "trackers": [
+          {
+            "announce": "https://tracker.ubuntu.com/announce",
+            "tier": 0
+          }
+        ],
+        "trackerStats": [
+          {
+            "id": 0,
+            "lastAnnounceResult": "success",
+            "downloadCount": 150,
+            "leecherCount": 18,
+            "seederCount": 240
+          }
+        ]
+      },
+      {
+        "id": 1002,
+        "name": "Fedora 41 Workstation",
+        "status": 6,
+        "hashString": "b222222222222222222222222222222222222222",
+        "totalSize": 136365211648,
+        "leftUntilDone": 0,
+        "downloadedEver": 136365211648,
+        "uploadedEver": 29496729600,
+        "uploadRatio": 0.216,
+        "percentDone": 1.0,
+        "eta": -1,
+        "dateAdded": 1704000200,
+        "rateDownload": 0,
+        "rateUpload": 620000,
+        "downloadLimit": 0,
+        "downloadLimited": false,
+        "uploadLimit": 0,
+        "uploadLimited": false,
+        "peersConnected": 64,
+        "peersFrom": {
+          "tracker": 40,
+          "pex": 20,
+          "dht": 4
+        },
+        "downloadDir": "/Users/uitester/Downloads/Linux",
+        "files": [
+          {
+            "name": "Fedora-Workstation-Live-x86_64-41.iso",
+            "length": 136365211648,
+            "bytesCompleted": 136365211648,
+            "priority": 1,
+            "wanted": true
+          }
+        ],
+        "trackers": [
+          {
+            "announce": "https://tracker.fedoraproject.org/announce",
+            "tier": 0
+          }
+        ],
+        "trackerStats": [
+          {
+            "id": 0,
+            "lastAnnounceResult": "success",
+            "downloadCount": 820,
+            "leecherCount": 6,
+            "seederCount": 410
+          }
+        ]
+      },
+      {
+        "id": 1003,
+        "name": "Arch Linux Snapshot",
+        "status": 7,
+        "hashString": "c333333333333333333333333333333333333333",
+        "totalSize": 7340032000,
+        "leftUntilDone": 6459226880,
+        "downloadedEver": 880805120,
+        "uploadedEver": 0,
+        "uploadRatio": 0.0,
+        "percentDone": 0.12,
+        "eta": -1,
+        "dateAdded": 1704000300,
+        "rateDownload": 0,
+        "rateUpload": 0,
+        "downloadLimit": 0,
+        "downloadLimited": false,
+        "uploadLimit": 0,
+        "uploadLimited": false,
+        "peersConnected": 8,
+        "peersFrom": {
+          "tracker": 4,
+          "dht": 4
+        },
+        "downloadDir": "/Users/uitester/Downloads/Linux",
+        "files": [
+          {
+            "name": "archlinux-2024.05.01-x86_64.iso",
+            "length": 7340032000,
+            "bytesCompleted": 880805120,
+            "priority": 1,
+            "wanted": true
+          }
+        ],
+        "trackers": [
+          {
+            "announce": "https://tracker.archlinux.org/announce",
+            "tier": 0
+          }
+        ],
+        "trackerStats": [
+          {
+            "id": 0,
+            "lastAnnounceResult": "could not connect to tracker",
+            "downloadCount": 40,
+            "leecherCount": 32,
+            "seederCount": 5
+          }
+        ]
+      }
+    ]
+  },
+  "tag": "torrent-list-sample"
+}

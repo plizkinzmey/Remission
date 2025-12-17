@@ -95,11 +95,20 @@ swiftlint --fix
 git commit --no-verify
 ```
 
+### Проверка локализаций
+
+- Скрипт `Scripts/check-localizations.sh` проверяет `Remission/Localizable.xcstrings` на отсутствие переводов и несовпадение плейсхолдеров между `ru` и `en`.
+- Запускать вручную из корня репозитория:  
+  ```bash
+  Scripts/check-localizations.sh
+  ```
+- Проверка встроена в Xcode build phase **Localizations Check**; при ошибках сборка завершится с кодом 1.
+
 ### Сборка из командной строки
 
 **Сборка для iOS Simulator:**
 ```bash
-xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build
+xcodebuild -scheme Remission -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 16e' build
 ```
 
 **Сборка для macOS:**
@@ -119,6 +128,31 @@ xcodebuild test -scheme Remission -sdk iphonesimulator -destination 'platform=iO
 xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15'
 ```
 
+UI smoke покрывает две ключевые ветки: пустое состояние списка серверов и переход к деталям через фикстурные данные. Для сценария навигации используется launch-аргумент `--ui-testing-fixture=server-list-sample`, который подготавливает преднастроенные сервера при запуске UI-тестов.
+
+**Покрытие кода (целевое значение ≥ 60%):**
+```bash
+# 1. Запускаем тесты с сохранением результата и включённым покрытием
+xcodebuild test \
+  -scheme Remission \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -resultBundlePath build/TestResults/Remission.xcresult \
+  -enableCodeCoverage YES
+
+# 2. Просматриваем отчёт о покрытии через xccov
+xcrun xccov view --report build/TestResults/Remission.xcresult
+
+# (опционально) Сохраняем отчёт в JSON для анализа/CI
+xcrun xccov view --report --json build/TestResults/Remission.xcresult > build/TestResults/coverage.json
+```
+
+Пример актуального запуска: общая доля покрытых строк составила **77.8%**, при этом `TransmissionClient.swift` и зависимые DTO полностью попали в отчёт.
+
+### Статус CI
+
+На текущем этапе CI-пайплайн отключён: проект поддерживается одним разработчиком, и мы временно приняли решение выполнять проверки вручную, чтобы не тратить ресурсы на автоматизацию. Перед push запускайте локальные lint/format и `xcodebuild test` — это остаётся обязательным чек-листом.
+
 ## Архитектура
 
 Проект использует следующие архитектурные паттерны:
@@ -128,23 +162,106 @@ xcodebuild test -scheme Remission -testPlan RemissionUITests -sdk iphonesimulato
 - **Async/await** для асинхронного программирования
 - **Keychain** для безопасного хранения учётных данных
 
+## Сохранение серверов и резервные копии
+
+- Список серверов хранится в файле `~/Library/Application Support/Remission/servers.json` (для iOS Simulator путь будет внутри контейнера приложения, но структура совпадает).
+- Каждый сервер сериализуется в `StoredServerConfigRecord` (id, host, port, путь, настройки HTTPS, имя пользователя и дата создания).
+- Пароли **никогда** не попадают в `servers.json` — они лежат в Keychain под ключом `transmission-credentials-{host}-{port}-{username}`.
+
+### Как сделать резервную копию
+1. Закройте приложение Remission (чтобы файл не перезаписывался).
+2. Скопируйте `servers.json` в безопасное место, например:
+   ```bash
+   mkdir -p ~/Backups/remission
+   cp ~/Library/Application\ Support/Remission/servers.json \
+      ~/Backups/remission/servers-$(date +%Y%m%d).json
+   ```
+3. Экспортируйте связанные записи Keychain через стандартное приложение «Связка ключей» или команду `security export` (фильтр по `transmission-credentials`), чтобы сохранить пароли.
+
+### Восстановление
+1. Скопируйте нужную версию `servers.json` обратно в `~/Library/Application Support/Remission/`.
+2. Импортируйте соответствующие элементы Keychain (если они отсутствуют).
+3. Запустите приложение — серверы будут подхвачены автоматически при старте.
+
 ### Структура проекта
 
 ```
 Remission/
 ├── Remission/              # Основное приложение (SwiftUI)
 │   ├── RemissionApp.swift  # @main App struct
-│   ├── ContentView.swift   # Главное окно
-│   └── Assets.xcassets/    # Ресурсы (иконки, цвета и т.д.)
-├── RemissionTests/         # Unit-тесты
+│   ├── Features/           # TCA Reducers для feature-модулей
+│   │   ├── Onboarding/     # Онбординг
+│   │   ├── ServerList/     # Список серверов
+│   │   ├── ServerDetail/   # Детали сервера
+│   │   └── ServerEditor/   # Редактирование сервера
+│   ├── Views/              # SwiftUI View компоненты
+│   │   ├── App/            # Корневой AppView
+│   │   ├── Onboarding/     # Views онбординга
+│   │   ├── ServerList/     # Views списка серверов
+│   │   ├── ServerDetail/   # Views деталей сервера
+│   │   ├── ServerEditor/   # Views редактора сервера
+│   │   ├── TorrentDetail/  # Views деталей торрента
+│   │   └── Shared/         # Переиспользуемые компоненты
+│   ├── Domain/             # Доменные модели и маппинг RPC
+│   │   ├── ServerConfig.swift
+│   │   ├── Torrent.swift
+│   │   ├── SessionState.swift
+│   │   └── TransmissionDomainMapper*.swift
+│   ├── DependencyClients/  # Определения @DependencyClient
+│   │   ├── TransmissionClientDependency.swift
+│   │   ├── AppClockDependency.swift
+│   │   └── KeychainCredentialsDependency.swift
+│   ├── DependencyClientLive/  # Live-реализации зависимостей
+│   │   ├── TransmissionClientDependency+Live.swift
+│   │   └── KeychainCredentialsDependency+Live.swift
+│   ├── Shared/             # Общие утилиты
+│   ├── Assets.xcassets/    # Ресурсы (иконки, цвета и т.д.)
+│   └── [корневые файлы]    # Repositories, Network, Bootstrap
+├── RemissionTests/         # Unit-тесты (Swift Testing)
+│   ├── Support/            # Утилиты для тестов
+│   │   ├── DependencyOverrides.swift
+│   │   └── TestStoreFactory.swift
+│   └── Fixtures/           # Фикстуры и тестовые данные
+│       ├── Transmission/   # JSON-фикстуры Transmission RPC
+│       ├── Domain/         # Доменные фикстуры
+│       └── TransmissionFixture.swift
 ├── RemissionUITests/       # UI-тесты
 ├── devdoc/
-│   └── PRD.md             # Product Requirements Document
-├── AGENTS.md              # Справочник для AI-агентов и разработчиков
-└── README.md              # Этот файл
+│   ├── PRD.md              # Product Requirements Document
+│   ├── plan.md             # Архитектура и roadmap
+│   ├── CONTEXT7_GUIDE.md   # Гайд по исследованию документации
+│   └── TRANSMISSION_RPC_REFERENCE.md
+├── AGENTS.md               # Справочник для AI-агентов и разработчиков
+└── README.md               # Этот файл
 ```
 
 ## Разработка
+
+### VS Code Tasks
+
+Проект включает готовые задачи в `.vscode/tasks.json` для упрощения разработки и CI/CD процессов:
+
+- **SwiftLint (run)** — запуск линтера с JSON-репортером
+- **Run Unit Tests** — запуск unit-тестов для macOS (быстрее симулятора)
+- **Xcode Build (Debug)** — Debug сборка с автоматическим запуском линтера и тестов
+- **Run App** — открытие собранного приложения
+- **Archive (Release)** — создание Release-архива с автоинкрементом версии
+- **Export App (IPA)** — экспорт IPA из архива
+- **Archive & Export (Personal Team)** — полный цикл релиза
+
+Запуск через VS Code Command Palette: `Cmd+Shift+P` → "Tasks: Run Task"
+
+Или из командной строки:
+```bash
+# Запуск линтера
+swiftlint lint --quiet --reporter json
+
+# Запуск тестов (macOS быстрее симулятора)
+xcodebuild test -scheme Remission -configuration Debug -destination 'platform=macOS,arch=arm64' | xcbeautify
+
+# Полная сборка
+xcodebuild -scheme Remission -configuration Debug build | xcbeautify
+```
 
 ### Форматирование кода
 
@@ -262,13 +379,73 @@ swiftlint lint
 ```bash
 # Полный набор тестов
 xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 15'
+
+# Только SettingsReducer с сохранением результата в xcresult
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:RemissionTests/SettingsFeatureTests \
+  -resultBundlePath build/TestResults/SettingsFeatureTests.xcresult
+
+# UI-тест персистентности настроек (использует UI_TESTING_PREFERENCES_SUITE)
+UI_TESTING_PREFERENCES_SUITE=ui-settings-persistence \
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -only-testing:RemissionUITests/RemissionUITests/testSettingsPersistenceAcrossLaunches \
+  -resultBundlePath build/TestResults/SettingsPersistenceUI.xcresult
 ```
+
+#### Точечные проверки списка торрентов
+
+```bash
+# Только редьюсер TorrentListReducer (Swift Testing)
+xcodebuild test \
+  -scheme Remission \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:RemissionTests/TorrentListFeatureTests
+
+# UI-тест списка торрентов (фикстура torrent-list)
+xcodebuild test \
+  -scheme Remission \
+  -testPlan RemissionUITests \
+  -destination 'platform=iOS Simulator,name=iPhone 15' \
+  -only-testing:RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh
+```
+
+#### UI фикстуры, аргументы и переменные окружения
+
+| Аргумент | Назначение |
+| --- | --- |
+| `--ui-testing-fixture=server-list-sample` | Предзаполняет список серверов демо-данными |
+| `--ui-testing-fixture=torrent-list-sample` | Создаёт in-memory `ServerConnectionEnvironment` и `TorrentRepository` с тремя торрентовыми фикстурами |
+| `--ui-testing-scenario=server-list-sample` | Настраивает сценарий перехода в детали из списка серверов |
+| `--ui-testing-scenario=torrent-list-sample` | Включает вспомогательные зависимости для теста поиска/refresh в списке торрентов |
+| `--ui-testing-scenario=onboarding-flow` | Инициализирует in-memory репозитории для онбординга |
+| `UI_TESTING_PREFERENCES_SUITE=<suite>` | Направляет UI-тесты настроек в отдельный `UserDefaults(suiteName:)`, чтобы проверять персистентность между перезапусками |
+
+Добавьте аргументы в схему (`Edit Scheme… → Arguments`) или передайте через CLI (`xcodebuild test ... OTHER_ARGUMENTS`).
+
+## Troubleshooting
+
+### Сброс ServerConnectionEnvironment при ошибках подключения
+
+`ServerConnectionEnvironment` инкапсулирует TransmissionClient/TorrentRepository для конкретного сервера. Если список торрентов перестал обновляться (поллинг завис в ошибке, UI не выходит из «Подключаемся…»):
+
+1. **Повторите подключение** — на экране сервера нажмите «Повторить подключение». Редьюсер заново вызовет `serverConnectionEnvironmentFactory.make(...)` и пересоздаст клиент.
+2. **Сделайте teardown вручную** — закройте экран деталей или перезапустите приложение. Это диспатчит `.torrentList(.teardown)` и принудительно обнуляет окружение; при следующем `task` произойдёт bootstrap.
+3. **Пересохраните сервер** — нажмите «Редактировать», измените любой параметр (или нажмите «Сохранить» без изменений). Обновлённый `connectionFingerprint` вызовет teardown и создание нового окружения.
+4. **Используйте фикстуру** — для UI-тестов и ручного smoke прогона запустите приложение с аргументом `--ui-testing-fixture=torrent-list-sample`: он подставит in-memory зависимости и гарантирует чистое состояние.
+
+Если после этих шагов ошибка сохраняется, удалите сервер из списка (что очистит креды/траст) и добавьте заново; при необходимости см. логи Transmission (см. `devdoc/LOGGING_GUIDE.md`) или консоль Xcode.
 
 ## Документация
 
 - **`devdoc/PRD.md`** — Product Requirements Document с подробным описанием функциональности
 - **`AGENTS.md`** — Справочник архитектуры, соглашений и инструкций для разработчиков и AI-агентов
 - **`devdoc/plan.md`** — План развития проекта и дорожная карта
+- **`devdoc/LOGGING_GUIDE.md`** — как включать/собирать логи, правила безопасности, телеметрия
+- **`devdoc/QA_REPORT_RTC70+.md`** — smoke-сценарии QA для списка торрентов и связанных фич
 
 ## Лицензия
 

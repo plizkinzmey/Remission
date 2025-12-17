@@ -1,0 +1,57 @@
+{
+  "result": "success",
+  "arguments": {
+    "torrents": [
+      {
+        "id": 7,
+        "name": "Ubuntu 24.04 LTS",
+        "status": 4,
+        "hashString": "ae7f2d5b43bfa10c9e2d0af6c1b5d8ef0a123456",
+        "totalSize": 1073741824,
+        "leftUntilDone": 0,
+        "downloadedEver": 1073741824,
+        "uploadedEver": 536870912,
+        "uploadRatio": 0.5,
+        "percentDone": 1.0,
+        "eta": -1,
+        "dateAdded": 1700000000,
+        "rateDownload": 0,
+        "rateUpload": 20480,
+        "downloadLimit": 2048,
+        "downloadLimited": true,
+        "uploadLimit": 1024,
+        "uploadLimited": false,
+        "peersConnected": 12,
+        "peersFrom": {
+          "tracker": 8,
+          "cache": 4
+        },
+        "downloadDir": "/volume1/Downloads",
+        "files": [
+          {
+            "name": "ubuntu-24.04-desktop-amd64.iso",
+            "length": 1073741824,
+            "bytesCompleted": 1073741824,
+            "priority": 1
+          }
+        ],
+        "trackers": [
+          {
+            "announce": "https://tracker.example.com/announce",
+            "tier": 0
+          }
+        ],
+        "trackerStats": [
+          {
+            "id": 0,
+            "lastAnnounceResult": "success",
+            "downloadCount": 10,
+            "leecherCount": 2,
+            "seederCount": 22
+          }
+        ]
+      }
+    ]
+  },
+  "tag": "torrent-list"
+}

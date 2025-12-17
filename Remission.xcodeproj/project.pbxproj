@@ -6,6 +6,11 @@
 	objectVersion = 90;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 15AADFF42EA417C5003711C3 /* ComposableArchitecture */; };
+		15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 15B1A0002F0B7B2E00E3D111 /* Logging */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		15AA8C492EA1C9370025EF81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +32,7 @@
 		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -51,6 +57,8 @@
 		15AA8C382EA1C9360025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */,
+				15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */,
 			);
 		};
 		15AA8C452EA1C9370025EF81 /* Frameworks */ = {
@@ -65,33 +73,11 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		15AA8C6A2EA1CA570025EF81 /* SwiftLint */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.swiftlint.yml",
-			);
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(TEMP_DIR)/SwiftLintDone",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\n\nif command -v swiftlint >/dev/null 2>&1\nthen\n    cd \"${SRCROOT}\"\n    swiftlint lint --reporter xcode || true\nelse\n    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"\nfi\n";
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXGroup section */
 		15AA8C322EA1C9360025EF81 = {
 			isa = PBXGroup;
 			children = (
+				15D03AFF2EA3B62200044487 /* Remission.xctestplan */,
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 				15AA8C4B2EA1C9370025EF81 /* RemissionTests */,
 				15AA8C552EA1C9370025EF81 /* RemissionUITests */,
@@ -116,7 +102,8 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 15AA8C5C2EA1C9370025EF81 /* Build configuration list for PBXNativeTarget "Remission" */;
 			buildPhases = (
-				15AA8C6A2EA1CA570025EF81 /* SwiftLint */,
+				15AA8C6A2EA1CA570025EF81 /* ShellScript */,
+				15F6B6B32F10A00000A0A111 /* Localizations Check */,
 				15AA8C372EA1C9360025EF81 /* Sources */,
 				15AA8C382EA1C9360025EF81 /* Frameworks */,
 				15AA8C392EA1C9360025EF81 /* Resources */,
@@ -127,6 +114,10 @@
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 			);
 			name = Remission;
+			packageProductDependencies = (
+				15AADFF42EA417C5003711C3 /* ComposableArchitecture */,
+				15B1A0002F0B7B2E00E3D111 /* Logging */,
+			);
 			productName = Remission;
 			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
 			productType = "com.apple.product-type.application";
@@ -181,7 +172,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2600;
+				LastUpgradeCheck = 2620;
 				TargetAttributes = {
 					15AA8C3A2EA1C9360025EF81 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -201,10 +192,15 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ru,
 				Base,
 			);
 			mainGroup = 15AA8C322EA1C9360025EF81;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */,
+			);
 			preferredProjectObjectVersion = 90;
 			productRefGroup = 15AA8C3C2EA1C9360025EF81 /* Products */;
 			projectDirPath = "";
@@ -234,6 +230,105 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		15AA8C6A2EA1CA570025EF81 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"$(SRCROOT)/.swiftlint.yml",
+				"$(SRCROOT)/Remission",
+				"$(SRCROOT)/RemissionTests",
+				"$(SRCROOT)/RemissionUITests",
+			);
+			outputPaths = (
+				"$(TEMP_DIR)/SwiftLintDone",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"if [[ \"$(uname -m)\" == arm64 ]]",
+				"then",
+				"    export PATH=\"/opt/homebrew/bin:$PATH\"",
+				"fi",
+				"if command -v swiftlint >/dev/null 2>&1",
+				"then",
+				"    cd \"${SRCROOT}\"",
+				"    swiftlint lint --reporter xcode || true",
+				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
+				"else",
+				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
+				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
+				"fi",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+			);
+		};
+		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			inputPaths = (
+				"$(SRCROOT)/Scripts/check-localizations.sh",
+				"$(SRCROOT)/Remission/Localizable.xcstrings",
+			);
+			name = "Localizations Check";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/LocalizationsCheckDone",
+			);
+			shellPath = /bin/sh;
+			shellScript = (
+				"cd \"${SRCROOT}\"",
+				"Scripts/check-localizations.sh",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+			);
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		15AA8C372EA1C9360025EF81 /* Sources */ = {
@@ -272,6 +367,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -301,6 +397,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -324,6 +421,7 @@
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -334,6 +432,7 @@
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -363,6 +462,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -379,6 +479,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 			};
 			name = Release;
@@ -388,14 +489,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Remission/Remission.macOS.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -418,8 +524,8 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_ENABLE_EXPERIMENTAL_MACROS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -432,14 +538,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = Remission/Remission.macOS.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -462,7 +573,6 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
@@ -477,7 +587,9 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
+				ENABLE_SWIFT_TESTING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -503,7 +615,9 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
+				ENABLE_SWIFT_TESTING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
@@ -528,6 +642,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -553,6 +668,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
@@ -609,6 +725,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.23.0;
+			};
+		};
+		15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-log";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.5.4;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		15AADFF42EA417C5003711C3 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		15B1A0002F0B7B2E00E3D111 /* Logging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 15B19FFF2F0B7B0B00E3D111 /* XCRemoteSwiftPackageReference "swift-log" */;
+			productName = Logging;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 15AA8C332EA1C9360025EF81 /* Project object */;
 }

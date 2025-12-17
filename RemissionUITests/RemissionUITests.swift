@@ -1,41 +1,37 @@
-//
-//  RemissionUITests.swift
-//  RemissionUITests
-//
-//  Created by Aleksandr on 17.10.2025.
-//
-
 import XCTest
 
-final class RemissionUITests: XCTestCase {
+@MainActor
+final class RemissionUITests: BaseUITestCase {
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    @MainActor
+    func testShowsEmptyStateOnFirstLaunch() {
+        let app = launchApp()
 
-        // In UI tests it is usually best to stop immediately when a failure occurs.
-        continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        #if os(macOS)
+            let emptyTitle = app.descendants(matching: .any)["server_list_empty_title"]
+            XCTAssertTrue(emptyTitle.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.descendants(matching: .any)["server_list_add_button"].exists)
+        #else
+            let emptyTitle = app.staticTexts["server_list_empty_title"]
+            XCTAssertTrue(emptyTitle.waitForExistence(timeout: 5))
+            XCTAssertTrue(app.buttons["server_list_add_button"].exists)
+        #endif
     }
 
     @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app: XCUIApplication = XCUIApplication()
-        app.launch()
+    func testSettingsScreenShowsControls() {
+        let app = launchApp()
 
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        let controls = openSettingsControls(app)
+        waitForSettingsLoaded(app)
+
+        XCTAssertTrue(controls.autoRefreshToggle.exists, "Auto-refresh toggle missing")
+        XCTAssertTrue(controls.pollingSlider.exists, "Polling slider missing")
+        XCTAssertTrue(controls.downloadField.exists, "Download limit field missing")
+        XCTAssertTrue(controls.uploadField.exists, "Upload limit field missing")
+
+        controls.closeButton.tap()
+        XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
     }
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
-        measure(metrics: [XCTApplicationLaunchMetric()]) {
-            XCUIApplication().launch()
-        }
-    }
 }

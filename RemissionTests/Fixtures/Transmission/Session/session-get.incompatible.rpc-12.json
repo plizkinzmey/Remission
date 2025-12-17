@@ -1,0 +1,11 @@
+{
+  "result": "success",
+  "arguments": {
+    "rpc-version": 12,
+    "rpc-version-minimum": 10,
+    "version": "2.94 (bb6b5a062f)",
+    "config-dir": "/opt/transmission",
+    "download-dir": "/downloads"
+  },
+  "tag": 2
+}

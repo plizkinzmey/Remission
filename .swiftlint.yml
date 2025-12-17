@@ -4,10 +4,12 @@
 disabled_rules:
   - trailing_whitespace
   - force_cast
+  - trailing_comma
+  - explicit_type_interface
+  - todo
 
 opt_in_rules:
   - closure_spacing
-  - explicit_type_interface
   - missing_docs
   - empty_count
   - static_over_final_class
