@@ -3,27 +3,36 @@ import SwiftUI
 
 struct TorrentTrackersView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
+    var showsContainer: Bool = true
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(store.trackers) { tracker in
-                    let stats: TrackerStat? = store
-                        .trackerStats
-                        .first { $0.trackerId == tracker.id }
-                    TorrentTrackerRow(tracker: tracker, stats: stats)
-                }
-            }
-        } label: {
-            Text(
-                String(
-                    format: L10n.tr("torrentDetail.trackers.title"),
-                    Int64(store.trackers.count)
+        if showsContainer {
+            GroupBox {
+                content
+            } label: {
+                Text(
+                    String(
+                        format: L10n.tr("torrentDetail.trackers.title"),
+                        Int64(store.trackers.count)
+                    )
                 )
-            )
-            .font(.headline)
+                .font(.headline)
+            }
+            .accessibilityIdentifier("torrent-trackers-section")
+        } else {
+            content
         }
-        .accessibilityIdentifier("torrent-trackers-section")
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(store.trackers) { tracker in
+                let stats: TrackerStat? = store
+                    .trackerStats
+                    .first { $0.trackerId == tracker.id }
+                TorrentTrackerRow(tracker: tracker, stats: stats)
+            }
+        }
     }
 }
 

@@ -46,6 +46,16 @@ struct ServerDetailView: View {
         ) { detailStore in
             NavigationStack {
                 TorrentDetailView(store: detailStore)
+                    #if os(macOS)
+                        .frame(
+                            minWidth: 520,
+                            idealWidth: 640,
+                            maxWidth: 760,
+                            minHeight: 520,
+                            idealHeight: 560,
+                            maxHeight: 600
+                        )
+                    #endif
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("serverDetail.button.close")) {

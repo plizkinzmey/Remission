@@ -6,49 +6,58 @@ import SwiftUI
 
 struct TorrentSpeedHistoryView: View {
     let samples: [SpeedSample]
+    var showsContainer: Bool = true
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 16) {
-                if samples.isEmpty {
-                    EmptyPlaceholderView(
-                        systemImage: "waveform.path",
-                        title: L10n.tr("torrentDetail.speedHistory.empty.title"),
-                        message: L10n.tr("torrentDetail.speedHistory.empty.message")
-                    )
-                    .accessibilityIdentifier("torrent-speed-history-empty")
-                } else {
-                    #if canImport(Charts)
-                        SpeedHistoryChart(samples: samples)
-                            .frame(height: 180)
-                            .accessibilityIdentifier("torrent-speed-history-chart")
-                    #else
-                        Text(L10n.tr("torrentDetail.speedHistory.unavailable"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    #endif
-                    HStack(spacing: 12) {
-                        Label(
-                            L10n.tr("torrentDetail.speedHistory.download"),
-                            systemImage: "arrow.down.circle.fill"
-                        )
-                        .foregroundStyle(.green)
-                        Label(
-                            L10n.tr("torrentDetail.speedHistory.upload"),
-                            systemImage: "arrow.up.circle.fill"
-                        )
-                        .foregroundStyle(.blue)
-                    }
-                    .font(.caption)
-                    Divider()
-                    historyRows
-                }
+        if showsContainer {
+            GroupBox {
+                content
+            } label: {
+                Text(L10n.tr("torrentDetail.speedHistory.title"))
+                    .font(.headline)
             }
-        } label: {
-            Text(L10n.tr("torrentDetail.speedHistory.title"))
-                .font(.headline)
+            .accessibilityIdentifier("torrent-speed-history-section")
+        } else {
+            content
         }
-        .accessibilityIdentifier("torrent-speed-history-section")
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if samples.isEmpty {
+                EmptyPlaceholderView(
+                    systemImage: "waveform.path",
+                    title: L10n.tr("torrentDetail.speedHistory.empty.title"),
+                    message: L10n.tr("torrentDetail.speedHistory.empty.message")
+                )
+                .accessibilityIdentifier("torrent-speed-history-empty")
+            } else {
+                #if canImport(Charts)
+                    SpeedHistoryChart(samples: samples)
+                        .frame(height: 180)
+                        .accessibilityIdentifier("torrent-speed-history-chart")
+                #else
+                    Text(L10n.tr("torrentDetail.speedHistory.unavailable"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                #endif
+                HStack(spacing: 12) {
+                    Label(
+                        L10n.tr("torrentDetail.speedHistory.download"),
+                        systemImage: "arrow.down.circle.fill"
+                    )
+                    .foregroundStyle(.green)
+                    Label(
+                        L10n.tr("torrentDetail.speedHistory.upload"),
+                        systemImage: "arrow.up.circle.fill"
+                    )
+                    .foregroundStyle(.blue)
+                }
+                .font(.caption)
+                Divider()
+                historyRows
+            }
+        }
     }
 
     private var historyRows: some View {

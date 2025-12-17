@@ -3,13 +3,19 @@ import SwiftUI
 
 struct TorrentDetailView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
+    @State private var isSpeedHistoryExpanded: Bool = false
+    @State private var isStatisticsExpanded: Bool = false
+    @State private var isFilesExpanded: Bool = false
+    @State private var isTrackersExpanded: Bool = false
+    @State private var isPeersExpanded: Bool = false
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 24) {
-                summarySection
+        Form {
+            summarySection
+            basicInformationSection
 
-                if let banner = store.errorPresenter.banner {
+            if let banner = store.errorPresenter.banner {
+                Section {
                     ErrorBannerView(
                         message: banner.message,
                         onRetry: banner.retry == nil
@@ -18,8 +24,10 @@ struct TorrentDetailView: View {
                         onDismiss: { store.send(.dismissError) }
                     )
                 }
+            }
 
-                if shouldShowInitialPlaceholder {
+            if shouldShowInitialPlaceholder {
+                Section {
                     EmptyPlaceholderView(
                         systemImage: "arrow.clockwise.circle",
                         title: L10n.tr("torrentDetail.placeholder.initial.title"),
@@ -27,8 +35,10 @@ struct TorrentDetailView: View {
                     )
                     .accessibilityIdentifier("torrent-detail-initial-placeholder")
                 }
+            }
 
-                if shouldShowMetadataFallback {
+            if shouldShowMetadataFallback {
+                Section {
                     EmptyPlaceholderView(
                         systemImage: "sparkles",
                         title: L10n.tr("torrentDetail.placeholder.metadata.title"),
@@ -36,18 +46,11 @@ struct TorrentDetailView: View {
                     )
                     .accessibilityIdentifier("torrent-detail-metadata-placeholder")
                 }
-
-                TorrentMainInfoView(store: store)
-                TorrentStatisticsView(store: store)
-                TorrentSpeedHistoryView(samples: store.speedHistory.samples)
-                TorrentActionsView(store: store)
-                filesSection
-                trackersSection
-                peersSection
             }
-            .padding(.horizontal)
-            .padding(.vertical, 24)
+
+            advancedSections
         }
+        .formStyle(.grouped)
         .navigationTitle(store.name.isEmpty ? L10n.tr("torrentDetail.title.fallback") : store.name)
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -95,64 +98,10 @@ struct TorrentDetailView: View {
     }
 
     @ViewBuilder
-    private var filesSection: some View {
-        if store.files.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "doc.text.magnifyingglass",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.files.empty.title.loaded")
-                    : L10n.tr("torrentDetail.files.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.files.empty.message.loaded")
-                    : L10n.tr("torrentDetail.files.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-files-empty")
-        } else {
-            TorrentFilesView(store: store)
-        }
-    }
-
-    @ViewBuilder
-    private var trackersSection: some View {
-        if store.trackers.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "dot.radiowaves.left.and.right",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.trackers.empty.title.loaded")
-                    : L10n.tr("torrentDetail.trackers.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.trackers.empty.message.loaded")
-                    : L10n.tr("torrentDetail.trackers.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-trackers-empty")
-        } else {
-            TorrentTrackersView(store: store)
-        }
-    }
-
-    @ViewBuilder
-    private var peersSection: some View {
-        if store.peers.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "person.2.wave.2.fill",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.peers.empty.title.loaded")
-                    : L10n.tr("torrentDetail.peers.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.peers.empty.message.loaded")
-                    : L10n.tr("torrentDetail.peers.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-peers-empty")
-        } else {
-            TorrentPeersView(peers: store.peers)
-        }
-    }
-
-    @ViewBuilder
     private var summarySection: some View {
-        GroupBox {
+        Section {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
                     ProgressView(
                         value: store.hasLoadedMetadata ? store.percentDone : 0,
                         total: 1.0
@@ -187,13 +136,14 @@ struct TorrentDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    Spacer(minLength: 8)
                 }
                 Divider()
                 summaryMetrics
             }
-        } label: {
+            .padding(.vertical, 8)
+        } header: {
             Text(L10n.tr("torrentDetail.section.summary"))
-                .font(.headline)
         }
         .accessibilityIdentifier("torrent-summary")
     }
@@ -235,6 +185,192 @@ struct TorrentDetailView: View {
             )
             .accessibilityIdentifier("torrent-detail-loading")
     }
+
+    private var basicInformationSection: some View {
+        Section {
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.status"),
+                value: TorrentDetailFormatters.statusText(for: store.status)
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.progress"),
+                value: store.hasLoadedMetadata
+                    ? TorrentDetailFormatters.progress(store.percentDone)
+                    : L10n.tr("torrentDetail.mainInfo.unavailable")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.size"),
+                value: store.hasLoadedMetadata && store.totalSize > 0
+                    ? TorrentDetailFormatters.bytes(store.totalSize)
+                    : L10n.tr("torrentDetail.mainInfo.unknown")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.downloaded"),
+                value: store.hasLoadedMetadata
+                    ? TorrentDetailFormatters.bytes(store.downloadedEver)
+                    : L10n.tr("torrentDetail.mainInfo.unavailable")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.uploaded"),
+                value: store.hasLoadedMetadata
+                    ? TorrentDetailFormatters.bytes(store.uploadedEver)
+                    : L10n.tr("torrentDetail.mainInfo.unavailable")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.path"),
+                value: store.hasLoadedMetadata && store.downloadDir.isEmpty == false
+                    ? store.downloadDir
+                    : L10n.tr("torrentDetail.mainInfo.unknown")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.added"),
+                value: store.hasLoadedMetadata && store.dateAdded > 0
+                    ? TorrentDetailFormatters.date(from: store.dateAdded)
+                    : L10n.tr("torrentDetail.mainInfo.unavailable")
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.mainInfo.eta"),
+                value: etaDescription
+            )
+        } header: {
+            Text(L10n.tr("torrentDetail.mainInfo.title"))
+        }
+        .accessibilityIdentifier("torrent-main-info")
+    }
+
+    private var etaDescription: String {
+        if store.eta > 0 {
+            return TorrentDetailFormatters.eta(store.eta)
+        }
+        return store.hasLoadedMetadata
+            ? L10n.tr("torrentDetail.mainInfo.unknown")
+            : L10n.tr("torrentDetail.mainInfo.waitingMetadata")
+    }
+
+    private var advancedSections: some View {
+        Section {
+            DisclosureGroup(
+                isExpanded: $isStatisticsExpanded
+            ) {
+                if isStatisticsExpanded {
+                    TorrentStatisticsView(store: store, showsContainer: false)
+                        .padding(.top, 8)
+                }
+            } label: {
+                Text(L10n.tr("torrentDetail.stats.title"))
+            }
+            .accessibilityIdentifier("torrent-statistics-section")
+
+            DisclosureGroup(
+                isExpanded: $isSpeedHistoryExpanded
+            ) {
+                if isSpeedHistoryExpanded {
+                    TorrentSpeedHistoryView(
+                        samples: store.speedHistory.samples,
+                        showsContainer: false
+                    )
+                    .padding(.top, 8)
+                }
+            } label: {
+                Text(L10n.tr("torrentDetail.speedHistory.title"))
+            }
+            .accessibilityIdentifier("torrent-speed-history-section")
+
+            DisclosureGroup(isExpanded: $isFilesExpanded) {
+                if isFilesExpanded {
+                    filesContent
+                        .padding(.top, 8)
+                }
+            } label: {
+                Text(
+                    String(
+                        format: L10n.tr("torrentDetail.files.title"),
+                        Int64(store.files.count)
+                    )
+                )
+            }
+            .accessibilityIdentifier("torrent-files-section")
+
+            DisclosureGroup(isExpanded: $isTrackersExpanded) {
+                if isTrackersExpanded {
+                    trackersContent
+                        .padding(.top, 8)
+                }
+            } label: {
+                Text(
+                    String(
+                        format: L10n.tr("torrentDetail.trackers.title"),
+                        Int64(store.trackers.count)
+                    )
+                )
+            }
+            .accessibilityIdentifier("torrent-trackers-section")
+
+            DisclosureGroup(isExpanded: $isPeersExpanded) {
+                if isPeersExpanded {
+                    peersContent
+                        .padding(.top, 8)
+                }
+            } label: {
+                Text(L10n.tr("torrentDetail.peers.title"))
+            }
+            .accessibilityIdentifier("torrent-peers-section")
+        }
+    }
+
+    @ViewBuilder
+    private var filesContent: some View {
+        if store.files.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "doc.text.magnifyingglass",
+                title: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.files.empty.title.loaded")
+                    : L10n.tr("torrentDetail.files.empty.title.loading"),
+                message: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.files.empty.message.loaded")
+                    : L10n.tr("torrentDetail.files.empty.message.loading")
+            )
+            .accessibilityIdentifier("torrent-files-empty")
+        } else {
+            TorrentFilesView(store: store, showsContainer: false)
+        }
+    }
+
+    @ViewBuilder
+    private var trackersContent: some View {
+        if store.trackers.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "dot.radiowaves.left.and.right",
+                title: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.trackers.empty.title.loaded")
+                    : L10n.tr("torrentDetail.trackers.empty.title.loading"),
+                message: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.trackers.empty.message.loaded")
+                    : L10n.tr("torrentDetail.trackers.empty.message.loading")
+            )
+            .accessibilityIdentifier("torrent-trackers-empty")
+        } else {
+            TorrentTrackersView(store: store, showsContainer: false)
+        }
+    }
+
+    @ViewBuilder
+    private var peersContent: some View {
+        if store.peers.isEmpty {
+            EmptyPlaceholderView(
+                systemImage: "person.2.wave.2.fill",
+                title: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.peers.empty.title.loaded")
+                    : L10n.tr("torrentDetail.peers.empty.title.loading"),
+                message: store.hasLoadedMetadata
+                    ? L10n.tr("torrentDetail.peers.empty.message.loaded")
+                    : L10n.tr("torrentDetail.peers.empty.message.loading")
+            )
+            .accessibilityIdentifier("torrent-peers-empty")
+        } else {
+            TorrentPeersView(peers: store.peers, showsContainer: false)
+        }
+    }
 }
 
 private struct SummaryMetricRow: View {
@@ -246,6 +382,7 @@ private struct SummaryMetricRow: View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .foregroundStyle(.tint)
+                .frame(width: 18, alignment: .center)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption)

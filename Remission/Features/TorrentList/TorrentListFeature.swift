@@ -49,6 +49,8 @@ struct TorrentListReducer {
         var offlineState: OfflineState?
         var lastSnapshotAt: Date?
         var errorPresenter: ErrorPresenter<Retry>.State = .init()
+        var pendingRemoveTorrentID: Torrent.Identifier?
+        @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
@@ -81,10 +83,17 @@ struct TorrentListReducer {
         case task
         case teardown
         case refreshRequested
+        case commandRefreshRequested
         case searchQueryChanged(String)
         case filterChanged(Filter)
         case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
+        case startTapped(Torrent.Identifier)
+        case pauseTapped(Torrent.Identifier)
+        case verifyTapped(Torrent.Identifier)
+        case removeTapped(Torrent.Identifier)
+        case removeConfirmation(PresentationAction<RemoveConfirmationAction>)
+        case commandResponse(Result<Bool, CommandError>)
         case addTorrentButtonTapped
         case errorPresenter(ErrorPresenter<State.Retry>.Action)
         case pollingTick
@@ -101,6 +110,16 @@ struct TorrentListReducer {
         case added(TorrentRepository.AddResult)
         case detailUpdated(Torrent)
         case detailRemoved(Torrent.Identifier)
+    }
+
+    enum RemoveConfirmationAction: Equatable {
+        case deleteTorrentOnly
+        case deleteWithData
+        case cancel
+    }
+
+    struct CommandError: Error, Equatable {
+        var message: String
     }
 
     enum Filter: String, Equatable, CaseIterable, Hashable, Sendable {
@@ -196,6 +215,7 @@ struct TorrentListReducer {
         case preferences
         case preferencesUpdates
         case cache
+        case command(Torrent.Identifier)
     }
 
     var body: some Reducer<State, Action> {
@@ -232,6 +252,9 @@ struct TorrentListReducer {
                 state.offlineState = nil
                 return fetchTorrents(state: &state, trigger: .manualRefresh)
 
+            case .commandRefreshRequested:
+                return fetchTorrents(state: &state, trigger: .command)
+
             case .searchQueryChanged(let query):
                 state.searchQuery = query
                 return .none
@@ -246,6 +269,56 @@ struct TorrentListReducer {
 
             case .rowTapped(let id):
                 return .send(.delegate(.openTorrent(id)))
+
+            case .startTapped(let id):
+                return performCommand(.start, torrentID: id, state: &state)
+
+            case .pauseTapped(let id):
+                return performCommand(.pause, torrentID: id, state: &state)
+
+            case .verifyTapped(let id):
+                return performCommand(.verify, torrentID: id, state: &state)
+
+            case .removeTapped(let id):
+                let name = state.items[id: id]?.torrent.name ?? ""
+                state.pendingRemoveTorrentID = id
+                state.removeConfirmation = .removeTorrent(name: name)
+                return .none
+
+            case .removeConfirmation(.presented(.deleteTorrentOnly)):
+                state.removeConfirmation = nil
+                guard let id = state.pendingRemoveTorrentID else { return .none }
+                state.pendingRemoveTorrentID = nil
+                return performCommand(.remove(deleteData: false), torrentID: id, state: &state)
+
+            case .removeConfirmation(.presented(.deleteWithData)):
+                state.removeConfirmation = nil
+                guard let id = state.pendingRemoveTorrentID else { return .none }
+                state.pendingRemoveTorrentID = nil
+                return performCommand(.remove(deleteData: true), torrentID: id, state: &state)
+
+            case .removeConfirmation(.presented(.cancel)):
+                state.pendingRemoveTorrentID = nil
+                state.removeConfirmation = nil
+                return .none
+
+            case .removeConfirmation:
+                return .none
+
+            case .commandResponse(.success):
+                return .send(.commandRefreshRequested)
+
+            case .commandResponse(.failure(let error)):
+                let message = error.message
+                return .send(
+                    .errorPresenter(
+                        .showAlert(
+                            title: L10n.tr("torrentDetail.error.title"),
+                            message: message,
+                            retry: nil
+                        )
+                    )
+                )
 
             case .addTorrentButtonTapped:
                 return .send(.delegate(.addTorrentRequested))
@@ -385,9 +458,65 @@ struct TorrentListReducer {
                 return .none
             }
         }
+        .ifLet(\.$removeConfirmation, action: \.removeConfirmation)
         Scope(state: \.errorPresenter, action: \.errorPresenter) {
             ErrorPresenter<TorrentListReducer.State.Retry>()
         }
+    }
+
+    private enum TorrentCommand: Equatable {
+        case start
+        case pause
+        case verify
+        case remove(deleteData: Bool)
+    }
+
+    private func performCommand(
+        _ command: TorrentCommand,
+        torrentID: Torrent.Identifier,
+        state: inout State
+    ) -> Effect<Action> {
+        guard let environment = state.connectionEnvironment else {
+            return .send(
+                .errorPresenter(
+                    .showAlert(
+                        title: L10n.tr("torrentAdd.alert.noConnection.title"),
+                        message: L10n.tr("torrentAdd.alert.noConnection.message"),
+                        retry: nil
+                    )
+                )
+            )
+        }
+
+        return .run { send in
+            do {
+                try await withDependencies {
+                    environment.apply(to: &$0)
+                } operation: {
+                    @Dependency(\.torrentRepository) var repository: TorrentRepository
+                    switch command {
+                    case .start:
+                        try await repository.start([torrentID])
+                    case .pause:
+                        try await repository.stop([torrentID])
+                    case .verify:
+                        try await repository.verify([torrentID])
+                    case .remove(let deleteData):
+                        try await repository.remove(
+                            [torrentID],
+                            deleteLocalData: deleteData
+                        )
+                    }
+                }
+                await send(.commandResponse(.success(true)))
+            } catch {
+                let message =
+                    (error as? APIError)?.userFriendlyMessage
+                    ?? describe(error)
+                await send(.commandResponse(.failure(.init(message: message))))
+            }
+        }
+        .cancellable(id: CancelID.command(torrentID), cancelInFlight: true)
     }
 
     // swiftlint:disable cyclomatic_complexity function_body_length

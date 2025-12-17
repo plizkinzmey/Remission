@@ -3,28 +3,38 @@ import SwiftUI
 
 struct TorrentFilesView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
+    var showsContainer: Bool = true
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(store.files) { file in
-                    TorrentFileRow(file: file) { priority in
-                        store.send(
-                            .priorityChanged(fileIndices: [file.index], priority: priority))
-                    }
+        if showsContainer {
+            GroupBox {
+                content
+            } label: {
+                Text(
+                    String(
+                        format: L10n.tr("torrentDetail.files.title"),
+                        Int64(store.files.count)
+                    )
+                )
+                .font(.headline)
+            }
+            .accessibilityIdentifier("torrent-files-section")
+            .disabled(isPriorityLocked)
+        } else {
+            content
+                .disabled(isPriorityLocked)
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(store.files) { file in
+                TorrentFileRow(file: file) { priority in
+                    store.send(
+                        .priorityChanged(fileIndices: [file.index], priority: priority))
                 }
             }
-        } label: {
-            Text(
-                String(
-                    format: L10n.tr("torrentDetail.files.title"),
-                    Int64(store.files.count)
-                )
-            )
-            .font(.headline)
         }
-        .accessibilityIdentifier("torrent-files-section")
-        .disabled(isPriorityLocked)
     }
 
     private var isPriorityLocked: Bool {

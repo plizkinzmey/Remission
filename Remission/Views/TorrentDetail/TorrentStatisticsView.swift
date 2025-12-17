@@ -3,37 +3,46 @@ import SwiftUI
 
 struct TorrentStatisticsView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
+    var showsContainer: Bool = true
 
     var body: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                TorrentDetailLabelValueRow(
-                    label: L10n.tr("torrentDetail.stats.downloadSpeed"),
-                    value: TorrentDetailFormatters.speed(store.rateDownload)
-                )
-                TorrentDetailLabelValueRow(
-                    label: L10n.tr("torrentDetail.stats.uploadSpeed"),
-                    value: TorrentDetailFormatters.speed(store.rateUpload)
-                )
-                TorrentDetailLabelValueRow(
-                    label: L10n.tr("torrentDetail.stats.ratio"),
-                    value: String(format: "%.2f", store.uploadRatio)
-                )
-                TorrentDetailLabelValueRow(
-                    label: L10n.tr("torrentDetail.stats.peers"),
-                    value: "\(store.peersConnected)"
-                )
-
-                Divider().padding(.vertical, 4)
-
-                downloadLimitControls
-                uploadLimitControls
+        if showsContainer {
+            GroupBox {
+                content
+            } label: {
+                Text(L10n.tr("torrentDetail.stats.title"))
+                    .font(.headline)
             }
-        } label: {
-            Text(L10n.tr("torrentDetail.stats.title"))
-                .font(.headline)
+            .accessibilityIdentifier("torrent-statistics-section")
+        } else {
+            content
         }
-        .accessibilityIdentifier("torrent-statistics-section")
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.stats.downloadSpeed"),
+                value: TorrentDetailFormatters.speed(store.rateDownload)
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.stats.uploadSpeed"),
+                value: TorrentDetailFormatters.speed(store.rateUpload)
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.stats.ratio"),
+                value: String(format: "%.2f", store.uploadRatio)
+            )
+            TorrentDetailLabelValueRow(
+                label: L10n.tr("torrentDetail.stats.peers"),
+                value: "\(store.peersConnected)"
+            )
+
+            Divider().padding(.vertical, 4)
+
+            downloadLimitControls
+            uploadLimitControls
+        }
     }
 
     private var downloadLimitControls: some View {
