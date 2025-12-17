@@ -7,6 +7,7 @@ import Testing
 
 @Suite("TorrentListReducer")
 @MainActor
+// swiftlint:disable:next type_body_length
 struct TorrentListFeatureTests {
     // Проверяем, что happy path загружает данные и перезапускает polling по таймеру.
     @Test("task загружает торренты и запускает polling c TestClock")

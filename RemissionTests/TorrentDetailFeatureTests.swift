@@ -5,6 +5,7 @@ import Testing
 
 @testable import Remission
 
+// swiftlint:disable file_length
 @MainActor
 @Suite("TorrentDetailReducer")
 // swiftlint:disable:next type_body_length
@@ -877,3 +878,4 @@ private func makeEnvironment(
         torrentRepository: repository
     )
 }
+// swiftlint:enable file_length
