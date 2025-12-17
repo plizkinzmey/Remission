@@ -93,13 +93,28 @@ struct DiagnosticsReducer {
                 }
 
             case .debugAddSampleTapped:
+                let level = state.selectedLevel ?? .info
                 let entry = DiagnosticsLogEntry(
                     timestamp: Date(),
-                    level: .info,
+                    level: level,
                     message: "Diagnostics test entry",
                     category: "diagnostics",
-                    metadata: ["source": "ui"]
+                    metadata: [
+                        "source": "ui",
+                        "level": level.rawValue
+                    ]
                 )
+                var updated = state.entries.elements
+                updated.insert(entry, at: 0)
+                state.entries = IdentifiedArrayOf(uniqueElements: updated)
+                state.visibleCount = max(
+                    1,
+                    min(
+                        max(state.visibleCount, state.pageSize),
+                        state.entries.count
+                    )
+                )
+
                 return .run { _ in
                     await diagnosticsLogStore.append(entry)
                 }

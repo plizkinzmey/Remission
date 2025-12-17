@@ -29,7 +29,7 @@ struct DiagnosticsView: View {
                         .accessibilityIdentifier("diagnostics_empty_state")
 
                         #if DEBUG
-                            Button("Add test log") {
+                            Button(L10n.tr("diagnostics.addTestLog")) {
                                 store.send(.debugAddSampleTapped)
                             }
                             .buttonStyle(.bordered)

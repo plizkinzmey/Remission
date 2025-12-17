@@ -308,6 +308,22 @@
         }
       }
     },
+    "diagnostics.addTestLog" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add test log"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить тестовый лог"
+          }
+        }
+      }
+    },
     "diagnostics.clear" : {
       "localizations" : {
         "en" : {
@@ -2570,22 +2586,6 @@
         }
       }
     },
-    "settings.retry" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Повторить"
-          }
-        }
-      }
-    },
     "settings.diagnostics.section" : {
       "localizations" : {
         "en" : {
@@ -2636,21 +2636,11 @@
                 }
               }
             }
-          },
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld seconds"
           }
         },
         "ru" : {
           "variations" : {
             "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld секунда"
-                }
-              },
               "few" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -2663,6 +2653,12 @@
                   "value" : "%lld секунд"
                 }
               },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld секунда"
+                }
+              },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
@@ -2670,10 +2666,6 @@
                 }
               }
             }
-          },
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld секунд"
           }
         }
       }
@@ -2706,6 +2698,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Интервал опроса"
+          }
+        }
+      }
+    },
+    "settings.retry" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Повторить"
           }
         }
       }
@@ -2759,6 +2767,7 @@
       }
     },
     "settings.speed.unlimited" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3111,6 +3120,7 @@
       }
     },
     "torrentAdd.label.source" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -3399,6 +3409,7 @@
       }
     },
     "torrentDetail.actions.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4712,6 +4723,7 @@
       }
     },
     "torrentDetail.status.priority" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4728,6 +4740,7 @@
       }
     },
     "torrentDetail.status.speedUpdated" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
