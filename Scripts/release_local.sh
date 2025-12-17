@@ -124,7 +124,7 @@ main() {
     version="$(semver_bump "$last" "$bump")"
   fi
 
-  [[ "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
 
   local build_number
   build_number="$(compute_build_number)"
@@ -207,4 +207,3 @@ main() {
 }
 
 main "$@"
-
