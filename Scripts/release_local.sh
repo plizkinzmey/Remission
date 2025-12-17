@@ -211,7 +211,7 @@ main() {
       run cp -R "$macos_app" "${macos_dir}/Remission.app"
 
       local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
-      (cd "$macos_dir" && run ditto -c -k --sequesterRsrc --keepParent "Remission.app" "$macos_zip")
+      run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
     fi
   fi
 
