@@ -10,6 +10,16 @@ struct DiagnosticsView: View {
                 filterBar
                     .padding(.horizontal)
 
+                #if DEBUG
+                    Text(
+                        verbatim:
+                            "entries=\(store.entries.count) visible=\(store.visibleEntries.count) level=\(store.selectedLevel?.rawValue ?? "all") query=\(store.query)"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal)
+                #endif
+
                 if let limitNotice = limitNoticeText {
                     limitNoticeView(limitNotice)
                         .padding(.horizontal)
