@@ -263,6 +263,23 @@ xcodebuild test -scheme Remission -configuration Debug -destination 'platform=ma
 xcodebuild -scheme Remission -configuration Debug build | xcbeautify
 ```
 
+### Локальный релиз (main-only)
+
+Скрипт `Scripts/release_local.sh` собирает **iOS IPA** и **macOS .app (zip)** с автоматической установкой `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` на время сборки.
+
+```bash
+# релиз только из main (ветка должна быть активной) + чистый git status
+Scripts/release_local.sh --version 1.2.3
+
+# или авто-bump от последнего тега vX.Y.Z
+Scripts/release_local.sh --bump patch
+
+# опционально: создать тег и запушить main + тег
+Scripts/release_local.sh --bump minor --tag --push
+```
+
+Артефакты сохраняются в `Build/Releases/vX.Y.Z/`. Для iOS export используется `ExportOptions.plist` (можно переопределить `--export-options-plist`).
+
 ### Форматирование кода
 
 Проект использует `swift-format` для автоматического форматирования в соответствии с [Swift API Design Guidelines](https://www.swift.org/documentation/api-design-guidelines/) и стилем, описанным в `AGENTS.md`.
