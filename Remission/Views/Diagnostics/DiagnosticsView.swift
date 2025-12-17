@@ -50,10 +50,16 @@ struct DiagnosticsView: View {
                 } else {
                     logList
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        #if os(macOS)
+                            .frame(minHeight: 240)
+                        #endif
                         .layoutPriority(1)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            #if os(macOS)
+                .frame(minWidth: 560, minHeight: 420)
+            #endif
             .navigationTitle(L10n.tr("diagnostics.title"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -137,17 +143,15 @@ struct DiagnosticsView: View {
 
     private var logList: some View {
         List {
-            Section {
-                ForEach(store.visibleEntries) { entry in
-                    let isLast = entry.id == store.visibleEntries.last?.id
-                    logRow(entry)
-                        .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
-                        .onAppear {
-                            if isLast {
-                                store.send(.loadMoreIfNeeded)
-                            }
+            ForEach(store.visibleEntries) { entry in
+                let isLast = entry.id == store.visibleEntries.last?.id
+                logRow(entry)
+                    .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
+                    .onAppear {
+                        if isLast {
+                            store.send(.loadMoreIfNeeded)
                         }
-                }
+                    }
             }
         }
         .listStyle(.plain)
