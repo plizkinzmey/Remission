@@ -150,6 +150,8 @@ main() {
     -configuration Release \
     -destination 'generic/platform=iOS' \
     -archivePath "$ios_archive" \
+    -allowProvisioningUpdates \
+    -allowProvisioningDeviceRegistration \
     MARKETING_VERSION="$version" \
     CURRENT_PROJECT_VERSION="$build_number" \
     archive | pipe_xcbeautify_if_available
@@ -159,6 +161,8 @@ main() {
     -exportArchive \
     -archivePath "$ios_archive" \
     -exportOptionsPlist "$export_options_plist" \
+    -allowProvisioningUpdates \
+    -allowProvisioningDeviceRegistration \
     -exportPath "$ios_dir" | pipe_xcbeautify_if_available
 
   info "Архивирую macOS…"
