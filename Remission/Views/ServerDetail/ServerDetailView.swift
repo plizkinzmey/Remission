@@ -72,6 +72,13 @@ struct ServerDetailView: View {
                 AddTorrentView(store: addStore)
             }
         }
+        .sheet(
+            store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
+        ) { sourceStore in
+            NavigationStack {
+                AddTorrentSourceView(store: sourceStore)
+            }
+        }
         .fileImporter(
             isPresented: fileImporterBinding,
             allowedContentTypes: torrentContentTypes,

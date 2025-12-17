@@ -17,16 +17,7 @@ struct MagnetLinkClient: Sendable {
 extension MagnetLinkClient: DependencyKey {
     static let liveValue: Self = Self(
         consumePendingMagnet: {
-            let magnet = extractMagnetLink(from: currentPasteboardString())
-            guard let magnet else { return nil }
-
-            let defaults = UserDefaults.standard
-            let lastKey = "remission.magnet.lastConsumed"
-            if defaults.string(forKey: lastKey) == magnet {
-                return nil
-            }
-            defaults.set(magnet, forKey: lastKey)
-            return magnet
+            extractMagnetLink(from: currentPasteboardString())
         }
     )
 

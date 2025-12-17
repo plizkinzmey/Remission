@@ -15,6 +15,7 @@ struct ServerDetailReducer {
         var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
         @Presents var editor: ServerEditorReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
+        @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
         var isFileImporterPresented: Bool = false
         var isDeleting: Bool = false
@@ -52,11 +53,11 @@ struct ServerDetailReducer {
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
+        case addTorrentSource(PresentationAction<AddTorrentSourceReducer.Action>)
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
         case fileImporterPresented(Bool)
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
-        case magnetLinkResponse(Result<String?, MagnetImportError>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -85,7 +86,6 @@ struct ServerDetailReducer {
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
     @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
-    @Dependency(\.magnetLinkClient) var magnetLinkClient
     @Dependency(\.torrentFileLoader) var torrentFileLoader
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
     @Dependency(\.appClock) var appClock
@@ -321,18 +321,8 @@ struct ServerDetailReducer {
                 return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):
-                return .run { send in
-                    do {
-                        let magnet = try await magnetLinkClient.consumePendingMagnet()
-                        await send(.magnetLinkResponse(.success(magnet)))
-                    } catch {
-                        await send(
-                            .magnetLinkResponse(
-                                .failure(.failed(error.localizedDescription))
-                            )
-                        )
-                    }
-                }
+                state.addTorrentSource = AddTorrentSourceReducer.State()
+                return .none
 
             case .torrentList:
                 return .none
@@ -374,11 +364,24 @@ struct ServerDetailReducer {
                     state: &state
                 )
 
-            case .magnetLinkResponse(.success(let magnet)):
-                return handleMagnetResponse(result: .success(magnet), state: &state)
+            case .addTorrentSource(.presented(.delegate(.closeRequested))):
+                state.addTorrentSource = nil
+                return .none
 
-            case .magnetLinkResponse(.failure(let error)):
-                return handleMagnetResponse(result: .failure(error), state: &state)
+            case .addTorrentSource(.presented(.delegate(.fileRequested))):
+                state.addTorrentSource = nil
+                state.isFileImporterPresented = true
+                return .none
+
+            case .addTorrentSource(.presented(.delegate(.magnetSubmitted(let magnet)))):
+                state.addTorrentSource = nil
+                return handleMagnetResponse(
+                    result: .success(magnet),
+                    state: &state
+                )
+
+            case .addTorrentSource:
+                return .none
 
             case .addTorrent(.presented(.delegate(.closeRequested))):
                 return .send(.addTorrent(.dismiss))
@@ -415,6 +418,9 @@ struct ServerDetailReducer {
         }
         .ifLet(\.$torrentDetail, action: \.torrentDetail) {
             TorrentDetailReducer()
+        }
+        .ifLet(\.$addTorrentSource, action: \.addTorrentSource) {
+            AddTorrentSourceReducer()
         }
         .ifLet(\.$addTorrent, action: \.addTorrent) {
             AddTorrentReducer()

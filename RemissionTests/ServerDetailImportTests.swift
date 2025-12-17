@@ -9,7 +9,7 @@ import Testing
 @MainActor
 struct ServerDetailImportTests {
     @Test
-    func addTorrentRequestFromListShowsImporterWhenNoMagnet() async {
+    func addTorrentRequestFromListShowsSourcePicker() async {
         let server = ServerConfig.previewLocalHTTP
         let store = TestStore(
             initialState: {
@@ -21,14 +21,10 @@ struct ServerDetailImportTests {
             ServerDetailReducer()
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
-            dependencies.magnetLinkClient = MagnetLinkClient(
-                consumePendingMagnet: { nil }
-            )
         }
 
-        await store.send(.torrentList(.delegate(.addTorrentRequested)))
-        await store.receive(.magnetLinkResponse(.success(nil))) {
-            $0.isFileImporterPresented = true
+        await store.send(.torrentList(.delegate(.addTorrentRequested))) {
+            $0.addTorrentSource = AddTorrentSourceReducer.State()
         }
     }
 
@@ -45,13 +41,18 @@ struct ServerDetailImportTests {
             ServerDetailReducer()
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
-            dependencies.magnetLinkClient = MagnetLinkClient(
-                consumePendingMagnet: { "magnet:?xt=urn:btih:demo" }
-            )
         }
 
-        await store.send(.torrentList(.delegate(.addTorrentRequested)))
-        await store.receive(.magnetLinkResponse(.success("magnet:?xt=urn:btih:demo"))) {
+        await store.send(.torrentList(.delegate(.addTorrentRequested))) {
+            $0.addTorrentSource = AddTorrentSourceReducer.State()
+        }
+
+        await store.send(
+            .addTorrentSource(
+                .presented(.delegate(.magnetSubmitted("magnet:?xt=urn:btih:demo")))
+            )
+        ) {
+            $0.addTorrentSource = nil
             $0.addTorrent = AddTorrentReducer.State(
                 pendingInput: PendingTorrentInput(
                     payload: .magnetLink(
@@ -78,13 +79,18 @@ struct ServerDetailImportTests {
             ServerDetailReducer()
         } withDependencies: { dependencies in
             dependencies = AppDependencies.makeTestDefaults()
-            dependencies.magnetLinkClient = MagnetLinkClient(
-                consumePendingMagnet: { "http://example.com" }
-            )
         }
 
-        await store.send(.torrentList(.delegate(.addTorrentRequested)))
-        await store.receive(.magnetLinkResponse(.success("http://example.com"))) {
+        await store.send(.torrentList(.delegate(.addTorrentRequested))) {
+            $0.addTorrentSource = AddTorrentSourceReducer.State()
+        }
+
+        await store.send(
+            .addTorrentSource(
+                .presented(.delegate(.magnetSubmitted("http://example.com")))
+            )
+        ) {
+            $0.addTorrentSource = nil
             $0.alert = AlertState {
                 TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.title"))
             } actions: {
@@ -94,6 +100,35 @@ struct ServerDetailImportTests {
             } message: {
                 TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
             }
+        }
+    }
+
+    @Test
+    func chooseFileFromSourcePickerShowsImporter() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: {
+                var state = ServerDetailReducer.State(server: server)
+                state.torrentList.connectionEnvironment = .preview(server: server)
+                return state
+            }()
+        ) {
+            ServerDetailReducer()
+        } withDependencies: { dependencies in
+            dependencies = AppDependencies.makeTestDefaults()
+        }
+
+        await store.send(.torrentList(.delegate(.addTorrentRequested))) {
+            $0.addTorrentSource = AddTorrentSourceReducer.State()
+        }
+
+        await store.send(
+            .addTorrentSource(
+                .presented(.delegate(.fileRequested))
+            )
+        ) {
+            $0.addTorrentSource = nil
+            $0.isFileImporterPresented = true
         }
     }
 
@@ -141,43 +176,6 @@ struct ServerDetailImportTests {
                 connectionEnvironment: $0.connectionEnvironment
             )
             $0.isFileImporterPresented = false
-        }
-    }
-
-    @Test
-    func magnetImportFailureShowsAlert() async {
-        let server = ServerConfig.previewLocalHTTP
-        let store = TestStore(
-            initialState: {
-                var state = ServerDetailReducer.State(server: server)
-                state.torrentList.connectionEnvironment = .preview(server: server)
-                return state
-            }()
-        ) {
-            ServerDetailReducer()
-        } withDependencies: { dependencies in
-            dependencies = AppDependencies.makeTestDefaults()
-            dependencies.magnetLinkClient = MagnetLinkClient(
-                consumePendingMagnet: {
-                    struct DummyError: LocalizedError {
-                        var errorDescription: String? { "Magnet access failed" }
-                    }
-                    throw DummyError()
-                }
-            )
-        }
-
-        await store.send(.torrentList(.delegate(.addTorrentRequested)))
-        await store.receive(.magnetLinkResponse(.failure(.failed("Magnet access failed")))) {
-            $0.alert = AlertState {
-                TextState(L10n.tr("serverDetail.addTorrent.processMagnetFailed.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState("Magnet access failed")
-            }
         }
     }
 
