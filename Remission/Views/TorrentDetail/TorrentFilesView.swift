@@ -69,9 +69,9 @@ private struct TorrentFileRow: View {
                     .frame(width: 40, alignment: .trailing)
 
                 Menu {
-                    Button(L10n.tr("torrentDetail.priority.low")) { onPriorityChange(0) }
-                    Button(L10n.tr("torrentDetail.priority.normal")) { onPriorityChange(1) }
-                    Button(L10n.tr("torrentDetail.priority.high")) { onPriorityChange(2) }
+                    Button(L10n.tr("torrentDetail.priority.low")) { onPriorityChange(-1) }
+                    Button(L10n.tr("torrentDetail.priority.normal")) { onPriorityChange(0) }
+                    Button(L10n.tr("torrentDetail.priority.high")) { onPriorityChange(1) }
                 } label: {
                     Text(TorrentDetailFormatters.priorityText(file.priority))
                         .font(.caption2)

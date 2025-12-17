@@ -229,6 +229,18 @@ extension TransmissionDomainMapper {
             return []
         }
 
+        let stats: [[String: AnyCodable]] = {
+            guard let statsAny = dict["fileStats"],
+                case .array(let array) = statsAny
+            else {
+                return []
+            }
+            return array.compactMap { value in
+                guard case .object(let dict) = value else { return nil }
+                return dict
+            }
+        }()
+
         return array.enumerated().compactMap { index, value in
             guard case .object(let file) = value,
                 let name = stringValue("name", in: file),
@@ -238,8 +250,9 @@ extension TransmissionDomainMapper {
                 return nil
             }
 
-            let priority: Int = intValue("priority", in: file) ?? 1
-            let wanted: Bool = boolValue("wanted", in: file) ?? true
+            let stat: [String: AnyCodable]? = stats.indices.contains(index) ? stats[index] : nil
+            let priority: Int = stat.flatMap { intValue("priority", in: $0) } ?? 0
+            let wanted: Bool = stat.flatMap { boolValue("wanted", in: $0) } ?? true
 
             return Torrent.File(
                 index: index,

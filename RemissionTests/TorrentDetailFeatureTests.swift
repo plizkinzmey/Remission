@@ -400,9 +400,6 @@ struct TorrentDetailFeatureTests {
         await store.send(.toggleDownloadLimit(true)) {
             $0.downloadLimited = true
         }
-        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.speedUpdated"))) {
-            $0.alert = .info(message: L10n.tr("torrentDetail.status.speedUpdated"))
-        }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
             $0.errorPresenter.banner = nil
@@ -428,6 +425,94 @@ struct TorrentDetailFeatureTests {
     }
 
     @Test
+    func toggleDownloadLimitOffPersists() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.summary.transfer.downloadLimit = .init(isEnabled: true, kilobytesPerSecond: 256)
+        let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [torrent])
+        let repository = TorrentRepository.inMemory(store: repositoryStore)
+        let timestamp = Date(timeIntervalSince1970: 30)
+        let environment = makeEnvironment(repository: repository)
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentDetailReducer.State(
+                    torrentID: torrent.id,
+                    connectionEnvironment: environment
+                )
+                state.downloadLimit = 512
+                state.downloadLimited = true
+                return state
+            }(),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
+
+        await store.send(.toggleDownloadLimit(false)) {
+            $0.downloadLimited = false
+        }
+        await store.receive(.refreshRequested) {
+            $0.isLoading = true
+            $0.errorPresenter.banner = nil
+        }
+        var expected = torrent
+        expected.summary.transfer.downloadLimit = .init(isEnabled: false, kilobytesPerSecond: 512)
+        await store.receive(
+            .detailsResponse(
+                .success(.init(torrent: expected, timestamp: timestamp))
+            )
+        ) {
+            $0.isLoading = false
+            assign(&$0, from: expected)
+            $0.speedHistory.samples = [
+                SpeedSample(
+                    timestamp: timestamp,
+                    downloadRate: expected.summary.transfer.downloadRate,
+                    uploadRate: expected.summary.transfer.uploadRate
+                )
+            ]
+            $0.errorPresenter.banner = nil
+        }
+    }
+
+    @Test
+    func toggleDownloadLimitOffFailureShowsError() async throws {
+        let torrent = DomainFixtures.torrentDownloading
+        let repositoryStore = InMemoryTorrentRepositoryStore(torrents: [torrent])
+        let repository = TorrentRepository.inMemory(store: repositoryStore)
+        let timestamp = Date(timeIntervalSince1970: 30)
+        let environment = makeEnvironment(repository: repository)
+        await repositoryStore.markFailure(.updateTransferSettings)
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentDetailReducer.State(
+                    torrentID: torrent.id,
+                    connectionEnvironment: environment
+                )
+                state.downloadLimit = 512
+                state.downloadLimited = true
+                return state
+            }(),
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
+
+        await store.send(.toggleDownloadLimit(false)) {
+            $0.downloadLimited = false
+        }
+        let message = "InMemoryTorrentRepository operation updateTransferSettings marked as failed."
+        await store.receive(.commandFailed(message)) {
+            $0.alert = .error(message: message)
+        }
+    }
+
+    @Test
     func setPriorityUpdatesFiles() async throws {
         var torrent = DomainFixtures.torrentDownloading
         torrent.id = .init(rawValue: 1)
@@ -440,15 +525,12 @@ struct TorrentDetailFeatureTests {
             timestamp: timestamp
         )
 
-        await store.send(.priorityChanged(fileIndices: [0], priority: 2)) {
+        await store.send(.priorityChanged(fileIndices: [0], priority: 1)) {
             $0.pendingCommands = []
             $0.activeCommand = .priority(indices: [0], priority: .high)
         }
         await store.receive(.commandResponse(.success(.priority(indices: [0], priority: .high)))) {
             $0.activeCommand = nil
-        }
-        await store.receive(.commandDidFinish(L10n.tr("torrentDetail.status.priority"))) {
-            $0.alert = .info(message: L10n.tr("torrentDetail.status.priority"))
         }
         await store.receive(.refreshRequested) {
             $0.isLoading = true
@@ -547,7 +629,7 @@ struct TorrentDetailFeatureTests {
         let expectedMessage =
             "InMemoryTorrentRepository operation updateFileSelection marked as failed."
 
-        await store.send(.priorityChanged(fileIndices: [0], priority: 2)) {
+        await store.send(.priorityChanged(fileIndices: [0], priority: 1)) {
             $0.pendingCommands = []
             $0.activeCommand = .priority(indices: [0], priority: .high)
         }

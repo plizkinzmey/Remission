@@ -73,22 +73,35 @@ def collect_values(node: object) -> List[str]:
     return values
 
 
+def collect_string_units(node: object) -> List[dict]:
+    units: List[dict] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "stringUnit" and isinstance(value, dict):
+                units.append(value)
+            elif isinstance(value, (dict, list)):
+                units.extend(collect_string_units(value))
+    elif isinstance(node, list):
+        for item in node:
+            units.extend(collect_string_units(item))
+    return units
+
+
 def extract_placeholders(text: str) -> Iterable[str]:
     return PLACEHOLDER_PATTERN.findall(text)
 
 
-def placeholder_counter(unit: dict) -> Counter[str]:
-    counter: Counter[str] = collections.Counter()
-    for value in collect_values(unit):
-        for placeholder in extract_placeholders(value):
-            counter[placeholder] += 1
-    return counter
+def placeholder_set(node: dict) -> set[str]:
+    placeholders: set[str] = set()
+    for value in collect_values(node):
+        placeholders.update(extract_placeholders(value))
+    return placeholders
 
 
-def format_placeholders(counter: Counter[str]) -> str:
-    if not counter:
+def format_placeholder_set(placeholders: set[str]) -> str:
+    if not placeholders:
         return "no placeholders"
-    return ", ".join(f"{token}×{count}" for token, count in sorted(counter.items()))
+    return ", ".join(sorted(placeholders))
 
 
 missing: List[str] = []
@@ -107,37 +120,38 @@ for key in sorted(strings.keys()):
         if not localization:
             missing.append(f"[{locale}] {key}: missing localization")
             continue
-        unit = localization.get("stringUnit")
-        if not unit:
+
+        units = collect_string_units(localization)
+        if not units:
             missing.append(f"[{locale}] {key}: missing stringUnit")
             continue
 
-        state = unit.get("state")
-        values = collect_values(unit)
-        has_value = any(value.strip() for value in values)
+        has_value = any(value.strip() for value in collect_values(localization))
+        states = {unit.get("state") for unit in units}
 
-        if state != "translated":
-            missing.append(f"[{locale}] {key}: state is '{state or 'unknown'}'")
+        if states != {"translated"}:
+            state_label = ", ".join(sorted(str(state or "unknown") for state in states))
+            missing.append(f"[{locale}] {key}: state is '{state_label}'")
         if not has_value:
             missing.append(f"[{locale}] {key}: empty translation value")
 
-    base_unit = localizations.get(base_locale, {}).get("stringUnit")
-    if not base_unit:
+    base_localization = localizations.get(base_locale, {})
+    if not collect_string_units(base_localization):
         continue  # base locale missing already reported above
 
-    base_placeholders = placeholder_counter(base_unit)
+    base_placeholders = placeholder_set(base_localization)
 
     for locale in expected_locales:
         if locale == base_locale:
             continue
-        unit = localizations.get(locale, {}).get("stringUnit")
-        if not unit:
+        localization = localizations.get(locale, {})
+        if not collect_string_units(localization):
             continue
-        placeholders = placeholder_counter(unit)
+        placeholders = placeholder_set(localization)
         if placeholders != base_placeholders:
             placeholder_mismatches.append(
-                f"[{locale}] {key}: expected ({base_locale}) {format_placeholders(base_placeholders)}, "
-                f"found {format_placeholders(placeholders)}"
+                f"[{locale}] {key}: expected ({base_locale}) {format_placeholder_set(base_placeholders)}, "
+                f"found {format_placeholder_set(placeholders)}"
             )
 
 if missing or placeholder_mismatches:

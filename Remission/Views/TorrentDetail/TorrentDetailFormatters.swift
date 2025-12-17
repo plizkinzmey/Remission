@@ -62,16 +62,16 @@ enum TorrentDetailFormatters {
 
     static func priorityText(_ priority: Int) -> String {
         switch priority {
-        case 0: return L10n.tr("torrentDetail.priority.low")
-        case 2: return L10n.tr("torrentDetail.priority.high")
+        case -1: return L10n.tr("torrentDetail.priority.low")
+        case 1: return L10n.tr("torrentDetail.priority.high")
         default: return L10n.tr("torrentDetail.priority.normal")
         }
     }
 
     static func priorityColor(_ priority: Int) -> Color {
         switch priority {
-        case 0: return .gray
-        case 2: return .red
+        case -1: return .gray
+        case 1: return .red
         default: return .blue
         }
     }

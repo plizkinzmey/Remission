@@ -51,8 +51,17 @@ struct TorrentDetailView: View {
             advancedSections
         }
         .formStyle(.grouped)
-        .navigationTitle(store.name.isEmpty ? L10n.tr("torrentDetail.title.fallback") : store.name)
-        #if !os(macOS)
+        #if os(macOS)
+            .padding(.top, -20)
+        #endif
+        #if os(macOS)
+            .navigationTitle("")
+        #else
+            .navigationTitle(
+                store.name.isEmpty
+                    ? L10n.tr("torrentDetail.title.fallback")
+                    : store.name
+            )
             .navigationBarTitleDisplayMode(.inline)
         #endif
         .task {
@@ -101,51 +110,77 @@ struct TorrentDetailView: View {
     private var summarySection: some View {
         Section {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .top, spacing: 16) {
-                    ProgressView(
-                        value: store.hasLoadedMetadata ? store.percentDone : 0,
-                        total: 1.0
-                    )
-                    .progressViewStyle(.circular)
-                    .frame(width: 52, height: 52)
-                    .accessibilityLabel(L10n.tr("torrentDetail.progress.accessibility"))
-                    .accessibilityValue(progressDescription)
-                    .accessibilityIdentifier("torrent-progress")
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(progressDescription)
-                            .font(.title3.weight(.semibold))
-                        Text(TorrentDetailFormatters.statusText(for: store.status))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        if store.eta > 0 {
-                            Text(
-                                String(
-                                    format: L10n.tr("torrentDetail.eta.remaining"),
-                                    TorrentDetailFormatters.eta(store.eta)
-                                )
-                            )
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        } else if store.hasLoadedMetadata {
-                            Text(L10n.tr("torrentDetail.eta.unavailable"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(L10n.tr("torrentDetail.eta.waitMetadata"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    Spacer(minLength: 8)
+                ViewThatFits(in: .horizontal) {
+                    summaryHeaderWide
+                    summaryHeaderNarrow
                 }
-                Divider()
-                summaryMetrics
             }
             .padding(.vertical, 8)
         } header: {
             Text(L10n.tr("torrentDetail.section.summary"))
         }
         .accessibilityIdentifier("torrent-summary")
+    }
+
+    private var summaryHeaderWide: some View {
+        HStack(alignment: .center, spacing: 16) {
+            summaryProgressView
+            summaryStatusStack
+            Spacer(minLength: 12)
+            summaryMetricsCompact
+        }
+    }
+
+    private var summaryHeaderNarrow: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                summaryProgressView
+                summaryStatusStack
+                Spacer(minLength: 8)
+            }
+            Divider()
+            summaryMetrics
+        }
+    }
+
+    private var summaryProgressView: some View {
+        ProgressView(
+            value: store.hasLoadedMetadata ? store.percentDone : 0,
+            total: 1.0
+        )
+        .progressViewStyle(.circular)
+        .frame(width: 52, height: 52)
+        .accessibilityLabel(L10n.tr("torrentDetail.progress.accessibility"))
+        .accessibilityValue(progressDescription)
+        .accessibilityIdentifier("torrent-progress")
+    }
+
+    private var summaryStatusStack: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(progressDescription)
+                .font(.title3.weight(.semibold))
+            Text(TorrentDetailFormatters.statusText(for: store.status))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            if store.eta > 0 {
+                Text(
+                    String(
+                        format: L10n.tr("torrentDetail.eta.remaining"),
+                        TorrentDetailFormatters.eta(store.eta)
+                    )
+                )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            } else if store.hasLoadedMetadata {
+                Text(L10n.tr("torrentDetail.eta.unavailable"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(L10n.tr("torrentDetail.eta.waitMetadata"))
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var summaryMetrics: some View {
@@ -161,11 +196,32 @@ struct TorrentDetailView: View {
                 value: TorrentDetailFormatters.speed(store.rateUpload)
             )
             SummaryMetricRow(
-                icon: "person.3.sequence.fill",
+                icon: "person.fill",
                 title: L10n.tr("torrentDetail.metric.peers"),
                 value: "\(store.peersConnected)"
             )
         }
+    }
+
+    private var summaryMetricsCompact: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SummaryMetricCompactRow(
+                icon: "arrow.down.circle.fill",
+                title: L10n.tr("torrentDetail.metric.downloadSpeed"),
+                value: TorrentDetailFormatters.speed(store.rateDownload)
+            )
+            SummaryMetricCompactRow(
+                icon: "arrow.up.circle.fill",
+                title: L10n.tr("torrentDetail.metric.uploadSpeed"),
+                value: TorrentDetailFormatters.speed(store.rateUpload)
+            )
+            SummaryMetricCompactRow(
+                icon: "person.fill",
+                title: L10n.tr("torrentDetail.metric.peers"),
+                value: "\(store.peersConnected)"
+            )
+        }
+        .frame(minWidth: 180, alignment: .leading)
     }
 
     private var progressDescription: String {
@@ -400,6 +456,28 @@ private struct SummaryMetricRow: View {
                 value
             )
         )
+    }
+}
+
+private struct SummaryMetricCompactRow: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(.tint)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.callout.monospacedDigit())
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

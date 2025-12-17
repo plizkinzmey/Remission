@@ -112,6 +112,7 @@ enum TorrentDetailTestHelpers {
             "dateAdded": .int(111)
         ]
         fields["files"] = .array(basicFiles())
+        fields["fileStats"] = .array(basicFileStats())
         fields["trackers"] = .array(basicTrackers())
         fields["trackerStats"] = .array(basicTrackerStats())
         return fields
@@ -122,14 +123,25 @@ enum TorrentDetailTestHelpers {
             .object([
                 "name": .string("File A"),
                 "length": .int(100),
-                "bytesCompleted": .int(50),
-                "priority": .int(1)
+                "bytesCompleted": .int(50)
             ]),
             .object([
                 "name": .string("File B"),
                 "length": .int(200),
-                "bytesCompleted": .int(200),
-                "priority": .int(1)
+                "bytesCompleted": .int(200)
+            ])
+        ]
+    }
+
+    private static func basicFileStats() -> [AnyCodable] {
+        [
+            .object([
+                "wanted": .bool(true),
+                "priority": .int(0)
+            ]),
+            .object([
+                "wanted": .bool(true),
+                "priority": .int(0)
             ])
         ]
     }
@@ -175,6 +187,7 @@ enum TorrentDetailTestHelpers {
         ])
         fields["dateAdded"] = .int(123_456)
         fields["files"] = .array(parserFileCodables())
+        fields["fileStats"] = .array(parserFileStatsCodables())
         fields["trackers"] = .array(parserTrackerCodables())
         fields["trackerStats"] = .array(parserTrackerStatCodables())
         return fields
@@ -185,14 +198,25 @@ enum TorrentDetailTestHelpers {
             .object([
                 "name": .string("file1.iso"),
                 "length": .int(512),
-                "bytesCompleted": .int(512),
-                "priority": .int(2)
+                "bytesCompleted": .int(512)
             ]),
             .object([
                 "name": .string("file2.iso"),
                 "length": .int(512),
-                "bytesCompleted": .int(256),
-                "priority": .int(0)
+                "bytesCompleted": .int(256)
+            ])
+        ]
+    }
+
+    private static func parserFileStatsCodables() -> [AnyCodable] {
+        [
+            .object([
+                "wanted": .bool(true),
+                "priority": .int(1)
+            ]),
+            .object([
+                "wanted": .bool(true),
+                "priority": .int(-1)
             ])
         ]
     }
@@ -204,7 +228,7 @@ enum TorrentDetailTestHelpers {
                 name: "file1.iso",
                 length: 512,
                 bytesCompleted: 512,
-                priority: 2,
+                priority: 1,
                 wanted: true
             ),
             TorrentFile(
@@ -212,7 +236,7 @@ enum TorrentDetailTestHelpers {
                 name: "file2.iso",
                 length: 512,
                 bytesCompleted: 256,
-                priority: 0,
+                priority: -1,
                 wanted: true
             )
         ]

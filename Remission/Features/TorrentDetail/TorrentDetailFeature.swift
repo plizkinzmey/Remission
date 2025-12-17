@@ -200,6 +200,12 @@ struct TorrentDetailReducer {
                 guard let mappedPriority = Self.filePriority(from: priority) else {
                     return .none
                 }
+                for index in fileIndices {
+                    if var file = state.files[id: index] {
+                        file.priority = mappedPriority.rawValue
+                        state.files[id: index] = file
+                    }
+                }
                 return enqueueCommand(
                     .priority(indices: fileIndices, priority: mappedPriority),
                     state: &state
@@ -207,25 +213,19 @@ struct TorrentDetailReducer {
 
             case .toggleDownloadLimit(let isEnabled):
                 state.downloadLimited = isEnabled
-                guard isEnabled else {
-                    return .none
-                }
                 return updateTransferSettings(
                     state: &state,
                     limit: .download(
-                        .init(isEnabled: true, kilobytesPerSecond: state.downloadLimit)
+                        .init(isEnabled: isEnabled, kilobytesPerSecond: state.downloadLimit)
                     )
                 )
 
             case .toggleUploadLimit(let isEnabled):
                 state.uploadLimited = isEnabled
-                guard isEnabled else {
-                    return .none
-                }
                 return updateTransferSettings(
                     state: &state,
                     limit: .upload(
-                        .init(isEnabled: true, kilobytesPerSecond: state.uploadLimit)
+                        .init(isEnabled: isEnabled, kilobytesPerSecond: state.uploadLimit)
                     )
                 )
 
@@ -432,7 +432,7 @@ struct TorrentDetailReducer {
         case .verify:
             return .send(.commandDidFinish(L10n.tr("torrentDetail.status.verify")))
         case .priority:
-            return .send(.commandDidFinish(L10n.tr("torrentDetail.status.priority")))
+            return .send(.refreshRequested)
         case .remove:
             return .send(.delegate(.torrentRemoved(torrentID)))
         }
@@ -476,7 +476,7 @@ struct TorrentDetailReducer {
 
             switch result {
             case .success:
-                await send(.commandDidFinish(L10n.tr("torrentDetail.status.speedUpdated")))
+                await send(.refreshRequested)
             case .failure(let error):
                 await send(.commandFailed(Self.describe(error)))
             }
@@ -485,9 +485,9 @@ struct TorrentDetailReducer {
 
     private static func filePriority(from priority: Int) -> TorrentRepository.FilePriority? {
         switch priority {
-        case 0: return .low
-        case 1: return .normal
-        case 2: return .high
+        case -1: return .low
+        case 0: return .normal
+        case 1: return .high
         default: return nil
         }
     }
