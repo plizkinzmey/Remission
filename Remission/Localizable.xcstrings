@@ -308,22 +308,6 @@
         }
       }
     },
-    "diagnostics.addTestLog" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add test log"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Добавить тестовый лог"
-          }
-        }
-      }
-    },
     "diagnostics.clear" : {
       "localizations" : {
         "en" : {

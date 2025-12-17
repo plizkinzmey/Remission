@@ -31,7 +31,6 @@ struct DiagnosticsReducer {
         case levelSelected(AppLogLevel?)
         case queryChanged(String)
         case copyEntry(DiagnosticsLogEntry)
-        case debugAddSampleTapped
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
         case logsStreamUpdated([DiagnosticsLogEntry])
         case alert(PresentationAction<AlertAction>)
@@ -90,33 +89,6 @@ struct DiagnosticsReducer {
             case .copyEntry(let entry):
                 return .run { _ in
                     await clipboard.copy(DiagnosticsLogFormatter.copyText(for: entry))
-                }
-
-            case .debugAddSampleTapped:
-                let level = state.selectedLevel ?? .info
-                let entry = DiagnosticsLogEntry(
-                    timestamp: Date(),
-                    level: level,
-                    message: "Diagnostics test entry",
-                    category: "diagnostics",
-                    metadata: [
-                        "source": "ui",
-                        "level": level.rawValue
-                    ]
-                )
-                var updated = state.entries.elements
-                updated.insert(entry, at: 0)
-                state.entries = IdentifiedArrayOf(uniqueElements: updated)
-                state.visibleCount = max(
-                    1,
-                    min(
-                        max(state.visibleCount, state.pageSize),
-                        state.entries.count
-                    )
-                )
-
-                return .run { _ in
-                    await diagnosticsLogStore.append(entry)
                 }
 
             case .logsResponse(.success(let entries)):

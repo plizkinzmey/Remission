@@ -37,14 +37,6 @@ struct DiagnosticsView: View {
                                 L10n.tr("diagnostics.empty.message"))
                         )
                         .accessibilityIdentifier("diagnostics_empty_state")
-
-                        #if DEBUG
-                            Button(L10n.tr("diagnostics.addTestLog")) {
-                                store.send(.debugAddSampleTapped)
-                            }
-                            .buttonStyle(.bordered)
-                            .accessibilityIdentifier("diagnostics_add_test_log_button")
-                        #endif
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
