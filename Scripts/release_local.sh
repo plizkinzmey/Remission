@@ -155,10 +155,11 @@ main() {
   local ios_archive="${out_dir}/Remission-iOS.xcarchive"
   local macos_archive="${out_dir}/Remission-macOS.xcarchive"
 
-  local ios_ok="true"
-  local macos_ok="true"
+  local ios_ok="skipped"
+  local macos_ok="skipped"
 
   if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    ios_ok="true"
     info "Архивирую iOS…"
     if ! run xcodebuild \
       -project Remission.xcodeproj \
@@ -189,6 +190,7 @@ main() {
   fi
 
   if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
+    macos_ok="true"
     info "Архивирую macOS…"
     if ! run xcodebuild \
       -project Remission.xcodeproj \
