@@ -247,6 +247,7 @@ struct ServerListView: View {
                     .foregroundStyle(.secondary)
             } else {
                 HStack(spacing: 6) {
+                    Text(L10n.tr("serverList.transmissionVersionLabel"))
                     Text(description)
                     Text(rpcText)
                 }
