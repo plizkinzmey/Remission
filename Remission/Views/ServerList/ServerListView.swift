@@ -15,7 +15,7 @@ struct ServerListView: View {
             if store.servers.isEmpty {
                 emptyState
             } else {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .center, spacing: 12) {
                     Text(L10n.tr("Servers"))
                         .font(.title3.bold())
                     Text(
@@ -25,8 +25,10 @@ struct ServerListView: View {
                     )
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
                     serverList
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
             }
@@ -101,19 +103,26 @@ struct ServerListView: View {
                     store.send(.serverTapped(server.id))
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(server.name)
-                            .font(.headline)
-                        Text(server.displayAddress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.9)
+                        HStack(spacing: 6) {
+                            Text(server.name)
+                                .font(.headline)
+                            Text(verbatim: "-")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(server.displayAddress)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.9)
+                        }
+                        versionSummary(for: server)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
-                .contentShape(Rectangle())
 
                 HStack(spacing: 10) {
                     connectionStatusChip(for: server)
@@ -121,9 +130,6 @@ struct ServerListView: View {
                     deleteButton(for: server)
                 }
             }
-
-            versionSummary(for: server)
-                .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

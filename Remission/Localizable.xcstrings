@@ -3216,50 +3216,114 @@
         }
       }
     },
-    "torrentAdd.tags.empty" : {
+    "torrentAdd.source.chooseFile" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tags set"
+            "value" : "Choose .torrent file"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Теги не заданы"
+            "value" : "Выбрать .torrent файл"
           }
         }
       }
     },
-    "torrentAdd.source.title" : {
+    "torrentAdd.source.chooseFile.hint" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add torrent"
+            "value" : "Select a .torrent file to import."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Добавить торрент"
+            "value" : "Выберите .torrent файл для импорта."
           }
         }
       }
     },
-    "torrentAdd.source.picker.title" : {
+    "torrentAdd.source.continue" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Source"
+            "value" : "Continue"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Источник"
+            "value" : "Продолжить"
+          }
+        }
+      }
+    },
+    "torrentAdd.source.magnet.hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste a magnet link."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вставьте magnet-ссылку."
+          }
+        }
+      }
+    },
+    "torrentAdd.source.magnet.placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "magnet:?xt=..."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "magnet:?xt=..."
+          }
+        }
+      }
+    },
+    "torrentAdd.source.noMagnet.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clipboard doesn't contain a magnet link."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В буфере обмена нет magnet-ссылки."
+          }
+        }
+      }
+    },
+    "torrentAdd.source.noMagnet.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No magnet link"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Нет magnet-ссылки"
           }
         }
       }
@@ -3296,70 +3360,6 @@
         }
       }
     },
-    "torrentAdd.source.chooseFile" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose .torrent file"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выбрать .torrent файл"
-          }
-        }
-      }
-    },
-    "torrentAdd.source.chooseFile.hint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select a .torrent file to import."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Выберите .torrent файл для импорта."
-          }
-        }
-      }
-    },
-    "torrentAdd.source.magnet.placeholder" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "magnet:?xt=..."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "magnet:?xt=..."
-          }
-        }
-      }
-    },
-    "torrentAdd.source.magnet.hint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paste a magnet link."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Вставьте magnet-ссылку."
-          }
-        }
-      }
-    },
     "torrentAdd.source.paste" : {
       "localizations" : {
         "en" : {
@@ -3376,50 +3376,50 @@
         }
       }
     },
-    "torrentAdd.source.continue" : {
+    "torrentAdd.source.picker.title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Continue"
+            "value" : "Source"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Продолжить"
+            "value" : "Источник"
           }
         }
       }
     },
-    "torrentAdd.source.noMagnet.title" : {
+    "torrentAdd.source.title" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No magnet link"
+            "value" : "Add torrent"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Нет magnet-ссылки"
+            "value" : "Добавить торрент"
           }
         }
       }
     },
-    "torrentAdd.source.noMagnet.message" : {
+    "torrentAdd.tags.empty" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clipboard doesn't contain a magnet link."
+            "value" : "No tags set"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В буфере обмена нет magnet-ссылки."
+            "value" : "Теги не заданы"
           }
         }
       }
