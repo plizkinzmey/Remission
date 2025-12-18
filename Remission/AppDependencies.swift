@@ -36,7 +36,7 @@ enum AppDependencies {
         return dependencies
     }
 
-    /// Набор зависимостей для UI-тестов с управляемыми сценарием/фикстурой.
+    // Набор зависимостей для UI-тестов с управляемыми сценарием/фикстурой.
     // swiftlint:disable:next function_body_length
     static func makeUITest(
         fixture: AppBootstrap.UITestingFixture?,
@@ -53,19 +53,7 @@ enum AppDependencies {
         dependencies.userPreferencesRepository = .testValue
         dependencies.offlineCacheRepository = .previewValue
 
-        let resolvedScenario: AppBootstrap.UITestingScenario?
-        if let scenario {
-            resolvedScenario = scenario
-        } else {
-            switch fixture {
-            case .serverListSample:
-                resolvedScenario = .serverListSample
-            case .torrentListSample:
-                resolvedScenario = .torrentListSample
-            case .none:
-                resolvedScenario = nil
-            }
-        }
+        let resolvedScenario = resolveUITestScenario(fixture: fixture, scenario: scenario)
 
         switch resolvedScenario {
         case .onboardingFlow:
@@ -282,9 +270,7 @@ enum AppDependencies {
             break
         }
 
-        if let suiteName = environment["UI_TESTING_PREFERENCES_SUITE"],
-            let defaults = UserDefaults(suiteName: suiteName)
-        {
+        if let defaults = resolveUITestPreferencesDefaults(environment: environment) {
             let shouldResetPreferences = environment["UI_TESTING_RESET_PREFERENCES"] == "1"
             dependencies.userPreferencesRepository = .persistent(
                 defaults: defaults,
@@ -294,6 +280,28 @@ enum AppDependencies {
 
         return dependencies
     }
+}
+
+private func resolveUITestScenario(
+    fixture: AppBootstrap.UITestingFixture?,
+    scenario: AppBootstrap.UITestingScenario?
+) -> AppBootstrap.UITestingScenario? {
+    if let scenario {
+        return scenario
+    }
+    switch fixture {
+    case .serverListSample:
+        return .serverListSample
+    case .torrentListSample:
+        return .torrentListSample
+    case .none:
+        return nil
+    }
+}
+
+private func resolveUITestPreferencesDefaults(environment: [String: String]) -> UserDefaults? {
+    guard let suiteName = environment["UI_TESTING_PREFERENCES_SUITE"] else { return nil }
+    return UserDefaults(suiteName: suiteName)
 }
 
 extension DependencyValues {

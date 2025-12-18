@@ -77,7 +77,7 @@ final class DiagnosticsUITests: BaseUITestCase {
         var cleared = false
         let clearedDeadline = Date().addingTimeInterval(8)
         while Date() < clearedDeadline && cleared == false {
-            cleared = emptyState.exists || allRows.count == 0
+            cleared = emptyState.exists || allRows.firstMatch.exists == false
             if cleared == false {
                 RunLoop.current.run(until: Date().addingTimeInterval(0.25))
             }

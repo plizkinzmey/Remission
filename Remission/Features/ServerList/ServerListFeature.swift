@@ -311,15 +311,15 @@ struct ServerListReducer {
 }
 
 extension ServerListReducer {
-    struct ConnectionStatus: Equatable {
-        enum Phase: Equatable {
-            case idle
-            case probing
-            case connected(TransmissionHandshakeResult)
-            case failed(String)
-        }
+    enum ConnectionStatusPhase: Equatable {
+        case idle
+        case probing
+        case connected(TransmissionHandshakeResult)
+        case failed(String)
+    }
 
-        var phase: Phase = .idle
+    struct ConnectionStatus: Equatable {
+        var phase: ConnectionStatusPhase = .idle
 
         var isProbing: Bool {
             if case .probing = phase { return true }

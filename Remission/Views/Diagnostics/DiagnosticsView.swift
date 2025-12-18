@@ -86,8 +86,8 @@ struct DiagnosticsView: View {
                 )
             ) {
                 Text(L10n.tr("diagnostics.level.all")).tag(AppLogLevel?.none)
-                ForEach(levelOptions, id: \.self) { level in
-                    Text(levelLabel(level)).tag(AppLogLevel?.some(level))
+                ForEach(diagnosticsLevelOptions, id: \.self) { level in
+                    Text(diagnosticsLevelLabel(level)).tag(AppLogLevel?.some(level))
                 }
             }
             .pickerStyle(.segmented)
@@ -137,6 +137,7 @@ struct DiagnosticsView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private func logRow(_ entry: DiagnosticsLogEntry) -> some View {
@@ -158,7 +159,7 @@ struct DiagnosticsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 12)
-                Text(timeFormatter.string(from: entry.timestamp))
+                Text(diagnosticsTimeFormatter.string(from: entry.timestamp))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -281,8 +282,8 @@ struct DiagnosticsView: View {
         var label = String(
             format: L10n.tr("%@, %@: %@"),
             locale: Locale.current,
-            timeFormatter.string(from: entry.timestamp),
-            levelLabel(entry.level),
+            diagnosticsTimeFormatter.string(from: entry.timestamp),
+            diagnosticsLevelLabel(entry.level),
             entry.message
         )
         if DiagnosticsLogFormatter.isOffline(entry) {
@@ -298,45 +299,43 @@ struct DiagnosticsView: View {
     }
 
     private func levelBadge(for level: AppLogLevel) -> some View {
-        Text(levelLabel(level).uppercased())
+        Text(diagnosticsLevelLabel(level).uppercased())
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .background(levelColor(level).opacity(0.15))
-            .foregroundStyle(levelColor(level))
+            .background(diagnosticsLevelColor(level).opacity(0.15))
+            .foregroundStyle(diagnosticsLevelColor(level))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .accessibilityIdentifier("diagnostics_level_badge_\(level.rawValue)")
     }
+}
 
-    private func levelLabel(_ level: AppLogLevel) -> String {
-        switch level {
-        case .debug: return L10n.tr("diagnostics.level.debug")
-        case .info: return L10n.tr("diagnostics.level.info")
-        case .warning: return L10n.tr("diagnostics.level.warn")
-        case .error: return L10n.tr("diagnostics.level.error")
-        }
-    }
+private let diagnosticsLevelOptions: [AppLogLevel] = [.error, .warning, .info, .debug]
 
-    private var levelOptions: [AppLogLevel] {
-        [.error, .warning, .info, .debug]
-    }
-
-    private func levelColor(_ level: AppLogLevel) -> Color {
-        switch level {
-        case .debug: return .blue
-        case .info: return .green
-        case .warning: return .orange
-        case .error: return .red
-        }
-    }
-
-    private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        return formatter
+private func diagnosticsLevelLabel(_ level: AppLogLevel) -> String {
+    switch level {
+    case .debug: return L10n.tr("diagnostics.level.debug")
+    case .info: return L10n.tr("diagnostics.level.info")
+    case .warning: return L10n.tr("diagnostics.level.warn")
+    case .error: return L10n.tr("diagnostics.level.error")
     }
 }
+
+private func diagnosticsLevelColor(_ level: AppLogLevel) -> Color {
+    switch level {
+    case .debug: return .blue
+    case .info: return .green
+    case .warning: return .orange
+    case .error: return .red
+    }
+}
+
+private let diagnosticsTimeFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .none
+    formatter.timeStyle = .medium
+    return formatter
+}()
 
 #Preview {
     DiagnosticsView(

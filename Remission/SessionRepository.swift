@@ -225,33 +225,22 @@ extension SessionRepository {
                     .asSessionRepositoryHandshake()
             },
             fetchState: {
-                let session = try await transmissionClient.sessionGet()
-                let stats = try await transmissionClient.sessionStats()
-                let state = try mapper.mapSessionState(
-                    sessionResponse: session,
-                    statsResponse: stats
+                try await fetchSessionState(
+                    transmissionClient: transmissionClient,
+                    mapper: mapper,
+                    cacheState: cacheState
                 )
-                try await cacheState(state)
-                return state
             },
             updateState: { update in
                 let arguments = makeSessionSetArguments(update: update)
-                guard let arguments else {
-                    return try await SessionRepository.live(
-                        transmissionClient: transmissionClient,
-                        mapper: mapper,
-                        snapshot: snapshot
-                    ).fetchState()
+                if let arguments {
+                    _ = try await transmissionClient.sessionSet(arguments)
                 }
-                _ = try await transmissionClient.sessionSet(arguments)
-                let session = try await transmissionClient.sessionGet()
-                let stats = try await transmissionClient.sessionStats()
-                let state = try mapper.mapSessionState(
-                    sessionResponse: session,
-                    statsResponse: stats
+                return try await fetchSessionState(
+                    transmissionClient: transmissionClient,
+                    mapper: mapper,
+                    cacheState: cacheState
                 )
-                try await cacheState(state)
-                return state
             },
             checkCompatibility: {
                 let result = try await transmissionClient.performHandshake()
@@ -264,6 +253,21 @@ extension SessionRepository {
             loadCachedState: loadCachedState
         )
     }
+}
+
+private func fetchSessionState(
+    transmissionClient: TransmissionClientDependency,
+    mapper: TransmissionDomainMapper,
+    cacheState: @Sendable (SessionState) async throws -> Void
+) async throws -> SessionState {
+    let session = try await transmissionClient.sessionGet()
+    let stats = try await transmissionClient.sessionStats()
+    let state = try mapper.mapSessionState(
+        sessionResponse: session,
+        statsResponse: stats
+    )
+    try await cacheState(state)
+    return state
 }
 
 private func makeSessionSetArguments(

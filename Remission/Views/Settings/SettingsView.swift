@@ -58,6 +58,7 @@ struct SettingsView: View {
                             // end Form
                         }
                         .formStyle(.grouped)
+                        .scrollContentBackground(.hidden)
 
                         // We no longer show an overlay spinner — the view is only rendered
                         // after persisted settings are available which avoids jumps.
@@ -82,8 +83,10 @@ struct SettingsView: View {
                 store: store.scope(state: \.$diagnostics, action: \.diagnostics)
             ) { diagnosticsStore in
                 DiagnosticsView(store: diagnosticsStore)
+                    .appRootChrome()
             }
         }
+        .appRootChrome()
     }
 
     private var intervalLabel: String {

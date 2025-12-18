@@ -117,9 +117,9 @@ enum AppBootstrap {
         environment: [String: String]
     ) {
         guard existingState == nil else { return }
-        if environment["XCTestConfigurationFilePath"] != nil,
-            storageFileURL == ServerConfigStoragePaths.defaultURL()
-        {
+        let isRunningUITests = environment["XCTestConfigurationFilePath"] != nil
+        let isDefaultStoragePath = storageFileURL == ServerConfigStoragePaths.defaultURL()
+        if isRunningUITests && isDefaultStoragePath {
             return
         }
         let records = ServerConfigStoragePaths.loadSnapshot(fileURL: storageFileURL)
@@ -144,10 +144,14 @@ enum AppBootstrap {
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: serverListSampleServers())
             state.serverList.shouldLoadServersFromRepository = false
             #if os(macOS)
-                if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil,
-                    state.serverList.servers.isEmpty == false,
-                    state.path.isEmpty
-                {
+                let isRunningUITests =
+                    ProcessInfo.processInfo.environment[
+                        "XCTestConfigurationFilePath"
+                    ] != nil
+                let shouldAutoOpenFirstServer =
+                    isRunningUITests && state.serverList.servers.isEmpty == false
+                    && state.path.isEmpty
+                if shouldAutoOpenFirstServer {
                     state.path.append(
                         ServerDetailReducer.State(server: state.serverList.servers[0]))
                 }

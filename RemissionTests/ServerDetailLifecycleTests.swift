@@ -129,11 +129,7 @@ struct ServerDetailLifecycleTests {
 
     @Test
     func deleteFlowRequiresConfirmation() async {
-        let deletedKeys = ServerDetailLockedValue<[TransmissionServerCredentialsKey]>([])
-        let deletedFingerprints = ServerDetailLockedValue<[String]>([])
-        let deletedIds = ServerDetailLockedValue<[UUID]>([])
-        let deletedIdentity = ServerDetailLockedValue<TransmissionServerTrustIdentity?>(nil)
-        let offlineCache = OfflineCacheRepository.inMemory()
+        let capture = DeleteFlowCapture()
 
         let server = ServerConfig.previewSecureSeedbox
         let cacheKey = OfflineCacheKey(
@@ -141,38 +137,13 @@ struct ServerDetailLifecycleTests {
             cacheFingerprint: "fixture-cache",
             rpcVersion: nil
         )
-        let snapshotClient = offlineCache.client(cacheKey)
-        _ = try? await snapshotClient.updateTorrents([Torrent.previewDownloading])
+        let snapshotClient = capture.offlineCache.client(cacheKey)
+        await seedOfflineSnapshot(client: snapshotClient)
 
-        let store = TestStore(
-            initialState: ServerDetailReducer.State(server: server)
-        ) {
-            ServerDetailReducer()
-        } withDependencies: { dependencies in
-            dependencies = AppDependencies.makeTestDefaults()
-            dependencies.offlineCacheRepository = offlineCache
-            dependencies.credentialsRepository = CredentialsRepository(
-                save: { _ in },
-                load: { _ in nil },
-                delete: { key in deletedKeys.withValue { $0.append(key) } }
-            )
-            dependencies.httpWarningPreferencesStore = HttpWarningPreferencesStore(
-                isSuppressed: { _ in false },
-                setSuppressed: { _, _ in },
-                reset: { value in deletedFingerprints.withValue { $0.append(value) } }
-            )
-            dependencies.transmissionTrustStoreClient = TransmissionTrustStoreClient { identity in
-                deletedIdentity.set(identity)
-            }
-            dependencies.serverConfigRepository = ServerConfigRepository(
-                load: { [] },
-                upsert: { _ in [] },
-                delete: { ids in
-                    deletedIds.withValue { $0.append(contentsOf: ids) }
-                    return []
-                }
-            )
-        }
+        let store = makeDeleteFlowStore(
+            server: server,
+            capture: capture
+        )
 
         await store.send(.deleteButtonTapped) {
             $0.alert = .deleteConfirmation
@@ -191,11 +162,11 @@ struct ServerDetailLifecycleTests {
         let snapshot = try? await snapshotClient.load()
         #expect(snapshot == nil)
 
-        #expect(deletedIds.value == [server.id])
-        #expect(deletedKeys.value == [server.credentialsKey!])
-        #expect(deletedFingerprints.value == [server.httpWarningFingerprint])
+        #expect(capture.deletedIds.value == [server.id])
+        #expect(capture.deletedKeys.value == [server.credentialsKey!])
+        #expect(capture.deletedFingerprints.value == [server.httpWarningFingerprint])
         #expect(
-            deletedIdentity.value
+            capture.deletedIdentity.value
                 == TransmissionServerTrustIdentity(
                     host: server.connection.host,
                     port: server.connection.port,
@@ -283,6 +254,55 @@ struct ServerDetailLifecycleTests {
         await store.receive(.editor(.dismiss)) {
             $0.editor = nil
         }
+    }
+}
+
+@MainActor
+private func seedOfflineSnapshot(client: OfflineCacheClient) async {
+    _ = try? await client.updateTorrents([Torrent.previewDownloading])
+}
+
+private struct DeleteFlowCapture: Sendable {
+    var offlineCache: OfflineCacheRepository = .inMemory()
+    var deletedKeys: ServerDetailLockedValue<[TransmissionServerCredentialsKey]> = .init([])
+    var deletedFingerprints: ServerDetailLockedValue<[String]> = .init([])
+    var deletedIds: ServerDetailLockedValue<[UUID]> = .init([])
+    var deletedIdentity: ServerDetailLockedValue<TransmissionServerTrustIdentity?> = .init(nil)
+}
+
+@MainActor
+private func makeDeleteFlowStore(
+    server: ServerConfig,
+    capture: DeleteFlowCapture
+) -> TestStore<ServerDetailReducer.State, ServerDetailReducer.Action> {
+    TestStore(
+        initialState: ServerDetailReducer.State(server: server)
+    ) {
+        ServerDetailReducer()
+    } withDependencies: { dependencies in
+        dependencies = AppDependencies.makeTestDefaults()
+        dependencies.offlineCacheRepository = capture.offlineCache
+        dependencies.credentialsRepository = CredentialsRepository(
+            save: { _ in },
+            load: { _ in nil },
+            delete: { key in capture.deletedKeys.withValue { $0.append(key) } }
+        )
+        dependencies.httpWarningPreferencesStore = HttpWarningPreferencesStore(
+            isSuppressed: { _ in false },
+            setSuppressed: { _, _ in },
+            reset: { value in capture.deletedFingerprints.withValue { $0.append(value) } }
+        )
+        dependencies.transmissionTrustStoreClient = TransmissionTrustStoreClient { identity in
+            capture.deletedIdentity.set(identity)
+        }
+        dependencies.serverConfigRepository = ServerConfigRepository(
+            load: { [] },
+            upsert: { _ in [] },
+            delete: { ids in
+                capture.deletedIds.withValue { $0.append(contentsOf: ids) }
+                return []
+            }
+        )
     }
 }
 

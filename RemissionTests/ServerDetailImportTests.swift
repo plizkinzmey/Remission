@@ -4,8 +4,6 @@ import Testing
 
 @testable import Remission
 
-// swiftlint:disable function_body_length
-
 @MainActor
 struct ServerDetailImportTests {
     @Test
@@ -237,5 +235,3 @@ struct ServerDetailImportTests {
         }
     }
 }
-
-// swiftlint:enable function_body_length
