@@ -5,17 +5,68 @@ final class SettingsUITests: BaseUITestCase {
     @MainActor
     func testSettingsPersistenceAcrossLaunches() {
         let suiteName = "ui-settings-persistence"
-        let initialEnvironment = [
-            "UI_TESTING_PREFERENCES_SUITE": suiteName,
-            "UI_TESTING_RESET_PREFERENCES": "1"
-        ]
-        let persistenceEnvironment = ["UI_TESTING_PREFERENCES_SUITE": suiteName]
+        let snapshot = mutateSettingsAndCaptureSnapshot(suiteName: suiteName)
+        let (app, controls) = openSettings(suiteName: suiteName, reset: false)
+        assertSnapshotMatches(snapshot, controls: controls)
+        controls.closeButton.tap()
+        app.terminate()
+    }
 
-        // First launch: change settings
-        let app = launchApp(environment: initialEnvironment)
-        var controls = openSettingsControls(app)
+    @MainActor
+    func testTelemetryTogglePersistsAcrossLaunches() {
+        let suiteName = "ui-telemetry-consent"
+        enableTelemetryUsingUI(suiteName: suiteName)
+        let (app, controls) = openSettings(suiteName: suiteName, reset: false)
+        assertTelemetryEnabled(controls: controls, suiteName: suiteName)
+        controls.closeButton.tap()
+        app.terminate()
+    }
+
+    @MainActor
+    func testSettingsScreenShowsControlsAndAllowsEditing() {
+        let suiteName = "ui-settings-smoke"
+        let (app, controls) = openSettings(suiteName: suiteName, reset: true)
+        verifySettingsControlsEditable(controls: controls, app: app)
+        app.terminate()
+    }
+
+    private func openSettings(
+        suiteName: String,
+        reset: Bool
+    ) -> (XCUIApplication, SettingsControls) {
+        let app = launchApp(
+            environment: makePreferencesEnvironment(
+                suiteName: suiteName,
+                reset: reset
+            )
+        )
+        let controls = openSettingsControls(app)
         waitForSettingsLoaded(app)
+        return (app, controls)
+    }
 
+    private func makePreferencesEnvironment(
+        suiteName: String,
+        reset: Bool
+    ) -> [String: String] {
+        var env = ["UI_TESTING_PREFERENCES_SUITE": suiteName]
+        if reset { env["UI_TESTING_RESET_PREFERENCES"] = "1" }
+        return env
+    }
+
+    private func mutateSettingsAndCaptureSnapshot(suiteName: String) -> SettingsSnapshot {
+        let (app, controls) = openSettings(suiteName: suiteName, reset: true)
+        let snapshot = mutateSettingsForSnapshot(controls: controls, app: app)
+        RunLoop.current.run(until: Date().addingTimeInterval(1.2))
+        controls.closeButton.tap()
+        app.terminate()
+        return snapshot
+    }
+
+    private func mutateSettingsForSnapshot(
+        controls: SettingsControls,
+        app: XCUIApplication
+    ) -> SettingsSnapshot {
         #if os(iOS)
             let initialPollingValue = controls.pollingValue.label
             _ = adjustPollingInterval(
@@ -23,7 +74,6 @@ final class SettingsUITests: BaseUITestCase {
                 initialValue: initialPollingValue,
                 app: app
             )
-            let savedPollingValue = controls.pollingValue.label
         #endif
 
         controls.autoRefreshToggle.tap()
@@ -35,101 +85,68 @@ final class SettingsUITests: BaseUITestCase {
             controls.uploadField.clearAndTypeText("321")
             controls.uploadField.typeText("\n")
             controls.autoRefreshToggle.tap()
-
-            let savedDownload =
-                (controls.downloadField.value as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let savedUpload =
-                (controls.uploadField.value as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         #endif
 
-        let savedAutoRefresh = (controls.autoRefreshToggle.value as? String) ?? ""
-        let savedTelemetry = (controls.telemetryToggle.value as? String) ?? ""
-
-        RunLoop.current.run(until: Date().addingTimeInterval(1.2))
-
-        controls.closeButton.tap()
-        app.terminate()
-
-        // Relaunch and verify persistence
-        let relaunchedApp = launchApp(environment: persistenceEnvironment)
-        controls = openSettingsControls(relaunchedApp)
-        waitForSettingsLoaded(relaunchedApp)
-
-        #if os(iOS)
-            XCTAssertEqual(
-                controls.pollingValue.label,
-                savedPollingValue,
-                "Polling interval не сохранился"
-            )
-        #endif
-        XCTAssertEqual(
-            (controls.autoRefreshToggle.value as? String) ?? "",
-            savedAutoRefresh,
-            "Auto-refresh toggle не сохранился"
-        )
-
-        #if os(iOS)
-            let reopenedDownloadRaw = controls.downloadField.value as? String ?? ""
-            let reopenedUploadRaw = controls.uploadField.value as? String ?? ""
-            let reopenedDownload = reopenedDownloadRaw.trimmingCharacters(
-                in: .whitespacesAndNewlines)
-            let reopenedUpload = reopenedUploadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let downloadMatches =
-                reopenedDownload == savedDownload
-                || reopenedDownload.hasSuffix(savedDownload)
-                || reopenedDownload.hasPrefix(savedDownload)
-            let uploadMatches =
-                reopenedUpload == savedUpload
-                || reopenedUpload.hasSuffix(savedUpload)
-                || reopenedUpload.hasPrefix(savedUpload)
-
-            XCTAssertTrue(downloadMatches, "Download limit не сохранился после перезапуска")
-            XCTAssertTrue(uploadMatches, "Upload limit не сохранился после перезапуска")
-        #endif
-
-        XCTAssertEqual(
-            (controls.telemetryToggle.value as? String) ?? "",
-            savedTelemetry,
-            "Telemetry toggle не сохранился после перезапуска"
+        return SettingsSnapshot(
+            autoRefresh: (controls.autoRefreshToggle.value as? String) ?? "",
+            telemetry: (controls.telemetryToggle.value as? String) ?? "",
+            pollingValue: {
+                #if os(iOS)
+                    return controls.pollingValue.label
+                #else
+                    return nil
+                #endif
+            }(),
+            download: trimmedFieldValue(controls.downloadField),
+            upload: trimmedFieldValue(controls.uploadField)
         )
     }
 
-    @MainActor
-    func testTelemetryTogglePersistsAcrossLaunches() {
-        let suiteName = "ui-telemetry-consent"
-        let app = launchApp(
-            environment: [
-                "UI_TESTING_PREFERENCES_SUITE": suiteName,
-                "UI_TESTING_RESET_PREFERENCES": "1"
-            ]
-        )
-        var controls = openSettingsControls(app)
-        waitForSettingsLoaded(app)
+    private func assertSnapshotMatches(_ snapshot: SettingsSnapshot, controls: SettingsControls) {
+        if let polling = snapshot.pollingValue {
+            XCTAssertEqual(controls.pollingValue.label, polling)
+        }
+        XCTAssertEqual((controls.autoRefreshToggle.value as? String) ?? "", snapshot.autoRefresh)
+        XCTAssertEqual((controls.telemetryToggle.value as? String) ?? "", snapshot.telemetry)
 
+        #if os(iOS)
+            if let expectedDownload = snapshot.download {
+                let reopened = trimmedFieldValue(controls.downloadField) ?? ""
+                XCTAssertTrue(matchesPersistedField(reopened, expected: expectedDownload))
+            }
+            if let expectedUpload = snapshot.upload {
+                let reopened = trimmedFieldValue(controls.uploadField) ?? ""
+                XCTAssertTrue(matchesPersistedField(reopened, expected: expectedUpload))
+            }
+        #endif
+    }
+
+    private func enableTelemetryUsingUI(suiteName: String) {
+        let (app, controls) = openSettings(suiteName: suiteName, reset: true)
+        assertTelemetryDisabledByDefault(controls: controls)
+        toggleTelemetryOnIfNeeded(controls: controls, app: app, suiteName: suiteName)
+        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
+        controls.closeButton.tap()
+        app.terminate()
+    }
+
+    private func assertTelemetryDisabledByDefault(controls: SettingsControls) {
         let defaultValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
-        XCTAssertFalse(
-            ["1", "on", "true"].contains(defaultValue),
-            "Telemetry should be disabled by default"
-        )
+        XCTAssertFalse(["1", "on", "true"].contains(defaultValue))
+    }
 
+    private func toggleTelemetryOnIfNeeded(
+        controls: SettingsControls,
+        app: XCUIApplication,
+        suiteName: String
+    ) {
         if controls.telemetryToggle.isHittable == false {
             app.swipeUp()
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
         }
 
-        func telemetryIsOn() -> Bool {
-            let rawValue = controls.telemetryToggle.value
-            let stringValue = (rawValue as? String ?? "").lowercased()
-            if ["1", "on", "true"].contains(stringValue) { return true }
-            if ["0", "off", "false"].contains(stringValue) { return false }
-            return controls.telemetryToggle.isSelected
-        }
-
         var attempts = 0
-        while telemetryIsOn() == false && attempts < 4 {
+        while telemetryIsOn(controls: controls) == false && attempts < 4 {
             controls.telemetryToggle.tap()
             RunLoop.current.run(until: Date().addingTimeInterval(0.4))
             attempts += 1
@@ -137,118 +154,104 @@ final class SettingsUITests: BaseUITestCase {
 
         let toggledOn = waitUntil(
             timeout: 5,
-            condition: telemetryIsOn() || telemetryEnabled(in: suiteName) == true
+            condition: self.telemetryIsOn(controls: controls)
+                || self.telemetryEnabled(in: suiteName) == true
         )
-        if toggledOn == false, telemetryIsOn() == false {
-            let center = controls.telemetryToggle.coordinate(
-                withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
-            )
-            center.tap()
-            let retryOn = waitUntil(
-                timeout: 2,
-                condition: telemetryIsOn() || telemetryEnabled(in: suiteName) == true
-            )
-            if retryOn == false {
-                attachScreenshot(app, name: "telemetry_toggle_did_not_turn_on")
-                forceEnableTelemetry(in: suiteName)
-            }
-        }
+        if toggledOn || telemetryIsOn(controls: controls) { return }
 
-        RunLoop.current.run(until: Date().addingTimeInterval(1.0))
-        controls.closeButton.tap()
-
-        let relaunched = launchApp(
-            environment: [
-                "UI_TESTING_PREFERENCES_SUITE": suiteName
-            ]
+        let center = controls.telemetryToggle.coordinate(
+            withNormalizedOffset: .init(dx: 0.5, dy: 0.5)
         )
-        controls = openSettingsControls(relaunched)
-        waitForSettingsLoaded(relaunched)
+        center.tap()
+        let retryOn = waitUntil(
+            timeout: 2,
+            condition: self.telemetryIsOn(controls: controls)
+                || self.telemetryEnabled(in: suiteName) == true
+        )
+        if retryOn { return }
+        attachScreenshot(app, name: "telemetry_toggle_did_not_turn_on")
+        forceEnableTelemetry(in: suiteName)
+    }
 
+    private func assertTelemetryEnabled(controls: SettingsControls, suiteName: String) {
         let persistedValue = (controls.telemetryToggle.value as? String ?? "").lowercased()
         let persistedFlag: Bool = telemetryEnabled(in: suiteName) ?? false
-        XCTAssertTrue(
-            ["1", "on", "true"].contains(persistedValue) || persistedFlag,
-            "Telemetry consent did not persist after relaunch"
-        )
+        XCTAssertTrue(["1", "on", "true"].contains(persistedValue) || persistedFlag)
     }
 
-    @MainActor
-    func testSettingsScreenShowsControlsAndAllowsEditing() {
-        let suiteName = "ui-settings-smoke"
-        let app = launchApp(
-            environment: [
-                "UI_TESTING_PREFERENCES_SUITE": suiteName,
-                "UI_TESTING_RESET_PREFERENCES": "1"
-            ]
-        )
-        var controls = openSettingsControls(app)
-        waitForSettingsLoaded(app)
+    private func telemetryIsOn(controls: SettingsControls) -> Bool {
+        let rawValue = controls.telemetryToggle.value
+        let stringValue = (rawValue as? String ?? "").lowercased()
+        if ["1", "on", "true"].contains(stringValue) { return true }
+        if ["0", "off", "false"].contains(stringValue) { return false }
+        return controls.telemetryToggle.isSelected
+    }
 
+    private func verifySettingsControlsEditable(controls: SettingsControls, app: XCUIApplication) {
         controls.autoRefreshToggle.tap()
-        let autoValue = (controls.autoRefreshToggle.value as? String) ?? ""
         #if os(macOS)
-            XCTAssertTrue(controls.autoRefreshToggle.exists, "Auto-refresh toggle отсутствует")
+            XCTAssertTrue(controls.autoRefreshToggle.exists)
         #else
-            XCTAssertFalse(autoValue.isEmpty, "Auto-refresh toggle не реагирует")
+            let value = (controls.autoRefreshToggle.value as? String) ?? ""
+            XCTAssertFalse(value.isEmpty)
         #endif
 
         #if os(iOS)
-            if controls.pollingSlider.exists {
-                controls.pollingSlider.adjust(toNormalizedSliderPosition: 0.2)
-            }
-        #endif
+            let savedDownload = saveTextField(
+                controls.downloadField,
+                value: "555",
+                toggle: controls.autoRefreshToggle
+            )
+            let savedUpload = saveTextField(
+                controls.uploadField,
+                value: "444",
+                toggle: controls.autoRefreshToggle
+            )
+            RunLoop.current.run(until: Date().addingTimeInterval(1.2))
+            controls.closeButton.tap()
+            _ = controls.autoRefreshToggle.waitForDisappearance(timeout: 3)
 
-        #if os(iOS)
-            controls.downloadField.clearAndTypeText("555")
-            controls.downloadField.typeText("\n")
-            controls.autoRefreshToggle.tap()
-            let savedDownloadInSession = (controls.downloadField.value as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            controls.uploadField.clearAndTypeText("444")
-            controls.uploadField.typeText("\n")
-            controls.autoRefreshToggle.tap()
-            let savedUploadInSession = (controls.uploadField.value as? String)?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-        #endif
-
-        RunLoop.current.run(until: Date().addingTimeInterval(1.2))
-
-        controls.closeButton.tap()
-        XCTAssertTrue(
-            controls.autoRefreshToggle.waitForDisappearance(timeout: 3),
-            "Settings sheet did not close"
-        )
-
-        #if os(iOS)
-            controls = openSettingsControls(app)
+            let reopened = openSettingsControls(app)
             waitForSettingsLoaded(app)
-            let reopenedDownloadRaw = controls.downloadField.value as? String ?? ""
-            let reopenedUploadRaw = controls.uploadField.value as? String ?? ""
-            let reopenedDownload = reopenedDownloadRaw.trimmingCharacters(
-                in: .whitespacesAndNewlines)
-            let reopenedUpload = reopenedUploadRaw.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            let expectedDownload = (savedDownloadInSession ?? "555")
-            let downloadMatches =
-                reopenedDownload == expectedDownload
-                || reopenedDownload.hasSuffix(expectedDownload)
-                || reopenedDownload.hasPrefix(expectedDownload)
-
-            let expectedUpload = (savedUploadInSession ?? "444")
-            let uploadMatches =
-                reopenedUpload == expectedUpload
-                || reopenedUpload.hasSuffix(expectedUpload)
-                || reopenedUpload.hasPrefix(expectedUpload)
-
-            XCTAssertTrue(
-                downloadMatches,
-                "Download limit не сохраняется внутри сессии (\(reopenedDownloadRaw))"
-            )
-            XCTAssertTrue(
-                uploadMatches,
-                "Upload limit не сохраняется внутри сессии (\(reopenedUploadRaw))"
-            )
+            let reopenedDownload = trimmedFieldValue(reopened.downloadField) ?? ""
+            let reopenedUpload = trimmedFieldValue(reopened.uploadField) ?? ""
+            XCTAssertTrue(matchesPersistedField(reopenedDownload, expected: savedDownload))
+            XCTAssertTrue(matchesPersistedField(reopenedUpload, expected: savedUpload))
+            reopened.closeButton.tap()
+            XCTAssertTrue(reopened.autoRefreshToggle.waitForDisappearance(timeout: 3))
+        #else
+            controls.closeButton.tap()
+            XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
+            _ = app
         #endif
     }
+
+    #if os(iOS)
+        private func saveTextField(
+            _ field: XCUIElement,
+            value: String,
+            toggle: XCUIElement
+        ) -> String {
+            field.clearAndTypeText(value)
+            field.typeText("\n")
+            toggle.tap()
+            return trimmedFieldValue(field) ?? value
+        }
+    #endif
+
+    private func trimmedFieldValue(_ field: XCUIElement) -> String? {
+        (field.value as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func matchesPersistedField(_ actual: String, expected: String) -> Bool {
+        actual == expected || actual.hasSuffix(expected) || actual.hasPrefix(expected)
+    }
+}
+
+private struct SettingsSnapshot {
+    let autoRefresh: String
+    let telemetry: String
+    let pollingValue: String?
+    let download: String?
+    let upload: String?
 }

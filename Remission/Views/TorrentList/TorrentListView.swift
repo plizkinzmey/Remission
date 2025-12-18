@@ -86,14 +86,7 @@ extension TorrentListView {
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: macOSToolbarPillHeight)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12))
-            )
+            .appPillSurface()
         }
     #endif
 
@@ -189,14 +182,7 @@ extension TorrentListView {
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .fill(.regularMaterial)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .strokeBorder(Color.primary.opacity(0.12))
-                                        )
+                                        .appCardSurface(cornerRadius: 14)
                                 }
                             }
                             .padding(.vertical, 2)
@@ -430,14 +416,7 @@ extension TorrentListView {
                     )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.regularMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.12))
-                    )
+                    .appCardSurface(cornerRadius: 14)
                 }
             }
         }
@@ -711,14 +690,10 @@ private struct TorrentRowView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12))
-        )
+        .appPillSurface()
+        #if !os(visionOS)
+            .appGlassEffectTransition(.materialize)
+        #endif
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
     }
 

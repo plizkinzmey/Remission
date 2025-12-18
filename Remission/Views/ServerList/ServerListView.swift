@@ -42,6 +42,7 @@ struct ServerListView: View {
             store: store.scope(state: \.$onboarding, action: \.onboarding)
         ) { onboardingStore in
             OnboardingView(store: onboardingStore)
+                .appRootChrome()
         }
     }
 
@@ -89,60 +90,44 @@ struct ServerListView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
         #endif
     }
 
     private func serverRow(_ server: ServerConfig) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardBackgroundColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.white.opacity(0.05))
-                )
-                .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 8)
-
-            VStack(spacing: 12) {
-                HStack(alignment: .center, spacing: 16) {
-                    Button {
-                        store.send(.serverTapped(server.id))
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(server.name)
-                                .font(.headline)
-                            Text(server.displayAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.9)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(spacing: 12) {
+            HStack(alignment: .center, spacing: 16) {
+                Button {
+                    store.send(.serverTapped(server.id))
+                } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(server.name)
+                            .font(.headline)
+                        Text(server.displayAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
-                    .contentShape(Rectangle())
-
-                    HStack(spacing: 10) {
-                        connectionStatusChip(for: server)
-                        securityBadge(for: server)
-                        deleteButton(for: server)
-                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+                .contentShape(Rectangle())
 
-                versionSummary(for: server)
-                    .frame(maxWidth: .infinity, alignment: .center)
+                HStack(spacing: 10) {
+                    connectionStatusChip(for: server)
+                    securityBadge(for: server)
+                    deleteButton(for: server)
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-        }
-    }
 
-    private var cardBackgroundColor: Color {
-        #if os(macOS)
-            Color(nsColor: .controlBackgroundColor).opacity(0.18)
-        #else
-            Color(.secondarySystemGroupedBackground)
-        #endif
+            versionSummary(for: server)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .appCardSurface(cornerRadius: 14)
     }
 
     private var emptyState: some View {
@@ -168,15 +153,6 @@ struct ServerListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .multilineTextAlignment(.center)
         .padding()
-        .background(emptyStateBackgroundColor)
-    }
-
-    private var emptyStateBackgroundColor: Color {
-        #if os(macOS)
-            Color(nsColor: .windowBackgroundColor)
-        #else
-            Color(.systemGroupedBackground)
-        #endif
     }
 
     private func securityBadge(for server: ServerConfig) -> some View {
@@ -239,23 +215,14 @@ struct ServerListView: View {
     @ViewBuilder
     private func connectionStatusChip(for server: ServerConfig) -> some View {
         let status = store.connectionStatuses[server.id] ?? .init()
-        let (label, systemImage, tint): (String, String, Color) = {
-            switch status.phase {
-            case .idle, .probing:
-                return (L10n.tr("serverDetail.status.connecting"), "arrow.clockwise", .secondary)
-            case .connected:
-                return (L10n.tr("serverDetail.status.connected"), "checkmark.circle.fill", .green)
-            case .failed:
-                return (L10n.tr("serverDetail.status.error"), "exclamationmark.triangle.fill", .red)
-            }
-        }()
+        let descriptor = ConnectionStatusChipDescriptor(phase: status.phase)
 
-        Label(label, systemImage: systemImage)
+        Label(descriptor.label, systemImage: descriptor.systemImage)
             .font(.footnote)
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(Capsule().fill(tint.opacity(0.15)))
-            .foregroundStyle(tint)
+            .background(Capsule().fill(descriptor.tint.opacity(0.15)))
+            .foregroundStyle(descriptor.tint)
     }
 
     @ViewBuilder
@@ -334,6 +301,29 @@ struct ServerListView: View {
             .foregroundStyle(foreground)
     }
 
+}
+
+private struct ConnectionStatusChipDescriptor {
+    let label: String
+    let systemImage: String
+    let tint: Color
+
+    init(phase: ServerListReducer.ConnectionStatusPhase) {
+        switch phase {
+        case .idle, .probing:
+            label = L10n.tr("serverDetail.status.connecting")
+            systemImage = "arrow.clockwise"
+            tint = .secondary
+        case .connected:
+            label = L10n.tr("serverDetail.status.connected")
+            systemImage = "checkmark.circle.fill"
+            tint = .green
+        case .failed:
+            label = L10n.tr("serverDetail.status.error")
+            systemImage = "exclamationmark.triangle.fill"
+            tint = .red
+        }
+    }
 }
 
 #Preview("Empty") {

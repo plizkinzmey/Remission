@@ -35,6 +35,7 @@ struct AppView: View {
         } destination: { store in
             ServerDetailView(store: store)
         }
+        .appRootChrome()
         .sheet(
             store: store.scope(state: \.$settings, action: \.settings)
         ) { settingsStore in

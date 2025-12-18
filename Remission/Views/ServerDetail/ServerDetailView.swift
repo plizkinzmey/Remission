@@ -28,6 +28,7 @@ struct ServerDetailView: View {
                         torrentsSection
                     }
                 }
+                .scrollContentBackground(.hidden)
             #endif
         }
         .navigationTitle(store.server.name)
@@ -40,6 +41,7 @@ struct ServerDetailView: View {
             store: store.scope(state: \.$editor, action: \.editor)
         ) { editorStore in
             ServerEditorView(store: editorStore)
+                .appRootChrome()
         }
         .sheet(
             store: store.scope(state: \.$torrentDetail, action: \.torrentDetail)
@@ -64,6 +66,7 @@ struct ServerDetailView: View {
                         }
                     }
             }
+            .appRootChrome()
         }
         .sheet(
             store: store.scope(state: \.$addTorrent, action: \.addTorrent)
@@ -71,6 +74,7 @@ struct ServerDetailView: View {
             NavigationStack {
                 AddTorrentView(store: addStore)
             }
+            .appRootChrome()
         }
         .sheet(
             store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
@@ -78,6 +82,7 @@ struct ServerDetailView: View {
             NavigationStack {
                 AddTorrentSourceView(store: sourceStore)
             }
+            .appRootChrome()
         }
         .fileImporter(
             isPresented: fileImporterBinding,
@@ -176,14 +181,7 @@ struct ServerDetailView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12))
-            )
+            .appPillSurface()
         }
 
         private var macOSToolbarPillHeight: CGFloat { 34 }
@@ -195,14 +193,7 @@ struct ServerDetailView: View {
                 connectionContent
             }
             .padding(12)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12))
-            )
+            .appCardSurface(cornerRadius: 14)
         }
     #endif
 

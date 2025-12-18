@@ -6,7 +6,9 @@ import Testing
 
 @MainActor
 @Suite("SettingsReducer")
-struct SettingsFeatureTests {
+struct SettingsFeatureTests {}
+
+extension SettingsFeatureTests {
     @Test("task загружает настройки и показывает значения")
     func taskLoadsPreferences() async {
         let preferences = DomainFixtures.userPreferences
@@ -104,23 +106,12 @@ struct SettingsFeatureTests {
         let preferences = DomainFixtures.userPreferences
         let limitsRecorder = LockedValue<[UserPreferences.DefaultSpeedLimits]>([])
 
-        let repository = UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { limits in
-                limitsRecorder.withValue { $0.append(limits) }
-                var updated = preferences
-                updated.defaultSpeedLimits = limits
-                return updated
-            },
-            observe: {
-                AsyncStream { continuation in
-                    continuation.finish()
-                }
-            }
-        )
+        let repository = makeFinishedRepository(preferences: preferences) { limits in
+            limitsRecorder.withValue { $0.append(limits) }
+            var updated = preferences
+            updated.defaultSpeedLimits = limits
+            return updated
+        }
 
         var initialState = SettingsReducer.State(isLoading: false)
         initialState.defaultSpeedLimits = preferences.defaultSpeedLimits
@@ -226,19 +217,9 @@ struct SettingsFeatureTests {
         let preferences = DomainFixtures.userPreferences
         let continuationBox = PreferencesContinuationBox()
 
-        let repository = UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
-                AsyncStream { cont in
-                    Task {
-                        await continuationBox.set(cont)
-                    }
-                }
-            }
+        let repository = makeObservingRepository(
+            preferences: preferences,
+            continuationBox: continuationBox
         )
 
         let store = TestStore(
@@ -454,6 +435,45 @@ private func loadedState(from preferences: UserPreferences) -> SettingsReducer.S
     )
     state.persistedPreferences = preferences
     return state
+}
+
+private func makeFinishedRepository(
+    preferences: UserPreferences,
+    updateDefaultSpeedLimits:
+        @escaping @Sendable (UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
+) -> UserPreferencesRepository {
+    UserPreferencesRepository(
+        load: { preferences },
+        updatePollingInterval: { _ in preferences },
+        setAutoRefreshEnabled: { _ in preferences },
+        setTelemetryEnabled: { _ in preferences },
+        updateDefaultSpeedLimits: updateDefaultSpeedLimits,
+        observe: {
+            AsyncStream { continuation in
+                continuation.finish()
+            }
+        }
+    )
+}
+
+private func makeObservingRepository(
+    preferences: UserPreferences,
+    continuationBox: PreferencesContinuationBox
+) -> UserPreferencesRepository {
+    UserPreferencesRepository(
+        load: { preferences },
+        updatePollingInterval: { _ in preferences },
+        setAutoRefreshEnabled: { _ in preferences },
+        setTelemetryEnabled: { _ in preferences },
+        updateDefaultSpeedLimits: { _ in preferences },
+        observe: {
+            AsyncStream { continuation in
+                Task {
+                    await continuationBox.set(continuation)
+                }
+            }
+        }
+    )
 }
 
 private final class LockedValue<Value>: @unchecked Sendable {

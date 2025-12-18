@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Clocks
 import ComposableArchitecture
 import Foundation
@@ -7,7 +8,9 @@ import Testing
 
 @Suite("TorrentListReducer")
 @MainActor
-struct TorrentListFeatureTests {
+struct TorrentListFeatureTests {}
+
+extension TorrentListFeatureTests {
     // Проверяем, что happy path загружает данные и перезапускает polling по таймеру.
     @Test("task загружает торренты и запускает polling c TestClock")
     func taskLoadsTorrentsAndStartsPolling() async {
@@ -161,8 +164,7 @@ struct TorrentListFeatureTests {
     @Test("ServerConnectionEnvironment применяется перед fetchList")
     func serverEnvironmentOverridesGlobalDependencies() async {
         let clock = TestClock<Duration>()
-        let defaultRepositoryCalls = FetchCounter()
-        let scopedRepositoryCalls = FetchCounter()
+        let (defaultRepositoryCalls, scopedRepositoryCalls) = (FetchCounter(), FetchCounter())
         let torrents = TorrentFixture.torrentListSample
         #expect(torrents.isEmpty == false)
         let preferences = DomainFixtures.userPreferences
@@ -332,6 +334,10 @@ struct TorrentListFeatureTests {
             $0.isRefreshing = false
         }
     }
+
+}
+
+extension TorrentListFeatureTests {
 
     @Test("delegate detailUpdated обновляет список и инициирует мгновенный refresh")
     func detailDelegateUpdatesListAndRefreshes() async {
@@ -592,6 +598,10 @@ struct TorrentListFeatureTests {
         #expect(store.state.items[id: addResult.id] != nil)
     }
 
+}
+
+extension TorrentListFeatureTests {
+
     // Проверяем, что поиск и фильтры не инициируют дополнительный fetchList.
     @Test("searchQuery и filter меняют visibleItems без дополнительных запросов")
     func searchAndFilterUpdateVisibleItemsWithoutFetching() async {
@@ -693,39 +703,7 @@ struct TorrentListFeatureTests {
             await callCounter.increment()
             return torrents
         })
-
-        let userPreferencesRepository = UserPreferencesRepository(
-            load: { basePreferences },
-            updatePollingInterval: { _ in basePreferences },
-            setAutoRefreshEnabled: { _ in basePreferences },
-            setTelemetryEnabled: { _ in basePreferences },
-            updateDefaultSpeedLimits: { _ in basePreferences },
-            observe: {
-                AsyncStream { continuation in
-                    continuation.finish()
-                }
-            }
-        )
-
-        let server = ServerConfig.previewLocalHTTP
-        let environment = ServerConnectionEnvironment.testEnvironment(
-            server: server,
-            torrentRepository: repository
-        )
-
-        let store = TestStoreFactory.make(
-            initialState: {
-                var state = TorrentListReducer.State()
-                state.connectionEnvironment = environment
-                state.serverID = environment.serverID
-                return state
-            }(),
-            reducer: { TorrentListReducer() },
-            configure: { dependencies in
-                dependencies.appClock = .test(clock: clock)
-                dependencies.userPreferencesRepository = userPreferencesRepository
-            }
-        )
+        let store = makeStore(clock: clock, repository: repository, preferences: basePreferences)
 
         await store.send(.task) {
             $0.phase = .loading
@@ -828,3 +806,5 @@ struct TorrentListFeatureTests {
         }
     }
 }
+
+// swiftlint:enable file_length

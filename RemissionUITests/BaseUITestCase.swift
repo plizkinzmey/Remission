@@ -61,86 +61,98 @@ class BaseUITestCase: XCTestCase {
         }
     }
 
-    // MARK: - Settings helpers
+    // MARK: - Telemetry helpers
 
     @MainActor
+    func telemetryEnabled(in suite: String) -> Bool? {
+        guard let data = UserDefaults(suiteName: suite)?.data(forKey: "user_preferences") else {
+            return nil
+        }
+        do {
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            return object?["isTelemetryEnabled"] as? Bool
+        } catch {
+            return nil
+        }
+    }
+
+    @MainActor
+    func forceEnableTelemetry(in suite: String) {
+        guard let defaults = UserDefaults(suiteName: suite) else { return }
+
+        let fallbackObject: [String: Any] = [
+            "version": 2,
+            "pollingInterval": 5,
+            "isAutoRefreshEnabled": true,
+            "isTelemetryEnabled": false,
+            "defaultSpeedLimits": [
+                "downloadKilobytesPerSecond": NSNull(),
+                "uploadKilobytesPerSecond": NSNull()
+            ]
+        ]
+
+        let currentObject: [String: Any] = {
+            guard let data = defaults.data(forKey: "user_preferences") else {
+                return fallbackObject
+            }
+            guard
+                let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+            else {
+                return fallbackObject
+            }
+            return object
+        }()
+
+        var updated = currentObject
+        updated["isTelemetryEnabled"] = true
+        if let newData = try? JSONSerialization.data(withJSONObject: updated) {
+            defaults.set(newData, forKey: "user_preferences")
+            defaults.synchronize()
+        }
+    }
+
+    // MARK: - Generic helpers
+
+    @MainActor
+    func waitUntil(
+        timeout: TimeInterval,
+        pollInterval: TimeInterval = 0.25,
+        condition: @escaping @autoclosure () -> Bool,
+        onTick: @escaping () -> Void = {}
+    ) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
+            onTick()
+        }
+        return condition()
+    }
+
+    @MainActor
+    func attachScreenshot(_ app: XCUIApplication, name: String) {
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+}
+
+@MainActor
+extension BaseUITestCase {
+    // MARK: - Settings helpers
+
     func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
         let window = app.windows.firstMatch
-        let settingsButton = window.buttons["app_settings_button"].firstMatch
-        #if os(macOS)
-            let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
-            if settingsButton.exists == false && toolbarFallback.exists {
-                toolbarFallback.tap()
-            } else {
-                XCTAssertTrue(
-                    settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-                settingsButton.tap()
-            }
-        #else
-            XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-            settingsButton.tap()
-        #endif
-
-        // Дождаться завершения загрузки настроек
-        let loadingText = app.staticTexts["Загружаем настройки…"]
-        if loadingText.waitForExistence(timeout: 2) {
-            _ = loadingText.waitForDisappearance(timeout: 5)
-        }
+        tapSettingsButton(in: window, app: app)
+        waitForSettingsLoaded(app)
 
         let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
             .firstMatch
-
-        #if os(macOS)
-            // Form на macOS может открываться не в начале: скроллим вверх, чтобы материализовать верхние элементы.
-            if let scrollView = app.scrollViews.allElementsBoundByIndex.first {
-                _ = scrollView.waitForExistence(timeout: 1)
-                scrollView.swipeUp()
-            }
-        #else
-            // На iOS Form основана на UITableView/UICollectionView/UIScrollView — прокручиваем вверх, пока не появится toggle.
-            let table = app.tables.firstMatch
-            let collection = app.collectionViews.firstMatch
-            let scrollView = app.scrollViews.firstMatch
-
-            for _ in 0..<15 where autoRefreshToggle.exists == false {
-                if table.exists { table.swipeDown() }
-                if collection.exists { collection.swipeDown() }
-                if scrollView.exists { scrollView.swipeDown() }
-                app.swipeDown()
-                // короткая задержка, чтобы UI успел отрисовать новые ячейки
-                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-            }
-
-            // Если не нашли — выполнить drag до верхнего края основного scrollable container.
-            if autoRefreshToggle.exists == false {
-                if collection.exists {
-                    let start = collection.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
-                    let end = collection.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
-                    start.press(forDuration: 0.01, thenDragTo: end)
-                } else if table.exists {
-                    let start = table.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
-                    let end = table.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
-                    start.press(forDuration: 0.01, thenDragTo: end)
-                } else if scrollView.exists {
-                    let start = scrollView.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
-                    let end = scrollView.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
-                    start.press(forDuration: 0.01, thenDragTo: end)
-                }
-                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-            }
-        #endif
-
-        // autoRefreshSection теперь первая секция в Form и должна быть видна сразу
-        if autoRefreshToggle.waitForExistence(timeout: 5) == false {
-            let attachment = XCTAttachment(screenshot: app.screenshot())
-            attachment.name = "settings_auto_refresh_missing"
-            attachment.lifetime = .keepAlways
-            add(attachment)
-            let tree = app.debugDescription
-            let path = "/tmp/remission-ui-tree.txt"
-            try? tree.write(toFile: path, atomically: true, encoding: .utf8)
-            XCTFail("Auto-refresh toggle missing. Tree written to \(path)")
-        }
+        ensureSettingsTopVisible(app, autoRefreshToggle: autoRefreshToggle)
+        requireExists(autoRefreshToggle, in: app, debugName: "settings_auto_refresh_toggle")
 
         let telemetryToggle = app.descendants(matching: .any)["settings_telemetry_toggle"]
         XCTAssertTrue(telemetryToggle.waitForExistence(timeout: 5), "Telemetry toggle missing")
@@ -185,6 +197,84 @@ class BaseUITestCase: XCTestCase {
         )
     }
 
+    private func tapSettingsButton(in window: XCUIElement, app: XCUIApplication) {
+        let settingsButton = window.buttons["app_settings_button"].firstMatch
+        #if os(macOS)
+            let toolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
+            if toolbarSettingsButton.waitForExistence(timeout: 2) {
+                toolbarSettingsButton.tap()
+                return
+            }
+            let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
+            if settingsButton.exists == false && toolbarFallback.exists {
+                toolbarFallback.tap()
+                return
+            }
+        #endif
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
+        settingsButton.tap()
+    }
+
+    private func ensureSettingsTopVisible(_ app: XCUIApplication, autoRefreshToggle: XCUIElement) {
+        #if os(macOS)
+            revealSettingsTopOnMac(app)
+        #else
+            revealSettingsTopOnIOS(app, autoRefreshToggle: autoRefreshToggle)
+        #endif
+    }
+
+    private func revealSettingsTopOnMac(_ app: XCUIApplication) {
+        if let scrollView = app.scrollViews.allElementsBoundByIndex.first {
+            _ = scrollView.waitForExistence(timeout: 1)
+            scrollView.swipeUp()
+        }
+    }
+
+    private func revealSettingsTopOnIOS(_ app: XCUIApplication, autoRefreshToggle: XCUIElement) {
+        let table = app.tables.firstMatch
+        let collection = app.collectionViews.firstMatch
+        let scrollView = app.scrollViews.firstMatch
+
+        for _ in 0..<15 where autoRefreshToggle.exists == false {
+            table.swipeDownIfExists()
+            collection.swipeDownIfExists()
+            scrollView.swipeDownIfExists()
+            app.swipeDown()
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+
+        if autoRefreshToggle.exists == false {
+            dragToTop(preferred: collection, fallback: table, lastFallback: scrollView)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+    }
+
+    private func dragToTop(
+        preferred: XCUIElement,
+        fallback: XCUIElement,
+        lastFallback: XCUIElement
+    ) {
+        if preferred.exists {
+            preferred.dragToTop()
+        } else if fallback.exists {
+            fallback.dragToTop()
+        } else if lastFallback.exists {
+            lastFallback.dragToTop()
+        }
+    }
+
+    private func requireExists(_ element: XCUIElement, in app: XCUIApplication, debugName: String) {
+        if element.waitForExistence(timeout: 5) { return }
+        let attachment = XCTAttachment(screenshot: app.screenshot())
+        attachment.name = "\(debugName)_missing"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        let tree = app.debugDescription
+        let path = "/tmp/remission-ui-tree.txt"
+        try? tree.write(toFile: path, atomically: true, encoding: .utf8)
+        XCTFail("\(debugName) missing. Tree written to \(path)")
+    }
+
     private func assertExists(
         _ element: XCUIElement,
         in app: XCUIApplication,
@@ -214,7 +304,6 @@ class BaseUITestCase: XCTestCase {
         XCTAssertTrue(element.waitForExistence(timeout: 2), message, file: file, line: line)
     }
 
-    @MainActor
     func waitForSettingsLoaded(_ app: XCUIApplication) {
         let loading = app.staticTexts["Загружаем настройки…"]
         if loading.exists {
@@ -224,7 +313,6 @@ class BaseUITestCase: XCTestCase {
         }
     }
 
-    @MainActor
     func adjustPollingInterval(
         controls: SettingsControls,
         initialValue: String,
@@ -236,7 +324,6 @@ class BaseUITestCase: XCTestCase {
                 || (controls.pollingSlider.value as? String ?? "") != initialSliderValue
         }
 
-        // Сделать слайдер видимым/доступным
         if controls.pollingSlider.isHittable == false {
             app.swipeUp()
             RunLoop.current.run(until: Date().addingTimeInterval(0.2))
@@ -253,7 +340,6 @@ class BaseUITestCase: XCTestCase {
             return false
         }
 
-        // Fallback: press+drag from center to target offsets
         let dragTargets: [CGFloat] = [1.0, 0.0, 0.75, 0.25, 0.5]
         let center = controls.pollingSlider.coordinate(
             withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
@@ -269,79 +355,18 @@ class BaseUITestCase: XCTestCase {
         attachScreenshot(app, name: "polling_slider_no_change")
         return false
     }
+}
 
-    // MARK: - Telemetry helpers
-
-    @MainActor
-    func telemetryEnabled(in suite: String) -> Bool? {
-        guard let data = UserDefaults(suiteName: suite)?.data(forKey: "user_preferences") else {
-            return nil
-        }
-        do {
-            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
-            return object?["isTelemetryEnabled"] as? Bool
-        } catch {
-            return nil
-        }
+extension XCUIElement {
+    fileprivate func swipeDownIfExists() {
+        guard exists else { return }
+        swipeDown()
     }
 
-    @MainActor
-    func forceEnableTelemetry(in suite: String) {
-        guard let defaults = UserDefaults(suiteName: suite) else { return }
-
-        let currentObject: [String: Any] = {
-            if let data = defaults.data(forKey: "user_preferences"),
-                let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-            {
-                return object
-            }
-            // Фолбэк: базовые значения по умолчанию, если prefs ещё не сохранены
-            return [
-                "version": 2,
-                "pollingInterval": 5,
-                "isAutoRefreshEnabled": true,
-                "isTelemetryEnabled": false,
-                "defaultSpeedLimits": [
-                    "downloadKilobytesPerSecond": NSNull(),
-                    "uploadKilobytesPerSecond": NSNull()
-                ]
-            ]
-        }()
-
-        var updated = currentObject
-        updated["isTelemetryEnabled"] = true
-        if let newData = try? JSONSerialization.data(withJSONObject: updated) {
-            defaults.set(newData, forKey: "user_preferences")
-            defaults.synchronize()
-        }
-    }
-
-    // MARK: - Generic helpers
-
-    @MainActor
-    func waitUntil(
-        timeout: TimeInterval,
-        pollInterval: TimeInterval = 0.25,
-        condition: @escaping @autoclosure () -> Bool,
-        onTick: @escaping () -> Void = {}
-    ) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if condition() {
-                return true
-            }
-            RunLoop.current.run(until: Date().addingTimeInterval(pollInterval))
-            onTick()
-        }
-        return condition()
-    }
-
-    @MainActor
-    func attachScreenshot(_ app: XCUIApplication, name: String) {
-        let attachment = XCTAttachment(screenshot: app.screenshot())
-        attachment.name = name
-        attachment.lifetime = .keepAlways
-        add(attachment)
+    fileprivate func dragToTop() {
+        let start = coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.9))
+        let end = coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.1))
+        start.press(forDuration: 0.01, thenDragTo: end)
     }
 }
 

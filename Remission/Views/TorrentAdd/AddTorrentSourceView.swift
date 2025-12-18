@@ -15,9 +15,9 @@ struct AddTorrentSourceView: View {
                     )
                 ) {
                     Text(L10n.tr("torrentAdd.source.option.file"))
-                        .tag(AddTorrentSourceReducer.State.Source.torrentFile)
+                        .tag(AddTorrentSourceReducer.Source.torrentFile)
                     Text(L10n.tr("torrentAdd.source.option.magnet"))
-                        .tag(AddTorrentSourceReducer.State.Source.magnetLink)
+                        .tag(AddTorrentSourceReducer.Source.magnetLink)
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("torrent_add_source_picker")
