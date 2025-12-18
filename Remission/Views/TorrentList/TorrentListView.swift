@@ -549,50 +549,41 @@ private struct TorrentRowView: View {
     var openRequested: (() -> Void)?
     var actions: RowActions?
 
-    #if os(macOS)
-        private var statusBadgeWidth: CGFloat { 118 }
-    #endif
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let openRequested {
-                    Button(action: openRequested) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Group {
+                    if let openRequested {
+                        Button(action: openRequested) {
+                            Text(item.torrent.name)
+                                .font(.headline)
+                                .lineLimit(2)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+                    } else {
                         Text(item.torrent.name)
                             .font(.headline)
                             .lineLimit(2)
+                            .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
-                } else {
-                    Text(item.torrent.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                 }
-                Spacer(minLength: 8)
-                if let actions {
-                    actionsPill(actions)
-                }
-                statusBadge
-                if let openRequested {
-                    Button(action: openRequested) {
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
-                            .padding(.vertical, 2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: 10) {
+                    if let actions {
+                        actionsPill(actions)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier(
-                        "torrent_row_open_button_\(item.torrent.id.rawValue)"
-                    )
-                    .accessibilityLabel(L10n.tr("Open torrent details"))
+                    statusBadge
                 }
             }
+            .frame(maxWidth: .infinity)
 
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
                 .accessibilityValue(item.metrics.progressText)
 
@@ -608,31 +599,23 @@ private struct TorrentRowView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Spacer(minLength: 8)
+                Label(
+                    peersText,
+                    systemImage: "person.2"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Spacer(minLength: 6)
 
                 Label(item.metrics.speedSummary, systemImage: "speedometer")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
             }
-
-            HStack(spacing: 12) {
-                Label(
-                    peersText,
-                    systemImage: "person.2"
-                )
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("ID \(item.id.rawValue)")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
         }
         .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
@@ -722,19 +705,21 @@ private struct TorrentRowView: View {
 
     private var statusBadge: some View {
         Text(statusTitle)
-            .font(.caption)
+            .font(.subheadline.weight(.semibold))
             .lineLimit(1)
             .minimumScaleFactor(0.8)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 10)
+            .frame(height: 34)
             .background(
-                Capsule()
+                Capsule(style: .continuous)
                     .fill(statusColor.opacity(0.15))
             )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
             .foregroundStyle(statusColor)
-            #if os(macOS)
-                .frame(width: statusBadgeWidth, alignment: .center)
-            #endif
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
