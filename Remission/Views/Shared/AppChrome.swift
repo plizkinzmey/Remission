@@ -1,10 +1,9 @@
+import Foundation
 import SwiftUI
 
 extension View {
     func appRootChrome() -> some View {
-        self
-            .tint(AppTheme.accent)
-            .background(AppBackgroundView())
+        modifier(AppRootChromeModifier())
     }
 
     func appCardSurface(cornerRadius: CGFloat = 14) -> some View {
@@ -15,6 +14,44 @@ extension View {
         modifier(AppPillSurfaceModifier())
     }
 }
+
+#if os(macOS)
+    private struct AppRootChromeModifier: ViewModifier {
+        @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+        private let isUITesting = ProcessInfo.processInfo.environment["UI_TESTING"] == "1"
+
+        func body(content: Content) -> some View {
+            content
+                .tint(AppTheme.accent)
+                .configureMacWindowForTranslucency()
+                .containerBackground(Color.clear, for: .window)
+                .background(
+                    Group {
+                        if isUITesting || reduceTransparency {
+                            AppBackgroundView()
+                        } else {
+                            MacWindowBackdropView()
+                                .ignoresSafeArea()
+                                .overlay(
+                                    AppBackgroundView()
+                                        .opacity(0.14)
+                                        .ignoresSafeArea()
+                                )
+                        }
+                    }
+                )
+        }
+    }
+#else
+    private struct AppRootChromeModifier: ViewModifier {
+        func body(content: Content) -> some View {
+            content
+                .tint(AppTheme.accent)
+                .background(AppBackgroundView())
+        }
+    }
+#endif
 
 #if os(visionOS)
     extension View {
@@ -42,6 +79,11 @@ private struct AppCardSurfaceModifier: ViewModifier {
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(.regularMaterial)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                            .fill(AppTheme.Glass.tint(colorScheme))
+                            .opacity(colorScheme == .dark ? 0.12 : 0.06)
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -67,18 +109,12 @@ private struct AppPillSurfaceModifier: ViewModifier {
 
     @ViewBuilder
     private var pillBackground: some View {
-        #if os(visionOS)
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-        #else
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-                .glassEffect(
-                    .regular
-                        .tint(AppTheme.Glass.tint(colorScheme))
-                        .interactive(true),
-                    in: Capsule(style: .continuous)
-                )
-        #endif
+        Capsule(style: .continuous)
+            .fill(.regularMaterial)
+            .overlay(
+                Capsule(style: .continuous)
+                    .fill(AppTheme.Glass.tint(colorScheme))
+                    .opacity(colorScheme == .dark ? 0.10 : 0.06)
+            )
     }
 }
