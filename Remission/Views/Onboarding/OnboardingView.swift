@@ -19,13 +19,13 @@ struct OnboardingView: View {
                             store.send(.cancelButtonTapped)
                         }
                         .accessibilityIdentifier("onboarding_cancel_button")
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("onboarding.action.saveServer")) {
                             store.send(.connectButtonTapped)
                         }
                         .disabled(store.isSaveButtonDisabled)
                         .accessibilityIdentifier("onboarding_submit_button")
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)

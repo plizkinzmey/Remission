@@ -22,7 +22,7 @@ struct SettingsView: View {
                                 store.send(.delegate(.closeRequested))
                             }
                             .accessibilityIdentifier("settings_close_button")
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         }
                     }
                     .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)

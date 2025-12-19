@@ -22,7 +22,7 @@ struct TorrentDetailView: View {
                         Button(L10n.tr("serverDetail.button.close")) {
                             store.send(.delegate(.closeRequested))
                         }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                     }
                 }
                 .navigationTitle("")

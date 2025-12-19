@@ -31,12 +31,12 @@ struct DiagnosticsView: View {
                             }
                             .disabled(store.entries.isEmpty || store.isLoading)
                             .accessibilityIdentifier("diagnostics_clear_button")
-                            .buttonStyle(.bordered)
+                            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                             Button(L10n.tr("diagnostics.close")) {
                                 store.send(.delegate(.closeRequested))
                             }
                             .accessibilityIdentifier("diagnostics_close_button")
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(AppFooterButtonStyle(variant: .accent))
                         }
                     }
                     .frame(minWidth: 560, minHeight: 420)

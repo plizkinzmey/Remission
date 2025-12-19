@@ -19,14 +19,14 @@ struct ServerEditorView: View {
                         }
                         .accessibilityIdentifier("server_editor_cancel_button")
                         .accessibilityHint(L10n.tr("common.cancel"))
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("serverEditor.save")) {
                             store.send(.saveButtonTapped)
                         }
                         .disabled(store.form.isFormValid == false || store.isSaving)
                         .accessibilityIdentifier("server_editor_save_button")
                         .accessibilityHint(L10n.tr("serverEditor.save"))
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
