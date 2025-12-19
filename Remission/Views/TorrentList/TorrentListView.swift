@@ -85,7 +85,10 @@ extension TorrentListView {
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 15, weight: .semibold))
-                        .frame(width: 28, height: 22)
+                        .frame(width: 24, height: 24)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("torrentlist_add_button")

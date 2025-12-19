@@ -162,6 +162,9 @@ struct ServerDetailView: View {
                     Image(systemName: "slider.horizontal.3")
                         .font(.system(size: 14, weight: .semibold))
                         .frame(width: 24, height: 24)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("server_detail_edit_button")
@@ -176,6 +179,9 @@ struct ServerDetailView: View {
                     Image(systemName: "gearshape")
                         .font(.system(size: 14, weight: .semibold))
                         .frame(width: 24, height: 24)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("server_detail_app_settings_button")
