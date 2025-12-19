@@ -6,8 +6,8 @@ extension View {
         modifier(AppRootChromeModifier())
     }
 
-    func appCardSurface(cornerRadius: CGFloat = 14) -> some View {
-        modifier(AppCardSurfaceModifier(cornerRadius: cornerRadius))
+    func appCardSurface(cornerRadius: CGFloat = 14, showsShadow: Bool = true) -> some View {
+        modifier(AppCardSurfaceModifier(cornerRadius: cornerRadius, showsShadow: showsShadow))
     }
 
     func appPillSurface() -> some View {
@@ -73,6 +73,7 @@ extension View {
 private struct AppCardSurfaceModifier: ViewModifier {
     @Environment(\.colorScheme) private var colorScheme
     let cornerRadius: CGFloat
+    let showsShadow: Bool
 
     func body(content: Content) -> some View {
         content
@@ -89,7 +90,12 @@ private struct AppCardSurfaceModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
             )
-            .shadow(color: AppTheme.Shadow.card(colorScheme), radius: 14, x: 0, y: 10)
+            .shadow(
+                color: showsShadow ? AppTheme.Shadow.card(colorScheme) : .clear,
+                radius: showsShadow ? 14 : 0,
+                x: 0,
+                y: showsShadow ? 10 : 0
+            )
     }
 }
 

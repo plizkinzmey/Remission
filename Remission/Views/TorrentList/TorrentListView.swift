@@ -196,7 +196,7 @@ extension TorrentListView {
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
-                                        .appCardSurface(cornerRadius: 14)
+                                        .appCardSurface(cornerRadius: 14, showsShadow: false)
                                 }
                             }
                             .padding(.vertical, 2)
@@ -432,7 +432,7 @@ extension TorrentListView {
                     )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .appCardSurface(cornerRadius: 14)
+                    .appCardSurface(cornerRadius: 14, showsShadow: false)
                 }
             }
         }
