@@ -7,6 +7,8 @@ Usage:
   Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--export-options-plist PATH]
   Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--export-options-plist PATH]
 
+  Scripts/release_local.sh --version X.Y.Z --platform {all|ios|macos}
+
 Builds:
   - iOS IPA (via xcodebuild archive + exportArchive)
   - macOS app zip (from .xcarchive Products/Applications)
@@ -96,6 +98,7 @@ main() {
   local push="false"
   local allow_dirty="false"
   local export_options_plist="ExportOptions.plist"
+  local platform="all"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -105,6 +108,7 @@ main() {
       --push) push="true"; shift ;;
       --allow-dirty) allow_dirty="true"; shift ;;
       --export-options-plist) export_options_plist="${2:-}"; shift 2 ;;
+      --platform) platform="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) die "Неизвестный аргумент: $1 (см. --help)" ;;
     esac
@@ -116,7 +120,14 @@ main() {
   require_branch_main
   require_clean_tree "$allow_dirty"
 
-  [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
+  case "$platform" in
+    all|ios|macos) ;;
+    *) die "Некорректный --platform: $platform (ожидаю all|ios|macos)" ;;
+  esac
+
+  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
+  fi
 
   if [[ -n "$bump" ]]; then
     local last
@@ -124,7 +135,7 @@ main() {
     version="$(semver_bump "$last" "$bump")"
   fi
 
-  [[ "$version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
+  [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
 
   local build_number
   build_number="$(compute_build_number)"
@@ -137,61 +148,97 @@ main() {
   run mkdir -p "$ios_dir" "$macos_dir"
 
   info "Версия: ${version} (build: ${build_number})"
-  info "Export options plist: ${export_options_plist}"
+  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    info "Export options plist: ${export_options_plist}"
+  fi
   info "Output: ${out_dir}"
 
   local ios_archive="${out_dir}/Remission-iOS.xcarchive"
   local macos_archive="${out_dir}/Remission-macOS.xcarchive"
 
-  info "Архивирую iOS…"
-  run xcodebuild \
-    -project Remission.xcodeproj \
-    -scheme Remission \
-    -configuration Release \
-    -destination 'generic/platform=iOS' \
-    -archivePath "$ios_archive" \
-    MARKETING_VERSION="$version" \
-    CURRENT_PROJECT_VERSION="$build_number" \
-    archive | pipe_xcbeautify_if_available
+  local ios_ok="skipped"
+  local macos_ok="skipped"
 
-  info "Экспортирую iOS IPA…"
-  run xcodebuild \
-    -exportArchive \
-    -archivePath "$ios_archive" \
-    -exportOptionsPlist "$export_options_plist" \
-    -exportPath "$ios_dir" | pipe_xcbeautify_if_available
+  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    ios_ok="true"
+    info "Архивирую iOS…"
+    if ! run xcodebuild \
+      -project Remission.xcodeproj \
+      -scheme Remission \
+      -configuration Release \
+      -destination 'generic/platform=iOS' \
+      -archivePath "$ios_archive" \
+      -allowProvisioningUpdates \
+      -allowProvisioningDeviceRegistration \
+      MARKETING_VERSION="$version" \
+      CURRENT_PROJECT_VERSION="$build_number" \
+      archive | pipe_xcbeautify_if_available; then
+      ios_ok="false"
+    fi
 
-  info "Архивирую macOS…"
-  run xcodebuild \
-    -project Remission.xcodeproj \
-    -scheme Remission \
-    -configuration Release \
-    -destination 'generic/platform=macOS' \
-    -archivePath "$macos_archive" \
-    MARKETING_VERSION="$version" \
-    CURRENT_PROJECT_VERSION="$build_number" \
-    archive | pipe_xcbeautify_if_available
+    if [[ "$ios_ok" == "true" ]]; then
+      info "Экспортирую iOS IPA…"
+      if ! run xcodebuild \
+        -exportArchive \
+        -archivePath "$ios_archive" \
+        -exportOptionsPlist "$export_options_plist" \
+        -allowProvisioningUpdates \
+        -allowProvisioningDeviceRegistration \
+        -exportPath "$ios_dir" | pipe_xcbeautify_if_available; then
+        ios_ok="false"
+      fi
+    fi
+  fi
 
-  info "Собираю macOS zip…"
-  local macos_app="${macos_archive}/Products/Applications/Remission.app"
-  [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
+  if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
+    macos_ok="true"
+    info "Архивирую macOS…"
+    if ! run xcodebuild \
+      -project Remission.xcodeproj \
+      -scheme Remission \
+      -configuration Release \
+      -destination 'generic/platform=macOS' \
+      -archivePath "$macos_archive" \
+      MARKETING_VERSION="$version" \
+      CURRENT_PROJECT_VERSION="$build_number" \
+      archive | pipe_xcbeautify_if_available; then
+      macos_ok="false"
+    fi
 
-  run rm -rf "${macos_dir}/Remission.app"
-  run cp -R "$macos_app" "${macos_dir}/Remission.app"
+    if [[ "$macos_ok" == "true" ]]; then
+      info "Собираю macOS zip…"
+      local macos_app="${macos_archive}/Products/Applications/Remission.app"
+      [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
 
-  local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
-  (cd "$macos_dir" && run ditto -c -k --sequesterRsrc --keepParent "Remission.app" "$macos_zip")
+      run rm -rf "${macos_dir}/Remission.app"
+      run cp -R "$macos_app" "${macos_dir}/Remission.app"
+
+      local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
+      run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
+    fi
+  fi
 
   {
     echo "tag=${release_tag}"
     echo "version=${version}"
     echo "build_number=${build_number}"
     echo "commit=$(git rev-parse HEAD)"
-    echo "export_options_plist=${export_options_plist}"
+    echo "platform=${platform}"
+    if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+      echo "export_options_plist=${export_options_plist}"
+    fi
+    echo "ios_ok=${ios_ok}"
+    echo "macos_ok=${macos_ok}"
     echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   } >"${out_dir}/metadata.txt"
 
   if [[ "$tag" == "true" ]]; then
+    if [[ "$ios_ok" != "true" && "$platform" != "macos" ]]; then
+      die "iOS сборка неуспешна; тег не создан. Исправь подпись iOS или запусти с --platform macos."
+    fi
+    if [[ "$macos_ok" != "true" && "$platform" != "ios" ]]; then
+      die "macOS сборка неуспешна; тег не создан."
+    fi
     git tag -a "$release_tag" -m "Release $release_tag"
     ok "Создан git tag: $release_tag"
   fi
@@ -207,4 +254,3 @@ main() {
 }
 
 main "$@"
-
