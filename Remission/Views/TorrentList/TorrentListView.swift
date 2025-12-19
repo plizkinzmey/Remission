@@ -581,13 +581,9 @@ private struct TorrentRowView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
-    #if os(macOS)
-        private var statusBadgeWidth: CGFloat { 172 }
-    #endif
-
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Group {
                     if let openRequested {
                         Button(action: openRequested) {
@@ -606,15 +602,15 @@ private struct TorrentRowView: View {
                 }
                 .layoutPriority(1)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 12)
 
-                HStack(spacing: 10) {
+                HStack(spacing: 6) {
                     if let actions {
                         actionsPill(actions)
                     }
                     statusBadge
                 }
-                .fixedSize(horizontal: true, vertical: false)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .frame(maxWidth: .infinity)
 
@@ -756,11 +752,7 @@ private struct TorrentRowView: View {
                     .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
             )
             .foregroundStyle(statusColor)
-            #if os(macOS)
-                .frame(width: statusBadgeWidth)
-            #else
-                .fixedSize(horizontal: true, vertical: false)
-            #endif
+            .fixedSize(horizontal: true, vertical: false)
             .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
