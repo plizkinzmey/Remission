@@ -76,25 +76,30 @@ struct OnboardingReducer {
             switch action {
             case .binding(\.form.transport):
                 state.validationError = nil
+                let resetEffect = resetConnectionState(state: &state)
                 if state.form.transport == .https {
                     state.form.suppressInsecureWarning = false
                     state.pendingWarningFingerprint = nil
-                    return .none
+                    return resetEffect
                 }
-                return presentInsecureTransportWarning(state: &state)
+                return .merge(
+                    resetEffect,
+                    presentInsecureTransportWarning(state: &state)
+                )
 
             case .binding(\.form.suppressInsecureWarning):
+                let resetEffect = resetConnectionState(state: &state)
                 if let fingerprint = state.form.insecureFingerprint {
                     httpWarningPreferencesStore.setSuppressed(
                         fingerprint,
                         state.form.suppressInsecureWarning
                     )
                 }
-                return .none
+                return resetEffect
 
             case .binding:
                 state.validationError = nil
-                return .none
+                return resetConnectionState(state: &state)
 
             case .checkConnectionButtonTapped:
                 guard state.connectionStatus != .testing else { return .none }
@@ -237,6 +242,22 @@ private enum OnboardingCancellationID: Hashable {
 }
 
 extension OnboardingReducer {
+    fileprivate func resetConnectionState(state: inout State) -> Effect<Action> {
+        let shouldReset =
+            state.connectionStatus != .idle
+            || state.verifiedSubmission != nil
+            || state.pendingSubmission != nil
+        if shouldReset {
+            state.connectionStatus = .idle
+            state.verifiedSubmission = nil
+            state.pendingSubmission = nil
+        }
+        return .merge(
+            .cancel(id: OnboardingCancellationID.connectionProbe),
+            .cancel(id: OnboardingCancellationID.trustPrompts)
+        )
+    }
+
     fileprivate func startConnectionProbe(
         state: inout State,
         context: SubmissionContext

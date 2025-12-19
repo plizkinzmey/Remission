@@ -808,6 +808,7 @@
       }
     },
     "onboarding.section.connectionStatus" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -840,6 +841,7 @@
       }
     },
     "onboarding.status.notTested" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -856,6 +858,7 @@
       }
     },
     "onboarding.status.rpcVersion" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -883,6 +886,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Соединение подтверждено"
+          }
+        }
+      }
+    },
+    "onboarding.status.error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection error"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ошибка соединения"
           }
         }
       }
