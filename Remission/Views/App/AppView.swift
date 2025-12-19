@@ -15,11 +15,8 @@ struct AppView: View {
             .navigationTitle(L10n.tr("app.title"))
             .toolbar {
                 #if os(macOS)
-                    if shouldShowAddServerToolbarButton {
-                        ToolbarItem(placement: .primaryAction) { addServerButton }
-                    }
-                    if shouldShowSettingsToolbarButton {
-                        ToolbarItem(placement: .primaryAction) { settingsButton }
+                    if shouldShowAddServerToolbarButton || shouldShowSettingsToolbarButton {
+                        ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
                     }
                 #else
                     ToolbarItemGroup(placement: .topBarTrailing) {
@@ -61,6 +58,58 @@ struct AppView: View {
         }
         .accessibilityIdentifier("app_settings_button")
     }
+
+    #if os(macOS)
+        private var macOSToolbarPill: some View {
+            HStack(spacing: 10) {
+                if shouldShowAddServerToolbarButton {
+                    toolbarIconButton(
+                        systemImage: "plus",
+                        accessibilityIdentifier: "app_add_server_button"
+                    ) {
+                        store.send(.serverList(.addButtonTapped))
+                    }
+                    .accessibilityHint(L10n.tr("serverList.action.addServer"))
+                }
+
+                if shouldShowAddServerToolbarButton && shouldShowSettingsToolbarButton {
+                    Divider()
+                        .frame(height: 18)
+                }
+
+                if shouldShowSettingsToolbarButton {
+                    toolbarIconButton(
+                        systemImage: "gearshape",
+                        accessibilityIdentifier: "app_settings_button"
+                    ) {
+                        store.send(.settingsButtonTapped)
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: macOSToolbarPillHeight)
+            .appPillSurface()
+        }
+
+        private func toolbarIconButton(
+            systemImage: String,
+            accessibilityIdentifier: String,
+            action: @escaping () -> Void
+        ) -> some View {
+            Button(action: action) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 24, height: 24)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(accessibilityIdentifier)
+        }
+
+        private var macOSToolbarPillHeight: CGFloat { 34 }
+    #endif
 
     private var shouldShowAddServerToolbarButton: Bool {
         store.serverList.servers.isEmpty == false
