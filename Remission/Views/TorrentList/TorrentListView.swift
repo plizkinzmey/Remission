@@ -521,13 +521,13 @@ extension TorrentListView {
                         .font(.caption.weight(.semibold))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
+                .contentShape(Rectangle())
+                .appPillSurface()
             }
             .accessibilityIdentifier("torrentlist_sort_picker")
             .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .padding(.horizontal, 12)
-            .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
-            .appPillSurface()
         #else
             Picker(
                 L10n.tr("torrentList.sort.title"),
