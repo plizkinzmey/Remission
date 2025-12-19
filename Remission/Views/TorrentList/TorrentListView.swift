@@ -5,6 +5,7 @@ import SwiftUI
 struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
     @State private var searchText: String = ""
+    @State private var isViewActive: Bool = false
 
     var body: some View {
         container
@@ -46,11 +47,18 @@ struct TorrentListView: View {
                 }
             #endif
             .onAppear {
+                isViewActive = true
                 if searchText != store.searchQuery {
                     searchText = store.searchQuery
                 }
             }
+            .onDisappear {
+                isViewActive = false
+            }
             .task(id: searchText) {
+                guard isViewActive else { return }
+                await Task.yield()
+                guard Task.isCancelled == false else { return }
                 guard searchText != store.searchQuery else { return }
                 await store.send(.searchQueryChanged(searchText)).finish()
             }
