@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 import Clocks
 import ComposableArchitecture
 import Foundation
@@ -605,8 +606,11 @@ struct TorrentDetailFeatureTests {
             $0.pendingCommands = []
             $0.activeCommand = .remove(deleteData: false)
         }
-        await store.receive(.commandResponse(.failure(.remove(deleteData: false), expectedMessage)))
-        {
+        await store.receive(
+            .commandResponse(
+                .failure(.remove(deleteData: false), expectedMessage)
+            )
+        ) {
             $0.activeCommand = nil
         }
         await store.receive(.commandFailed(expectedMessage)) {

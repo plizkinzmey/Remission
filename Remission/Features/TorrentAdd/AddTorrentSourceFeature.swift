@@ -3,13 +3,13 @@ import Foundation
 
 @Reducer
 struct AddTorrentSourceReducer {
+    enum Source: String, CaseIterable, Equatable, Sendable {
+        case torrentFile
+        case magnetLink
+    }
+
     @ObservableState
     struct State: Equatable {
-        enum Source: String, CaseIterable, Equatable, Sendable {
-            case torrentFile
-            case magnetLink
-        }
-
         var source: Source = .magnetLink
         var magnetText: String = ""
         @Presents var alert: AlertState<AlertAction>?
@@ -20,7 +20,7 @@ struct AddTorrentSourceReducer {
     }
 
     enum Action: Equatable {
-        case sourceChanged(State.Source)
+        case sourceChanged(Source)
         case magnetTextChanged(String)
         case chooseFileTapped
         case pasteFromClipboardTapped

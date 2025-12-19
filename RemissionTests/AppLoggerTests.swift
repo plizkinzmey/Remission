@@ -5,57 +5,58 @@ import Testing
 
 @testable import Remission
 
-@Suite("AppLogger Tests")
-struct AppLoggerTests {
-    final class Collector: @unchecked Sendable, LogHandler {
-        struct Record: Sendable {
-            var level: Logger.Level
-            var message: String
-            var metadata: Logger.Metadata
-        }
+private struct AppLoggerTestRecord: Sendable {
+    var level: Logger.Level
+    var message: String
+    var metadata: Logger.Metadata
+}
 
-        private var storage: [Record] = []
-        private let lock = NSLock()
+private final class AppLoggerTestCollector: @unchecked Sendable, LogHandler {
+    private var storage: [AppLoggerTestRecord] = []
+    private let lock = NSLock()
 
-        var metadata: Logger.Metadata = [:]
-        var logLevel: Logger.Level = .trace
+    var metadata: Logger.Metadata = [:]
+    var logLevel: Logger.Level = .trace
 
-        subscript(metadataKey key: String) -> Logger.Metadata.Value? {
-            get { metadata[key] }
-            set { metadata[key] = newValue }
-        }
-
-        func log(
-            level: Logger.Level,
-            message: Logger.Message,
-            metadata: Logger.Metadata?,
-            source: String,
-            file: String,
-            function: String,
-            line: UInt
-        ) {
-            lock.lock()
-            storage.append(
-                .init(
-                    level: level,
-                    message: message.description,
-                    metadata: metadata ?? [:]
-                )
-            )
-            lock.unlock()
-        }
-
-        var records: [Record] {
-            lock.lock()
-            let result = storage
-            lock.unlock()
-            return result
-        }
+    subscript(metadataKey key: String) -> Logger.Metadata.Value? {
+        get { metadata[key] }
+        set { metadata[key] = newValue }
     }
 
+    // swiftlint:disable:next function_parameter_count
+    func log(
+        level: Logger.Level,
+        message: Logger.Message,
+        metadata: Logger.Metadata?,
+        source: String,
+        file: String,
+        function: String,
+        line: UInt
+    ) {
+        lock.lock()
+        storage.append(
+            .init(
+                level: level,
+                message: message.description,
+                metadata: metadata ?? [:]
+            )
+        )
+        lock.unlock()
+    }
+
+    var records: [AppLoggerTestRecord] {
+        lock.lock()
+        let result = storage
+        lock.unlock()
+        return result
+    }
+}
+
+@Suite("AppLogger Tests")
+struct AppLoggerTests {
     @Test("Live logger пишет метаданные и категорию")
     func testLiveLoggerWritesMetadata() throws {
-        let collector = Collector()
+        let collector = AppLoggerTestCollector()
         let logger = AppLogger(
             logger: Logger(label: "test.logger") { _ in collector },
             label: "test.logger",
@@ -77,7 +78,7 @@ struct AppLoggerTests {
 
     @Test("withCategory создает новый логгер с новой категорией")
     func testWithCategoryCreatesNewCategory() throws {
-        let collector = Collector()
+        let collector = AppLoggerTestCollector()
         let base = AppLogger(
             logger: Logger(label: "test.logger") { _ in collector },
             label: "test.logger",

@@ -4,15 +4,17 @@ import Testing
 
 @testable import Remission
 
-@MainActor
-struct AddTorrentFeatureTests {
-    struct CapturedAddParams: Sendable {
-        var input: PendingTorrentInput
-        var destination: String
-        var startPaused: Bool
-        var tags: [String]?
-    }
+private struct CapturedAddParams: Sendable {
+    var input: PendingTorrentInput
+    var destination: String
+    var startPaused: Bool
+    var tags: [String]?
+}
 
+@MainActor
+struct AddTorrentFeatureTests {}
+
+extension AddTorrentFeatureTests {
     @Test
     // swiftlint:disable:next function_body_length
     func submitMagnetAddsTorrentWithParameters() async {
@@ -341,8 +343,9 @@ struct AddTorrentFeatureTests {
         await store.send(.submitButtonTapped) {
             $0.isSubmitting = true
         }
-        await store.receive(.submitResponse(.failure(.mapping(mappingError.localizedDescription))))
-        {
+        await store.receive(
+            .submitResponse(.failure(.mapping(mappingError.localizedDescription)))
+        ) {
             $0.isSubmitting = false
             $0.alert = AlertState {
                 TextState(L10n.tr("torrentAdd.alert.addFailed.title"))

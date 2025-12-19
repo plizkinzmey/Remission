@@ -6,6 +6,7 @@ usage() {
 Usage:
   Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--export-options-plist PATH]
   Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--export-options-plist PATH]
+
   Scripts/release_local.sh --version X.Y.Z --platform {all|ios|macos}
 
 Builds:

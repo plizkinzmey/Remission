@@ -373,9 +373,8 @@ final class TransmissionMockURLProtocol: URLProtocol {
         }
 
         // 2. Fallback на request.httpBody
-        if body == nil || body?.isEmpty == true, let httpBody = request.httpBody,
-            !httpBody.isEmpty
-        {
+        let shouldFallbackToHTTPBody = body == nil || body?.isEmpty == true
+        if shouldFallbackToHTTPBody, let httpBody = request.httpBody, httpBody.isEmpty == false {
             body = httpBody
         }
 

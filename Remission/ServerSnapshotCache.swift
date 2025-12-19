@@ -310,10 +310,10 @@ private actor OfflineCacheFileStore {
         baseDirectory.appendingPathComponent("\(serverID.uuidString).json", isDirectory: false)
     }
 
-    private func metadata(for key: OfflineCacheKey, extra: [String: String] = [:])
-        -> [String: String]
-    {
-        var metadata: [String: String] = [
+    private typealias Metadata = [String: String]
+
+    private func metadata(for key: OfflineCacheKey, extra: [String: String] = [:]) -> Metadata {
+        var metadata: Metadata = [
             "server_id": key.serverID.uuidString,
             "fingerprint": key.cacheFingerprint
         ]

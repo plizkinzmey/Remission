@@ -4,24 +4,25 @@ struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
 
     var body: some View {
-        connectionSection
-        securitySection
-        credentialsSection
+        VStack(alignment: .leading, spacing: 16) {
+            connectionSection
+            securitySection
+            credentialsSection
+        }
     }
 
     private var connectionSection: some View {
-        Section(L10n.tr("serverForm.section.connection")) {
-            LabeledContent {
+        AppSectionCard(L10n.tr("serverForm.section.connection")) {
+            fieldRow(label: L10n.tr("serverForm.placeholder.name")) {
                 TextField(
                     "", text: $form.name, prompt: Text(L10n.tr("serverForm.placeholder.name"))
                 )
-                .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("server_form_name_field")
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.name"))
             }
 
-            LabeledContent {
+            Divider()
+
+            fieldRow(label: L10n.tr("serverForm.placeholder.host")) {
                 #if os(iOS)
                     TextField(
                         "",
@@ -31,7 +32,6 @@ struct ServerConnectionFormFields: View {
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_host_field")
                 #else
                     TextField(
@@ -40,14 +40,13 @@ struct ServerConnectionFormFields: View {
                         prompt: Text(L10n.tr("serverForm.placeholder.host"))
                     )
                     .textContentType(.URL)
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_host_field")
                 #endif
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.host"))
             }
 
-            LabeledContent {
+            Divider()
+
+            fieldRow(label: L10n.tr("serverForm.placeholder.port")) {
                 #if os(iOS)
                     TextField(
                         "",
@@ -55,7 +54,6 @@ struct ServerConnectionFormFields: View {
                         prompt: Text(L10n.tr("serverForm.placeholder.port"))
                     )
                     .keyboardType(.numberPad)
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_port_field")
                 #else
                     TextField(
@@ -63,14 +61,13 @@ struct ServerConnectionFormFields: View {
                         text: $form.port,
                         prompt: Text(L10n.tr("serverForm.placeholder.port"))
                     )
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_port_field")
                 #endif
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.port"))
             }
 
-            LabeledContent {
+            Divider()
+
+            fieldRow(label: L10n.tr("serverForm.placeholder.path")) {
                 #if os(iOS)
                     TextField(
                         "",
@@ -79,7 +76,6 @@ struct ServerConnectionFormFields: View {
                     )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_path_field")
                 #else
                     TextField(
@@ -87,17 +83,14 @@ struct ServerConnectionFormFields: View {
                         text: $form.path,
                         prompt: Text(L10n.tr("serverForm.placeholder.path"))
                     )
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_path_field")
                 #endif
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.path"))
             }
         }
     }
 
     private var securitySection: some View {
-        Section(L10n.tr("serverForm.section.security")) {
+        AppSectionCard(L10n.tr("serverForm.section.security")) {
             Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
                 ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                     Text(transport.title).tag(transport)
@@ -116,8 +109,7 @@ struct ServerConnectionFormFields: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.tr("serverForm.security.httpWarning.title"))
-                        .font(.subheadline)
-                        .bold()
+                        .font(.subheadline.weight(.semibold))
                     Text(L10n.tr("serverForm.security.httpWarning.message"))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -134,8 +126,8 @@ struct ServerConnectionFormFields: View {
     }
 
     private var credentialsSection: some View {
-        Section(L10n.tr("serverForm.section.credentials")) {
-            LabeledContent {
+        AppSectionCard(L10n.tr("serverForm.section.credentials")) {
+            fieldRow(label: L10n.tr("serverForm.placeholder.username")) {
                 #if os(iOS)
                     TextField(
                         "",
@@ -144,7 +136,6 @@ struct ServerConnectionFormFields: View {
                     )
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_username_field")
                 #else
                     TextField(
@@ -152,24 +143,40 @@ struct ServerConnectionFormFields: View {
                         text: $form.username,
                         prompt: Text(L10n.tr("serverForm.placeholder.username"))
                     )
-                    .textFieldStyle(.roundedBorder)
                     .accessibilityIdentifier("server_form_username_field")
                 #endif
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.username"))
             }
 
-            LabeledContent {
+            Divider()
+
+            fieldRow(label: L10n.tr("serverForm.placeholder.password")) {
                 SecureField(
                     "",
                     text: $form.password,
                     prompt: Text(L10n.tr("serverForm.placeholder.password"))
                 )
-                .textFieldStyle(.roundedBorder)
                 .accessibilityIdentifier("server_form_password_field")
-            } label: {
-                Text(L10n.tr("serverForm.placeholder.password"))
             }
+        }
+    }
+
+    private func fieldRow<Content: View>(
+        label: String,
+        @ViewBuilder field: () -> Content
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            field()
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 10)
+                .frame(height: 32)
+                .frame(maxWidth: 260)
+                .appPillSurface()
         }
     }
 }

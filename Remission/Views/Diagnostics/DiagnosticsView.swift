@@ -6,30 +6,105 @@ struct DiagnosticsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                filterBar
-                    .padding(.horizontal)
-
-                if let limitNotice = limitNoticeText {
-                    limitNoticeView(limitNotice)
-                        .padding(.horizontal)
-                }
-
-                if store.isLoading && store.visibleEntries.isEmpty {
-                    ProgressView(L10n.tr("diagnostics.loading"))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if store.visibleEntries.isEmpty {
-                    VStack(spacing: 16) {
-                        ContentUnavailableView(
-                            L10n.tr("diagnostics.empty.title"),
-                            systemImage: "doc.text.magnifyingglass",
-                            description: Text(
-                                L10n.tr("diagnostics.empty.message"))
-                        )
-                        .accessibilityIdentifier("diagnostics_empty_state")
+            Group {
+                #if os(macOS)
+                    VStack(spacing: 12) {
+                        AppWindowHeader(L10n.tr("diagnostics.title"))
+                        windowContent
                     }
+                    .safeAreaInset(edge: .bottom) {
+                        AppWindowFooterBar {
+                            Spacer(minLength: 0)
+                            if let export = exportText {
+                                ShareLink(
+                                    item: export,
+                                    message: Text(L10n.tr("diagnostics.exportAll"))
+                                ) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .accessibilityIdentifier("diagnostics_export_all_button")
+                                        .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                                }
+                                .disabled(store.entries.isEmpty)
+                            }
+                            Button(L10n.tr("diagnostics.clear")) {
+                                store.send(.clearTapped)
+                            }
+                            .disabled(store.entries.isEmpty || store.isLoading)
+                            .accessibilityIdentifier("diagnostics_clear_button")
+                            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+                            Button(L10n.tr("diagnostics.close")) {
+                                store.send(.delegate(.closeRequested))
+                            }
+                            .accessibilityIdentifier("diagnostics_close_button")
+                            .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        }
+                    }
+                    .frame(minWidth: 560, minHeight: 420)
+                #else
+                    windowContent
+                        .navigationTitle(L10n.tr("diagnostics.title"))
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(L10n.tr("diagnostics.close")) {
+                                    store.send(.delegate(.closeRequested))
+                                }
+                                .accessibilityIdentifier("diagnostics_close_button")
+                            }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(L10n.tr("diagnostics.clear")) {
+                                    store.send(.clearTapped)
+                                }
+                                .disabled(store.entries.isEmpty || store.isLoading)
+                                .accessibilityIdentifier("diagnostics_clear_button")
+                            }
+                            ToolbarItem(placement: .primaryAction) {
+                                if let export = exportText {
+                                    ShareLink(
+                                        item: export,
+                                        message: Text(L10n.tr("diagnostics.exportAll"))
+                                    ) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .accessibilityIdentifier(
+                                                "diagnostics_export_all_button"
+                                            )
+                                            .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                                    }
+                                    .disabled(store.entries.isEmpty)
+                                }
+                            }
+                        }
+                #endif
+            }
+            .task { await store.send(.task).finish() }
+            .alert($store.scope(state: \.alert, action: \.alert))
+        }
+    }
+
+    @ViewBuilder
+    private var windowContent: some View {
+        VStack(spacing: 16) {
+            if store.isLoading && store.visibleEntries.isEmpty {
+                ProgressView(L10n.tr("diagnostics.loading"))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
+            } else if store.visibleEntries.isEmpty {
+                VStack(spacing: 16) {
+                    ContentUnavailableView(
+                        L10n.tr("diagnostics.empty.title"),
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text(
+                            L10n.tr("diagnostics.empty.message"))
+                    )
+                    .accessibilityIdentifier("diagnostics_empty_state")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 12) {
+                    filterBar
+
+                    if let limitNotice = limitNoticeText {
+                        limitNoticeView(limitNotice)
+                    }
+
                     logList
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         #if os(macOS)
@@ -37,43 +112,12 @@ struct DiagnosticsView: View {
                         #endif
                         .layoutPriority(1)
                 }
+                .padding(12)
+                .appCardSurface(cornerRadius: 16)
+                .padding(.horizontal, 12)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            #if os(macOS)
-                .frame(minWidth: 560, minHeight: 420)
-            #endif
-            .navigationTitle(L10n.tr("diagnostics.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("diagnostics.close")) {
-                        store.send(.delegate(.closeRequested))
-                    }
-                    .accessibilityIdentifier("diagnostics_close_button")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("diagnostics.clear")) {
-                        store.send(.clearTapped)
-                    }
-                    .disabled(store.entries.isEmpty || store.isLoading)
-                    .accessibilityIdentifier("diagnostics_clear_button")
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    if let export = exportText {
-                        ShareLink(
-                            item: export,
-                            message: Text(L10n.tr("diagnostics.exportAll"))
-                        ) {
-                            Image(systemName: "square.and.arrow.up")
-                                .accessibilityIdentifier("diagnostics_export_all_button")
-                                .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
-                        }
-                        .disabled(store.entries.isEmpty)
-                    }
-                }
-            }
-            .task { await store.send(.task).finish() }
-            .alert($store.scope(state: \.alert, action: \.alert))
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var filterBar: some View {
@@ -86,8 +130,8 @@ struct DiagnosticsView: View {
                 )
             ) {
                 Text(L10n.tr("diagnostics.level.all")).tag(AppLogLevel?.none)
-                ForEach(levelOptions, id: \.self) { level in
-                    Text(levelLabel(level)).tag(AppLogLevel?.some(level))
+                ForEach(diagnosticsLevelOptions, id: \.self) { level in
+                    Text(diagnosticsLevelLabel(level)).tag(AppLogLevel?.some(level))
                 }
             }
             .pickerStyle(.segmented)
@@ -100,7 +144,10 @@ struct DiagnosticsView: View {
                     set: { store.send(.queryChanged($0)) }
                 )
             )
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            .appPillSurface()
             .accessibilityIdentifier("diagnostics_search_field")
         }
     }
@@ -129,6 +176,7 @@ struct DiagnosticsView: View {
                 let isLast = entry.id == store.visibleEntries.last?.id
                 logRow(entry)
                     .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
+                    .listRowBackground(Color.clear)
                     .onAppear {
                         if isLast {
                             store.send(.loadMoreIfNeeded)
@@ -137,6 +185,7 @@ struct DiagnosticsView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
     }
 
     private func logRow(_ entry: DiagnosticsLogEntry) -> some View {
@@ -158,7 +207,7 @@ struct DiagnosticsView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer(minLength: 12)
-                Text(timeFormatter.string(from: entry.timestamp))
+                Text(diagnosticsTimeFormatter.string(from: entry.timestamp))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -281,8 +330,8 @@ struct DiagnosticsView: View {
         var label = String(
             format: L10n.tr("%@, %@: %@"),
             locale: Locale.current,
-            timeFormatter.string(from: entry.timestamp),
-            levelLabel(entry.level),
+            diagnosticsTimeFormatter.string(from: entry.timestamp),
+            diagnosticsLevelLabel(entry.level),
             entry.message
         )
         if DiagnosticsLogFormatter.isOffline(entry) {
@@ -298,45 +347,43 @@ struct DiagnosticsView: View {
     }
 
     private func levelBadge(for level: AppLogLevel) -> some View {
-        Text(levelLabel(level).uppercased())
+        Text(diagnosticsLevelLabel(level).uppercased())
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .background(levelColor(level).opacity(0.15))
-            .foregroundStyle(levelColor(level))
+            .background(diagnosticsLevelColor(level).opacity(0.15))
+            .foregroundStyle(diagnosticsLevelColor(level))
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .accessibilityIdentifier("diagnostics_level_badge_\(level.rawValue)")
     }
+}
 
-    private func levelLabel(_ level: AppLogLevel) -> String {
-        switch level {
-        case .debug: return L10n.tr("diagnostics.level.debug")
-        case .info: return L10n.tr("diagnostics.level.info")
-        case .warning: return L10n.tr("diagnostics.level.warn")
-        case .error: return L10n.tr("diagnostics.level.error")
-        }
-    }
+private let diagnosticsLevelOptions: [AppLogLevel] = [.error, .warning, .info, .debug]
 
-    private var levelOptions: [AppLogLevel] {
-        [.error, .warning, .info, .debug]
-    }
-
-    private func levelColor(_ level: AppLogLevel) -> Color {
-        switch level {
-        case .debug: return .blue
-        case .info: return .green
-        case .warning: return .orange
-        case .error: return .red
-        }
-    }
-
-    private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        return formatter
+private func diagnosticsLevelLabel(_ level: AppLogLevel) -> String {
+    switch level {
+    case .debug: return L10n.tr("diagnostics.level.debug")
+    case .info: return L10n.tr("diagnostics.level.info")
+    case .warning: return L10n.tr("diagnostics.level.warn")
+    case .error: return L10n.tr("diagnostics.level.error")
     }
 }
+
+private func diagnosticsLevelColor(_ level: AppLogLevel) -> Color {
+    switch level {
+    case .debug: return .blue
+    case .info: return .green
+    case .warning: return .orange
+    case .error: return .red
+    }
+}
+
+private let diagnosticsTimeFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.dateStyle = .none
+    formatter.timeStyle = .medium
+    return formatter
+}()
 
 #Preview {
     DiagnosticsView(

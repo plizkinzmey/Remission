@@ -6,7 +6,9 @@ import Testing
 
 // swiftlint:disable function_body_length
 @MainActor
-struct ServerDetailConnectionBasicsTests {
+struct ServerDetailConnectionBasicsTests {}
+
+extension ServerDetailConnectionBasicsTests {
     @Test
     func taskInitializesConnectionEnvironment() async {
         let server = ServerConfig.previewLocalHTTP

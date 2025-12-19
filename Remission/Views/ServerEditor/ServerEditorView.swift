@@ -6,44 +6,75 @@ struct ServerEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                ServerConnectionFormFields(form: $store.form)
+            #if os(macOS)
+                VStack(spacing: 12) {
+                    AppWindowHeader(L10n.tr("serverEditor.title"))
+                    windowContent
+                }
+                .safeAreaInset(edge: .bottom) {
+                    AppWindowFooterBar {
+                        Spacer(minLength: 0)
+                        Button(L10n.tr("common.cancel")) {
+                            store.send(.cancelButtonTapped)
+                        }
+                        .accessibilityIdentifier("server_editor_cancel_button")
+                        .accessibilityHint(L10n.tr("common.cancel"))
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+                        Button(L10n.tr("serverEditor.save")) {
+                            store.send(.saveButtonTapped)
+                        }
+                        .disabled(store.form.isFormValid == false || store.isSaving)
+                        .accessibilityIdentifier("server_editor_save_button")
+                        .accessibilityHint(L10n.tr("serverEditor.save"))
+                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                    }
+                }
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+            #else
+                windowContent
+                    .navigationTitle(L10n.tr("serverEditor.title"))
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L10n.tr("common.cancel")) {
+                                store.send(.cancelButtonTapped)
+                            }
+                            .accessibilityIdentifier("server_editor_cancel_button")
+                            .accessibilityHint(L10n.tr("common.cancel"))
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(L10n.tr("serverEditor.save")) {
+                                store.send(.saveButtonTapped)
+                            }
+                            .disabled(store.form.isFormValid == false || store.isSaving)
+                            .accessibilityIdentifier("server_editor_save_button")
+                            .accessibilityHint(L10n.tr("serverEditor.save"))
+                        }
+                    }
+            #endif
+        }
+        .task { await store.send(.task).finish() }
+        .alert($store.scope(state: \.alert, action: \.alert))
+    }
 
-                if let validationError = store.validationError {
-                    Section {
+    private var windowContent: some View {
+        VStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ServerConnectionFormFields(form: $store.form)
+
+                    if let validationError = store.validationError {
                         Text(validationError)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
                 }
             }
-            .formStyle(.grouped)
-            .disabled(store.isSaving)
-            .overlay(saveOverlay)
-            #if os(macOS)
-                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
-            #endif
-            .navigationTitle(L10n.tr("serverEditor.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("common.cancel")) {
-                        store.send(.cancelButtonTapped)
-                    }
-                    .accessibilityIdentifier("server_editor_cancel_button")
-                    .accessibilityHint(L10n.tr("common.cancel"))
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("serverEditor.save")) {
-                        store.send(.saveButtonTapped)
-                    }
-                    .disabled(store.form.isFormValid == false || store.isSaving)
-                    .accessibilityIdentifier("server_editor_save_button")
-                    .accessibilityHint(L10n.tr("serverEditor.save"))
-                }
-            }
         }
-        .task { await store.send(.task).finish() }
-        .alert($store.scope(state: \.alert, action: \.alert))
+        .padding(12)
+        .appCardSurface(cornerRadius: 16)
+        .padding(.horizontal, 12)
+        .disabled(store.isSaving)
+        .overlay(saveOverlay)
     }
 
     @ViewBuilder

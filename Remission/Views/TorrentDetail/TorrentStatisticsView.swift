@@ -100,8 +100,11 @@ private struct TorrentLimitControl: View {
                     TextField(
                         L10n.tr("torrentDetail.stats.placeholder"), value: value, format: .number
                     )
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
                     .frame(maxWidth: 180)
+                    .appPillSurface()
                     .minimumScaleFactor(0.9)
                     .accessibilityIdentifier("torrent_limit_value_\(identifierSuffix)")
                     #if os(macOS)

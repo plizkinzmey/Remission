@@ -4,6 +4,8 @@ import SwiftUI
 
 struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
+    @State private var searchText: String = ""
+    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         container
@@ -17,7 +19,7 @@ struct TorrentListView: View {
                 }
             #else
                 .searchable(
-                    text: searchBinding,
+                    text: $searchText,
                     placement: .automatic,
                     prompt: Text(L10n.tr("torrentList.search.prompt"))
                 ) {
@@ -44,6 +46,27 @@ struct TorrentListView: View {
                     }
                 }
             #endif
+            .onAppear {
+                if searchText != store.searchQuery {
+                    searchText = store.searchQuery
+                }
+            }
+            .onDisappear {
+                searchTask?.cancel()
+                searchTask = nil
+            }
+            .onChange(of: searchText) { _, newValue in
+                searchTask?.cancel()
+                guard newValue != store.searchQuery else { return }
+                searchTask = Task { @MainActor in
+                    guard Task.isCancelled == false else { return }
+                    await store.send(.searchQueryChanged(newValue)).finish()
+                }
+            }
+            .onChange(of: store.searchQuery) { _, newValue in
+                guard newValue != searchText else { return }
+                searchText = newValue
+            }
             .alert(
                 $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )
@@ -62,7 +85,10 @@ extension TorrentListView {
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 15, weight: .semibold))
-                        .frame(width: 28, height: 22)
+                        .frame(width: 24, height: 24)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("torrentlist_add_button")
@@ -76,7 +102,7 @@ extension TorrentListView {
                         .foregroundStyle(.secondary)
                     TextField(
                         L10n.tr("torrentList.search.prompt"),
-                        text: searchBinding
+                        text: $searchText
                     )
                     .textFieldStyle(.plain)
                     .font(.body)
@@ -86,20 +112,27 @@ extension TorrentListView {
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: macOSToolbarPillHeight)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(.regularMaterial)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.12))
-            )
+            .appPillSurface()
         }
     #endif
 
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
+        private var macOSSortPickerWidth: CGFloat { 150 }
     #endif
+    private var longestStatusTitle: String {
+        let titles = [
+            L10n.tr("torrentList.status.paused"),
+            L10n.tr("torrentList.status.checkWaiting"),
+            L10n.tr("torrentList.status.checking"),
+            L10n.tr("torrentList.status.downloadWaiting"),
+            L10n.tr("torrentList.status.downloading"),
+            L10n.tr("torrentList.status.seedWaiting"),
+            L10n.tr("torrentList.status.seeding"),
+            L10n.tr("torrentList.status.error")
+        ]
+        return titles.max(by: { $0.count < $1.count }) ?? ""
+    }
 
     @ViewBuilder
     private var container: some View {
@@ -189,14 +222,7 @@ extension TorrentListView {
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .fill(.regularMaterial)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .strokeBorder(Color.primary.opacity(0.12))
-                                        )
+                                        .appCardSurface(cornerRadius: 14)
                                 }
                             }
                             .padding(.vertical, 2)
@@ -277,13 +303,6 @@ extension TorrentListView {
                 errorView(message: message)
             }
         }
-    }
-
-    private var searchBinding: Binding<String> {
-        Binding(
-            get: { store.searchQuery },
-            set: { store.send(.searchQueryChanged($0)) }
-        )
     }
 
     private var searchSuggestions: [String] {
@@ -411,7 +430,8 @@ extension TorrentListView {
             TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
-                actions: rowActions(for: item)
+                actions: rowActions(for: item),
+                longestStatusTitle: longestStatusTitle
             )
             .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
             .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
@@ -426,18 +446,12 @@ extension TorrentListView {
                     TorrentRowView(
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
-                        actions: rowActions(for: item)
+                        actions: rowActions(for: item),
+                        longestStatusTitle: longestStatusTitle
                     )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(.regularMaterial)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.12))
-                    )
+                    .appCardSurface(cornerRadius: 14)
                 }
             }
         }
@@ -518,22 +532,51 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrentlist_filter_picker")
         .pickerStyle(.segmented)
+        #if os(macOS)
+            .controlSize(.large)
+        #endif
     }
 
     private var sortPicker: some View {
-        Picker(
-            L10n.tr("torrentList.sort.title"),
-            selection: Binding(
-                get: { store.sortOrder },
-                set: { store.send(.sortChanged($0)) }
-            )
-        ) {
-            ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                Text(sort.title).tag(sort)
+        #if os(macOS)
+            Menu {
+                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
+                    Button(sort.title) {
+                        store.send(.sortChanged(sort))
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(store.sortOrder.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                    Spacer(minLength: 6)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
+                .contentShape(Rectangle())
+                .appPillSurface()
             }
-        }
-        .accessibilityIdentifier("torrentlist_sort_picker")
-        .pickerStyle(.menu)
+            .accessibilityIdentifier("torrentlist_sort_picker")
+            .buttonStyle(.plain)
+        #else
+            Picker(
+                L10n.tr("torrentList.sort.title"),
+                selection: Binding(
+                    get: { store.sortOrder },
+                    set: { store.send(.sortChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
+                    Text(sort.title).tag(sort)
+                }
+            }
+            .accessibilityIdentifier("torrentlist_sort_picker")
+            .pickerStyle(.menu)
+        #endif
     }
 
     private var refreshButton: some View {
@@ -569,51 +612,46 @@ private struct TorrentRowView: View {
     var item: TorrentListItem.State
     var openRequested: (() -> Void)?
     var actions: RowActions?
+    var longestStatusTitle: String
 
-    #if os(macOS)
-        private var statusBadgeWidth: CGFloat { 118 }
-    #endif
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let openRequested {
-                    Button(action: openRequested) {
+                Group {
+                    if let openRequested {
+                        Button(action: openRequested) {
+                            Text(item.torrent.name)
+                                .font(.headline)
+                                .lineLimit(2)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+                    } else {
                         Text(item.torrent.name)
                             .font(.headline)
                             .lineLimit(2)
+                            .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
-                } else {
-                    Text(item.torrent.name)
-                        .font(.headline)
-                        .lineLimit(2)
-                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                 }
-                Spacer(minLength: 8)
-                if let actions {
-                    actionsPill(actions)
-                }
-                statusBadge
-                if let openRequested {
-                    Button(action: openRequested) {
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, 4)
-                            .padding(.vertical, 2)
+                .layoutPriority(1)
+
+                Spacer(minLength: 12)
+
+                HStack(spacing: 6) {
+                    if let actions {
+                        actionsPill(actions)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier(
-                        "torrent_row_open_button_\(item.torrent.id.rawValue)"
-                    )
-                    .accessibilityLabel(L10n.tr("Open torrent details"))
+                    statusBadge
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
+            .frame(maxWidth: .infinity)
 
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
                 .accessibilityValue(item.metrics.progressText)
 
@@ -629,31 +667,23 @@ private struct TorrentRowView: View {
                         .foregroundStyle(.secondary)
                 }
 
-                Spacer(minLength: 8)
+                Label(
+                    peersText,
+                    systemImage: "person.2"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                Spacer(minLength: 6)
 
                 Label(item.metrics.speedSummary, systemImage: "speedometer")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
             }
-
-            HStack(spacing: 12) {
-                Label(
-                    peersText,
-                    systemImage: "person.2"
-                )
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Text("ID \(item.id.rawValue)")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
-            }
         }
         .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
@@ -711,14 +741,10 @@ private struct TorrentRowView: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.12))
-        )
+        .appPillSurface()
+        #if !os(visionOS)
+            .appGlassEffectTransition(.materialize)
+        #endif
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
     }
 
@@ -746,21 +772,30 @@ private struct TorrentRowView: View {
     }
 
     private var statusBadge: some View {
-        Text(statusTitle)
-            .font(.caption)
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
-            .background(
-                Capsule()
-                    .fill(statusColor.opacity(0.15))
-            )
-            .foregroundStyle(statusColor)
-            #if os(macOS)
-                .frame(width: statusBadgeWidth, alignment: .center)
-            #endif
-            .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
+        ZStack {
+            Text(longestStatusTitle)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .hidden()
+
+            Text(statusTitle)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .background(
+            Capsule(style: .continuous)
+                .fill(statusColor.opacity(0.15))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+        )
+        .foregroundStyle(statusColor)
+        .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
     private var statusTitle: String {
