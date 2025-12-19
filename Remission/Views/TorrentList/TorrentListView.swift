@@ -4,6 +4,7 @@ import SwiftUI
 
 struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
+    @State private var searchText: String = ""
 
     var body: some View {
         container
@@ -17,7 +18,7 @@ struct TorrentListView: View {
                 }
             #else
                 .searchable(
-                    text: searchBinding,
+                    text: $searchText,
                     placement: .automatic,
                     prompt: Text(L10n.tr("torrentList.search.prompt"))
                 ) {
@@ -44,6 +45,15 @@ struct TorrentListView: View {
                     }
                 }
             #endif
+            .onAppear {
+                if searchText != store.searchQuery {
+                    searchText = store.searchQuery
+                }
+            }
+            .task(id: searchText) {
+                guard searchText != store.searchQuery else { return }
+                await store.send(.searchQueryChanged(searchText)).finish()
+            }
             .alert(
                 $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )
@@ -76,7 +86,7 @@ extension TorrentListView {
                         .foregroundStyle(.secondary)
                     TextField(
                         L10n.tr("torrentList.search.prompt"),
-                        text: searchBinding
+                        text: $searchText
                     )
                     .textFieldStyle(.plain)
                     .font(.body)
@@ -277,13 +287,6 @@ extension TorrentListView {
                 errorView(message: message)
             }
         }
-    }
-
-    private var searchBinding: Binding<String> {
-        Binding(
-            get: { store.searchQuery },
-            set: { store.send(.searchQueryChanged($0)) }
-        )
     }
 
     private var searchSuggestions: [String] {

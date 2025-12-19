@@ -6,21 +6,6 @@ struct AddTorrentView: View {
     @Bindable var store: StoreOf<AddTorrentReducer>
 
     var body: some View {
-        let displayName = store.pendingInput.displayName
-        let sourceDescription = store.pendingInput.sourceDescription
-        let destinationBinding = Binding<String>(
-            get: { store.destinationPath },
-            set: { store.send(.destinationPathChanged($0)) }
-        )
-        let startPausedBinding = Binding<Bool>(
-            get: { store.startPaused },
-            set: { store.send(.startPausedChanged($0)) }
-        )
-        let newTagBinding = Binding<String>(
-            get: { store.newTag },
-            set: { store.send(.newTagChanged($0)) }
-        )
-
         Group {
             #if os(macOS)
                 VStack(spacing: 12) {
