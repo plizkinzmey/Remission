@@ -10,50 +10,49 @@ struct TorrentDetailView: View {
     @State var isPeersExpanded: Bool = false
 
     var body: some View {
-        Form {
-            summarySection
-            basicInformationSection
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                summarySection
+                basicInformationSection
 
-            if let banner = store.errorPresenter.banner {
-                Section {
-                    ErrorBannerView(
-                        message: banner.message,
-                        onRetry: banner.retry == nil
-                            ? nil
-                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                        onDismiss: { store.send(.dismissError) }
-                    )
+                if let banner = store.errorPresenter.banner {
+                    AppSectionCard("") {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.dismissError) }
+                        )
+                    }
                 }
-            }
 
-            if shouldShowInitialPlaceholder {
-                Section {
-                    EmptyPlaceholderView(
-                        systemImage: "arrow.clockwise.circle",
-                        title: L10n.tr("torrentDetail.placeholder.initial.title"),
-                        message: L10n.tr("torrentDetail.placeholder.initial.message")
-                    )
-                    .accessibilityIdentifier("torrent-detail-initial-placeholder")
+                if shouldShowInitialPlaceholder {
+                    AppSectionCard("") {
+                        EmptyPlaceholderView(
+                            systemImage: "arrow.clockwise.circle",
+                            title: L10n.tr("torrentDetail.placeholder.initial.title"),
+                            message: L10n.tr("torrentDetail.placeholder.initial.message")
+                        )
+                        .accessibilityIdentifier("torrent-detail-initial-placeholder")
+                    }
                 }
-            }
 
-            if shouldShowMetadataFallback {
-                Section {
-                    EmptyPlaceholderView(
-                        systemImage: "sparkles",
-                        title: L10n.tr("torrentDetail.placeholder.metadata.title"),
-                        message: L10n.tr("torrentDetail.placeholder.metadata.message")
-                    )
-                    .accessibilityIdentifier("torrent-detail-metadata-placeholder")
+                if shouldShowMetadataFallback {
+                    AppSectionCard("") {
+                        EmptyPlaceholderView(
+                            systemImage: "sparkles",
+                            title: L10n.tr("torrentDetail.placeholder.metadata.title"),
+                            message: L10n.tr("torrentDetail.placeholder.metadata.message")
+                        )
+                        .accessibilityIdentifier("torrent-detail-metadata-placeholder")
+                    }
                 }
-            }
 
-            advancedSections
+                advancedSections
+            }
+            .padding(12)
         }
-        .formStyle(.grouped)
-        #if os(macOS)
-            .padding(.top, -20)
-        #endif
         #if os(macOS)
             .navigationTitle("")
         #else

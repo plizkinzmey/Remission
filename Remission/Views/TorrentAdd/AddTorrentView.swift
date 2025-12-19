@@ -21,100 +21,112 @@ struct AddTorrentView: View {
             set: { store.send(.newTagChanged($0)) }
         )
 
-        Form {
-            Section(L10n.tr("torrentAdd.section.source")) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(displayName)
-                        .font(.body)
-                        .bold()
-                        .accessibilityIdentifier("torrent_add_source_description")
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                AppSectionCard(L10n.tr("torrentAdd.section.source")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(displayName)
+                            .font(.body.weight(.semibold))
+                            .accessibilityIdentifier("torrent_add_source_description")
 
-                    if sourceDescription != displayName {
-                        Text(sourceDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("torrent_add_source_name")
+                        if sourceDescription != displayName {
+                            Text(sourceDescription)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("torrent_add_source_name")
+                        }
                     }
                 }
-            }
 
-            Section(L10n.tr("torrentAdd.section.destination")) {
-                TextField(
-                    "",
-                    text: destinationBinding,
-                    prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
-                )
-                .labelsHidden()
-                .textContentType(.URL)
-                .accessibilityIdentifier("torrent_add_destination_field")
-                .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
-            }
+                AppSectionCard(L10n.tr("torrentAdd.section.destination")) {
+                    TextField(
+                        "",
+                        text: destinationBinding,
+                        prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
+                    )
+                    .labelsHidden()
+                    .textContentType(.URL)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .appPillSurface()
+                    .accessibilityIdentifier("torrent_add_destination_field")
+                    .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
+                }
 
-            Section(L10n.tr("torrentAdd.section.parameters")) {
-                Toggle(L10n.tr("torrentAdd.toggle.startPaused"), isOn: startPausedBinding)
-                    .accessibilityIdentifier("torrent_add_start_paused_toggle")
-            }
+                AppSectionCard(L10n.tr("torrentAdd.section.parameters")) {
+                    Toggle(L10n.tr("torrentAdd.toggle.startPaused"), isOn: startPausedBinding)
+                        .accessibilityIdentifier("torrent_add_start_paused_toggle")
+                }
 
-            Section(L10n.tr("torrentAdd.section.tags")) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.tr("torrentAdd.placeholder.tag"))
-                        .font(.subheadline)
-                        .accessibilityIdentifier("torrent_add_tag_title")
+                AppSectionCard(L10n.tr("torrentAdd.section.tags")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L10n.tr("torrentAdd.placeholder.tag"))
+                            .font(.subheadline)
+                            .accessibilityIdentifier("torrent_add_tag_title")
 
-                    HStack(spacing: 10) {
-                        TextField(
-                            "",
-                            text: newTagBinding,
-                            prompt: Text(L10n.tr("torrentAdd.placeholder.tag"))
-                        )
-                        .labelsHidden()
-                        .accessibilityIdentifier("torrent_add_tag_field")
+                        HStack(spacing: 10) {
+                            TextField(
+                                "",
+                                text: newTagBinding,
+                                prompt: Text(L10n.tr("torrentAdd.placeholder.tag"))
+                            )
+                            .labelsHidden()
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 10)
+                            .frame(height: 32)
+                            .appPillSurface()
+                            .accessibilityIdentifier("torrent_add_tag_field")
 
-                        Button {
-                            store.send(.addTagTapped)
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("torrent_add_tag_button")
-                        .accessibilityHint(L10n.tr("torrentAdd.placeholder.tag"))
-                    }
-                    if store.tags.isEmpty == false {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(store.tags, id: \.self) { tag in
-                                let tagId = sanitizedTagIdentifier(tag)
-                                HStack(spacing: 12) {
-                                    Text(tag)
-                                        .font(.subheadline)
-                                        .accessibilityIdentifier("torrent_add_tag_label_\(tagId)")
-                                    Button {
-                                        store.send(.removeTag(tag))
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("torrent_add_tag_remove_\(tagId)")
-                                    .accessibilityLabel(
-                                        String(
-                                            format: L10n.tr("Remove tag %@"),
-                                            locale: Locale.current,
-                                            tag
-                                        )
-                                    )
-                                }
-                                .padding(.vertical, 4)
+                            Button {
+                                store.send(.addTagTapped)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("torrent_add_tag_button")
+                            .accessibilityHint(L10n.tr("torrentAdd.placeholder.tag"))
                         }
-                    } else {
-                        Text(L10n.tr("torrentAdd.tags.empty"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if store.tags.isEmpty == false {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(store.tags, id: \.self) { tag in
+                                    let tagId = sanitizedTagIdentifier(tag)
+                                    let tagLabelId = "torrent_add_tag_label_\(tagId)"
+                                    HStack(spacing: 12) {
+                                        Text(tag)
+                                            .font(.subheadline)
+                                            .accessibilityIdentifier(tagLabelId)
+                                        Button {
+                                            store.send(.removeTag(tag))
+                                        } label: {
+                                            Image(systemName: "xmark.circle.fill")
+                                        }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("torrent_add_tag_remove_\(tagId)")
+                                        .accessibilityLabel(
+                                            String(
+                                                format: L10n.tr("Remove tag %@"),
+                                                locale: Locale.current,
+                                                tag
+                                            )
+                                        )
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            }
+                        } else {
+                            Text(L10n.tr("torrentAdd.tags.empty"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
+            .padding(12)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 12)
         }
         .navigationTitle(L10n.tr("torrentAdd.title"))
-        .formStyle(.grouped)
         #if os(macOS)
             .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
         #endif

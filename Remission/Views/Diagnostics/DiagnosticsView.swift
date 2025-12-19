@@ -7,14 +7,6 @@ struct DiagnosticsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 16) {
-                filterBar
-                    .padding(.horizontal)
-
-                if let limitNotice = limitNoticeText {
-                    limitNoticeView(limitNotice)
-                        .padding(.horizontal)
-                }
-
                 if store.isLoading && store.visibleEntries.isEmpty {
                     ProgressView(L10n.tr("diagnostics.loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -30,12 +22,23 @@ struct DiagnosticsView: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    logList
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        #if os(macOS)
-                            .frame(minHeight: 240)
-                        #endif
-                        .layoutPriority(1)
+                    VStack(spacing: 12) {
+                        filterBar
+
+                        if let limitNotice = limitNoticeText {
+                            limitNoticeView(limitNotice)
+                        }
+
+                        logList
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            #if os(macOS)
+                                .frame(minHeight: 240)
+                            #endif
+                            .layoutPriority(1)
+                    }
+                    .padding(12)
+                    .appCardSurface(cornerRadius: 16)
+                    .padding(.horizontal, 12)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -100,7 +103,10 @@ struct DiagnosticsView: View {
                     set: { store.send(.queryChanged($0)) }
                 )
             )
-            .textFieldStyle(.roundedBorder)
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 12)
+            .frame(height: 34)
+            .appPillSurface()
             .accessibilityIdentifier("diagnostics_search_field")
         }
     }
@@ -129,6 +135,7 @@ struct DiagnosticsView: View {
                 let isLast = entry.id == store.visibleEntries.last?.id
                 logRow(entry)
                     .listRowInsets(.init(top: 10, leading: 12, bottom: 10, trailing: 12))
+                    .listRowBackground(Color.clear)
                     .onAppear {
                         if isLast {
                             store.send(.loadMoreIfNeeded)

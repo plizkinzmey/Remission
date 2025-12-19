@@ -7,19 +7,23 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                ServerConnectionFormFields(form: $store.form)
-                statusSection
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ServerConnectionFormFields(form: $store.form)
+                        statusSection
 
-                if let validationError = store.validationError {
-                    Section {
-                        Text(validationError)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                        if let validationError = store.validationError {
+                            Text(validationError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
             }
-            .formStyle(.grouped)
+            .padding(12)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 12)
             .disabled(store.isSubmitting)
             .overlay(submissionOverlay)
             #if os(macOS)
@@ -53,7 +57,7 @@ struct OnboardingView: View {
     }
 
     private var statusSection: some View {
-        Section(L10n.tr("onboarding.section.connectionStatus")) {
+        AppSectionCard(L10n.tr("onboarding.section.connectionStatus")) {
             Button {
                 if OnboardingViewEnvironment.isOnboardingUITest {
                     store.send(.uiTestBypassConnection)

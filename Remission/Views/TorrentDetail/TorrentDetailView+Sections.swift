@@ -4,16 +4,12 @@ import SwiftUI
 extension TorrentDetailView {
     @ViewBuilder
     var summarySection: some View {
-        Section {
-            VStack(alignment: .leading, spacing: 16) {
-                ViewThatFits(in: .horizontal) {
-                    summaryHeaderWide
-                    summaryHeaderNarrow
-                }
+        AppSectionCard(L10n.tr("torrentDetail.section.summary")) {
+            ViewThatFits(in: .horizontal) {
+                summaryHeaderWide
+                summaryHeaderNarrow
             }
-            .padding(.vertical, 8)
-        } header: {
-            Text(L10n.tr("torrentDetail.section.summary"))
+            .padding(.vertical, 4)
         }
         .accessibilityIdentifier("torrent-summary")
     }
@@ -139,53 +135,60 @@ extension TorrentDetailView {
     }
 
     var basicInformationSection: some View {
-        Section {
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.status"),
-                value: TorrentDetailFormatters.statusText(for: store.status)
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.progress"),
-                value: store.hasLoadedMetadata
-                    ? TorrentDetailFormatters.progress(store.percentDone)
-                    : L10n.tr("torrentDetail.mainInfo.unavailable")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.size"),
-                value: store.hasLoadedMetadata && store.totalSize > 0
-                    ? TorrentDetailFormatters.bytes(store.totalSize)
-                    : L10n.tr("torrentDetail.mainInfo.unknown")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.downloaded"),
-                value: store.hasLoadedMetadata
-                    ? TorrentDetailFormatters.bytes(store.downloadedEver)
-                    : L10n.tr("torrentDetail.mainInfo.unavailable")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.uploaded"),
-                value: store.hasLoadedMetadata
-                    ? TorrentDetailFormatters.bytes(store.uploadedEver)
-                    : L10n.tr("torrentDetail.mainInfo.unavailable")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.path"),
-                value: store.hasLoadedMetadata && store.downloadDir.isEmpty == false
-                    ? store.downloadDir
-                    : L10n.tr("torrentDetail.mainInfo.unknown")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.added"),
-                value: store.hasLoadedMetadata && store.dateAdded > 0
-                    ? TorrentDetailFormatters.date(from: store.dateAdded)
-                    : L10n.tr("torrentDetail.mainInfo.unavailable")
-            )
-            TorrentDetailLabelValueRow(
-                label: L10n.tr("torrentDetail.mainInfo.eta"),
-                value: etaDescription
-            )
-        } header: {
-            Text(L10n.tr("torrentDetail.mainInfo.title"))
+        AppSectionCard(L10n.tr("torrentDetail.mainInfo.title")) {
+            VStack(alignment: .leading, spacing: 10) {
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.status"),
+                    value: TorrentDetailFormatters.statusText(for: store.status)
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.progress"),
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.progress(store.percentDone)
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.size"),
+                    value: store.hasLoadedMetadata && store.totalSize > 0
+                        ? TorrentDetailFormatters.bytes(store.totalSize)
+                        : L10n.tr("torrentDetail.mainInfo.unknown")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.downloaded"),
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.bytes(store.downloadedEver)
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.uploaded"),
+                    value: store.hasLoadedMetadata
+                        ? TorrentDetailFormatters.bytes(store.uploadedEver)
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.path"),
+                    value: store.hasLoadedMetadata && store.downloadDir.isEmpty == false
+                        ? store.downloadDir
+                        : L10n.tr("torrentDetail.mainInfo.unknown")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.added"),
+                    value: store.hasLoadedMetadata && store.dateAdded > 0
+                        ? TorrentDetailFormatters.date(from: store.dateAdded)
+                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                )
+                Divider()
+                TorrentDetailLabelValueRow(
+                    label: L10n.tr("torrentDetail.mainInfo.eta"),
+                    value: etaDescription
+                )
+            }
         }
         .accessibilityIdentifier("torrent-main-info")
     }
@@ -200,7 +203,7 @@ extension TorrentDetailView {
     }
 
     var advancedSections: some View {
-        Section {
+        AppSectionCard("") {
             DisclosureGroup(
                 isExpanded: $isStatisticsExpanded
             ) {

@@ -40,8 +40,8 @@ struct SettingsView: View {
                         }
                     }
                 } else {
-                    ZStack(alignment: .center) {
-                        Form {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
                             autoRefreshSection
                             // Telemetry is hidden in production for now — keep it visible for
                             // UI tests only so automation and existing tests continue to run.
@@ -51,17 +51,10 @@ struct SettingsView: View {
                             pollingSection
                             speedLimitsSection
                             diagnosticsSection
-                            // Loading is presented as an overlay to avoid reflow/jumping of the Form
-                            // when network or async work briefly toggles `isLoading`.
-                            // The overlay does not affect layout size.
-
-                            // end Form
                         }
-                        .formStyle(.grouped)
-                        .scrollContentBackground(.hidden)
-
-                        // We no longer show an overlay spinner — the view is only rendered
-                        // after persisted settings are available which avoids jumps.
+                        .padding(12)
+                        .appCardSurface(cornerRadius: 16)
+                        .padding(.horizontal, 12)
                     }
                 }
             }
@@ -107,7 +100,7 @@ struct SettingsView: View {
     }
 
     private var autoRefreshSection: some View {
-        Section(L10n.tr("settings.autoRefresh.section")) {
+        AppSectionCard(L10n.tr("settings.autoRefresh.section")) {
             Toggle(
                 L10n.tr("settings.autoRefresh.toggle"),
                 isOn: Binding(
@@ -123,7 +116,7 @@ struct SettingsView: View {
     }
 
     private var telemetrySection: some View {
-        Section(L10n.tr("settings.telemetry.section")) {
+        AppSectionCard(L10n.tr("settings.telemetry.section")) {
             Toggle(
                 L10n.tr("settings.telemetry.toggle"),
                 isOn: Binding(
@@ -162,87 +155,89 @@ struct SettingsView: View {
     }
 
     private var pollingSection: some View {
-        Section(L10n.tr("settings.polling.section")) {
-            VStack(alignment: .leading, spacing: 12) {
-                Slider(
-                    value: Binding(
-                        get: { store.pollingIntervalSeconds },
-                        set: { store.send(.pollingIntervalChanged($0)) }
-                    ),
-                    in: 1...60,
-                    step: 1
-                )
-                .accessibilityIdentifier("settings_polling_slider")
+        AppSectionCard(L10n.tr("settings.polling.section")) {
+            Slider(
+                value: Binding(
+                    get: { store.pollingIntervalSeconds },
+                    set: { store.send(.pollingIntervalChanged($0)) }
+                ),
+                in: 1...60,
+                step: 1
+            )
+            .accessibilityIdentifier("settings_polling_slider")
 
-                Text(intervalLabel)
-                    .bold()
-                    .accessibilityIdentifier("settings_polling_value")
-                Text(L10n.tr("settings.polling.note"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            Text(intervalLabel)
+                .bold()
+                .accessibilityIdentifier("settings_polling_value")
+            Text(L10n.tr("settings.polling.note"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
     private var speedLimitsSection: some View {
-        Section(L10n.tr("settings.speed.section")) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Use explicit label+control layout to avoid overlap and giant gaps.
-                LabeledContent {
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 4)
-                        TextField(
-                            "",
-                            text: Binding(
-                                get: {
-                                    limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                                },
-                                set: { store.send(.downloadLimitChanged($0)) }
-                            )
+        AppSectionCard(L10n.tr("settings.speed.section")) {
+            // Use explicit label+control layout to avoid overlap and giant gaps.
+            LabeledContent {
+                HStack(spacing: 8) {
+                    Spacer(minLength: 4)
+                    TextField(
+                        "",
+                        text: Binding(
+                            get: {
+                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
+                            },
+                            set: { store.send(.downloadLimitChanged($0)) }
                         )
-                        .accessibilityIdentifier("settings_download_limit_field")
-                        .multilineTextAlignment(.trailing)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
-                        .layoutPriority(1)
-                    }
-                } label: {
-                    Text(L10n.tr("settings.speed.download"))
-                        .accessibilityIdentifier("settings_download_limit_label")
+                    )
+                    .accessibilityIdentifier("settings_download_limit_field")
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
+                    .appPillSurface()
+                    .layoutPriority(1)
                 }
-
-                LabeledContent {
-                    HStack(spacing: 8) {
-                        Spacer(minLength: 4)
-                        TextField(
-                            "",
-                            text: Binding(
-                                get: {
-                                    limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                                },
-                                set: { store.send(.uploadLimitChanged($0)) }
-                            )
-                        )
-                        .accessibilityIdentifier("settings_upload_limit_field")
-                        .multilineTextAlignment(.trailing)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
-                        .layoutPriority(1)
-                    }
-                } label: {
-                    Text(L10n.tr("settings.speed.upload"))
-                        .accessibilityIdentifier("settings_upload_limit_label")
-                }
-
-                Text(L10n.tr("settings.speed.note"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            } label: {
+                Text(L10n.tr("settings.speed.download"))
+                    .accessibilityIdentifier("settings_download_limit_label")
             }
+
+            LabeledContent {
+                HStack(spacing: 8) {
+                    Spacer(minLength: 4)
+                    TextField(
+                        "",
+                        text: Binding(
+                            get: {
+                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
+                            },
+                            set: { store.send(.uploadLimitChanged($0)) }
+                        )
+                    )
+                    .accessibilityIdentifier("settings_upload_limit_field")
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
+                    .appPillSurface()
+                    .layoutPriority(1)
+                }
+            } label: {
+                Text(L10n.tr("settings.speed.upload"))
+                    .accessibilityIdentifier("settings_upload_limit_label")
+            }
+
+            Text(L10n.tr("settings.speed.note"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 
     private var diagnosticsSection: some View {
-        Section(L10n.tr("settings.diagnostics.section")) {
+        AppSectionCard(L10n.tr("settings.diagnostics.section")) {
             Button {
                 store.send(.diagnosticsButtonTapped)
             } label: {

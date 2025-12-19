@@ -6,18 +6,22 @@ struct ServerEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                ServerConnectionFormFields(form: $store.form)
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        ServerConnectionFormFields(form: $store.form)
 
-                if let validationError = store.validationError {
-                    Section {
-                        Text(validationError)
-                            .font(.footnote)
-                            .foregroundStyle(.red)
+                        if let validationError = store.validationError {
+                            Text(validationError)
+                                .font(.footnote)
+                                .foregroundStyle(.red)
+                        }
                     }
                 }
             }
-            .formStyle(.grouped)
+            .padding(12)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 12)
             .disabled(store.isSaving)
             .overlay(saveOverlay)
             #if os(macOS)
