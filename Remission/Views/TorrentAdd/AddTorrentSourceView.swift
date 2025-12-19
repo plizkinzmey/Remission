@@ -3,6 +3,7 @@ import SwiftUI
 
 struct AddTorrentSourceView: View {
     @Bindable var store: StoreOf<AddTorrentSourceReducer>
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -18,13 +19,13 @@ struct AddTorrentSourceView: View {
                             store.send(.delegate(.closeRequested))
                         }
                         .accessibilityIdentifier("torrent_add_source_close_button")
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.source.continue")) {
                             store.send(.continueTapped)
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
                     }
                 }
             #else
@@ -67,7 +68,7 @@ struct AddTorrentSourceView: View {
     private var windowContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                AppSectionCard(L10n.tr("torrentAdd.source.picker.title")) {
+                AppSectionCard(L10n.tr("torrentAdd.source.picker.title"), style: .plain) {
                     Picker(
                         L10n.tr("torrentAdd.source.picker.title"),
                         selection: Binding(
@@ -81,6 +82,10 @@ struct AddTorrentSourceView: View {
                             .tag(AddTorrentSourceReducer.Source.magnetLink)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
+                    #if os(macOS)
+                        .controlSize(.large)
+                    #endif
                     .accessibilityIdentifier("torrent_add_source_picker")
                 }
 
@@ -88,18 +93,25 @@ struct AddTorrentSourceView: View {
                 case .torrentFile:
                     AppSectionCard(
                         L10n.tr("torrentAdd.source.chooseFile"),
-                        footer: L10n.tr("torrentAdd.source.chooseFile.hint")
+                        footer: L10n.tr("torrentAdd.source.chooseFile.hint"),
+                        style: .plain
                     ) {
                         Button(L10n.tr("torrentAdd.source.chooseFile")) {
                             store.send(.chooseFileTapped)
                         }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .appPillSurface()
+                        .foregroundStyle(AppTheme.accent)
                         .accessibilityIdentifier("torrent_add_choose_file_button")
                     }
 
                 case .magnetLink:
                     AppSectionCard(
                         L10n.tr("torrentAdd.source.option.magnet"),
-                        footer: L10n.tr("torrentAdd.source.magnet.hint")
+                        footer: L10n.tr("torrentAdd.source.magnet.hint"),
+                        style: .plain
                     ) {
                         TextField(
                             L10n.tr("torrentAdd.source.magnet.placeholder"),
@@ -121,11 +133,17 @@ struct AddTorrentSourceView: View {
                         Button(L10n.tr("torrentAdd.source.paste")) {
                             store.send(.pasteFromClipboardTapped)
                         }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .appPillSurface()
+                        .foregroundStyle(AppTheme.accent)
                         .accessibilityIdentifier("torrent_add_paste_magnet_button")
                     }
                 }
             }
             .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
         }

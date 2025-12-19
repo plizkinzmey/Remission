@@ -39,3 +39,51 @@ struct AppWindowFooterBar<Content: View>: View {
         .padding(.bottom, 12)
     }
 }
+
+struct AppFooterButtonStyle: ButtonStyle {
+    enum Variant {
+        case neutral
+        case accent
+    }
+
+    @Environment(\.colorScheme) private var colorScheme
+    let variant: Variant
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline.weight(.semibold))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .frame(minHeight: 30)
+            .foregroundStyle(foregroundColor)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(backgroundColor)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
+            .opacity(configuration.isPressed ? 0.88 : 1)
+    }
+
+    private var backgroundColor: Color {
+        switch variant {
+        case .neutral:
+            return colorScheme == .dark
+                ? Color.white.opacity(0.06)
+                : Color.black.opacity(0.06)
+        case .accent:
+            return AppTheme.accent.opacity(colorScheme == .dark ? 0.45 : 0.30)
+        }
+    }
+
+    private var foregroundColor: Color {
+        switch variant {
+        case .neutral:
+            return colorScheme == .dark ? .white : .black
+        case .accent:
+            return colorScheme == .dark ? .white : Color.white
+        }
+    }
+}

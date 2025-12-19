@@ -19,7 +19,7 @@ struct AddTorrentView: View {
                             store.send(.closeButtonTapped)
                         }
                         .accessibilityIdentifier("torrent_add_cancel_button")
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.action.add")) {
                             store.send(.submitButtonTapped)
                         }
@@ -31,7 +31,7 @@ struct AddTorrentView: View {
                                 .isEmpty
                         )
                         .accessibilityIdentifier("torrent_add_submit_button")
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
                     }
                 }
             #else
@@ -195,6 +195,7 @@ extension AddTorrentView {
                 }
             }
             .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
         }
