@@ -5,6 +5,66 @@ struct AddTorrentSourceView: View {
     @Bindable var store: StoreOf<AddTorrentSourceReducer>
 
     var body: some View {
+        Group {
+            #if os(macOS)
+                VStack(spacing: 12) {
+                    AppWindowHeader(L10n.tr("torrentAdd.source.title"))
+                    windowContent
+                }
+                .safeAreaInset(edge: .bottom) {
+                    AppWindowFooterBar {
+                        Spacer(minLength: 0)
+                        Button(L10n.tr("torrentAdd.action.cancel")) {
+                            store.send(.delegate(.closeRequested))
+                        }
+                        .accessibilityIdentifier("torrent_add_source_close_button")
+                        .buttonStyle(.bordered)
+                        Button(L10n.tr("torrentAdd.source.continue")) {
+                            store.send(.continueTapped)
+                        }
+                        .disabled(continueDisabled)
+                        .accessibilityIdentifier("torrent_add_source_continue_button")
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            #else
+                windowContent
+                    .navigationTitle(L10n.tr("torrentAdd.source.title"))
+            #endif
+        }
+        #if os(macOS)
+            .frame(minWidth: 520, idealWidth: 640, maxWidth: 760)
+        #endif
+        #if !os(macOS)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.tr("torrentAdd.action.cancel")) {
+                        store.send(.delegate(.closeRequested))
+                    }
+                    .accessibilityIdentifier("torrent_add_source_close_button")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.tr("torrentAdd.source.continue")) {
+                        store.send(.continueTapped)
+                    }
+                    .disabled(continueDisabled)
+                    .accessibilityIdentifier("torrent_add_source_continue_button")
+                }
+            }
+        #endif
+        .alert($store.scope(state: \.alert, action: \.alert))
+    }
+
+    private var continueDisabled: Bool {
+        switch store.source {
+        case .torrentFile:
+            return true
+        case .magnetLink:
+            return store.magnetText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    private var windowContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 AppSectionCard(L10n.tr("torrentAdd.source.picker.title")) {
@@ -68,35 +128,6 @@ struct AddTorrentSourceView: View {
             .padding(12)
             .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
-        }
-        .navigationTitle(L10n.tr("torrentAdd.source.title"))
-        #if os(macOS)
-            .frame(minWidth: 520, idealWidth: 640, maxWidth: 760)
-        #endif
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(L10n.tr("torrentAdd.action.cancel")) {
-                    store.send(.delegate(.closeRequested))
-                }
-                .accessibilityIdentifier("torrent_add_source_close_button")
-            }
-            ToolbarItem(placement: .confirmationAction) {
-                Button(L10n.tr("torrentAdd.source.continue")) {
-                    store.send(.continueTapped)
-                }
-                .disabled(continueDisabled)
-                .accessibilityIdentifier("torrent_add_source_continue_button")
-            }
-        }
-        .alert($store.scope(state: \.alert, action: \.alert))
-    }
-
-    private var continueDisabled: Bool {
-        switch store.source {
-        case .torrentFile:
-            return true
-        case .magnetLink:
-            return store.magnetText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 }

@@ -6,77 +6,118 @@ struct DiagnosticsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                if store.isLoading && store.visibleEntries.isEmpty {
-                    ProgressView(L10n.tr("diagnostics.loading"))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if store.visibleEntries.isEmpty {
-                    VStack(spacing: 16) {
-                        ContentUnavailableView(
-                            L10n.tr("diagnostics.empty.title"),
-                            systemImage: "doc.text.magnifyingglass",
-                            description: Text(
-                                L10n.tr("diagnostics.empty.message"))
-                        )
-                        .accessibilityIdentifier("diagnostics_empty_state")
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
+            Group {
+                #if os(macOS)
                     VStack(spacing: 12) {
-                        filterBar
-
-                        if let limitNotice = limitNoticeText {
-                            limitNoticeView(limitNotice)
+                        AppWindowHeader(L10n.tr("diagnostics.title"))
+                        windowContent
+                    }
+                    .safeAreaInset(edge: .bottom) {
+                        AppWindowFooterBar {
+                            Spacer(minLength: 0)
+                            if let export = exportText {
+                                ShareLink(
+                                    item: export,
+                                    message: Text(L10n.tr("diagnostics.exportAll"))
+                                ) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .accessibilityIdentifier("diagnostics_export_all_button")
+                                        .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                                }
+                                .disabled(store.entries.isEmpty)
+                            }
+                            Button(L10n.tr("diagnostics.clear")) {
+                                store.send(.clearTapped)
+                            }
+                            .disabled(store.entries.isEmpty || store.isLoading)
+                            .accessibilityIdentifier("diagnostics_clear_button")
+                            .buttonStyle(.bordered)
+                            Button(L10n.tr("diagnostics.close")) {
+                                store.send(.delegate(.closeRequested))
+                            }
+                            .accessibilityIdentifier("diagnostics_close_button")
+                            .buttonStyle(.borderedProminent)
                         }
-
-                        logList
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            #if os(macOS)
-                                .frame(minHeight: 240)
-                            #endif
-                            .layoutPriority(1)
                     }
-                    .padding(12)
-                    .appCardSurface(cornerRadius: 16)
-                    .padding(.horizontal, 12)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            #if os(macOS)
-                .frame(minWidth: 560, minHeight: 420)
-            #endif
-            .navigationTitle(L10n.tr("diagnostics.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("diagnostics.close")) {
-                        store.send(.delegate(.closeRequested))
-                    }
-                    .accessibilityIdentifier("diagnostics_close_button")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("diagnostics.clear")) {
-                        store.send(.clearTapped)
-                    }
-                    .disabled(store.entries.isEmpty || store.isLoading)
-                    .accessibilityIdentifier("diagnostics_clear_button")
-                }
-                ToolbarItem(placement: .primaryAction) {
-                    if let export = exportText {
-                        ShareLink(
-                            item: export,
-                            message: Text(L10n.tr("diagnostics.exportAll"))
-                        ) {
-                            Image(systemName: "square.and.arrow.up")
-                                .accessibilityIdentifier("diagnostics_export_all_button")
-                                .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                    .frame(minWidth: 560, minHeight: 420)
+                #else
+                    windowContent
+                        .navigationTitle(L10n.tr("diagnostics.title"))
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(L10n.tr("diagnostics.close")) {
+                                    store.send(.delegate(.closeRequested))
+                                }
+                                .accessibilityIdentifier("diagnostics_close_button")
+                            }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(L10n.tr("diagnostics.clear")) {
+                                    store.send(.clearTapped)
+                                }
+                                .disabled(store.entries.isEmpty || store.isLoading)
+                                .accessibilityIdentifier("diagnostics_clear_button")
+                            }
+                            ToolbarItem(placement: .primaryAction) {
+                                if let export = exportText {
+                                    ShareLink(
+                                        item: export,
+                                        message: Text(L10n.tr("diagnostics.exportAll"))
+                                    ) {
+                                        Image(systemName: "square.and.arrow.up")
+                                            .accessibilityIdentifier(
+                                                "diagnostics_export_all_button"
+                                            )
+                                            .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
+                                    }
+                                    .disabled(store.entries.isEmpty)
+                                }
+                            }
                         }
-                        .disabled(store.entries.isEmpty)
-                    }
-                }
+                #endif
             }
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
         }
+    }
+
+    @ViewBuilder
+    private var windowContent: some View {
+        VStack(spacing: 16) {
+            if store.isLoading && store.visibleEntries.isEmpty {
+                ProgressView(L10n.tr("diagnostics.loading"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if store.visibleEntries.isEmpty {
+                VStack(spacing: 16) {
+                    ContentUnavailableView(
+                        L10n.tr("diagnostics.empty.title"),
+                        systemImage: "doc.text.magnifyingglass",
+                        description: Text(
+                            L10n.tr("diagnostics.empty.message"))
+                    )
+                    .accessibilityIdentifier("diagnostics_empty_state")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 12) {
+                    filterBar
+
+                    if let limitNotice = limitNoticeText {
+                        limitNoticeView(limitNotice)
+                    }
+
+                    logList
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        #if os(macOS)
+                            .frame(minHeight: 240)
+                        #endif
+                        .layoutPriority(1)
+                }
+                .padding(12)
+                .appCardSurface(cornerRadius: 16)
+                .padding(.horizontal, 12)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var filterBar: some View {

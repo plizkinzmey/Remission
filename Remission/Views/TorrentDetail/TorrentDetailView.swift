@@ -10,6 +10,55 @@ struct TorrentDetailView: View {
     @State var isPeersExpanded: Bool = false
 
     var body: some View {
+        Group {
+            #if os(macOS)
+                VStack(spacing: 12) {
+                    AppWindowHeader(headerTitle)
+                    windowContent
+                }
+                .safeAreaInset(edge: .bottom) {
+                    AppWindowFooterBar {
+                        Spacer(minLength: 0)
+                        Button(L10n.tr("serverDetail.button.close")) {
+                            store.send(.delegate(.closeRequested))
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .navigationTitle("")
+            #else
+                windowContent
+                    .navigationTitle(
+                        store.name.isEmpty
+                            ? L10n.tr("torrentDetail.title.fallback")
+                            : store.name
+                    )
+                    .navigationBarTitleDisplayMode(.inline)
+            #endif
+        }
+        .task {
+            await store.send(.task).finish()
+        }
+        .refreshable {
+            await store.send(.refreshRequested).finish()
+        }
+        .alert(
+            $store.scope(state: \.alert, action: \.alert)
+        )
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
+        .confirmationDialog(
+            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+        )
+        .overlay(alignment: .center) {
+            if store.isLoading {
+                loadingOverlay
+            }
+        }
+    }
+
+    private var windowContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 summarySection
@@ -53,36 +102,12 @@ struct TorrentDetailView: View {
             }
             .padding(12)
         }
-        #if os(macOS)
-            .navigationTitle("")
-        #else
-            .navigationTitle(
-                store.name.isEmpty
-                    ? L10n.tr("torrentDetail.title.fallback")
-                    : store.name
-            )
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .task {
-            await store.send(.task).finish()
-        }
-        .refreshable {
-            await store.send(.refreshRequested).finish()
-        }
-        .alert(
-            $store.scope(state: \.alert, action: \.alert)
-        )
-        .alert(
-            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-        )
-        .confirmationDialog(
-            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
-        )
-        .overlay(alignment: .center) {
-            if store.isLoading {
-                loadingOverlay
-            }
-        }
+    }
+
+    private var headerTitle: String {
+        store.name.isEmpty
+            ? L10n.tr("torrentDetail.title.fallback")
+            : store.name
     }
 
     private var shouldShowInitialPlaceholder: Bool {
