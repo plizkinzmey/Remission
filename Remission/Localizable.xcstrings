@@ -5160,6 +5160,22 @@
         }
       }
     },
+    "torrentDetail.window.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Torrent details"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подробности торрента"
+          }
+        }
+      }
+    },
     "torrentDetail.trackers.accessibility" : {
       "localizations" : {
         "en" : {

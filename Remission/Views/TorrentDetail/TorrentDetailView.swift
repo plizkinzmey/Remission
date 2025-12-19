@@ -13,10 +13,7 @@ struct TorrentDetailView: View {
         Group {
             #if os(macOS)
                 VStack(spacing: 12) {
-                    AppWindowHeader(headerTitle)
-                    windowContent
-                }
-                .safeAreaInset(edge: .bottom) {
+                    macOSContentCard
                     AppWindowFooterBar {
                         Spacer(minLength: 0)
                         Button(L10n.tr("serverDetail.button.close")) {
@@ -25,7 +22,8 @@ struct TorrentDetailView: View {
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                     }
                 }
-                .navigationTitle("")
+                .navigationTitle(L10n.tr("torrentDetail.window.title"))
+                .toolbarTitleDisplayMode(.inline)
             #else
                 windowContent
                     .navigationTitle(
@@ -104,11 +102,14 @@ struct TorrentDetailView: View {
         }
     }
 
-    private var headerTitle: String {
-        store.name.isEmpty
-            ? L10n.tr("torrentDetail.title.fallback")
-            : store.name
-    }
+    #if os(macOS)
+        private var macOSContentCard: some View {
+            windowContent
+                .appCardSurface(cornerRadius: 16)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    #endif
 
     private var shouldShowInitialPlaceholder: Bool {
         store.isLoading
