@@ -94,6 +94,19 @@ extension TorrentListView {
         private var macOSToolbarPillHeight: CGFloat { 34 }
         private var macOSSortPickerWidth: CGFloat { 150 }
     #endif
+    private var longestStatusTitle: String {
+        let titles = [
+            L10n.tr("torrentList.status.paused"),
+            L10n.tr("torrentList.status.checkWaiting"),
+            L10n.tr("torrentList.status.checking"),
+            L10n.tr("torrentList.status.downloadWaiting"),
+            L10n.tr("torrentList.status.downloading"),
+            L10n.tr("torrentList.status.seedWaiting"),
+            L10n.tr("torrentList.status.seeding"),
+            L10n.tr("torrentList.status.error")
+        ]
+        return titles.max(by: { $0.count < $1.count }) ?? ""
+    }
 
     @ViewBuilder
     private var container: some View {
@@ -398,7 +411,8 @@ extension TorrentListView {
             TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
-                actions: rowActions(for: item)
+                actions: rowActions(for: item),
+                longestStatusTitle: longestStatusTitle
             )
             .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
             .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
@@ -413,7 +427,8 @@ extension TorrentListView {
                     TorrentRowView(
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
-                        actions: rowActions(for: item)
+                        actions: rowActions(for: item),
+                        longestStatusTitle: longestStatusTitle
                     )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
@@ -578,6 +593,7 @@ private struct TorrentRowView: View {
     var item: TorrentListItem.State
     var openRequested: (() -> Void)?
     var actions: RowActions?
+    var longestStatusTitle: String
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -737,23 +753,30 @@ private struct TorrentRowView: View {
     }
 
     private var statusBadge: some View {
-        Text(statusTitle)
-            .font(.subheadline.weight(.semibold))
-            .lineLimit(1)
-            .minimumScaleFactor(0.8)
-            .padding(.horizontal, 10)
-            .frame(height: 34)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(statusColor.opacity(0.15))
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
-            )
-            .foregroundStyle(statusColor)
-            .fixedSize(horizontal: true, vertical: false)
-            .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
+        ZStack {
+            Text(longestStatusTitle)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .hidden()
+
+            Text(statusTitle)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 34)
+        .background(
+            Capsule(style: .continuous)
+                .fill(statusColor.opacity(0.15))
+        )
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+        )
+        .foregroundStyle(statusColor)
+        .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
     private var statusTitle: String {
