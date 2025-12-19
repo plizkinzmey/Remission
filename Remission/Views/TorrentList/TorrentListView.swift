@@ -92,6 +92,7 @@ extension TorrentListView {
 
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
+        private var macOSSortPickerWidth: CGFloat { 150 }
     #endif
 
     @ViewBuilder
@@ -497,22 +498,51 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrentlist_filter_picker")
         .pickerStyle(.segmented)
+        #if os(macOS)
+            .controlSize(.large)
+        #endif
     }
 
     private var sortPicker: some View {
-        Picker(
-            L10n.tr("torrentList.sort.title"),
-            selection: Binding(
-                get: { store.sortOrder },
-                set: { store.send(.sortChanged($0)) }
-            )
-        ) {
-            ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                Text(sort.title).tag(sort)
+        #if os(macOS)
+            Menu {
+                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
+                    Button(sort.title) {
+                        store.send(.sortChanged(sort))
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(store.sortOrder.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                    Spacer(minLength: 6)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }
-        .accessibilityIdentifier("torrentlist_sort_picker")
-        .pickerStyle(.menu)
+            .accessibilityIdentifier("torrentlist_sort_picker")
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .padding(.horizontal, 12)
+            .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
+            .appPillSurface()
+        #else
+            Picker(
+                L10n.tr("torrentList.sort.title"),
+                selection: Binding(
+                    get: { store.sortOrder },
+                    set: { store.send(.sortChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
+                    Text(sort.title).tag(sort)
+                }
+            }
+            .accessibilityIdentifier("torrentlist_sort_picker")
+            .pickerStyle(.menu)
+        #endif
     }
 
     private var refreshButton: some View {
@@ -551,6 +581,10 @@ private struct TorrentRowView: View {
 
     @Environment(\.colorScheme) private var colorScheme
 
+    #if os(macOS)
+        private var statusBadgeWidth: CGFloat { 172 }
+    #endif
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -570,7 +604,9 @@ private struct TorrentRowView: View {
                             .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .layoutPriority(1)
+
+                Spacer(minLength: 8)
 
                 HStack(spacing: 10) {
                     if let actions {
@@ -578,6 +614,7 @@ private struct TorrentRowView: View {
                     }
                     statusBadge
                 }
+                .fixedSize(horizontal: true, vertical: false)
             }
             .frame(maxWidth: .infinity)
 
@@ -719,7 +756,11 @@ private struct TorrentRowView: View {
                     .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
             )
             .foregroundStyle(statusColor)
-            .fixedSize(horizontal: true, vertical: false)
+            #if os(macOS)
+                .frame(width: statusBadgeWidth)
+            #else
+                .fixedSize(horizontal: true, vertical: false)
+            #endif
             .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
     }
 
