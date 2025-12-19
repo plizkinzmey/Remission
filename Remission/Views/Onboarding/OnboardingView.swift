@@ -7,44 +7,47 @@ struct OnboardingView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        ServerConnectionFormFields(form: $store.form)
-                        statusSection
-
-                        if let validationError = store.validationError {
-                            Text(validationError)
-                                .font(.footnote)
-                                .foregroundStyle(.red)
+            #if os(macOS)
+                VStack(spacing: 12) {
+                    AppWindowHeader(L10n.tr("onboarding.title"))
+                    windowContent
+                }
+                .safeAreaInset(edge: .bottom) {
+                    AppWindowFooterBar {
+                        Spacer(minLength: 0)
+                        Button(L10n.tr("onboarding.action.cancel")) {
+                            store.send(.cancelButtonTapped)
+                        }
+                        .accessibilityIdentifier("onboarding_cancel_button")
+                        .buttonStyle(.bordered)
+                        Button(L10n.tr("onboarding.action.saveServer")) {
+                            store.send(.connectButtonTapped)
+                        }
+                        .disabled(store.isSaveButtonDisabled)
+                        .accessibilityIdentifier("onboarding_submit_button")
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+            #else
+                windowContent
+                    .navigationTitle(L10n.tr("onboarding.title"))
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L10n.tr("onboarding.action.cancel")) {
+                                store.send(.cancelButtonTapped)
+                            }
+                            .accessibilityIdentifier("onboarding_cancel_button")
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(L10n.tr("onboarding.action.saveServer")) {
+                                store.send(.connectButtonTapped)
+                            }
+                            .disabled(store.isSaveButtonDisabled)
+                            .accessibilityIdentifier("onboarding_submit_button")
                         }
                     }
-                }
-            }
-            .padding(12)
-            .appCardSurface(cornerRadius: 16)
-            .padding(.horizontal, 12)
-            .disabled(store.isSubmitting)
-            .overlay(submissionOverlay)
-            #if os(macOS)
-                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
             #endif
-            .navigationTitle(L10n.tr("onboarding.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("onboarding.action.cancel")) {
-                        store.send(.cancelButtonTapped)
-                    }
-                    .accessibilityIdentifier("onboarding_cancel_button")
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.tr("onboarding.action.saveServer")) {
-                        store.send(.connectButtonTapped)
-                    }
-                    .disabled(store.isSaveButtonDisabled)
-                    .accessibilityIdentifier("onboarding_submit_button")
-                }
-            }
         }
         .alert(
             $store.scope(state: \.alert, action: \.alert)
@@ -54,6 +57,28 @@ struct OnboardingView: View {
         ) { promptStore in
             TransmissionTrustPromptView(store: promptStore)
         }
+    }
+
+    private var windowContent: some View {
+        VStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    ServerConnectionFormFields(form: $store.form)
+                    statusSection
+
+                    if let validationError = store.validationError {
+                        Text(validationError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .appCardSurface(cornerRadius: 16)
+        .padding(.horizontal, 12)
+        .disabled(store.isSubmitting)
+        .overlay(submissionOverlay)
     }
 
     private var statusSection: some View {

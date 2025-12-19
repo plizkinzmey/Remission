@@ -10,65 +10,34 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Group {
-                // Render the Form only when we actually have persisted preferences available.
-                // This avoids rendering a default/placeholder UI and then reflowing when
-                // real values arrive. Until then show a small loading placeholder.
-                if store.persistedPreferences == nil {
+                #if os(macOS)
                     VStack(spacing: 12) {
-                        if store.isLoading {
-                            ProgressView {
-                                Text(L10n.tr("settings.loading"))
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
+                        AppWindowHeader(L10n.tr("settings.title"))
+                        windowContent
+                    }
+                    .safeAreaInset(edge: .bottom) {
+                        AppWindowFooterBar {
+                            Spacer(minLength: 0)
+                            Button(L10n.tr("common.close")) {
+                                store.send(.delegate(.closeRequested))
                             }
-                            .controlSize(.large)
-                            .padding(.vertical, 32)
-                        } else {
-                            // Not loading and we have no persisted preferences — probably
-                            // an error occurred. Let the alert show (reducer sets it). As
-                            // a fallback show a small message and a retry action.
-                            VStack(spacing: 8) {
-                                Text(L10n.tr("settings.loading"))
-                                    .font(.body)
-                                    .foregroundStyle(.secondary)
-                                Button(L10n.tr("settings.retry")) {
-                                    store.send(.task)
+                            .accessibilityIdentifier("settings_close_button")
+                            .buttonStyle(.borderedProminent)
+                        }
+                    }
+                    .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+                #else
+                    windowContent
+                        .navigationTitle(L10n.tr("settings.title"))
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(L10n.tr("common.close")) {
+                                    store.send(.delegate(.closeRequested))
                                 }
-                                .keyboardShortcut(.defaultAction)
+                                .accessibilityIdentifier("settings_close_button")
                             }
-                            .padding(.vertical, 40)
                         }
-                    }
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
-                            autoRefreshSection
-                            // Telemetry is hidden in production for now — keep it visible for
-                            // UI tests only so automation and existing tests continue to run.
-                            if isUITesting {
-                                telemetrySection
-                            }
-                            pollingSection
-                            speedLimitsSection
-                            diagnosticsSection
-                        }
-                        .padding(12)
-                        .appCardSurface(cornerRadius: 16)
-                        .padding(.horizontal, 12)
-                    }
-                }
-            }
-            #if os(macOS)
-                .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
-            #endif
-            .navigationTitle(L10n.tr("settings.title"))
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.tr("common.close")) {
-                        store.send(.delegate(.closeRequested))
-                    }
-                    .accessibilityIdentifier("settings_close_button")
-                }
+                #endif
             }
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
@@ -80,6 +49,57 @@ struct SettingsView: View {
             }
         }
         .appRootChrome()
+    }
+
+    @ViewBuilder
+    private var windowContent: some View {
+        // Render the Form only when we actually have persisted preferences available.
+        // This avoids rendering a default/placeholder UI and then reflowing when
+        // real values arrive. Until then show a small loading placeholder.
+        if store.persistedPreferences == nil {
+            VStack(spacing: 12) {
+                if store.isLoading {
+                    ProgressView {
+                        Text(L10n.tr("settings.loading"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    }
+                    .controlSize(.large)
+                    .padding(.vertical, 32)
+                } else {
+                    // Not loading and we have no persisted preferences — probably
+                    // an error occurred. Let the alert show (reducer sets it). As
+                    // a fallback show a small message and a retry action.
+                    VStack(spacing: 8) {
+                        Text(L10n.tr("settings.loading"))
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                        Button(L10n.tr("settings.retry")) {
+                            store.send(.task)
+                        }
+                        .keyboardShortcut(.defaultAction)
+                    }
+                    .padding(.vertical, 40)
+                }
+            }
+        } else {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    autoRefreshSection
+                    // Telemetry is hidden in production for now — keep it visible for
+                    // UI tests only so automation and existing tests continue to run.
+                    if isUITesting {
+                        telemetrySection
+                    }
+                    pollingSection
+                    speedLimitsSection
+                    diagnosticsSection
+                }
+                .padding(12)
+                .appCardSurface(cornerRadius: 16)
+                .padding(.horizontal, 12)
+            }
+        }
     }
 
     private var intervalLabel: String {

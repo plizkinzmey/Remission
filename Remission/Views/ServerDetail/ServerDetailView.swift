@@ -58,13 +58,15 @@ struct ServerDetailView: View {
                             maxHeight: 600
                         )
                     #endif
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(L10n.tr("serverDetail.button.close")) {
-                                detailStore.send(.delegate(.closeRequested))
+                    #if !os(macOS)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(L10n.tr("serverDetail.button.close")) {
+                                    detailStore.send(.delegate(.closeRequested))
+                                }
                             }
                         }
-                    }
+                    #endif
             }
             .appRootChrome()
         }
