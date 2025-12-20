@@ -33,6 +33,9 @@ struct AppView: View {
             ServerDetailView(store: store)
         }
         .appRootChrome()
+        .onOpenURL { url in
+            store.send(.openTorrentFile(url))
+        }
         .sheet(
             store: store.scope(state: \.$settings, action: \.settings)
         ) { settingsStore in

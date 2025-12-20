@@ -229,6 +229,7 @@ struct ServerDetailReducer {
                 )
                 state.connectionEnvironment = environment
                 state.torrentDetail?.applyConnectionEnvironment(environment)
+                state.addTorrent?.connectionEnvironment = environment
                 state.connectionRetryAttempts = 0
                 state.connectionState.phase = .ready(
                     .init(
@@ -252,6 +253,7 @@ struct ServerDetailReducer {
                 state.connectionEnvironment = nil
                 state.lastAppliedDefaultSpeedLimits = nil
                 state.torrentDetail?.applyConnectionEnvironment(nil)
+                state.addTorrent?.connectionEnvironment = nil
                 state.torrentList.connectionEnvironment = nil
                 let message = describe(error)
                 state.connectionRetryAttempts += 1
