@@ -44,6 +44,8 @@ struct AppFooterButtonStyle: ButtonStyle {
     enum Variant {
         case neutral
         case accent
+        case success
+        case error
     }
 
     @Environment(\.colorScheme) private var colorScheme
@@ -75,6 +77,10 @@ struct AppFooterButtonStyle: ButtonStyle {
                 : Color.black.opacity(0.06)
         case .accent:
             return AppTheme.accent.opacity(colorScheme == .dark ? 0.45 : 0.30)
+        case .success:
+            return Color.green.opacity(colorScheme == .dark ? 0.40 : 0.26)
+        case .error:
+            return Color.red.opacity(colorScheme == .dark ? 0.38 : 0.24)
         }
     }
 
@@ -83,7 +89,11 @@ struct AppFooterButtonStyle: ButtonStyle {
         case .neutral:
             return colorScheme == .dark ? .white : .black
         case .accent:
-            return colorScheme == .dark ? .white : Color.white
+            return .white
+        case .success:
+            return .white
+        case .error:
+            return .white
         }
     }
 }

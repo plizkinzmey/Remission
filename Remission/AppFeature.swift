@@ -9,6 +9,7 @@ struct AppReducer {
         var serverList: ServerListReducer.State
         var path: StackState<ServerDetailReducer.State>
         @Presents var settings: SettingsReducer.State?
+        var pendingTorrentFileURL: URL?
 
         init(
             version: AppStateVersion = .latest,
@@ -24,6 +25,7 @@ struct AppReducer {
     enum Action: Equatable {
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
+        case openTorrentFile(URL)
         case settingsButtonTapped
         case settings(PresentationAction<SettingsReducer.Action>)
         case settingsDismissed
@@ -31,21 +33,55 @@ struct AppReducer {
     }
 
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
+    @Dependency(\.serverConfigRepository) var serverConfigRepository
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
+            case .openTorrentFile(let url):
+                guard url.isFileURL else { return .none }
+                guard url.pathExtension.lowercased() == "torrent" else { return .none }
+
+                if let targetServer = preferredServer(in: state) {
+                    return openTorrentFile(url, in: targetServer, state: &state)
+                }
+
+                state.pendingTorrentFileURL = url
+                if state.serverList.isLoading == false {
+                    return .merge(
+                        .send(.serverList(.task)),
+                        .send(.serverList(.addButtonTapped))
+                    )
+                }
+                return .send(.serverList(.addButtonTapped))
+
             case .serverList(.delegate(.serverSelected(let server))):
+                if let pendingURL = state.pendingTorrentFileURL {
+                    state.pendingTorrentFileURL = nil
+                    return openTorrentFile(pendingURL, in: server, state: &state)
+                }
                 state.path.append(ServerDetailReducer.State(server: server))
                 return .none
 
             case .serverList(.delegate(.serverCreated(let server))):
+                if let pendingURL = state.pendingTorrentFileURL {
+                    state.pendingTorrentFileURL = nil
+                    return openTorrentFile(pendingURL, in: server, state: &state)
+                }
                 state.path.append(ServerDetailReducer.State(server: server))
                 return .none
 
             case .serverList(.delegate(.serverEditRequested(let server))):
                 state.path.append(ServerDetailReducer.State(server: server, startEditing: true))
                 return .none
+
+            case .serverList(.serverRepositoryResponse(.success(let servers))):
+                guard let pendingURL = state.pendingTorrentFileURL else { return .none }
+                guard let targetServer = preferredServer(from: servers, in: state) else {
+                    return .none
+                }
+                state.pendingTorrentFileURL = nil
+                return openTorrentFile(pendingURL, in: targetServer, state: &state)
 
             case .serverList:
                 return .none
@@ -142,5 +178,46 @@ struct AppReducer {
         Scope(state: \.serverList, action: \.serverList) {
             ServerListReducer()
         }
+    }
+
+    private func preferredServer(in state: State) -> ServerConfig? {
+        if let lastID = state.path.ids.last,
+            let server = state.path[id: lastID]?.server
+        {
+            return server
+        }
+        return preferredServer(from: Array(state.serverList.servers), in: state)
+    }
+
+    private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
+        if let lastID = state.path.ids.last,
+            let server = state.path[id: lastID]?.server
+        {
+            return server
+        }
+        return servers.max { lhs, rhs in
+            lhs.createdAt < rhs.createdAt
+        }
+    }
+
+    private func openTorrentFile(
+        _ url: URL,
+        in server: ServerConfig,
+        state: inout State
+    ) -> Effect<Action> {
+        if let lastID = state.path.ids.last,
+            let activeServer = state.path[id: lastID]?.server,
+            activeServer.id == server.id
+        {
+            return .send(
+                .path(.element(id: lastID, action: .fileImportResult(.success(url))))
+            )
+        }
+
+        state.path.append(ServerDetailReducer.State(server: server))
+        guard let targetID = state.path.ids.last else { return .none }
+        return .send(
+            .path(.element(id: targetID, action: .fileImportResult(.success(url))))
+        )
     }
 }

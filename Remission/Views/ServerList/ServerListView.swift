@@ -204,9 +204,11 @@ struct ServerListView: View {
             store.send(.deleteButtonTapped(server.id))
         } label: {
             Image(systemName: "trash")
-                .imageScale(.medium)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 24, height: 24)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .frame(height: macOSToolbarPillHeight)
                 .background(
                     Capsule()
                         .fill(Color.primary.opacity(0.08))
@@ -224,9 +226,9 @@ struct ServerListView: View {
         let descriptor = ConnectionStatusChipDescriptor(phase: status.phase)
 
         Label(descriptor.label, systemImage: descriptor.systemImage)
-            .font(.footnote)
+            .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .frame(height: macOSToolbarPillHeight)
             .background(Capsule().fill(descriptor.tint.opacity(0.15)))
             .foregroundStyle(descriptor.tint)
     }
@@ -298,15 +300,17 @@ struct ServerListView: View {
         foreground: Color
     ) -> some View {
         Label(text, systemImage: systemImage)
-            .font(.caption)
+            .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .frame(height: macOSToolbarPillHeight)
             .background(
                 Capsule()
                     .fill(fill)
             )
             .foregroundStyle(foreground)
     }
+
+    private var macOSToolbarPillHeight: CGFloat { 34 }
 
 }
 

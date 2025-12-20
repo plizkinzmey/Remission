@@ -501,6 +501,19 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDocumentTypes = (
+					{
+						CFBundleTypeExtensions = (
+							torrent,
+						);
+						CFBundleTypeName = "BitTorrent document";
+						CFBundleTypeRole = Viewer;
+						LSHandlerRank = Default;
+						LSItemContentTypes = (
+							"org.bittorrent.torrent",
+						);
+					},
+				);
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -550,6 +563,19 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDocumentTypes = (
+					{
+						CFBundleTypeExtensions = (
+							torrent,
+						);
+						CFBundleTypeName = "BitTorrent document";
+						CFBundleTypeRole = Viewer;
+						LSHandlerRank = Default;
+						LSItemContentTypes = (
+							"org.bittorrent.torrent",
+						);
+					},
+				);
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

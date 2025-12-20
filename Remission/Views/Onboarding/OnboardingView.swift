@@ -4,6 +4,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Bindable var store: StoreOf<OnboardingReducer>
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         NavigationStack {
@@ -14,6 +15,18 @@ struct OnboardingView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     AppWindowFooterBar {
+                        Button(checkConnectionButtonTitle) {
+                            if OnboardingViewEnvironment.isOnboardingUITest {
+                                store.send(.uiTestBypassConnection)
+                            } else {
+                                store.send(.checkConnectionButtonTapped)
+                            }
+                        }
+                        .disabled(
+                            store.connectionStatus == .testing || store.form.isFormValid == false
+                        )
+                        .accessibilityIdentifier("onboarding_connection_check_button")
+                        .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
                         Spacer(minLength: 0)
                         Button(L10n.tr("onboarding.action.cancel")) {
                             store.send(.cancelButtonTapped)
@@ -64,7 +77,6 @@ struct OnboardingView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     ServerConnectionFormFields(form: $store.form)
-                    statusSection
 
                     if let validationError = store.validationError {
                         Text(validationError)
@@ -81,54 +93,27 @@ struct OnboardingView: View {
         .overlay(submissionOverlay)
     }
 
-    private var statusSection: some View {
-        AppSectionCard(L10n.tr("onboarding.section.connectionStatus")) {
-            Button {
-                if OnboardingViewEnvironment.isOnboardingUITest {
-                    store.send(.uiTestBypassConnection)
-                } else {
-                    store.send(.checkConnectionButtonTapped)
-                }
-            } label: {
-                Label(L10n.tr("onboarding.action.checkConnection"), systemImage: "arrow.clockwise")
-            }
-            .buttonStyle(.bordered)
-            .disabled(store.connectionStatus == .testing || store.form.isFormValid == false)
-            .accessibilityIdentifier("onboarding_connection_check_button")
+    private var checkConnectionButtonTitle: String {
+        switch store.connectionStatus {
+        case .idle:
+            return L10n.tr("onboarding.action.checkConnection")
+        case .testing:
+            return L10n.tr("onboarding.status.testing")
+        case .success:
+            return L10n.tr("onboarding.status.success")
+        case .failed:
+            return L10n.tr("onboarding.status.error")
+        }
+    }
 
-            switch store.connectionStatus {
-            case .idle:
-                Text(L10n.tr("onboarding.status.notTested"))
-                    .foregroundStyle(.secondary)
-
-            case .testing:
-                HStack(spacing: 8) {
-                    ProgressView()
-                    Text(L10n.tr("onboarding.status.testing"))
-                }
-                .accessibilityIdentifier("onboarding_connection_testing")
-
-            case .success(let handshake):
-                VStack(alignment: .leading, spacing: 4) {
-                    Label(
-                        L10n.tr("onboarding.status.success"), systemImage: "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(.green)
-                    let rpcText = String(
-                        format: L10n.tr("onboarding.status.rpcVersion"), Int64(handshake.rpcVersion)
-                    )
-                    Text(handshake.serverVersionDescription ?? rpcText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityIdentifier("onboarding_connection_success")
-
-            case .failed(let message):
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .accessibilityIdentifier("onboarding_connection_error")
-            }
+    private var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
+        switch store.connectionStatus {
+        case .success:
+            return .success
+        case .failed:
+            return .error
+        case .idle, .testing:
+            return .neutral
         }
     }
 

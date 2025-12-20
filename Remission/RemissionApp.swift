@@ -34,6 +34,9 @@ struct RemissionApp: App {
         }
 
         _store = StateObject(wrappedValue: store)
+        #if os(macOS)
+            RemissionAppDelegate.appStore = store
+        #endif
     }
 
     var body: some Scene {
@@ -150,6 +153,8 @@ extension TransmissionClientBootstrap {
 
     @MainActor
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
+        static var appStore: StoreOf<AppReducer>?
+
         func applicationDidFinishLaunching(_ notification: Notification) {
             Task { @MainActor in
                 NSApp.activate(ignoringOtherApps: true)
@@ -200,6 +205,23 @@ extension TransmissionClientBootstrap {
                 return window
             }
             return NSApp.windows.first(where: { $0.isVisible }) ?? NSApp.windows.first
+        }
+
+        func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+            handleOpen(urls: [URL(fileURLWithPath: filename)])
+            return true
+        }
+
+        func application(_ sender: NSApplication, openFiles filenames: [String]) {
+            handleOpen(urls: filenames.map { URL(fileURLWithPath: $0) })
+            sender.reply(toOpenOrPrint: .success)
+        }
+
+        private func handleOpen(urls: [URL]) {
+            guard let store = Self.appStore else { return }
+            for url in urls {
+                store.send(.openTorrentFile(url))
+            }
         }
     }
 #endif

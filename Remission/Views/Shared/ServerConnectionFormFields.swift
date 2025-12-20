@@ -90,38 +90,43 @@ struct ServerConnectionFormFields: View {
     }
 
     private var securitySection: some View {
-        AppSectionCard(L10n.tr("serverForm.section.security")) {
-            Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
-                ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
-                    Text(transport.title).tag(transport)
+        AppSectionCard(L10n.tr("serverForm.section.security"), style: .plain) {
+            VStack(alignment: .leading, spacing: 12) {
+                Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
+                    ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
+                        Text(transport.title).tag(transport)
+                    }
                 }
-            }
-            .accessibilityIdentifier("server_form_transport_picker")
-            .pickerStyle(.segmented)
+                .accessibilityIdentifier("server_form_transport_picker")
+                .pickerStyle(.segmented)
 
-            if form.transport == .https {
-                Toggle(
-                    L10n.tr("serverForm.security.allowUntrusted"),
-                    isOn: $form.allowUntrustedCertificates
-                )
-                .accessibilityIdentifier("server_form_allow_untrusted_toggle")
-                .accessibilityHint(L10n.tr("serverForm.security.allowUntrusted"))
-            } else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L10n.tr("serverForm.security.httpWarning.title"))
-                        .font(.subheadline.weight(.semibold))
-                    Text(L10n.tr("serverForm.security.httpWarning.message"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                if form.transport == .https {
                     Toggle(
-                        L10n.tr("serverForm.security.httpWarning.suppress"),
-                        isOn: $form.suppressInsecureWarning
+                        L10n.tr("serverForm.security.allowUntrusted"),
+                        isOn: $form.allowUntrustedCertificates
                     )
-                    .toggleStyle(.switch)
-                    .accessibilityIdentifier("server_form_suppress_warning_toggle")
-                    .accessibilityHint(L10n.tr("serverForm.security.httpWarning.suppress"))
+                    .accessibilityIdentifier("server_form_allow_untrusted_toggle")
+                    .accessibilityHint(L10n.tr("serverForm.security.allowUntrusted"))
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L10n.tr("serverForm.security.httpWarning.title"))
+                            .font(.subheadline.weight(.semibold))
+                        Text(L10n.tr("serverForm.security.httpWarning.message"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Toggle(
+                            L10n.tr("serverForm.security.httpWarning.suppress"),
+                            isOn: $form.suppressInsecureWarning
+                        )
+                        .toggleStyle(.switch)
+                        .accessibilityIdentifier("server_form_suppress_warning_toggle")
+                        .accessibilityHint(L10n.tr("serverForm.security.httpWarning.suppress"))
+                    }
                 }
             }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .appCardSurface(cornerRadius: 14)
         }
     }
 
