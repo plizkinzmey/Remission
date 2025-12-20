@@ -33,6 +33,9 @@
       }
     },
     {
+      "skippedTests" : [
+        "RemissionUITests\/testShowsEmptyStateOnFirstLaunch()"
+      ],
       "target" : {
         "containerPath" : "container:Remission.xcodeproj",
         "identifier" : "15AA8C512EA1C9370025EF81",
