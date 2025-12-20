@@ -35,9 +35,22 @@
 		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		15F6B6D12F1A2B3C00A0A111 /* Exceptions for "Remission" folder in "Remission" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info-macOS.plist,
+			);
+			target = 15AA8C3A2EA1C9360025EF81 /* Remission */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		15AA8C3D2EA1C9360025EF81 /* Remission */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				15F6B6D12F1A2B3C00A0A111 /* Exceptions for "Remission" folder in "Remission" target */,
+			);
 			path = Remission;
 			sourceTree = "<group>";
 		};
@@ -501,19 +514,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDocumentTypes = (
-					{
-						CFBundleTypeExtensions = (
-							torrent,
-						);
-						CFBundleTypeName = "BitTorrent document";
-						CFBundleTypeRole = Viewer;
-						LSHandlerRank = Default;
-						LSItemContentTypes = (
-							"org.bittorrent.torrent",
-						);
-					},
-				);
+				"INFOPLIST_FILE[sdk=macosx*]" = Remission/Info-macOS.plist;
+				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -525,6 +527,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UTImportedTypeDeclarations = "{\n    UTTypeConformsTo =     (\n        \"public.data\"\n    );\n    UTTypeDescription = \"BitTorrent document\";\n    UTTypeIdentifier = \"org.bittorrent.torrent\";\n    UTTypeTagSpecification =     {\n        \"public.filename-extension\" =         (\n            torrent\n        );\n        \"public.mime-type\" =         (\n            \"application/x-bittorrent\"\n        );\n    };\n}";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -563,19 +566,8 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDocumentTypes = (
-					{
-						CFBundleTypeExtensions = (
-							torrent,
-						);
-						CFBundleTypeName = "BitTorrent document";
-						CFBundleTypeRole = Viewer;
-						LSHandlerRank = Default;
-						LSItemContentTypes = (
-							"org.bittorrent.torrent",
-						);
-					},
-				);
+				"INFOPLIST_FILE[sdk=macosx*]" = Remission/Info-macOS.plist;
+				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -587,6 +579,7 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UTImportedTypeDeclarations = "{\n    UTTypeConformsTo =     (\n        \"public.data\"\n    );\n    UTTypeDescription = \"BitTorrent document\";\n    UTTypeIdentifier = \"org.bittorrent.torrent\";\n    UTTypeTagSpecification =     {\n        \"public.filename-extension\" =         (\n            torrent\n        );\n        \"public.mime-type\" =         (\n            \"application/x-bittorrent\"\n        );\n    };\n}";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";

@@ -154,6 +154,7 @@ extension TransmissionClientBootstrap {
     @MainActor
     final class RemissionAppDelegate: NSObject, NSApplicationDelegate {
         static var appStore: StoreOf<AppReducer>?
+        private var openFilesObserver: NSObjectProtocol?
 
         func applicationDidFinishLaunching(_ notification: Notification) {
             Task { @MainActor in
@@ -162,6 +163,7 @@ extension TransmissionClientBootstrap {
                     window.contentMinSize = WindowConstants.minimumSize
                     window.makeKeyAndOrderFront(nil)
                 }
+                registerOpenFilesObserver()
                 applyInitialPresentationIfNeeded()
             }
         }
@@ -208,13 +210,72 @@ extension TransmissionClientBootstrap {
         }
 
         func application(_ sender: NSApplication, openFile filename: String) -> Bool {
+            if forwardOpenToRunningInstance(urls: [URL(fileURLWithPath: filename)]) {
+                sender.terminate(nil)
+                return true
+            }
             handleOpen(urls: [URL(fileURLWithPath: filename)])
             return true
         }
 
         func application(_ sender: NSApplication, openFiles filenames: [String]) {
-            handleOpen(urls: filenames.map { URL(fileURLWithPath: $0) })
+            let urls = filenames.map { URL(fileURLWithPath: $0) }
+            if forwardOpenToRunningInstance(urls: urls) {
+                sender.reply(toOpenOrPrint: .success)
+                sender.terminate(nil)
+                return
+            }
+            handleOpen(urls: urls)
             sender.reply(toOpenOrPrint: .success)
+        }
+
+        private func registerOpenFilesObserver() {
+            let center = DistributedNotificationCenter.default()
+            let notificationName = OpenFilesNotification.name
+            let pathsKey = OpenFilesNotification.pathsKey
+            let senderKey = OpenFilesNotification.senderKey
+            openFilesObserver = center.addObserver(
+                forName: notificationName,
+                object: nil,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self else { return }
+                guard let userInfo = notification.userInfo else { return }
+                if let senderPID = userInfo[senderKey] as? Int,
+                    senderPID == ProcessInfo.processInfo.processIdentifier
+                {
+                    return
+                }
+                guard let paths = userInfo[pathsKey] as? [String] else { return }
+                let urls = paths.map { URL(fileURLWithPath: $0) }
+                Task { @MainActor in
+                    self.handleOpen(urls: urls)
+                }
+            }
+        }
+
+        private func forwardOpenToRunningInstance(urls: [URL]) -> Bool {
+            guard let bundleIdentifier = Bundle.main.bundleIdentifier else {
+                return false
+            }
+            let currentPID = ProcessInfo.processInfo.processIdentifier
+            let otherInstance = NSRunningApplication.runningApplications(
+                withBundleIdentifier: bundleIdentifier
+            )
+            .first(where: { $0.processIdentifier != currentPID })
+            guard let target = otherInstance else { return false }
+
+            let center = DistributedNotificationCenter.default()
+            center.post(
+                name: OpenFilesNotification.name,
+                object: nil,
+                userInfo: [
+                    OpenFilesNotification.pathsKey: urls.map(\.path),
+                    OpenFilesNotification.senderKey: currentPID
+                ]
+            )
+            target.activate(options: [.activateAllWindows])
+            return true
         }
 
         private func handleOpen(urls: [URL]) {
@@ -223,5 +284,12 @@ extension TransmissionClientBootstrap {
                 store.send(.openTorrentFile(url))
             }
         }
+
+    }
+
+    private enum OpenFilesNotification {
+        static let name = Notification.Name("RemissionOpenFilesNotification")
+        static let pathsKey = "paths"
+        static let senderKey = "senderPID"
     }
 #endif
