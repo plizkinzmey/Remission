@@ -516,6 +516,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=macosx*]" = Remission/Info-macOS.plist;
 				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -568,6 +569,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=macosx*]" = Remission/Info-macOS.plist;
 				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
