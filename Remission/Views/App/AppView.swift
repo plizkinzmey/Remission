@@ -33,6 +33,12 @@ struct AppView: View {
             ServerDetailView(store: store)
         }
         .appRootChrome()
+        #if os(macOS)
+            .handlesExternalEvents(
+                preferring: Set(["*"]),
+                allowing: Set(["*"])
+            )
+        #endif
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
