@@ -36,11 +36,16 @@ class BaseUITestCase: XCTestCase {
 
     @MainActor
     private func normalizeWindows(_ app: XCUIApplication) {
-        if app.windows.allElementsBoundByIndex.isEmpty {
-            app.typeKey("n", modifierFlags: .command)
+        let primaryWindow = app.windows.firstMatch
+        if primaryWindow.waitForExistence(timeout: 4) == false {
+            app.activate()
+            openNewWindowIfNeeded(app)
+            if primaryWindow.waitForExistence(timeout: 4) == false {
+                app.typeKey("n", modifierFlags: .command)
+                _ = primaryWindow.waitForExistence(timeout: 4)
+            }
         }
 
-        let primaryWindow = app.windows.firstMatch
         if primaryWindow.waitForExistence(timeout: 2) {
             if primaryWindow.isHittable {
                 primaryWindow.click()
@@ -138,6 +143,25 @@ class BaseUITestCase: XCTestCase {
         attachment.lifetime = .keepAlways
         add(attachment)
     }
+
+    @MainActor
+    private func openNewWindowIfNeeded(_ app: XCUIApplication) {
+        guard app.windows.allElementsBoundByIndex.isEmpty else { return }
+
+        let fileMenu = app.menuBars.menuBarItems["File"].firstMatch
+        let fileMenuRu = app.menuBars.menuBarItems["Файл"].firstMatch
+        let resolvedFileMenu = fileMenu.exists ? fileMenu : fileMenuRu
+
+        if resolvedFileMenu.waitForExistence(timeout: 1) {
+            resolvedFileMenu.click()
+            let newWindowItem = app.menuBars.menuItems["New Window"].firstMatch
+            let newWindowItemRu = app.menuBars.menuItems["Новое окно"].firstMatch
+            let resolvedNewWindow = newWindowItem.exists ? newWindowItem : newWindowItemRu
+            if resolvedNewWindow.waitForExistence(timeout: 1) {
+                resolvedNewWindow.click()
+            }
+        }
+    }
 }
 
 @MainActor
@@ -147,10 +171,12 @@ extension BaseUITestCase {
     func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
         let window = app.windows.firstMatch
         tapSettingsButton(in: window, app: app)
+        let closeButton = waitForSettingsSheet(in: window, app: app)
         waitForSettingsLoaded(app)
 
         let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
             .firstMatch
+        waitForSettingsControls(app, autoRefreshToggle: autoRefreshToggle)
         ensureSettingsTopVisible(app, autoRefreshToggle: autoRefreshToggle)
         requireExists(autoRefreshToggle, in: app, debugName: "settings_auto_refresh_toggle")
 
@@ -173,18 +199,6 @@ extension BaseUITestCase {
         let uploadField = app.textFields["settings_upload_limit_field"]
         assertExists(uploadField, in: app, message: "Upload limit field missing")
 
-        let resolvedClose: XCUIElement
-        #if os(macOS)
-            let closeButton = window.sheets.firstMatch.buttons["settings_close_button"]
-                .firstMatch
-            XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
-            resolvedClose = closeButton
-        #else
-            let closeButton = app.buttons["settings_close_button"].firstMatch
-            XCTAssertTrue(closeButton.waitForExistence(timeout: 2), "Close button missing")
-            resolvedClose = closeButton
-        #endif
-
         return SettingsControls(
             autoRefreshToggle: autoRefreshToggle,
             telemetryToggle: telemetryToggle,
@@ -193,26 +207,110 @@ extension BaseUITestCase {
             pollingValue: pollingValue,
             downloadField: downloadField,
             uploadField: uploadField,
-            closeButton: resolvedClose
+            closeButton: closeButton
         )
     }
 
     private func tapSettingsButton(in window: XCUIElement, app: XCUIApplication) {
         let settingsButton = window.buttons["app_settings_button"].firstMatch
         #if os(macOS)
-            let toolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
-            if toolbarSettingsButton.waitForExistence(timeout: 2) {
-                toolbarSettingsButton.tap()
+            app.activate()
+            if window.waitForExistence(timeout: 2), window.isHittable {
+                window.click()
+            }
+
+            let toolbarSettingsButton = window.toolbars.buttons["app_settings_button"].firstMatch
+            let appToolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
+            let buttons: [XCUIElement] = [
+                toolbarSettingsButton,
+                appToolbarSettingsButton,
+                settingsButton
+            ]
+
+            for button in buttons where button.exists {
+                if button.isHittable {
+                    button.tap()
+                } else {
+                    button.forceTap()
+                }
                 return
             }
+
             let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
-            if settingsButton.exists == false && toolbarFallback.exists {
-                toolbarFallback.tap()
+            if toolbarFallback.exists {
+                toolbarFallback.isHittable ? toolbarFallback.tap() : toolbarFallback.forceTap()
                 return
+            }
+
+            let appMenu = app.menuBars.menuBarItems["Remission"].firstMatch
+            if appMenu.waitForExistence(timeout: 1) {
+                appMenu.click()
+                let menuCandidates = [
+                    app.menuBars.menuItems["Settings…"].firstMatch,
+                    app.menuBars.menuItems["Preferences…"].firstMatch,
+                    app.menuBars.menuItems["Настройки…"].firstMatch
+                ]
+                if let menuItem = menuCandidates.first(where: { $0.exists }) {
+                    menuItem.click()
+                    return
+                }
             }
         #endif
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
         settingsButton.tap()
+    }
+
+    private func waitForSettingsSheet(
+        in window: XCUIElement,
+        app: XCUIApplication
+    ) -> XCUIElement {
+        #if os(macOS)
+            let closeButton = window.sheets.firstMatch.buttons["settings_close_button"]
+                .firstMatch
+            let altCloseButton = app.buttons["settings_close_button"].firstMatch
+
+            if closeButton.waitForExistence(timeout: 3) || altCloseButton.exists {
+                return closeButton.exists ? closeButton : altCloseButton
+            }
+
+            // Fallback: try keyboard shortcut and re-tap toolbar button.
+            app.typeKey(",", modifierFlags: .command)
+            if closeButton.waitForExistence(timeout: 2) || altCloseButton.exists {
+                return closeButton.exists ? closeButton : altCloseButton
+            }
+
+            let toolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
+            if toolbarSettingsButton.waitForExistence(timeout: 2) {
+                toolbarSettingsButton.tap()
+            }
+            if closeButton.waitForExistence(timeout: 2) || altCloseButton.exists {
+                return closeButton.exists ? closeButton : altCloseButton
+            }
+
+            let attachment = XCTAttachment(screenshot: app.screenshot())
+            attachment.name = "settings_close_button_missing"
+            attachment.lifetime = .keepAlways
+            add(attachment)
+            let tree = app.debugDescription
+            XCTFail("Close button missing. Tree: \(tree)")
+            return closeButton
+        #else
+            let closeButton = app.buttons["settings_close_button"].firstMatch
+            XCTAssertTrue(closeButton.waitForExistence(timeout: 4), "Close button missing")
+            return closeButton
+        #endif
+    }
+
+    private func waitForSettingsControls(
+        _ app: XCUIApplication,
+        autoRefreshToggle: XCUIElement
+    ) {
+        if autoRefreshToggle.waitForExistence(timeout: 2) { return }
+        let deadline = Date().addingTimeInterval(8)
+        while Date() < deadline && autoRefreshToggle.exists == false {
+            waitForSettingsLoaded(app)
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
     }
 
     private func ensureSettingsTopVisible(_ app: XCUIApplication, autoRefreshToggle: XCUIElement) {
@@ -226,6 +324,7 @@ extension BaseUITestCase {
     private func revealSettingsTopOnMac(_ app: XCUIApplication) {
         if let scrollView = app.scrollViews.allElementsBoundByIndex.first {
             _ = scrollView.waitForExistence(timeout: 1)
+            guard scrollView.isHittable else { return }
             scrollView.swipeUp()
         }
     }
@@ -305,9 +404,11 @@ extension BaseUITestCase {
     }
 
     func waitForSettingsLoaded(_ app: XCUIApplication) {
-        let loading = app.staticTexts["Загружаем настройки…"]
-        if loading.exists {
-            _ = loading.waitForDisappearance(timeout: 5)
+        let loadingRu = app.staticTexts["Загружаем настройки…"]
+        let loadingEn = app.staticTexts["Loading settings..."]
+        if loadingRu.exists || loadingEn.exists {
+            _ = loadingRu.waitForDisappearance(timeout: 5)
+            _ = loadingEn.waitForDisappearance(timeout: 5)
         } else {
             RunLoop.current.run(until: Date().addingTimeInterval(0.5))
         }
@@ -361,6 +462,11 @@ extension XCUIElement {
     fileprivate func swipeDownIfExists() {
         guard exists else { return }
         swipeDown()
+    }
+
+    fileprivate func forceTap() {
+        let coordinate = self.coordinate(withNormalizedOffset: .init(dx: 0.5, dy: 0.5))
+        coordinate.tap()
     }
 
     fileprivate func dragToTop() {

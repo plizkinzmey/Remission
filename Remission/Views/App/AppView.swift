@@ -93,6 +93,7 @@ struct AppView: View {
                     ) {
                         store.send(.settingsButtonTapped)
                     }
+                    .keyboardShortcut(",", modifiers: .command)
                 }
             }
             .padding(.horizontal, 12)

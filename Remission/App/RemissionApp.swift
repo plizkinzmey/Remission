@@ -158,13 +158,16 @@ extension TransmissionClientBootstrap {
 
         func applicationDidFinishLaunching(_ notification: Notification) {
             Task { @MainActor in
+                let isUITesting = ProcessInfo.processInfo.environment["UI_TESTING"] == "1"
                 NSApp.activate(ignoringOtherApps: true)
                 for window in NSApp.windows {
                     window.contentMinSize = WindowConstants.minimumSize
                     window.makeKeyAndOrderFront(nil)
                 }
                 registerOpenFilesObserver()
-                applyInitialPresentationIfNeeded()
+                if isUITesting == false {
+                    applyInitialPresentationIfNeeded()
+                }
             }
         }
 
