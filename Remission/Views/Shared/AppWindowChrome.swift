@@ -78,7 +78,7 @@ struct AppFooterButtonStyle: ButtonStyle {
         case .accent:
             return AppTheme.accent.opacity(colorScheme == .dark ? 0.45 : 0.30)
         case .success:
-            return Color.green.opacity(colorScheme == .dark ? 0.40 : 0.26)
+            return Color.green.opacity(colorScheme == .dark ? 0.75 : 1.0)
         case .error:
             return Color.red.opacity(colorScheme == .dark ? 0.38 : 0.24)
         }
