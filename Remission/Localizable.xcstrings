@@ -680,6 +680,7 @@
       }
     },
     "onboarding.alert.insecureConnection.message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -696,6 +697,7 @@
       }
     },
     "onboarding.alert.insecureConnection.proceed" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -712,6 +714,7 @@
       }
     },
     "onboarding.alert.insecureConnection.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -840,6 +843,22 @@
         }
       }
     },
+    "onboarding.status.error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection error"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ошибка соединения"
+          }
+        }
+      }
+    },
     "onboarding.status.notTested" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -886,22 +905,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Соединение подтверждено"
-          }
-        }
-      }
-    },
-    "onboarding.status.error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection error"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка соединения"
           }
         }
       }
@@ -1980,6 +1983,38 @@
         }
       }
     },
+    "serverForm.password.hide" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide password"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скрыть пароль"
+          }
+        }
+      }
+    },
+    "serverForm.password.show" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show password"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показать пароль"
+          }
+        }
+      }
+    },
     "serverForm.placeholder.host" : {
       "localizations" : {
         "en" : {
@@ -2024,38 +2059,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Пароль"
-          }
-        }
-      }
-    },
-    "serverForm.password.hide" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide password"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Скрыть пароль"
-          }
-        }
-      }
-    },
-    "serverForm.password.show" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Show password"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Показать пароль"
           }
         }
       }
@@ -2141,6 +2144,7 @@
       }
     },
     "serverForm.section.security" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2157,6 +2161,7 @@
       }
     },
     "serverForm.security.allowUntrusted" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2173,6 +2178,7 @@
       }
     },
     "serverForm.security.httpWarning.message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2189,6 +2195,7 @@
       }
     },
     "serverForm.security.httpWarning.suppress" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2205,6 +2212,7 @@
       }
     },
     "serverForm.security.httpWarning.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5192,22 +5200,6 @@
         }
       }
     },
-    "torrentDetail.window.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Torrent details"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Подробности торрента"
-          }
-        }
-      }
-    },
     "torrentDetail.trackers.accessibility" : {
       "localizations" : {
         "en" : {
@@ -5300,6 +5292,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Трекеры (%lld)"
+          }
+        }
+      }
+    },
+    "torrentDetail.window.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Torrent details"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подробности торрента"
           }
         }
       }

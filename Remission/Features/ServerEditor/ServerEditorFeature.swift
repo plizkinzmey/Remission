@@ -10,7 +10,6 @@ struct ServerEditorReducer {
         var validationError: String?
         var isSaving: Bool = false
         var hasLoadedCredentials: Bool = false
-        var pendingWarningFingerprint: String?
         @Presents var alert: AlertState<AlertAction>?
 
         init(server: ServerConfig, password: String? = nil) {
@@ -33,8 +32,6 @@ struct ServerEditorReducer {
     }
 
     enum AlertAction: Equatable {
-        case insecureTransportConfirmed
-        case insecureTransportCancelled
         case errorDismissed
     }
 
@@ -49,31 +46,11 @@ struct ServerEditorReducer {
 
     @Dependency(\.credentialsRepository) var credentialsRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
-    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
-
     var body: some Reducer<State, Action> {
         BindingReducer()
 
         Reduce { state, action in
             switch action {
-            case .binding(\.form.transport):
-                state.validationError = nil
-                if state.form.transport == .https {
-                    state.form.suppressInsecureWarning = false
-                    state.pendingWarningFingerprint = nil
-                    return .none
-                }
-                return presentInsecureTransportWarning(state: &state)
-
-            case .binding(\.form.suppressInsecureWarning):
-                if let fingerprint = state.form.insecureFingerprint {
-                    httpWarningPreferencesStore.setSuppressed(
-                        fingerprint,
-                        state.form.suppressInsecureWarning
-                    )
-                }
-                return .none
-
             case .binding:
                 state.validationError = nil
                 return .none
@@ -102,7 +79,7 @@ struct ServerEditorReducer {
                     state.validationError = L10n.tr("onboarding.error.validation.hostPort")
                     return .none
                 }
-                return persistChanges(state: &state, forceAllowInsecureTransport: false)
+                return persistChanges(state: &state)
 
             case .cancelButtonTapped:
                 return .send(.delegate(.cancelled))
@@ -125,17 +102,6 @@ struct ServerEditorReducer {
                 }
                 return .none
 
-            case .alert(.presented(.insecureTransportConfirmed)):
-                state.alert = nil
-                state.pendingWarningFingerprint = nil
-                return persistChanges(state: &state, forceAllowInsecureTransport: true)
-
-            case .alert(.presented(.insecureTransportCancelled)):
-                state.alert = nil
-                state.pendingWarningFingerprint = nil
-                state.form.transport = .https
-                return .none
-
             case .alert(.presented(.errorDismissed)):
                 state.alert = nil
                 return .none
@@ -150,43 +116,10 @@ struct ServerEditorReducer {
         .ifLet(\.$alert, action: \.alert)
     }
 
-    private func presentInsecureTransportWarning(
+    private func persistChanges(
         state: inout State
     ) -> Effect<Action> {
-        guard state.form.transport == .http else { return .none }
-        guard let fingerprint = state.form.insecureFingerprint else { return .none }
-        if httpWarningPreferencesStore.isSuppressed(fingerprint) {
-            return .none
-        }
-        state.pendingWarningFingerprint = fingerprint
-        state.alert = makeInsecureTransportAlert()
-        return .none
-    }
-
-    private func persistChanges(
-        state: inout State,
-        forceAllowInsecureTransport: Bool
-    ) -> Effect<Action> {
         guard state.isSaving == false else { return .none }
-
-        if state.form.usesInsecureTransport {
-            if let fingerprint = state.form.insecureFingerprint {
-                if state.form.suppressInsecureWarning {
-                    httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-                }
-
-                if forceAllowInsecureTransport == false {
-                    let isSuppressed = httpWarningPreferencesStore.isSuppressed(fingerprint)
-                    if isSuppressed == false {
-                        state.pendingWarningFingerprint = fingerprint
-                        state.alert = makeInsecureTransportAlert()
-                        return .none
-                    }
-                } else {
-                    httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-                }
-            }
-        }
 
         let originalServer = state.server
         let updatedServer = state.form.makeServerConfig(
@@ -195,7 +128,6 @@ struct ServerEditorReducer {
         )
         let password = state.form.password.isEmpty ? nil : state.form.password
         state.validationError = nil
-        state.pendingWarningFingerprint = nil
         state.isSaving = true
 
         return .run { send in
@@ -223,23 +155,6 @@ struct ServerEditorReducer {
                     )
                 )
             }
-        }
-    }
-
-    private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
-        AlertState {
-            TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
-        } actions: {
-            ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
-            }
-            ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                TextState(L10n.tr("common.cancel"))
-            }
-        } message: {
-            TextState(
-                L10n.tr("onboarding.alert.insecureConnection.message")
-            )
         }
     }
 }

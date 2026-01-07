@@ -19,11 +19,10 @@ struct ServerConnectionFormState: Equatable, Sendable {
     var host: String = ""
     var port: String = "9091"
     var path: String = "/transmission/rpc"
-    var transport: Transport = .https
+    var transport: Transport = .http
     var allowUntrustedCertificates: Bool = false
     var username: String = ""
     var password: String = ""
-    var suppressInsecureWarning: Bool = false
 
     var trimmedHost: String {
         host.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -58,15 +57,6 @@ struct ServerConnectionFormState: Equatable, Sendable {
         transport == .http
     }
 
-    var insecureFingerprint: String? {
-        guard let port = portValue else { return nil }
-        return ServerConfig.makeFingerprint(
-            host: normalizedHost,
-            port: port,
-            username: username
-        )
-    }
-
     mutating func load(from server: ServerConfig, password: String?) {
         name = server.name
         host = server.connection.host
@@ -81,7 +71,6 @@ struct ServerConnectionFormState: Equatable, Sendable {
             allowUntrustedCertificates = allowUntrusted
         }
         username = server.authentication?.username ?? ""
-        suppressInsecureWarning = false
         self.password = password ?? ""
     }
 
