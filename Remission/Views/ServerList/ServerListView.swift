@@ -151,9 +151,9 @@ struct ServerListView: View {
             Button {
                 store.send(.addButtonTapped)
             } label: {
-                Label(L10n.tr("serverList.action.addServer"), systemImage: "plus")
+                Text(L10n.tr("serverList.action.addServer"))
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(EmptyStatePrimaryButtonStyle())
             .accessibilityIdentifier("server_list_add_button")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -334,6 +334,36 @@ private struct ConnectionStatusChipDescriptor {
             systemImage = "exclamationmark.triangle.fill"
             tint = .red
         }
+    }
+}
+
+private struct EmptyStatePrimaryButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline.weight(.semibold))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .frame(minHeight: 30)
+            .foregroundStyle(.white)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(accentFill.opacity(colorScheme == .dark ? 0.65 : 1.0))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
+            .opacity(configuration.isPressed ? 0.88 : 1)
+    }
+
+    private var accentFill: Color {
+        #if os(macOS)
+            return Color(nsColor: .controlAccentColor)
+        #else
+            return AppTheme.accent
+        #endif
     }
 }
 
