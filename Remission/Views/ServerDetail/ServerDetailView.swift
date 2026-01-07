@@ -173,7 +173,7 @@ struct ServerDetailView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
 
         private var macOSToolbarPillHeight: CGFloat { 34 }

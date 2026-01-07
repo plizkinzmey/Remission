@@ -112,7 +112,7 @@ extension TorrentListView {
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
     #endif
 
@@ -558,7 +558,7 @@ extension TorrentListView {
                 .padding(.horizontal, 12)
                 .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
                 .contentShape(Rectangle())
-                .appPillSurface()
+                .appToolbarPillSurface()
             }
             .accessibilityIdentifier("torrentlist_sort_picker")
             .buttonStyle(.plain)
