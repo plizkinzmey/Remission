@@ -170,22 +170,6 @@ struct ServerDetailView: View {
                 .accessibilityIdentifier("server_detail_edit_button")
                 .accessibilityLabel(L10n.tr("serverDetail.button.edit"))
 
-                Divider()
-                    .frame(height: 18)
-
-                Button {
-                    store.send(.settingsButtonTapped)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(width: 24, height: 24)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("server_detail_app_settings_button")
-                .accessibilityLabel(L10n.tr("app.action.settings"))
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)

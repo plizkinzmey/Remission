@@ -10,6 +10,7 @@ struct ServerListReducer {
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var onboarding: OnboardingReducer.State?
+        @Presents var editor: ServerEditorReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
         var pendingDeletion: ServerConfig?
@@ -25,6 +26,7 @@ struct ServerListReducer {
         case deleteConfirmation(PresentationAction<DeleteConfirmationAction>)
         case alert(PresentationAction<Alert>)
         case onboarding(PresentationAction<OnboardingReducer.Action>)
+        case editor(PresentationAction<ServerEditorReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
         case connectionProbeRequested(UUID)
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
@@ -44,7 +46,6 @@ struct ServerListReducer {
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
-        case serverEditRequested(ServerConfig)
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
@@ -90,7 +91,8 @@ struct ServerListReducer {
                 guard let server = state.servers[id: id] else {
                     return .none
                 }
-                return .send(.delegate(.serverEditRequested(server)))
+                state.editor = ServerEditorReducer.State(server: server)
+                return .none
 
             case .deleteButtonTapped(let id):
                 guard let server = state.servers[id: id] else { return .none }
@@ -144,6 +146,24 @@ struct ServerListReducer {
                 return .none
 
             case .onboarding:
+                return .none
+
+            case .editor(.presented(.delegate(.didUpdate(let server)))):
+                if let index = state.servers.index(id: server.id) {
+                    state.servers[index] = server
+                }
+                state.editor = nil
+                return .send(.connectionProbeRequested(server.id))
+
+            case .editor(.presented(.delegate(.cancelled))):
+                state.editor = nil
+                return .none
+
+            case .editor(.dismiss):
+                state.editor = nil
+                return .none
+
+            case .editor:
                 return .none
 
             case .serverRepositoryResponse(.success(let servers)):
@@ -236,6 +256,9 @@ struct ServerListReducer {
         .ifLet(\.$deleteConfirmation, action: \.deleteConfirmation)
         .ifLet(\.$onboarding, action: \.onboarding) {
             OnboardingReducer()
+        }
+        .ifLet(\.$editor, action: \.editor) {
+            ServerEditorReducer()
         }
     }
 

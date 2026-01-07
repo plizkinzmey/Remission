@@ -33,7 +33,7 @@ struct OnboardingView: View {
                         }
                         .accessibilityIdentifier("onboarding_cancel_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
-                        Button(L10n.tr("onboarding.action.saveServer")) {
+                        Button(L10n.tr("common.save")) {
                             store.send(.connectButtonTapped)
                         }
                         .disabled(store.isSaveButtonDisabled)
@@ -46,6 +46,20 @@ struct OnboardingView: View {
                 windowContent
                     .navigationTitle(L10n.tr("onboarding.title"))
                     .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button(checkConnectionButtonTitle) {
+                                if OnboardingViewEnvironment.isOnboardingUITest {
+                                    store.send(.uiTestBypassConnection)
+                                } else {
+                                    store.send(.checkConnectionButtonTapped)
+                                }
+                            }
+                            .disabled(
+                                store.connectionStatus == .testing
+                                    || store.form.isFormValid == false
+                            )
+                            .accessibilityIdentifier("onboarding_connection_check_button")
+                        }
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("onboarding.action.cancel")) {
                                 store.send(.cancelButtonTapped)
@@ -53,7 +67,7 @@ struct OnboardingView: View {
                             .accessibilityIdentifier("onboarding_cancel_button")
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("onboarding.action.saveServer")) {
+                            Button(L10n.tr("common.save")) {
                                 store.send(.connectButtonTapped)
                             }
                             .disabled(store.isSaveButtonDisabled)

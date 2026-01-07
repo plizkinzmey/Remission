@@ -292,6 +292,22 @@
         }
       }
     },
+    "common.save" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить"
+          }
+        }
+      }
+    },
     "diagnostics.alert.loadFailed.title" : {
       "localizations" : {
         "en" : {
@@ -664,6 +680,7 @@
       }
     },
     "onboarding.action.saveServer" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1936,6 +1953,7 @@
       }
     },
     "serverEditor.save" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

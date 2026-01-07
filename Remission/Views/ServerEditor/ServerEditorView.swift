@@ -13,6 +13,14 @@ struct ServerEditorView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     AppWindowFooterBar {
+                        Button(checkConnectionButtonTitle) {
+                            store.send(.checkConnectionButtonTapped)
+                        }
+                        .disabled(
+                            store.connectionStatus == .testing || store.form.isFormValid == false
+                        )
+                        .accessibilityIdentifier("server_editor_connection_check_button")
+                        .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
                         Spacer(minLength: 0)
                         Button(L10n.tr("common.cancel")) {
                             store.send(.cancelButtonTapped)
@@ -20,12 +28,12 @@ struct ServerEditorView: View {
                         .accessibilityIdentifier("server_editor_cancel_button")
                         .accessibilityHint(L10n.tr("common.cancel"))
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
-                        Button(L10n.tr("serverEditor.save")) {
+                        Button(L10n.tr("common.save")) {
                             store.send(.saveButtonTapped)
                         }
-                        .disabled(store.form.isFormValid == false || store.isSaving)
+                        .disabled(store.isSaveButtonDisabled)
                         .accessibilityIdentifier("server_editor_save_button")
-                        .accessibilityHint(L10n.tr("serverEditor.save"))
+                        .accessibilityHint(L10n.tr("common.save"))
                         .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
@@ -34,6 +42,16 @@ struct ServerEditorView: View {
                 windowContent
                     .navigationTitle(L10n.tr("serverEditor.title"))
                     .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button(checkConnectionButtonTitle) {
+                                store.send(.checkConnectionButtonTapped)
+                            }
+                            .disabled(
+                                store.connectionStatus == .testing
+                                    || store.form.isFormValid == false
+                            )
+                            .accessibilityIdentifier("server_editor_connection_check_button")
+                        }
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("common.cancel")) {
                                 store.send(.cancelButtonTapped)
@@ -42,12 +60,12 @@ struct ServerEditorView: View {
                             .accessibilityHint(L10n.tr("common.cancel"))
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("serverEditor.save")) {
+                            Button(L10n.tr("common.save")) {
                                 store.send(.saveButtonTapped)
                             }
-                            .disabled(store.form.isFormValid == false || store.isSaving)
+                            .disabled(store.isSaveButtonDisabled)
                             .accessibilityIdentifier("server_editor_save_button")
-                            .accessibilityHint(L10n.tr("serverEditor.save"))
+                            .accessibilityHint(L10n.tr("common.save"))
                         }
                     }
             #endif
@@ -64,6 +82,12 @@ struct ServerEditorView: View {
 
                     if let validationError = store.validationError {
                         Text(validationError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    if case .failed(let message) = store.connectionStatus {
+                        Text(message)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
@@ -89,6 +113,30 @@ struct ServerEditorView: View {
                             .fill(.ultraThinMaterial)
                     )
             }
+        }
+    }
+
+    private var checkConnectionButtonTitle: String {
+        switch store.connectionStatus {
+        case .idle:
+            return L10n.tr("onboarding.action.checkConnection")
+        case .testing:
+            return L10n.tr("onboarding.status.testing")
+        case .success:
+            return L10n.tr("onboarding.status.success")
+        case .failed:
+            return L10n.tr("onboarding.status.error")
+        }
+    }
+
+    private var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
+        switch store.connectionStatus {
+        case .success:
+            return .success
+        case .failed:
+            return .error
+        case .idle, .testing:
+            return .neutral
         }
     }
 }

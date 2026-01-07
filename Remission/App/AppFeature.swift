@@ -71,10 +71,6 @@ struct AppReducer {
                 state.path.append(ServerDetailReducer.State(server: server))
                 return .none
 
-            case .serverList(.delegate(.serverEditRequested(let server))):
-                state.path.append(ServerDetailReducer.State(server: server, startEditing: true))
-                return .none
-
             case .serverList(.serverRepositoryResponse(.success(let servers))):
                 guard let pendingURL = state.pendingTorrentFileURL else { return .none }
                 guard let targetServer = preferredServer(from: servers, in: state) else {
@@ -107,7 +103,7 @@ struct AppReducer {
                 return .none
 
             case .settingsButtonTapped:
-                guard state.settings == nil else { return .none }
+                guard state.settings == nil, state.path.isEmpty else { return .none }
                 return .run { send in
                     await send(
                         .settingsLoaded(

@@ -46,54 +46,53 @@ struct ServerListView: View {
             OnboardingView(store: onboardingStore)
                 .appRootChrome()
         }
+        .sheet(
+            store: store.scope(state: \.$editor, action: \.editor)
+        ) { editorStore in
+            ServerEditorView(store: editorStore)
+                .appRootChrome()
+        }
     }
 
     private var serverList: some View {
         #if os(macOS)
             ScrollView {
                 LazyVStack(spacing: 12) {
-                    ForEach(store.servers) { server in
-                        serverRow(server)
-                            .task {
-                                await store.send(.connectionProbeRequested(server.id)).finish()
-                            }
-                            .accessibilityLabel(server.name)
-                            .contextMenu {
-                                Button(L10n.tr("serverList.action.edit")) {
-                                    store.send(.editButtonTapped(server.id))
-                                }
-                                Button(L10n.tr("serverList.action.delete"), role: .destructive) {
-                                    store.send(.deleteButtonTapped(server.id))
-                                }
-                            }
-                    }
+                    serverRows
                 }
                 .padding(.top, 4)
             }
+            .scrollDisabled(store.servers.count <= 1)
         #else
             List {
-                ForEach(store.servers) { server in
-                    serverRow(server)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(.init(top: 8, leading: 0, bottom: 12, trailing: 0))
-                        .task {
-                            await store.send(.connectionProbeRequested(server.id)).finish()
-                        }
-                        .accessibilityLabel(server.name)
-                        .swipeActions(edge: .trailing) {
-                            Button(L10n.tr("serverList.action.delete"), role: .destructive) {
-                                store.send(.deleteButtonTapped(server.id))
-                            }
-                            Button(L10n.tr("serverList.action.edit")) {
-                                store.send(.editButtonTapped(server.id))
-                            }
-                            .tint(.blue)
-                        }
-                }
+                serverRows
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
         #endif
+    }
+
+    private var serverRows: some View {
+        ForEach(store.servers) { server in
+            serverRow(server)
+                .task {
+                    await store.send(.connectionProbeRequested(server.id)).finish()
+                }
+                .accessibilityLabel(server.name)
+                #if os(iOS)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(.init(top: 8, leading: 0, bottom: 12, trailing: 0))
+                    .swipeActions(edge: .trailing) {
+                        Button(L10n.tr("serverList.action.delete"), role: .destructive) {
+                            store.send(.deleteButtonTapped(server.id))
+                        }
+                        Button(L10n.tr("serverList.action.edit")) {
+                            store.send(.editButtonTapped(server.id))
+                        }
+                        .tint(.blue)
+                    }
+                #endif
+        }
     }
 
     private func serverRow(_ server: ServerConfig) -> some View {
@@ -127,6 +126,7 @@ struct ServerListView: View {
                 HStack(spacing: 10) {
                     connectionStatusChip(for: server)
                     securityBadge(for: server)
+                    editButton(for: server)
                     deleteButton(for: server)
                 }
             }
@@ -217,6 +217,27 @@ struct ServerListView: View {
         .buttonStyle(.plain)
         .foregroundStyle(.secondary)
         .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
+        .contentShape(Rectangle())
+    }
+
+    private func editButton(for server: ServerConfig) -> some View {
+        Button {
+            store.send(.editButtonTapped(server.id))
+        } label: {
+            Image(systemName: "pencil")
+                .font(.system(size: 14, weight: .semibold))
+                .frame(width: 24, height: 24)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .frame(height: macOSToolbarPillHeight)
+                .background(
+                    Capsule()
+                        .fill(Color.primary.opacity(0.08))
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .accessibilityLabel(L10n.tr("serverList.action.edit"))
         .contentShape(Rectangle())
     }
 
