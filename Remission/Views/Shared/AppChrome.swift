@@ -13,6 +13,10 @@ extension View {
     func appPillSurface() -> some View {
         modifier(AppPillSurfaceModifier())
     }
+
+    func appToolbarPillSurface() -> some View {
+        modifier(AppToolbarPillSurfaceModifier())
+    }
 }
 
 #if os(macOS)
@@ -115,5 +119,29 @@ private struct AppPillSurfaceModifier: ViewModifier {
                     .fill(AppTheme.Glass.tint(colorScheme))
                     .opacity(colorScheme == .dark ? 0.10 : 0.10)
             )
+    }
+}
+
+private struct AppToolbarPillSurfaceModifier: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .background(
+                Capsule(style: .continuous)
+                    .fill(toolbarFill)
+            )
+    }
+
+    private var toolbarFill: Color {
+        #if os(macOS)
+            return Color(nsColor: .windowBackgroundColor)
+        #else
+            switch colorScheme {
+            case .dark: return Color.black.opacity(0.35)
+            case .light: return Color.white.opacity(0.75)
+            @unknown default: return Color.black.opacity(0.35)
+            }
+        #endif
     }
 }

@@ -98,7 +98,7 @@ struct AppView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
 
         private func toolbarIconButton(
