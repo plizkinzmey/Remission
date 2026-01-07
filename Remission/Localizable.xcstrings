@@ -1773,54 +1773,6 @@
         }
       }
     },
-    "serverDetail.security.httpHint" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Data is transmitted without encryption. We recommend enabling HTTPS."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Данные передаются без шифрования. Рекомендуем включить HTTPS."
-          }
-        }
-      }
-    },
-    "serverDetail.security.https" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HTTPS connection"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HTTPS соединение"
-          }
-        }
-      }
-    },
-    "serverDetail.security.httpWarning" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HTTP (not secure)"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "HTTP (небезопасно)"
-          }
-        }
-      }
-    },
     "serverDetail.security.state.insecure" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -20,6 +20,10 @@ struct ServerConnectionFormFields: View {
             }
             .accessibilityIdentifier("server_form_transport_picker")
             .pickerStyle(.segmented)
+            #if os(macOS)
+                .controlSize(.large)
+                .tint(.blue)
+            #endif
 
             Divider()
 

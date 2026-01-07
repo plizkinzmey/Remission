@@ -8,8 +8,6 @@ import SwiftUI
 
 struct ServerListView: View {
     @Bindable var store: StoreOf<ServerListReducer>
-    @State private var popoverServerID: UUID?
-
     var body: some View {
         Group {
             if store.servers.isEmpty {
@@ -24,7 +22,7 @@ struct ServerListView: View {
                         )
                     )
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     serverList
                 }
@@ -107,10 +105,10 @@ struct ServerListView: View {
                                 .font(.headline)
                             Text(verbatim: "-")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary)
                             Text(server.displayAddress)
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(.primary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.9)
                         }
@@ -141,13 +139,13 @@ struct ServerListView: View {
             Image(systemName: "tray")
                 .imageScale(.large)
                 .font(.system(size: 48))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
             Text(L10n.tr("serverList.empty.title"))
                 .font(.title3)
                 .accessibilityIdentifier("server_list_empty_title")
             Text(L10n.tr("serverList.empty.message"))
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
             Button {
                 store.send(.addButtonTapped)
             } label: {
@@ -162,40 +160,22 @@ struct ServerListView: View {
     }
 
     private func securityBadge(for server: ServerConfig) -> some View {
-        Group {
-            if server.isSecure {
-                badgeLabel(
-                    text: L10n.tr("serverList.badge.https"),
-                    systemImage: "lock.fill",
-                    fill: Color.green.opacity(0.2),
-                    foreground: Color.green
-                )
-                .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
-                .help(L10n.tr("serverDetail.security.https"))
-            } else {
-                Button {
-                    popoverServerID = server.id
-                } label: {
-                    badgeLabel(
-                        text: L10n.tr("serverList.badge.http"),
-                        systemImage: "exclamationmark.triangle.fill",
-                        fill: Color.orange.opacity(0.25),
-                        foreground: Color.orange
-                    )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
-                .popover(
-                    isPresented: Binding(
-                        get: { popoverServerID == server.id },
-                        set: { newValue in
-                            popoverServerID = newValue ? server.id : nil
-                        }
-                    ), attachmentAnchor: .point(.trailing)
-                ) {
-                    securityInfoPopover(for: server)
-                }
-            }
+        if server.isSecure {
+            badgeLabel(
+                text: L10n.tr("serverList.badge.https"),
+                systemImage: "lock.shield.fill",
+                fill: Color.blue.opacity(0.18),
+                foreground: Color.blue
+            )
+            .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
+        } else {
+            badgeLabel(
+                text: L10n.tr("serverList.badge.http"),
+                systemImage: "globe",
+                fill: Color.orange.opacity(0.18),
+                foreground: Color.orange
+            )
+            .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
         }
     }
 
@@ -215,7 +195,7 @@ struct ServerListView: View {
                 )
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(.primary)
         .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
         .contentShape(Rectangle())
     }
@@ -236,7 +216,7 @@ struct ServerListView: View {
                 )
         }
         .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(.primary)
         .accessibilityLabel(L10n.tr("serverList.action.edit"))
         .contentShape(Rectangle())
     }
@@ -267,7 +247,7 @@ struct ServerListView: View {
             if description.isEmpty {
                 Text(rpcText)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
             } else {
                 HStack(spacing: 6) {
                     Text(L10n.tr("serverList.transmissionVersionLabel"))
@@ -275,43 +255,16 @@ struct ServerListView: View {
                     Text(rpcText)
                 }
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
             }
         case .failed(let message):
             Text(message)
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
                 .lineLimit(2)
         default:
             EmptyView()
         }
-    }
-
-    @ViewBuilder
-    private func securityInfoPopover(for server: ServerConfig) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                if server.isSecure {
-                    Image(systemName: "lock.fill")
-                        .foregroundStyle(.green)
-                    Text(L10n.tr("serverDetail.security.https"))
-                        .font(.headline)
-                } else {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
-                    Text(L10n.tr("serverDetail.security.httpWarning"))
-                        .font(.headline)
-                }
-                Spacer()
-            }
-            if server.isSecure == false {
-                Text(L10n.tr("serverDetail.security.httpHint"))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding()
-        .frame(minWidth: 240)
     }
 
     private func badgeLabel(
@@ -345,7 +298,7 @@ private struct ConnectionStatusChipDescriptor {
         case .idle, .probing:
             label = L10n.tr("serverDetail.status.connecting")
             systemImage = "arrow.clockwise"
-            tint = .secondary
+            tint = .blue
         case .connected:
             label = L10n.tr("serverDetail.status.connected")
             systemImage = "checkmark.circle.fill"
