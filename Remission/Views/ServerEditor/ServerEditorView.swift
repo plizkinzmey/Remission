@@ -26,7 +26,7 @@ struct ServerEditorView: View {
                         .disabled(store.form.isFormValid == false || store.isSaving)
                         .accessibilityIdentifier("server_editor_save_button")
                         .accessibilityHint(L10n.tr("serverEditor.save"))
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)

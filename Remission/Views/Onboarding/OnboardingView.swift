@@ -38,7 +38,7 @@ struct OnboardingView: View {
                         }
                         .disabled(store.isSaveButtonDisabled)
                         .accessibilityIdentifier("onboarding_submit_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
@@ -80,6 +80,12 @@ struct OnboardingView: View {
 
                     if let validationError = store.validationError {
                         Text(validationError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    if case .failed(let message) = store.connectionStatus {
+                        Text(message)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }

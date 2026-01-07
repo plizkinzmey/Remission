@@ -82,7 +82,7 @@ private struct AppCardSurfaceModifier: ViewModifier {
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                             .fill(AppTheme.Glass.tint(colorScheme))
-                            .opacity(colorScheme == .dark ? 0.12 : 0.06)
+                            .opacity(colorScheme == .dark ? 0.12 : 0.10)
                     )
             )
             .overlay(
@@ -113,7 +113,7 @@ private struct AppPillSurfaceModifier: ViewModifier {
             .overlay(
                 Capsule(style: .continuous)
                     .fill(AppTheme.Glass.tint(colorScheme))
-                    .opacity(colorScheme == .dark ? 0.10 : 0.06)
+                    .opacity(colorScheme == .dark ? 0.10 : 0.10)
             )
     }
 }

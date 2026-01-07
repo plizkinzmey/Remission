@@ -97,3 +97,50 @@ struct AppFooterButtonStyle: ButtonStyle {
         }
     }
 }
+
+struct AppPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline.weight(.semibold))
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+            .frame(minHeight: 30)
+            .foregroundStyle(isEnabled ? .white : .white.opacity(0.85))
+            .background(
+                Capsule(style: .continuous)
+                    .fill(primaryFill)
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(primaryStroke)
+            )
+            .shadow(color: primaryShadow, radius: 6, x: 0, y: 2)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+    }
+
+    private var primaryFill: Color {
+        if isEnabled {
+            return accentFill.opacity(colorScheme == .dark ? 0.75 : 1.0)
+        }
+        return accentFill.opacity(colorScheme == .dark ? 0.45 : 0.55)
+    }
+
+    private var primaryStroke: Color {
+        accentFill.opacity(isEnabled ? (colorScheme == .dark ? 0.25 : 0.45) : 0.25)
+    }
+
+    private var primaryShadow: Color {
+        accentFill.opacity(isEnabled ? (colorScheme == .dark ? 0.35 : 0.25) : 0.0)
+    }
+
+    private var accentFill: Color {
+        #if os(macOS)
+            return Color(nsColor: .controlAccentColor)
+        #else
+            return AppTheme.accent
+        #endif
+    }
+}
