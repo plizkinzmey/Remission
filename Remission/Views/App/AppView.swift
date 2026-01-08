@@ -15,14 +15,11 @@ struct AppView: View {
             .navigationTitle(L10n.tr("app.title"))
             .toolbar {
                 #if os(macOS)
-                    if shouldShowAddServerToolbarButton || shouldShowSettingsToolbarButton {
+                    if shouldShowAddServerToolbarButton {
                         ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
                     }
                 #else
                     ToolbarItemGroup(placement: .topBarTrailing) {
-                        if shouldShowSettingsToolbarButton {
-                            settingsButton
-                        }
                         if shouldShowAddServerToolbarButton {
                             addServerButton
                         }
@@ -42,11 +39,6 @@ struct AppView: View {
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
-        .sheet(
-            store: store.scope(state: \.$settings, action: \.settings)
-        ) { settingsStore in
-            SettingsView(store: settingsStore)
-        }
     }
 
     private var addServerButton: some View {
@@ -57,15 +49,6 @@ struct AppView: View {
         }
         .accessibilityIdentifier("app_add_server_button")
         .accessibilityHint(L10n.tr("serverList.action.addServer"))
-    }
-
-    private var settingsButton: some View {
-        Button {
-            store.send(.settingsButtonTapped)
-        } label: {
-            Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
-        }
-        .accessibilityIdentifier("app_settings_button")
     }
 
     #if os(macOS)
@@ -81,20 +64,6 @@ struct AppView: View {
                     .accessibilityHint(L10n.tr("serverList.action.addServer"))
                 }
 
-                if shouldShowAddServerToolbarButton && shouldShowSettingsToolbarButton {
-                    Divider()
-                        .frame(height: 18)
-                }
-
-                if shouldShowSettingsToolbarButton {
-                    toolbarIconButton(
-                        systemImage: "gearshape",
-                        accessibilityIdentifier: "app_settings_button"
-                    ) {
-                        store.send(.settingsButtonTapped)
-                    }
-                    .keyboardShortcut(",", modifiers: .command)
-                }
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
@@ -123,10 +92,6 @@ struct AppView: View {
 
     private var shouldShowAddServerToolbarButton: Bool {
         store.serverList.servers.isEmpty == false
-    }
-
-    private var shouldShowSettingsToolbarButton: Bool {
-        store.serverList.servers.isEmpty == false && store.path.isEmpty
     }
 }
 

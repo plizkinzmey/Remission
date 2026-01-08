@@ -14,6 +14,7 @@ struct ServerDetailReducer {
         @Presents var alert: AlertState<AlertAction>?
         var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
         @Presents var editor: ServerEditorReducer.State?
+        @Presents var settings: SettingsReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
         @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
@@ -52,6 +53,7 @@ struct ServerDetailReducer {
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
+        case settings(PresentationAction<SettingsReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
         case addTorrentSource(PresentationAction<AddTorrentSourceReducer.Action>)
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
@@ -78,7 +80,6 @@ struct ServerDetailReducer {
         case serverUpdated(ServerConfig)
         case serverDeleted(UUID)
         case torrentSelected(Torrent.Identifier)
-        case openSettingsRequested
     }
 
     @Dependency(\.credentialsRepository) var credentialsRepository
@@ -96,8 +97,8 @@ struct ServerDetailReducer {
             switch action {
             case .task:
                 return .merge(
-                    loadPreferences(),
-                    observePreferences(),
+                    loadPreferences(serverID: state.server.id),
+                    observePreferences(serverID: state.server.id),
                     startConnectionIfNeeded(state: &state),
                     .send(.torrentList(.restoreCachedSnapshot))
                 )
@@ -115,7 +116,11 @@ struct ServerDetailReducer {
                 return .none
 
             case .settingsButtonTapped:
-                return .send(.delegate(.openSettingsRequested))
+                state.settings = SettingsReducer.State(
+                    serverID: state.server.id,
+                    serverName: state.server.name
+                )
+                return .none
 
             case .deleteButtonTapped:
                 state.alert = makeDeleteAlert()
@@ -394,6 +399,19 @@ struct ServerDetailReducer {
             case .addTorrent:
                 return .none
 
+            case .settings(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.settings(.presented(.teardown))),
+                    .send(.settings(.dismiss))
+                )
+
+            case .settings(.dismiss):
+                state.settings = nil
+                return .none
+
+            case .settings(.presented):
+                return .none
+
             case .userPreferencesResponse(.success(let preferences)):
                 state.preferences = preferences
                 return .merge(
@@ -417,6 +435,9 @@ struct ServerDetailReducer {
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$editor, action: \.editor) {
             ServerEditorReducer()
+        }
+        .ifLet(\.$settings, action: \.settings) {
+            SettingsReducer()
         }
         .ifLet(\.$torrentDetail, action: \.torrentDetail) {
             TorrentDetailReducer()
@@ -555,12 +576,12 @@ struct ServerDetailReducer {
         return false
     }
 
-    private func loadPreferences() -> Effect<Action> {
+    private func loadPreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
             await send(
                 .userPreferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.load()
+                        try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
@@ -568,9 +589,9 @@ struct ServerDetailReducer {
         .cancellable(id: ConnectionCancellationID.preferences, cancelInFlight: true)
     }
 
-    private func observePreferences() -> Effect<Action> {
+    private func observePreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
-            let stream = userPreferencesRepository.observe()
+            let stream = userPreferencesRepository.observe(serverID: serverID)
             for await preferences in stream {
                 await send(.userPreferencesResponse(.success(preferences)))
             }

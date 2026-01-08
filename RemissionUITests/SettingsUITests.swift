@@ -35,6 +35,10 @@ final class SettingsUITests: BaseUITestCase {
         reset: Bool
     ) -> (XCUIApplication, SettingsControls) {
         let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ],
             environment: makePreferencesEnvironment(
                 suiteName: suiteName,
                 reset: reset

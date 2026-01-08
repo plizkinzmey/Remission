@@ -8,36 +8,48 @@ import Foundation
 
 /// Контракт доступа к пользовательским настройкам Remission.
 protocol UserPreferencesRepositoryProtocol: Sendable {
-    func load() async throws -> UserPreferences
-    func updatePollingInterval(_ interval: TimeInterval) async throws -> UserPreferences
-    func setAutoRefreshEnabled(_ isEnabled: Bool) async throws -> UserPreferences
-    func setTelemetryEnabled(_ isEnabled: Bool) async throws -> UserPreferences
+    func load(serverID: UUID) async throws -> UserPreferences
+    func updatePollingInterval(
+        serverID: UUID,
+        _ interval: TimeInterval
+    ) async throws -> UserPreferences
+    func setAutoRefreshEnabled(
+        serverID: UUID,
+        _ isEnabled: Bool
+    ) async throws -> UserPreferences
+    func setTelemetryEnabled(
+        serverID: UUID,
+        _ isEnabled: Bool
+    ) async throws -> UserPreferences
     func updateDefaultSpeedLimits(
+        serverID: UUID,
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences
     /// Наблюдает за изменениями настроек и возвращает поток актуальных значений.
-    func observe() -> AsyncStream<UserPreferences>
+    func observe(serverID: UUID) -> AsyncStream<UserPreferences>
 }
 
 /// Обёртка, предоставляющая зависимости через `DependencyKey`.
 struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
-    var loadClosure: @Sendable () async throws -> UserPreferences
-    var updatePollingIntervalClosure: @Sendable (TimeInterval) async throws -> UserPreferences
-    var setAutoRefreshEnabledClosure: @Sendable (Bool) async throws -> UserPreferences
-    var setTelemetryEnabledClosure: @Sendable (Bool) async throws -> UserPreferences
+    var loadClosure: @Sendable (UUID) async throws -> UserPreferences
+    var updatePollingIntervalClosure: @Sendable (UUID, TimeInterval) async throws -> UserPreferences
+    var setAutoRefreshEnabledClosure: @Sendable (UUID, Bool) async throws -> UserPreferences
+    var setTelemetryEnabledClosure: @Sendable (UUID, Bool) async throws -> UserPreferences
     var updateDefaultSpeedLimitsClosure:
-        @Sendable (UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
-    var observeClosure: @Sendable () -> AsyncStream<UserPreferences>
+        @Sendable (UUID, UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
+    var observeClosure: @Sendable (UUID) -> AsyncStream<UserPreferences>
 
     init(
-        load: @escaping @Sendable () async throws -> UserPreferences,
-        updatePollingInterval: @escaping @Sendable (TimeInterval) async throws -> UserPreferences,
-        setAutoRefreshEnabled: @escaping @Sendable (Bool) async throws -> UserPreferences,
-        setTelemetryEnabled: @escaping @Sendable (Bool) async throws -> UserPreferences,
+        load: @escaping @Sendable (UUID) async throws -> UserPreferences,
+        updatePollingInterval:
+            @escaping @Sendable (UUID, TimeInterval) async throws
+            -> UserPreferences,
+        setAutoRefreshEnabled: @escaping @Sendable (UUID, Bool) async throws -> UserPreferences,
+        setTelemetryEnabled: @escaping @Sendable (UUID, Bool) async throws -> UserPreferences,
         updateDefaultSpeedLimits:
-            @escaping @Sendable (UserPreferences.DefaultSpeedLimits)
+            @escaping @Sendable (UUID, UserPreferences.DefaultSpeedLimits)
             async throws -> UserPreferences,
-        observe: @escaping @Sendable () -> AsyncStream<UserPreferences>
+        observe: @escaping @Sendable (UUID) -> AsyncStream<UserPreferences>
     ) {
         self.loadClosure = load
         self.updatePollingIntervalClosure = updatePollingInterval
@@ -47,30 +59,40 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         self.observeClosure = observe
     }
 
-    func load() async throws -> UserPreferences {
-        try await loadClosure()
+    func load(serverID: UUID) async throws -> UserPreferences {
+        try await loadClosure(serverID)
     }
 
-    func updatePollingInterval(_ interval: TimeInterval) async throws -> UserPreferences {
-        try await updatePollingIntervalClosure(interval)
+    func updatePollingInterval(
+        serverID: UUID,
+        _ interval: TimeInterval
+    ) async throws -> UserPreferences {
+        try await updatePollingIntervalClosure(serverID, interval)
     }
 
-    func setAutoRefreshEnabled(_ isEnabled: Bool) async throws -> UserPreferences {
-        try await setAutoRefreshEnabledClosure(isEnabled)
+    func setAutoRefreshEnabled(
+        serverID: UUID,
+        _ isEnabled: Bool
+    ) async throws -> UserPreferences {
+        try await setAutoRefreshEnabledClosure(serverID, isEnabled)
     }
 
-    func setTelemetryEnabled(_ isEnabled: Bool) async throws -> UserPreferences {
-        try await setTelemetryEnabledClosure(isEnabled)
+    func setTelemetryEnabled(
+        serverID: UUID,
+        _ isEnabled: Bool
+    ) async throws -> UserPreferences {
+        try await setTelemetryEnabledClosure(serverID, isEnabled)
     }
 
     func updateDefaultSpeedLimits(
+        serverID: UUID,
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences {
-        try await updateDefaultSpeedLimitsClosure(limits)
+        try await updateDefaultSpeedLimitsClosure(serverID, limits)
     }
 
-    func observe() -> AsyncStream<UserPreferences> {
-        observeClosure()
+    func observe(serverID: UUID) -> AsyncStream<UserPreferences> {
+        observeClosure(serverID)
     }
 }
 
@@ -104,8 +126,8 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
     /// Используется телеметрическими клиентами, чтобы не отправлять события без опт-ина.
     @DependencyClient
     struct TelemetryConsentDependency: Sendable {
-        var isTelemetryEnabled: @Sendable () async throws -> Bool = { false }
-        var observeTelemetryEnabled: @Sendable () -> AsyncStream<Bool> = {
+        var isTelemetryEnabled: @Sendable (UUID) async throws -> Bool = { _ in false }
+        var observeTelemetryEnabled: @Sendable (UUID) -> AsyncStream<Bool> = { _ in
             AsyncStream { continuation in
                 continuation.finish()
             }
@@ -114,8 +136,8 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
 
     extension TelemetryConsentDependency {
         static let placeholder: Self = Self(
-            isTelemetryEnabled: { false },
-            observeTelemetryEnabled: {
+            isTelemetryEnabled: { _ in false },
+            observeTelemetryEnabled: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }
@@ -125,21 +147,21 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
 
     extension TelemetryConsentDependency: DependencyKey {
         static let liveValue: Self = Self(
-            isTelemetryEnabled: {
+            isTelemetryEnabled: { serverID in
                 @Dependency(\.userPreferencesRepository) var userPreferencesRepository
                 let repository = userPreferencesRepository
-                let preferences = try await repository.load()
+                let preferences = try await repository.load(serverID: serverID)
                 return preferences.isTelemetryEnabled
             },
-            observeTelemetryEnabled: {
+            observeTelemetryEnabled: { serverID in
                 @Dependency(\.userPreferencesRepository) var userPreferencesRepository
                 let repository = userPreferencesRepository
                 return AsyncStream { continuation in
                     let task = Task {
-                        if let initial = try? await repository.load() {
+                        if let initial = try? await repository.load(serverID: serverID) {
                             continuation.yield(initial.isTelemetryEnabled)
                         }
-                        let stream = repository.observe()
+                        let stream = repository.observe(serverID: serverID)
                         for await preferences in stream {
                             continuation.yield(preferences.isTelemetryEnabled)
                         }
@@ -166,28 +188,28 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
 
 extension UserPreferencesRepository {
     static let placeholder: UserPreferencesRepository = UserPreferencesRepository(
-        load: { .default },
-        updatePollingInterval: { interval in
+        load: { _ in .default },
+        updatePollingInterval: { _, interval in
             var preferences: UserPreferences = .default
             preferences.pollingInterval = interval
             return preferences
         },
-        setAutoRefreshEnabled: { isEnabled in
+        setAutoRefreshEnabled: { _, isEnabled in
             var preferences: UserPreferences = .default
             preferences.isAutoRefreshEnabled = isEnabled
             return preferences
         },
-        setTelemetryEnabled: { isEnabled in
+        setTelemetryEnabled: { _, isEnabled in
             var preferences: UserPreferences = .default
             preferences.isTelemetryEnabled = isEnabled
             return preferences
         },
-        updateDefaultSpeedLimits: { limits in
+        updateDefaultSpeedLimits: { _, limits in
             var preferences: UserPreferences = .default
             preferences.defaultSpeedLimits = limits
             return preferences
         },
-        observe: {
+        observe: { _ in
             AsyncStream { continuation in
                 continuation.finish()
             }
@@ -195,22 +217,22 @@ extension UserPreferencesRepository {
     )
 
     static let unimplemented: UserPreferencesRepository = UserPreferencesRepository(
-        load: {
+        load: { _ in
             throw UserPreferencesRepositoryError.notConfigured("load")
         },
-        updatePollingInterval: { _ in
+        updatePollingInterval: { _, _ in
             throw UserPreferencesRepositoryError.notConfigured("updatePollingInterval")
         },
-        setAutoRefreshEnabled: { _ in
+        setAutoRefreshEnabled: { _, _ in
             throw UserPreferencesRepositoryError.notConfigured("setAutoRefreshEnabled")
         },
-        setTelemetryEnabled: { _ in
+        setTelemetryEnabled: { _, _ in
             throw UserPreferencesRepositoryError.notConfigured("setTelemetryEnabled")
         },
-        updateDefaultSpeedLimits: { _ in
+        updateDefaultSpeedLimits: { _, _ in
             throw UserPreferencesRepositoryError.notConfigured("updateDefaultSpeedLimits")
         },
-        observe: {
+        observe: { _ in
             AsyncStream { continuation in
                 continuation.finish()
             }

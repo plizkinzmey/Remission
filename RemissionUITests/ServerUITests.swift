@@ -56,6 +56,10 @@ final class ServerUITests: BaseUITestCase {
     func testSettingsScreenShowsControlsAndAllowsEditing() {
         let suiteName = "ui-settings-smoke"
         let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ],
             environment: [
                 "UI_TESTING_PREFERENCES_SUITE": suiteName,
                 "UI_TESTING_RESET_PREFERENCES": "1"

@@ -4,7 +4,12 @@ import XCTest
 final class DiagnosticsUITests: BaseUITestCase {
     // swiftlint:disable:next function_body_length
     func testDiagnosticsOfflineBadgeAndClear() {
-        let app = launchApp(arguments: ["--ui-testing-scenario=diagnostics-sample"])
+        let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=diagnostics-sample"
+            ]
+        )
         _ = openSettingsControls(app)
         waitForSettingsLoaded(app)
 

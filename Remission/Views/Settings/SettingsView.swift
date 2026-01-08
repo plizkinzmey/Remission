@@ -294,21 +294,26 @@ struct SettingsView: View {
 }
 
 #Preview {
-    NavigationStack {
+    let previewState: SettingsReducer.State = {
+        var state = SettingsReducer.State(
+            serverID: UUID(),
+            serverName: "Preview Server",
+            isLoading: false
+        )
+        state.pollingIntervalSeconds = 3
+        state.isAutoRefreshEnabled = true
+        state.isTelemetryEnabled = false
+        state.persistedPreferences = UserPreferences.default
+        state.defaultSpeedLimits = .init(
+            downloadKilobytesPerSecond: 2_048,
+            uploadKilobytesPerSecond: 1_024
+        )
+        return state
+    }()
+
+    return NavigationStack {
         SettingsView(
-            store: Store(
-                initialState: SettingsReducer.State(
-                    isLoading: false,
-                    pollingIntervalSeconds: 3,
-                    isAutoRefreshEnabled: true,
-                    isTelemetryEnabled: false,
-                    persistedPreferences: UserPreferences.default,
-                    defaultSpeedLimits: .init(
-                        downloadKilobytesPerSecond: 2_048,
-                        uploadKilobytesPerSecond: 1_024
-                    )
-                )
-            ) {
+            store: Store(initialState: previewState) {
                 SettingsReducer()
             } withDependencies: {
                 $0.userPreferencesRepository = .placeholder

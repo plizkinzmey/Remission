@@ -1,6 +1,6 @@
 import Foundation
 
-/// Пользовательские настройки приложения Remission.
+/// Пользовательские настройки Remission, привязанные к конкретному серверу.
 /// Хранят значения, влияющие на периодичность обновлений и дефолтные лимиты скоростей.
 struct UserPreferences: Equatable, Sendable, Codable {
     static let currentVersion: Int = 2

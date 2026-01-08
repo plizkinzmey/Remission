@@ -6,6 +6,8 @@ import Foundation
 struct SettingsReducer {
     @ObservableState
     struct State: Equatable {
+        var serverID: UUID
+        var serverName: String
         var isLoading: Bool = true
         var pollingIntervalSeconds: Double = 5
         var isAutoRefreshEnabled: Bool = true
@@ -17,6 +19,16 @@ struct SettingsReducer {
         )
         @Presents var alert: AlertState<AlertAction>?
         @Presents var diagnostics: DiagnosticsReducer.State?
+
+        init(
+            serverID: UUID,
+            serverName: String,
+            isLoading: Bool = true
+        ) {
+            self.serverID = serverID
+            self.serverName = serverName
+            self.isLoading = isLoading
+        }
     }
 
     enum Action: Equatable {
@@ -60,12 +72,12 @@ struct SettingsReducer {
                 state.alert = nil
                 if state.persistedPreferences != nil {
                     state.isLoading = false
-                    return observePreferences()
+                    return observePreferences(serverID: state.serverID)
                 }
                 state.isLoading = true
                 return .merge(
-                    loadPreferences(),
-                    observePreferences()
+                    loadPreferences(serverID: state.serverID),
+                    observePreferences(serverID: state.serverID)
                 )
 
             case .teardown:
@@ -83,23 +95,23 @@ struct SettingsReducer {
 
             case .pollingIntervalChanged(let seconds):
                 state.pollingIntervalSeconds = seconds
-                return updatePollingInterval(seconds)
+                return updatePollingInterval(state.serverID, seconds)
 
             case .autoRefreshToggled(let isEnabled):
                 state.isAutoRefreshEnabled = isEnabled
-                return setAutoRefreshEnabled(isEnabled)
+                return setAutoRefreshEnabled(state.serverID, isEnabled)
 
             case .telemetryToggled(let isEnabled):
                 state.isTelemetryEnabled = isEnabled
-                return setTelemetryEnabled(isEnabled)
+                return setTelemetryEnabled(state.serverID, isEnabled)
 
             case .downloadLimitChanged(let value):
                 state.defaultSpeedLimits.downloadKilobytesPerSecond = parse(limit: value)
-                return updateDefaultSpeedLimits(state.defaultSpeedLimits)
+                return updateDefaultSpeedLimits(state.serverID, state.defaultSpeedLimits)
 
             case .uploadLimitChanged(let value):
                 state.defaultSpeedLimits.uploadKilobytesPerSecond = parse(limit: value)
-                return updateDefaultSpeedLimits(state.defaultSpeedLimits)
+                return updateDefaultSpeedLimits(state.serverID, state.defaultSpeedLimits)
 
             case .preferencesResponse(.success(let preferences)):
                 state.isLoading = false
@@ -173,21 +185,21 @@ struct SettingsReducer {
         }
     }
 
-    private func loadPreferences() -> Effect<Action> {
+    private func loadPreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.load()
+                        try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
         }
     }
 
-    private func observePreferences() -> Effect<Action> {
+    private func observePreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
-            let stream = userPreferencesRepository.observe()
+            let stream = userPreferencesRepository.observe(serverID: serverID)
             for await preferences in stream {
                 await send(.preferencesResponse(.success(preferences)))
             }
@@ -195,12 +207,18 @@ struct SettingsReducer {
         .cancellable(id: CancelID.observation, cancelInFlight: true)
     }
 
-    private func updatePollingInterval(_ seconds: Double) -> Effect<Action> {
+    private func updatePollingInterval(
+        _ serverID: UUID,
+        _ seconds: Double
+    ) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.updatePollingInterval(seconds)
+                        try await userPreferencesRepository.updatePollingInterval(
+                            serverID: serverID,
+                            seconds
+                        )
                     }
                 )
             )
@@ -208,12 +226,18 @@ struct SettingsReducer {
         .cancellable(id: CancelID.updatePollingInterval, cancelInFlight: true)
     }
 
-    private func setAutoRefreshEnabled(_ isEnabled: Bool) -> Effect<Action> {
+    private func setAutoRefreshEnabled(
+        _ serverID: UUID,
+        _ isEnabled: Bool
+    ) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.setAutoRefreshEnabled(isEnabled)
+                        try await userPreferencesRepository.setAutoRefreshEnabled(
+                            serverID: serverID,
+                            isEnabled
+                        )
                     }
                 )
             )
@@ -221,12 +245,18 @@ struct SettingsReducer {
         .cancellable(id: CancelID.setAutoRefresh, cancelInFlight: true)
     }
 
-    private func setTelemetryEnabled(_ isEnabled: Bool) -> Effect<Action> {
+    private func setTelemetryEnabled(
+        _ serverID: UUID,
+        _ isEnabled: Bool
+    ) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.setTelemetryEnabled(isEnabled)
+                        try await userPreferencesRepository.setTelemetryEnabled(
+                            serverID: serverID,
+                            isEnabled
+                        )
                     }
                 )
             )
@@ -235,13 +265,17 @@ struct SettingsReducer {
     }
 
     private func updateDefaultSpeedLimits(
+        _ serverID: UUID,
         _ limits: UserPreferences.DefaultSpeedLimits
     ) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.updateDefaultSpeedLimits(limits)
+                        try await userPreferencesRepository.updateDefaultSpeedLimits(
+                            serverID: serverID,
+                            limits
+                        )
                     }
                 )
             )

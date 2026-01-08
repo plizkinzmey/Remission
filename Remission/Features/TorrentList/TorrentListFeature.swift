@@ -228,9 +228,12 @@ struct TorrentListReducer {
                 if state.items.isEmpty {
                     state.phase = .loading
                 }
+                guard let serverID = state.serverID else {
+                    return .send(.restoreCachedSnapshot)
+                }
                 return .merge(
-                    loadPreferences(),
-                    observePreferences(),
+                    loadPreferences(serverID: serverID),
+                    observePreferences(serverID: serverID),
                     .send(.restoreCachedSnapshot)
                 )
 

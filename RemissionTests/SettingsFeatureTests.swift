@@ -12,13 +12,14 @@ extension SettingsFeatureTests {
     @Test("task загружает настройки и показывает значения")
     func taskLoadsPreferences() async {
         let preferences = DomainFixtures.userPreferences
+        let serverID = UUID()
         let repository = UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
+            load: { _ in preferences },
+            updatePollingInterval: { _, _ in preferences },
+            setAutoRefreshEnabled: { _, _ in preferences },
+            setTelemetryEnabled: { _, _ in preferences },
+            updateDefaultSpeedLimits: { _, _ in preferences },
+            observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }
@@ -26,7 +27,10 @@ extension SettingsFeatureTests {
         )
 
         let store = TestStore(
-            initialState: SettingsReducer.State()
+            initialState: SettingsReducer.State(
+                serverID: serverID,
+                serverName: "Server"
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
@@ -48,22 +52,23 @@ extension SettingsFeatureTests {
     @Test("изменение интервала вызывает updatePollingInterval")
     func changingPollingIntervalSavesPreference() async {
         let preferences = DomainFixtures.userPreferences
+        let serverID = UUID()
         let intervalRecorder = LockedValue<[Double]>([])
         let continuationBox = PreferencesContinuationBox()
 
         let repository = UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { interval in
+            load: { _ in preferences },
+            updatePollingInterval: { _, interval in
                 intervalRecorder.withValue { $0.append(interval) }
                 var updated = preferences
                 updated.pollingInterval = interval
                 await continuationBox.yield(updated)
                 return updated
             },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
+            setAutoRefreshEnabled: { _, _ in preferences },
+            setTelemetryEnabled: { _, _ in preferences },
+            updateDefaultSpeedLimits: { _, _ in preferences },
+            observe: { _ in
                 AsyncStream { cont in
                     Task {
                         await continuationBox.set(cont)
@@ -73,7 +78,11 @@ extension SettingsFeatureTests {
         )
 
         let store = TestStore(
-            initialState: SettingsReducer.State(isLoading: false)
+            initialState: SettingsReducer.State(
+                serverID: serverID,
+                serverName: "Server",
+                isLoading: false
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
@@ -104,6 +113,7 @@ extension SettingsFeatureTests {
     @Test("изменение лимитов скорости сохраняет и обновляет состояние")
     func changingSpeedLimitsSavesPreference() async {
         let preferences = DomainFixtures.userPreferences
+        let serverID = UUID()
         let limitsRecorder = LockedValue<[UserPreferences.DefaultSpeedLimits]>([])
 
         let repository = makeFinishedRepository(preferences: preferences) { limits in
@@ -113,7 +123,11 @@ extension SettingsFeatureTests {
             return updated
         }
 
-        var initialState = SettingsReducer.State(isLoading: false)
+        var initialState = SettingsReducer.State(
+            serverID: serverID,
+            serverName: "Server",
+            isLoading: false
+        )
         initialState.defaultSpeedLimits = preferences.defaultSpeedLimits
 
         let store = TestStore(
@@ -162,22 +176,23 @@ extension SettingsFeatureTests {
     @Test("переключатель телеметрии сохраняет значение")
     func telemetryToggleSavesPreference() async {
         let preferences = DomainFixtures.userPreferences
+        let serverID = UUID()
         let toggleRecorder = LockedValue<[Bool]>([])
         let continuationBox = PreferencesContinuationBox()
 
         let repository = UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { isEnabled in
+            load: { _ in preferences },
+            updatePollingInterval: { _, _ in preferences },
+            setAutoRefreshEnabled: { _, _ in preferences },
+            setTelemetryEnabled: { _, isEnabled in
                 toggleRecorder.withValue { $0.append(isEnabled) }
                 var updated = preferences
                 updated.isTelemetryEnabled = isEnabled
                 await continuationBox.yield(updated)
                 return updated
             },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
+            updateDefaultSpeedLimits: { _, _ in preferences },
+            observe: { _ in
                 AsyncStream { cont in
                     Task {
                         await continuationBox.set(cont)
@@ -187,7 +202,11 @@ extension SettingsFeatureTests {
         )
 
         let store = TestStore(
-            initialState: SettingsReducer.State(isLoading: false)
+            initialState: SettingsReducer.State(
+                serverID: serverID,
+                serverName: "Server",
+                isLoading: false
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
@@ -215,6 +234,7 @@ extension SettingsFeatureTests {
     @Test("observe поток обновляет состояние")
     func observeStreamUpdatesState() async {
         let preferences = DomainFixtures.userPreferences
+        let serverID = UUID()
         let continuationBox = PreferencesContinuationBox()
 
         let repository = makeObservingRepository(
@@ -223,7 +243,10 @@ extension SettingsFeatureTests {
         )
 
         let store = TestStore(
-            initialState: SettingsReducer.State()
+            initialState: SettingsReducer.State(
+                serverID: serverID,
+                serverName: "Server"
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
@@ -266,6 +289,7 @@ extension SettingsFeatureTests {
 
     @Test("ошибка загрузки показывает alert и снимает индикатор загрузки")
     func loadFailureShowsAlert() async {
+        let serverID = UUID()
         enum DummyError: Error, LocalizedError, Equatable {
             case failed
 
@@ -273,12 +297,12 @@ extension SettingsFeatureTests {
         }
 
         let repository = UserPreferencesRepository(
-            load: { throw DummyError.failed },
-            updatePollingInterval: { _ in throw DummyError.failed },
-            setAutoRefreshEnabled: { _ in throw DummyError.failed },
-            setTelemetryEnabled: { _ in throw DummyError.failed },
-            updateDefaultSpeedLimits: { _ in throw DummyError.failed },
-            observe: {
+            load: { _ in throw DummyError.failed },
+            updatePollingInterval: { _, _ in throw DummyError.failed },
+            setAutoRefreshEnabled: { _, _ in throw DummyError.failed },
+            setTelemetryEnabled: { _, _ in throw DummyError.failed },
+            updateDefaultSpeedLimits: { _, _ in throw DummyError.failed },
+            observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }
@@ -286,7 +310,10 @@ extension SettingsFeatureTests {
         )
 
         let store = TestStore(
-            initialState: SettingsReducer.State()
+            initialState: SettingsReducer.State(
+                serverID: serverID,
+                serverName: "Server"
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
@@ -316,10 +343,12 @@ extension SettingsFeatureTests {
     func successfulSaveUpdatesPersistedPreferences() async {
         let preferences = DomainFixtures.userPreferences
         let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
+        let serverID = UUID()
 
         let store = TestStoreFactory.makeSettingsTestStore(
-            initialState: loadedState(from: preferences),
-            preferencesStore: preferencesStore
+            initialState: loadedState(from: preferences, serverID: serverID),
+            preferencesStore: preferencesStore,
+            serverID: serverID
         )
 
         await store.send(.downloadLimitChanged("4096")) {
@@ -338,7 +367,7 @@ extension SettingsFeatureTests {
             $0.persistedPreferences = expected
         }
 
-        let persisted = await preferencesStore.preferences
+        let persisted = await preferencesStore.snapshot(serverID: serverID)
         #expect(persisted.defaultSpeedLimits == expected.defaultSpeedLimits)
     }
 
@@ -348,10 +377,12 @@ extension SettingsFeatureTests {
         preferences.isTelemetryEnabled = true
         let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
         await preferencesStore.markFailure(.setTelemetryEnabled)
+        let serverID = UUID()
 
         let store = TestStoreFactory.makeSettingsTestStore(
-            initialState: loadedState(from: preferences),
-            preferencesStore: preferencesStore
+            initialState: loadedState(from: preferences, serverID: serverID),
+            preferencesStore: preferencesStore,
+            serverID: serverID
         )
 
         let expectedError = InMemoryUserPreferencesRepositoryError.operationFailed(
@@ -379,7 +410,7 @@ extension SettingsFeatureTests {
             }
         }
 
-        let persisted = await preferencesStore.preferences
+        let persisted = await preferencesStore.snapshot(serverID: serverID)
         #expect(persisted.isTelemetryEnabled == true)
     }
 
@@ -388,10 +419,12 @@ extension SettingsFeatureTests {
         let preferences = DomainFixtures.userPreferences
         let preferencesStore = DomainFixtures.makeUserPreferencesStore(preferences: preferences)
         await preferencesStore.markFailure(.updatePollingInterval)
+        let serverID = UUID()
 
         let store = TestStoreFactory.makeSettingsTestStore(
-            initialState: loadedState(from: preferences),
-            preferencesStore: preferencesStore
+            initialState: loadedState(from: preferences, serverID: serverID),
+            preferencesStore: preferencesStore,
+            serverID: serverID
         )
 
         let expectedError = InMemoryUserPreferencesRepositoryError.operationFailed(
@@ -420,19 +453,24 @@ extension SettingsFeatureTests {
             }
         }
 
-        let persisted = await preferencesStore.preferences
+        let persisted = await preferencesStore.snapshot(serverID: serverID)
         #expect(persisted.pollingInterval == preferences.pollingInterval)
     }
 }
 
-private func loadedState(from preferences: UserPreferences) -> SettingsReducer.State {
+private func loadedState(
+    from preferences: UserPreferences,
+    serverID: UUID
+) -> SettingsReducer.State {
     var state = SettingsReducer.State(
-        isLoading: false,
-        pollingIntervalSeconds: preferences.pollingInterval,
-        isAutoRefreshEnabled: preferences.isAutoRefreshEnabled,
-        isTelemetryEnabled: preferences.isTelemetryEnabled,
-        defaultSpeedLimits: preferences.defaultSpeedLimits
+        serverID: serverID,
+        serverName: "Server",
+        isLoading: false
     )
+    state.pollingIntervalSeconds = preferences.pollingInterval
+    state.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+    state.isTelemetryEnabled = preferences.isTelemetryEnabled
+    state.defaultSpeedLimits = preferences.defaultSpeedLimits
     state.persistedPreferences = preferences
     return state
 }
@@ -443,12 +481,14 @@ private func makeFinishedRepository(
         @escaping @Sendable (UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
 ) -> UserPreferencesRepository {
     UserPreferencesRepository(
-        load: { preferences },
-        updatePollingInterval: { _ in preferences },
-        setAutoRefreshEnabled: { _ in preferences },
-        setTelemetryEnabled: { _ in preferences },
-        updateDefaultSpeedLimits: updateDefaultSpeedLimits,
-        observe: {
+        load: { _ in preferences },
+        updatePollingInterval: { _, _ in preferences },
+        setAutoRefreshEnabled: { _, _ in preferences },
+        setTelemetryEnabled: { _, _ in preferences },
+        updateDefaultSpeedLimits: { _, limits in
+            try await updateDefaultSpeedLimits(limits)
+        },
+        observe: { _ in
             AsyncStream { continuation in
                 continuation.finish()
             }
@@ -461,12 +501,12 @@ private func makeObservingRepository(
     continuationBox: PreferencesContinuationBox
 ) -> UserPreferencesRepository {
     UserPreferencesRepository(
-        load: { preferences },
-        updatePollingInterval: { _ in preferences },
-        setAutoRefreshEnabled: { _ in preferences },
-        setTelemetryEnabled: { _ in preferences },
-        updateDefaultSpeedLimits: { _ in preferences },
-        observe: {
+        load: { _ in preferences },
+        updatePollingInterval: { _, _ in preferences },
+        setAutoRefreshEnabled: { _, _ in preferences },
+        setTelemetryEnabled: { _, _ in preferences },
+        updateDefaultSpeedLimits: { _, _ in preferences },
+        observe: { _ in
             AsyncStream { continuation in
                 Task {
                     await continuationBox.set(continuation)

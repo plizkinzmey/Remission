@@ -20,7 +20,12 @@ final class RemissionUITests: BaseUITestCase {
 
     @MainActor
     func testSettingsScreenShowsControls() {
-        let app = launchApp()
+        let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ]
+        )
 
         let controls = openSettingsControls(app)
         waitForSettingsLoaded(app)

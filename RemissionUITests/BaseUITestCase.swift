@@ -212,52 +212,36 @@ extension BaseUITestCase {
     }
 
     private func tapSettingsButton(in window: XCUIElement, app: XCUIApplication) {
-        let settingsButton = window.buttons["app_settings_button"].firstMatch
         #if os(macOS)
             app.activate()
             if window.waitForExistence(timeout: 2), window.isHittable {
                 window.click()
             }
-
-            let toolbarSettingsButton = window.toolbars.buttons["app_settings_button"].firstMatch
-            let appToolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
-            let buttons: [XCUIElement] = [
-                toolbarSettingsButton,
-                appToolbarSettingsButton,
-                settingsButton
-            ]
-
-            for button in buttons where button.exists {
-                if button.isHittable {
-                    button.tap()
-                } else {
-                    button.forceTap()
-                }
-                return
-            }
-
-            let toolbarFallback = app.toolbars.buttons["Настройки"].firstMatch
-            if toolbarFallback.exists {
-                toolbarFallback.isHittable ? toolbarFallback.tap() : toolbarFallback.forceTap()
-                return
-            }
-
-            let appMenu = app.menuBars.menuBarItems["Remission"].firstMatch
-            if appMenu.waitForExistence(timeout: 1) {
-                appMenu.click()
-                let menuCandidates = [
-                    app.menuBars.menuItems["Settings…"].firstMatch,
-                    app.menuBars.menuItems["Preferences…"].firstMatch,
-                    app.menuBars.menuItems["Настройки…"].firstMatch
-                ]
-                if let menuItem = menuCandidates.first(where: { $0.exists }) {
-                    menuItem.click()
-                    return
-                }
-            }
         #endif
-        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5), "Settings button missing")
-        settingsButton.tap()
+
+        let detailSettingsButton = window.buttons["server_detail_edit_button"].firstMatch
+        if detailSettingsButton.waitForExistence(timeout: 2) {
+            detailSettingsButton.isHittable
+                ? detailSettingsButton.tap()
+                : detailSettingsButton.forceTap()
+            return
+        }
+
+        let serverCell = window.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'server_list_item_'")
+        ).firstMatch
+        if serverCell.exists {
+            serverCell.tap()
+            let detailButton = window.buttons["server_detail_edit_button"].firstMatch
+            XCTAssertTrue(
+                detailButton.waitForExistence(timeout: 5),
+                "Server settings button missing"
+            )
+            detailButton.isHittable ? detailButton.tap() : detailButton.forceTap()
+            return
+        }
+
+        XCTFail("Settings button missing: no server detail or server list row found")
     }
 
     private func waitForSettingsSheet(
@@ -275,14 +259,6 @@ extension BaseUITestCase {
 
             // Fallback: try keyboard shortcut and re-tap toolbar button.
             app.typeKey(",", modifierFlags: .command)
-            if closeButton.waitForExistence(timeout: 2) || altCloseButton.exists {
-                return closeButton.exists ? closeButton : altCloseButton
-            }
-
-            let toolbarSettingsButton = app.toolbars.buttons["app_settings_button"].firstMatch
-            if toolbarSettingsButton.waitForExistence(timeout: 2) {
-                toolbarSettingsButton.tap()
-            }
             if closeButton.waitForExistence(timeout: 2) || altCloseButton.exists {
                 return closeButton.exists ? closeButton : altCloseButton
             }

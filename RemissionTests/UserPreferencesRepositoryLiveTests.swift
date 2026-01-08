@@ -13,8 +13,10 @@ struct UserPreferencesRepositoryLiveTests {
         }
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
+        let serverID = UUID()
         let repository = UserPreferencesRepository.persistent(defaults: defaults)
         let updatedPreferences = try await repository.updateDefaultSpeedLimits(
+            serverID: serverID,
             .init(
                 downloadKilobytesPerSecond: 777,
                 uploadKilobytesPerSecond: nil
@@ -23,12 +25,15 @@ struct UserPreferencesRepositoryLiveTests {
         #expect(updatedPreferences.defaultSpeedLimits.downloadKilobytesPerSecond == 777)
 
         var pollingUpdated = updatedPreferences
-        pollingUpdated = try await repository.updatePollingInterval(12)
+        pollingUpdated = try await repository.updatePollingInterval(
+            serverID: serverID,
+            12
+        )
         #expect(pollingUpdated.pollingInterval == 12)
 
         let rehydrated = try await UserPreferencesRepository.persistent(
             defaults: defaults
-        ).load()
+        ).load(serverID: serverID)
         #expect(rehydrated.pollingInterval == 12)
         #expect(rehydrated.defaultSpeedLimits.downloadKilobytesPerSecond == 777)
 
@@ -36,7 +41,7 @@ struct UserPreferencesRepositoryLiveTests {
             defaults: defaults,
             resetStoredValue: true
         )
-        let reset = try await resetRepository.load()
+        let reset = try await resetRepository.load(serverID: serverID)
         #expect(reset == .default)
     }
 
@@ -68,18 +73,19 @@ struct UserPreferencesRepositoryLiveTests {
         let encoded = try JSONEncoder().encode(legacy)
         defaults.set(encoded, forKey: "user_preferences")
 
+        let serverID = UUID()
         let repository = UserPreferencesRepository.persistent(defaults: defaults)
-        let migrated = try await repository.load()
+        let migrated = try await repository.load(serverID: serverID)
 
         #expect(migrated.version == UserPreferences.currentVersion)
         #expect(migrated.isTelemetryEnabled == false)
         #expect(migrated.pollingInterval == 9)
         #expect(migrated.defaultSpeedLimits.uploadKilobytesPerSecond == 256)
 
-        if let raw = defaults.data(forKey: "user_preferences") {
-            let redecoded = try JSONDecoder().decode(UserPreferences.self, from: raw)
-            #expect(redecoded.isTelemetryEnabled == false)
-            #expect(redecoded.version == UserPreferences.currentVersion)
+        if let raw = defaults.data(forKey: "user_preferences_by_server") {
+            let decoded = try JSONDecoder().decode([String: UserPreferences].self, from: raw)
+            #expect(decoded[serverID.uuidString]?.isTelemetryEnabled == false)
+            #expect(decoded[serverID.uuidString]?.version == UserPreferences.currentVersion)
         } else {
             Issue.record("Снапшот преференсов отсутствует после миграции")
         }
@@ -94,14 +100,18 @@ struct UserPreferencesRepositoryLiveTests {
         }
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
+        let serverID = UUID()
         let repository = UserPreferencesRepository.persistent(defaults: defaults)
-        let updated = try await repository.setTelemetryEnabled(true)
+        let updated = try await repository.setTelemetryEnabled(
+            serverID: serverID,
+            true
+        )
 
         #expect(updated.isTelemetryEnabled == true)
 
         let rehydrated = try await UserPreferencesRepository.persistent(
             defaults: defaults
-        ).load()
+        ).load(serverID: serverID)
 
         #expect(rehydrated.isTelemetryEnabled == true)
         #expect(rehydrated.version == UserPreferences.currentVersion)

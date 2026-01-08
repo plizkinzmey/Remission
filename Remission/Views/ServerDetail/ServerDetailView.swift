@@ -79,6 +79,11 @@ struct ServerDetailView: View {
             .appRootChrome()
         }
         .sheet(
+            store: store.scope(state: \.$settings, action: \.settings)
+        ) { settingsStore in
+            SettingsView(store: settingsStore)
+        }
+        .sheet(
             store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
         ) { sourceStore in
             NavigationStack {
@@ -102,11 +107,13 @@ struct ServerDetailView: View {
                 }
             #else
                 ToolbarItem(placement: .primaryAction) {
-                    Button(L10n.tr("serverDetail.button.edit")) {
-                        store.send(.editButtonTapped)
+                    Button {
+                        store.send(.settingsButtonTapped)
+                    } label: {
+                        Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
                     }
                     .accessibilityIdentifier("server_detail_edit_button")
-                    .accessibilityHint(L10n.tr("serverDetail.button.edit"))
+                    .accessibilityHint(L10n.tr("app.action.settings"))
                 }
             #endif
         }
@@ -157,9 +164,9 @@ struct ServerDetailView: View {
         private var macOSSettingsToolbarPill: some View {
             HStack(spacing: 10) {
                 Button {
-                    store.send(.editButtonTapped)
+                    store.send(.settingsButtonTapped)
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "gearshape")
                         .font(.system(size: 14, weight: .semibold))
                         .frame(width: 24, height: 24)
                         .padding(.horizontal, 6)
@@ -168,7 +175,7 @@ struct ServerDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("server_detail_edit_button")
-                .accessibilityLabel(L10n.tr("serverDetail.button.edit"))
+                .accessibilityLabel(L10n.tr("app.action.settings"))
 
             }
             .padding(.horizontal, 12)
