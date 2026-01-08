@@ -84,6 +84,12 @@ struct ServerDetailView: View {
             SettingsView(store: settingsStore)
         }
         .sheet(
+            store: store.scope(state: \.$diagnostics, action: \.diagnostics)
+        ) { diagnosticsStore in
+            DiagnosticsView(store: diagnosticsStore)
+                .appRootChrome()
+        }
+        .sheet(
             store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
         ) { sourceStore in
             NavigationStack {
@@ -106,7 +112,15 @@ struct ServerDetailView: View {
                     macOSSettingsToolbarPill
                 }
             #else
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        store.send(.diagnosticsButtonTapped)
+                    } label: {
+                        Label(L10n.tr("diagnostics.title"), systemImage: "doc.text.below.ecg")
+                    }
+                    .accessibilityIdentifier("server_detail_diagnostics_button")
+                    .accessibilityHint(L10n.tr("diagnostics.title"))
+
                     Button {
                         store.send(.settingsButtonTapped)
                     } label: {
@@ -163,6 +177,23 @@ struct ServerDetailView: View {
     #if os(macOS)
         private var macOSSettingsToolbarPill: some View {
             HStack(spacing: 10) {
+                Button {
+                    store.send(.diagnosticsButtonTapped)
+                } label: {
+                    Image(systemName: "doc.text.below.ecg")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(width: 24, height: 24)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("server_detail_diagnostics_button")
+                .accessibilityLabel(L10n.tr("diagnostics.title"))
+
+                Divider()
+                    .frame(height: 18)
+
                 Button {
                     store.send(.settingsButtonTapped)
                 } label: {

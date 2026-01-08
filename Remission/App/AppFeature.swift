@@ -9,6 +9,7 @@ struct AppReducer {
         var serverList: ServerListReducer.State
         var path: StackState<ServerDetailReducer.State>
         var pendingTorrentFileURL: URL?
+        var pendingConnection: PendingConnection?
 
         init(
             version: AppStateVersion = .latest,
@@ -21,13 +22,22 @@ struct AppReducer {
         }
     }
 
+    struct PendingConnection: Equatable {
+        var server: ServerConfig
+    }
+
     enum Action: Equatable {
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case openTorrentFile(URL)
+        case connectionPreparationResponse(
+            UUID,
+            TaskResult<ServerDetailReducer.ConnectionResponse>
+        )
     }
 
     @Dependency(\.serverConfigRepository) var serverConfigRepository
+    @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -54,16 +64,16 @@ struct AppReducer {
                     state.pendingTorrentFileURL = nil
                     return openTorrentFile(pendingURL, in: server, state: &state)
                 }
-                state.path.append(ServerDetailReducer.State(server: server))
-                return .none
+                state.pendingConnection = PendingConnection(server: server)
+                return prepareConnection(server)
 
             case .serverList(.delegate(.serverCreated(let server))):
                 if let pendingURL = state.pendingTorrentFileURL {
                     state.pendingTorrentFileURL = nil
                     return openTorrentFile(pendingURL, in: server, state: &state)
                 }
-                state.path.append(ServerDetailReducer.State(server: server))
-                return .none
+                state.pendingConnection = PendingConnection(server: server)
+                return prepareConnection(server)
 
             case .serverList(.serverRepositoryResponse(.success(let servers))):
                 guard let pendingURL = state.pendingTorrentFileURL else { return .none }
@@ -74,6 +84,41 @@ struct AppReducer {
                 return openTorrentFile(pendingURL, in: targetServer, state: &state)
 
             case .serverList:
+                return .none
+
+            case .connectionPreparationResponse(let id, .success(let response)):
+                guard let pending = state.pendingConnection, pending.server.id == id else {
+                    return .none
+                }
+                state.pendingConnection = nil
+                let environment = response.environment.updatingRPCVersion(
+                    response.handshake.rpcVersion
+                )
+                var detailState = ServerDetailReducer.State(server: pending.server)
+                detailState.connectionEnvironment = environment
+                detailState.connectionState.phase = .ready(
+                    .init(
+                        fingerprint: environment.fingerprint,
+                        handshake: response.handshake
+                    )
+                )
+                detailState.torrentList.connectionEnvironment = environment
+                detailState.torrentList.cacheKey = environment.cacheKey
+                state.path.append(detailState)
+                return .none
+
+            case .connectionPreparationResponse(let id, .failure(let error)):
+                guard state.pendingConnection?.server.id == id else { return .none }
+                state.pendingConnection = nil
+                state.serverList.alert = AlertState {
+                    TextState(L10n.tr("serverDetail.alert.connectionFailed.title"))
+                } actions: {
+                    ButtonState(role: .cancel, action: .dismiss) {
+                        TextState(L10n.tr("common.ok"))
+                    }
+                } message: {
+                    TextState(describe(error))
+                }
                 return .none
 
             case .path(.element(id: _, action: .delegate(.serverUpdated(let server)))):
@@ -101,6 +146,34 @@ struct AppReducer {
         Scope(state: \.serverList, action: \.serverList) {
             ServerListReducer()
         }
+    }
+
+    private func prepareConnection(
+        _ server: ServerConfig
+    ) -> Effect<Action> {
+        .run { send in
+            await send(
+                .connectionPreparationResponse(
+                    server.id,
+                    TaskResult {
+                        let environment = try await serverConnectionEnvironmentFactory.make(server)
+                        let handshake =
+                            try await environment.dependencies.transmissionClient.performHandshake()
+                        return .init(environment: environment, handshake: handshake)
+                    }
+                )
+            )
+        }
+    }
+
+    private func describe(_ error: Error) -> String {
+        guard let localized = error as? LocalizedError,
+            let message = localized.errorDescription,
+            message.isEmpty == false
+        else {
+            return String(describing: error)
+        }
+        return message
     }
 
     private func preferredServer(in state: State) -> ServerConfig? {

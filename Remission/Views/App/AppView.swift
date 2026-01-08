@@ -29,6 +29,11 @@ struct AppView: View {
         } destination: { store in
             ServerDetailView(store: store)
         }
+        .overlay {
+            if let server = store.pendingConnection?.server, store.path.isEmpty {
+                connectingOverlay(server: server)
+            }
+        }
         .appRootChrome()
         #if os(macOS)
             .handlesExternalEvents(
@@ -92,6 +97,27 @@ struct AppView: View {
 
     private var shouldShowAddServerToolbarButton: Bool {
         store.serverList.servers.isEmpty == false
+    }
+
+    private func connectingOverlay(server: ServerConfig) -> some View {
+        ZStack {
+            Color.black.opacity(0.08)
+                .ignoresSafeArea()
+
+            VStack(spacing: 10) {
+                ProgressView()
+                    .controlSize(.large)
+                Text(L10n.tr("serverDetail.status.connecting"))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(server.name)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(20)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 24)
+        }
     }
 }
 

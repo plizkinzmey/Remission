@@ -15,6 +15,7 @@ struct ServerDetailReducer {
         var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
         @Presents var editor: ServerEditorReducer.State?
         @Presents var settings: SettingsReducer.State?
+        @Presents var diagnostics: DiagnosticsReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
         @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
@@ -40,6 +41,7 @@ struct ServerDetailReducer {
         case task
         case editButtonTapped
         case settingsButtonTapped
+        case diagnosticsButtonTapped
         case deleteButtonTapped
         case deleteCompleted(DeletionResult)
         case httpWarningResetButtonTapped
@@ -54,6 +56,7 @@ struct ServerDetailReducer {
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
         case settings(PresentationAction<SettingsReducer.Action>)
+        case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
         case addTorrentSource(PresentationAction<AddTorrentSourceReducer.Action>)
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
@@ -93,15 +96,58 @@ struct ServerDetailReducer {
     @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
     var body: some Reducer<State, Action> {
+        core
+            .ifLet(\.$alert, action: \.alert) {
+                EmptyReducer()
+            }
+            .ifLet(\.$editor, action: \.editor) {
+                ServerEditorReducer()
+            }
+            .ifLet(\.$settings, action: \.settings) {
+                SettingsReducer()
+            }
+            .ifLet(\.$diagnostics, action: \.diagnostics) {
+                DiagnosticsReducer()
+            }
+            .ifLet(\.$torrentDetail, action: \.torrentDetail) {
+                TorrentDetailReducer()
+            }
+            .ifLet(\.$addTorrentSource, action: \.addTorrentSource) {
+                AddTorrentSourceReducer()
+            }
+            .ifLet(\.$addTorrent, action: \.addTorrent) {
+                AddTorrentReducer()
+            }
+        Scope(state: \.torrentList, action: \.torrentList) {
+            TorrentListReducer()
+        }
+        Scope(state: \.errorPresenter, action: \.errorPresenter) {
+            ErrorPresenter<ErrorRetry>()
+        }
+    }
+
+    private var core: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
-                return .merge(
+                let hasReadyConnection: Bool = {
+                    guard state.connectionEnvironment != nil else { return false }
+                    if case .ready = state.connectionState.phase {
+                        return true
+                    }
+                    return false
+                }()
+                var effects: [Effect<Action>] = [
                     loadPreferences(serverID: state.server.id),
                     observePreferences(serverID: state.server.id),
                     startConnectionIfNeeded(state: &state),
                     .send(.torrentList(.restoreCachedSnapshot))
-                )
+                ]
+                if hasReadyConnection {
+                    effects.append(.send(.torrentList(.task)))
+                    effects.append(.send(.torrentList(.refreshRequested)))
+                }
+                return .merge(effects)
 
             case .retryConnectionButtonTapped:
                 state.connectionRetryAttempts = 0
@@ -120,6 +166,10 @@ struct ServerDetailReducer {
                     serverID: state.server.id,
                     serverName: state.server.name
                 )
+                return .none
+
+            case .diagnosticsButtonTapped:
+                state.diagnostics = DiagnosticsReducer.State()
                 return .none
 
             case .deleteButtonTapped:
@@ -412,6 +462,19 @@ struct ServerDetailReducer {
             case .settings(.presented):
                 return .none
 
+            case .diagnostics(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.diagnostics(.presented(.teardown))),
+                    .send(.diagnostics(.dismiss))
+                )
+
+            case .diagnostics(.dismiss):
+                state.diagnostics = nil
+                return .none
+
+            case .diagnostics(.presented):
+                return .none
+
             case .userPreferencesResponse(.success(let preferences)):
                 state.preferences = preferences
                 return .merge(
@@ -431,28 +494,6 @@ struct ServerDetailReducer {
             case .delegate:
                 return .none
             }
-        }
-        .ifLet(\.$alert, action: \.alert)
-        .ifLet(\.$editor, action: \.editor) {
-            ServerEditorReducer()
-        }
-        .ifLet(\.$settings, action: \.settings) {
-            SettingsReducer()
-        }
-        .ifLet(\.$torrentDetail, action: \.torrentDetail) {
-            TorrentDetailReducer()
-        }
-        .ifLet(\.$addTorrentSource, action: \.addTorrentSource) {
-            AddTorrentSourceReducer()
-        }
-        .ifLet(\.$addTorrent, action: \.addTorrent) {
-            AddTorrentReducer()
-        }
-        Scope(state: \.torrentList, action: \.torrentList) {
-            TorrentListReducer()
-        }
-        Scope(state: \.errorPresenter, action: \.errorPresenter) {
-            ErrorPresenter<ErrorRetry>()
         }
     }
 

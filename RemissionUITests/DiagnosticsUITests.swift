@@ -10,31 +10,7 @@ final class DiagnosticsUITests: BaseUITestCase {
                 "--ui-testing-scenario=diagnostics-sample"
             ]
         )
-        _ = openSettingsControls(app)
-        waitForSettingsLoaded(app)
-
-        let diagnosticsButton = app.buttons["settings_diagnostics_button"].firstMatch
-        var foundDiagnostics = diagnosticsButton.waitForExistence(timeout: 3)
-        if foundDiagnostics == false {
-            let containers: [XCUIElement] = [
-                app.tables.firstMatch,
-                app.collectionViews.firstMatch,
-                app.scrollViews.firstMatch
-            ]
-            for _ in 0..<12 where foundDiagnostics == false {
-                for container in containers where container.exists {
-                    container.swipeUp()
-                }
-                app.swipeUp()
-                RunLoop.current.run(until: Date().addingTimeInterval(0.2))
-                foundDiagnostics = diagnosticsButton.exists
-                if foundDiagnostics { break }
-            }
-            if foundDiagnostics == false {
-                foundDiagnostics = diagnosticsButton.waitForExistence(timeout: 5)
-            }
-        }
-        XCTAssertTrue(foundDiagnostics, "Diagnostics button missing")
+        let diagnosticsButton = openDiagnosticsButton(app)
         diagnosticsButton.tap()
 
         let firstRow = app.descendants(matching: .any)
@@ -93,5 +69,29 @@ final class DiagnosticsUITests: BaseUITestCase {
         XCTAssertTrue(closeButton.waitForExistence(timeout: 2))
         closeButton.tap()
         XCTAssertTrue(closeButton.waitForDisappearance(timeout: 3))
+    }
+
+    private func openDiagnosticsButton(_ app: XCUIApplication) -> XCUIElement {
+        let window = app.windows.firstMatch
+        let diagnosticsButton = window.buttons["server_detail_diagnostics_button"].firstMatch
+        if diagnosticsButton.waitForExistence(timeout: 3) {
+            return diagnosticsButton
+        }
+
+        let serverCell = window.buttons.matching(
+            NSPredicate(format: "identifier BEGINSWITH 'server_list_item_'")
+        ).firstMatch
+        if serverCell.exists {
+            serverCell.tap()
+            let detailButton = window.buttons["server_detail_diagnostics_button"].firstMatch
+            XCTAssertTrue(
+                detailButton.waitForExistence(timeout: 5),
+                "Diagnostics button missing"
+            )
+            return detailButton
+        }
+
+        XCTFail("Diagnostics button missing: no server detail or server list row found")
+        return diagnosticsButton
     }
 }

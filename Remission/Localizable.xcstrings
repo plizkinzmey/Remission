@@ -374,6 +374,7 @@
       }
     },
     "diagnostics.empty.message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -390,6 +391,7 @@
       }
     },
     "diagnostics.empty.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -406,6 +408,7 @@
       }
     },
     "diagnostics.exportAll" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2587,6 +2590,7 @@
       }
     },
     "settings.diagnostics.note" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2603,6 +2607,7 @@
       }
     },
     "settings.diagnostics.openLogs" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2619,6 +2624,7 @@
       }
     },
     "settings.diagnostics.section" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
