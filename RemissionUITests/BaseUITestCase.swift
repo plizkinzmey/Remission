@@ -171,7 +171,7 @@ extension BaseUITestCase {
     func openSettingsControls(_ app: XCUIApplication) -> SettingsControls {
         let window = app.windows.firstMatch
         tapSettingsButton(in: window, app: app)
-        let closeButton = waitForSettingsSheet(in: window, app: app)
+        let cancelButton = waitForSettingsSheet(in: window, app: app)
         waitForSettingsLoaded(app)
 
         let autoRefreshToggle = app.descendants(matching: .any)["settings_auto_refresh_toggle"]
@@ -207,7 +207,8 @@ extension BaseUITestCase {
             pollingValue: pollingValue,
             downloadField: downloadField,
             uploadField: uploadField,
-            closeButton: closeButton
+            cancelButton: cancelButton,
+            saveButton: app.buttons["settings_save_button"].firstMatch
         )
     }
 
@@ -249,31 +250,31 @@ extension BaseUITestCase {
         app: XCUIApplication
     ) -> XCUIElement {
         #if os(macOS)
-            let closeButton = window.sheets.firstMatch.buttons["settings_close_button"]
+            let cancelButton = window.sheets.firstMatch.buttons["settings_cancel_button"]
                 .firstMatch
-            let altCloseButton = app.buttons["settings_close_button"].firstMatch
+            let altCancelButton = app.buttons["settings_cancel_button"].firstMatch
 
-            if closeButton.waitForExistence(timeout: 3) || altCloseButton.exists {
-                return closeButton.exists ? closeButton : altCloseButton
+            if cancelButton.waitForExistence(timeout: 3) || altCancelButton.exists {
+                return cancelButton.exists ? cancelButton : altCancelButton
             }
 
             // Fallback: try keyboard shortcut and re-tap toolbar button.
             app.typeKey(",", modifierFlags: .command)
-            if closeButton.waitForExistence(timeout: 2) || altCloseButton.exists {
-                return closeButton.exists ? closeButton : altCloseButton
+            if cancelButton.waitForExistence(timeout: 2) || altCancelButton.exists {
+                return cancelButton.exists ? cancelButton : altCancelButton
             }
 
             let attachment = XCTAttachment(screenshot: app.screenshot())
-            attachment.name = "settings_close_button_missing"
+            attachment.name = "settings_cancel_button_missing"
             attachment.lifetime = .keepAlways
             add(attachment)
             let tree = app.debugDescription
-            XCTFail("Close button missing. Tree: \(tree)")
-            return closeButton
+            XCTFail("Cancel button missing. Tree: \(tree)")
+            return cancelButton
         #else
-            let closeButton = app.buttons["settings_close_button"].firstMatch
-            XCTAssertTrue(closeButton.waitForExistence(timeout: 4), "Close button missing")
-            return closeButton
+            let cancelButton = app.buttons["settings_cancel_button"].firstMatch
+            XCTAssertTrue(cancelButton.waitForExistence(timeout: 4), "Cancel button missing")
+            return cancelButton
         #endif
     }
 
@@ -462,7 +463,8 @@ struct SettingsControls {
     let pollingValue: XCUIElement
     let downloadField: XCUIElement
     let uploadField: XCUIElement
-    let closeButton: XCUIElement
+    let cancelButton: XCUIElement
+    let saveButton: XCUIElement
 }
 
 // MARK: - Extensions

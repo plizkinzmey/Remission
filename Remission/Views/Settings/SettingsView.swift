@@ -18,11 +18,17 @@ struct SettingsView: View {
                     .safeAreaInset(edge: .bottom) {
                         AppWindowFooterBar {
                             Spacer(minLength: 0)
-                            Button(L10n.tr("common.close")) {
-                                store.send(.delegate(.closeRequested))
+                            Button(L10n.tr("common.cancel")) {
+                                store.send(.cancelButtonTapped)
                             }
-                            .accessibilityIdentifier("settings_close_button")
+                            .accessibilityIdentifier("settings_cancel_button")
                             .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+                            Button(L10n.tr("common.save")) {
+                                store.send(.saveButtonTapped)
+                            }
+                            .accessibilityIdentifier("settings_save_button")
+                            .buttonStyle(AppPrimaryButtonStyle())
+                            .disabled(isSaveDisabled)
                         }
                     }
                     .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
@@ -31,10 +37,17 @@ struct SettingsView: View {
                         .navigationTitle(L10n.tr("settings.title"))
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
-                                Button(L10n.tr("common.close")) {
-                                    store.send(.delegate(.closeRequested))
+                                Button(L10n.tr("common.cancel")) {
+                                    store.send(.cancelButtonTapped)
                                 }
-                                .accessibilityIdentifier("settings_close_button")
+                                .accessibilityIdentifier("settings_cancel_button")
+                            }
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(L10n.tr("common.save")) {
+                                    store.send(.saveButtonTapped)
+                                }
+                                .accessibilityIdentifier("settings_save_button")
+                                .disabled(isSaveDisabled)
                             }
                         }
                 #endif
@@ -83,22 +96,20 @@ struct SettingsView: View {
                 }
             }
         } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    autoRefreshSection
-                    // Telemetry is hidden in production for now — keep it visible for
-                    // UI tests only so automation and existing tests continue to run.
-                    if isUITesting {
-                        telemetrySection
-                    }
-                    pollingSection
-                    speedLimitsSection
-                    diagnosticsSection
+            VStack(alignment: .leading, spacing: 16) {
+                autoRefreshSection
+                // Telemetry is hidden in production for now — keep it visible for
+                // UI tests only so automation and existing tests continue to run.
+                if isUITesting {
+                    telemetrySection
                 }
-                .padding(12)
-                .appCardSurface(cornerRadius: 16)
-                .padding(.horizontal, 12)
+                pollingSection
+                speedLimitsSection
+                diagnosticsSection
             }
+            .padding(12)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 12)
         }
     }
 
@@ -193,6 +204,8 @@ struct SettingsView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
+        .disabled(store.isAutoRefreshEnabled == false)
+        .opacity(store.isAutoRefreshEnabled ? 1 : 0.6)
     }
 
     private var speedLimitsSection: some View {
@@ -290,6 +303,10 @@ struct SettingsView: View {
                 }
             }
         }
+    }
+
+    private var isSaveDisabled: Bool {
+        store.isLoading || store.isSaving || store.hasPendingChanges == false
     }
 }
 

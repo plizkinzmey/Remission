@@ -228,6 +228,7 @@
       }
     },
     "common.close" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

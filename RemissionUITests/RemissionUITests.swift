@@ -35,7 +35,7 @@ final class RemissionUITests: BaseUITestCase {
         XCTAssertTrue(controls.downloadField.exists, "Download limit field missing")
         XCTAssertTrue(controls.uploadField.exists, "Upload limit field missing")
 
-        controls.closeButton.tap()
+        controls.cancelButton.tap()
         XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
     }
 
