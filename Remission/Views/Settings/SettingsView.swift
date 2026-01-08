@@ -54,12 +54,6 @@ struct SettingsView: View {
             }
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
-            .sheet(
-                store: store.scope(state: \.$diagnostics, action: \.diagnostics)
-            ) { diagnosticsStore in
-                DiagnosticsView(store: diagnosticsStore)
-                    .appRootChrome()
-            }
         }
         .appRootChrome()
     }
@@ -105,7 +99,6 @@ struct SettingsView: View {
                 }
                 pollingSection
                 speedLimitsSection
-                diagnosticsSection
             }
             .padding(12)
             .appCardSurface(cornerRadius: 16)
@@ -203,7 +196,7 @@ struct SettingsView: View {
             .tint(AppTheme.accent)
             .padding(.horizontal, 10)
             .frame(height: 32)
-            .frame(maxWidth: 260, alignment: .trailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .appPillSurface()
 
             Text(intervalLabel)
@@ -261,31 +254,6 @@ struct SettingsView: View {
             }
 
             Text(L10n.tr("settings.speed.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var diagnosticsSection: some View {
-        AppSectionCard(L10n.tr("settings.diagnostics.section")) {
-            Button {
-                store.send(.diagnosticsButtonTapped)
-            } label: {
-                HStack {
-                    Label(
-                        L10n.tr("settings.diagnostics.openLogs"), systemImage: "doc.text.below.ecg")
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .foregroundStyle(Color.secondary)
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .appPillSurface()
-            .accessibilityIdentifier("settings_diagnostics_button")
-
-            Text(L10n.tr("settings.diagnostics.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
