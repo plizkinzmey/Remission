@@ -55,10 +55,8 @@ extension ServerDetailReducer {
     ) -> Effect<Action> {
         switch result {
         case .success(let input):
-            state.addTorrent = AddTorrentReducer.State(
-                pendingInput: input,
-                connectionEnvironment: state.connectionEnvironment
-            )
+            state.pendingAddTorrentInput = input
+            state.addTorrentSource?.selectedFileName = input.sourceDescription
             state.isFileImporterPresented = false
             return .none
 

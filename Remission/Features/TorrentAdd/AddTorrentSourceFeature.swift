@@ -12,6 +12,7 @@ struct AddTorrentSourceReducer {
     struct State: Equatable {
         var source: Source = .magnetLink
         var magnetText: String = ""
+        var selectedFileName: String? = nil
         @Presents var alert: AlertState<AlertAction>?
 
         init(source: Source = .torrentFile) {
@@ -37,6 +38,7 @@ struct AddTorrentSourceReducer {
     enum Delegate: Equatable {
         case closeRequested
         case fileRequested
+        case fileSubmitted
         case magnetSubmitted(String)
     }
 
@@ -47,6 +49,9 @@ struct AddTorrentSourceReducer {
             switch action {
             case .sourceChanged(let source):
                 state.source = source
+                if source == .magnetLink {
+                    state.selectedFileName = nil
+                }
                 return .none
 
             case .magnetTextChanged(let value):
@@ -97,21 +102,29 @@ struct AddTorrentSourceReducer {
                 return .none
 
             case .continueTapped:
-                let trimmed = state.magnetText.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard trimmed.isEmpty == false else { return .none }
-                guard let url = URL(string: trimmed), url.scheme?.lowercased() == "magnet" else {
-                    state.alert = AlertState {
-                        TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.title"))
-                    } actions: {
-                        ButtonState(role: .cancel, action: .dismiss) {
-                            TextState(L10n.tr("common.ok"))
+                switch state.source {
+                case .torrentFile:
+                    guard state.selectedFileName != nil else { return .none }
+                    return .send(.delegate(.fileSubmitted))
+                case .magnetLink:
+                    let trimmed = state.magnetText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard trimmed.isEmpty == false else { return .none }
+                    guard let url = URL(string: trimmed),
+                        url.scheme?.lowercased() == "magnet"
+                    else {
+                        state.alert = AlertState {
+                            TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.title"))
+                        } actions: {
+                            ButtonState(role: .cancel, action: .dismiss) {
+                                TextState(L10n.tr("common.ok"))
+                            }
+                        } message: {
+                            TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
                         }
-                    } message: {
-                        TextState(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
+                        return .none
                     }
-                    return .none
+                    return .send(.delegate(.magnetSubmitted(url.absoluteString)))
                 }
-                return .send(.delegate(.magnetSubmitted(url.absoluteString)))
 
             case .alert(.presented(.dismiss)):
                 state.alert = nil

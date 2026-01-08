@@ -96,13 +96,13 @@ struct ServerDetailView: View {
                 AddTorrentSourceView(store: sourceStore)
             }
             .appRootChrome()
+            .fileImporter(
+                isPresented: fileImporterBinding,
+                allowedContentTypes: torrentContentTypes,
+                allowsMultipleSelection: false,
+                onCompletion: handleFileImport
+            )
         }
-        .fileImporter(
-            isPresented: fileImporterBinding,
-            allowedContentTypes: torrentContentTypes,
-            allowsMultipleSelection: false,
-            onCompletion: handleFileImport
-        )
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )

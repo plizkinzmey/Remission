@@ -20,6 +20,7 @@ struct ServerDetailReducer {
         @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
         var isFileImporterPresented: Bool = false
+        var pendingAddTorrentInput: PendingTorrentInput?
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
@@ -423,19 +424,36 @@ struct ServerDetailReducer {
 
             case .addTorrentSource(.presented(.delegate(.closeRequested))):
                 state.addTorrentSource = nil
+                state.pendingAddTorrentInput = nil
                 return .none
 
             case .addTorrentSource(.presented(.delegate(.fileRequested))):
-                state.addTorrentSource = nil
                 state.isFileImporterPresented = true
                 return .none
 
             case .addTorrentSource(.presented(.delegate(.magnetSubmitted(let magnet)))):
                 state.addTorrentSource = nil
+                state.pendingAddTorrentInput = nil
                 return handleMagnetResponse(
                     result: .success(magnet),
                     state: &state
                 )
+
+            case .addTorrentSource(.presented(.delegate(.fileSubmitted))):
+                guard let input = state.pendingAddTorrentInput else { return .none }
+                state.addTorrent = AddTorrentReducer.State(
+                    pendingInput: input,
+                    connectionEnvironment: state.connectionEnvironment
+                )
+                state.addTorrentSource = nil
+                state.pendingAddTorrentInput = nil
+                return .none
+
+            case .addTorrentSource(.presented(.sourceChanged(let source))):
+                if source == .magnetLink {
+                    state.pendingAddTorrentInput = nil
+                }
+                return .none
 
             case .addTorrentSource:
                 return .none
