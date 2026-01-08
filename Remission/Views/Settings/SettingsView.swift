@@ -132,14 +132,18 @@ struct SettingsView: View {
 
     private var autoRefreshSection: some View {
         AppSectionCard(L10n.tr("settings.autoRefresh.section")) {
-            Toggle(
-                L10n.tr("settings.autoRefresh.toggle"),
-                isOn: Binding(
-                    get: { store.isAutoRefreshEnabled },
-                    set: { store.send(.autoRefreshToggled($0)) }
+            fieldRow(label: L10n.tr("settings.autoRefresh.toggle")) {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { store.isAutoRefreshEnabled },
+                        set: { store.send(.autoRefreshToggled($0)) }
+                    )
                 )
-            )
-            .accessibilityIdentifier("settings_auto_refresh_toggle")
+                .labelsHidden()
+                .accessibilityIdentifier("settings_auto_refresh_toggle")
+                .tint(AppTheme.accent)
+            }
             Text(L10n.tr("settings.autoRefresh.note"))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -196,9 +200,15 @@ struct SettingsView: View {
                 step: 1
             )
             .accessibilityIdentifier("settings_polling_slider")
+            .tint(AppTheme.accent)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .frame(maxWidth: 260, alignment: .trailing)
+            .appPillSurface()
 
             Text(intervalLabel)
-                .bold()
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
                 .accessibilityIdentifier("settings_polling_value")
             Text(L10n.tr("settings.polling.note"))
                 .font(.footnote)
@@ -210,57 +220,44 @@ struct SettingsView: View {
 
     private var speedLimitsSection: some View {
         AppSectionCard(L10n.tr("settings.speed.section")) {
-            // Use explicit label+control layout to avoid overlap and giant gaps.
-            LabeledContent {
-                HStack(spacing: 8) {
-                    Spacer(minLength: 4)
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
-                        )
+            fieldRow(label: L10n.tr("settings.speed.download")) {
+                TextField(
+                    "",
+                    text: Binding(
+                        get: {
+                            limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
+                        },
+                        set: { store.send(.downloadLimitChanged($0)) }
                     )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
-                    .layoutPriority(1)
-                }
-            } label: {
-                Text(L10n.tr("settings.speed.download"))
-                    .accessibilityIdentifier("settings_download_limit_label")
+                )
+                .accessibilityIdentifier("settings_download_limit_field")
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 10)
+                .frame(height: 32)
+                .frame(maxWidth: 160, alignment: .trailing)
+                .appPillSurface()
             }
 
-            LabeledContent {
-                HStack(spacing: 8) {
-                    Spacer(minLength: 4)
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
-                        )
+            Divider()
+
+            fieldRow(label: L10n.tr("settings.speed.upload")) {
+                TextField(
+                    "",
+                    text: Binding(
+                        get: {
+                            limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
+                        },
+                        set: { store.send(.uploadLimitChanged($0)) }
                     )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(minWidth: 72, maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
-                    .layoutPriority(1)
-                }
-            } label: {
-                Text(L10n.tr("settings.speed.upload"))
-                    .accessibilityIdentifier("settings_upload_limit_label")
+                )
+                .accessibilityIdentifier("settings_upload_limit_field")
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 10)
+                .frame(height: 32)
+                .frame(maxWidth: 160, alignment: .trailing)
+                .appPillSurface()
             }
 
             Text(L10n.tr("settings.speed.note"))
@@ -282,6 +279,10 @@ struct SettingsView: View {
                         .foregroundStyle(Color.secondary)
                 }
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .appPillSurface()
             .accessibilityIdentifier("settings_diagnostics_button")
 
             Text(L10n.tr("settings.diagnostics.note"))
@@ -307,6 +308,22 @@ struct SettingsView: View {
 
     private var isSaveDisabled: Bool {
         store.isLoading || store.isSaving || store.hasPendingChanges == false
+    }
+
+    private func fieldRow<Content: View>(
+        label: String,
+        @ViewBuilder field: () -> Content
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 12)
+
+            field()
+                .frame(maxWidth: 260, alignment: .trailing)
+        }
     }
 }
 
