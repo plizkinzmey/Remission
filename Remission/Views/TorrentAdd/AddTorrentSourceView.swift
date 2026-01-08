@@ -67,7 +67,7 @@ struct AddTorrentSourceView: View {
 
     private var windowContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 AppSectionCard(L10n.tr("torrentAdd.source.picker.title"), style: .plain) {
                     Picker(
                         L10n.tr("torrentAdd.source.picker.title"),
@@ -91,28 +91,20 @@ struct AddTorrentSourceView: View {
 
                 switch store.source {
                 case .torrentFile:
-                    AppSectionCard(
-                        L10n.tr("torrentAdd.source.chooseFile"),
-                        footer: L10n.tr("torrentAdd.source.chooseFile.hint"),
-                        style: .plain
-                    ) {
+                    AppSectionCard("", style: .plain) {
                         Button(L10n.tr("torrentAdd.source.chooseFile")) {
                             store.send(.chooseFileTapped)
                         }
                         .buttonStyle(.plain)
                         .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
+                        .frame(height: 34)
                         .appPillSurface()
                         .foregroundStyle(AppTheme.accent)
                         .accessibilityIdentifier("torrent_add_choose_file_button")
                     }
 
                 case .magnetLink:
-                    AppSectionCard(
-                        L10n.tr("torrentAdd.source.option.magnet"),
-                        footer: L10n.tr("torrentAdd.source.magnet.hint"),
-                        style: .plain
-                    ) {
+                    AppSectionCard("", style: .plain) {
                         TextField(
                             L10n.tr("torrentAdd.source.magnet.placeholder"),
                             text: Binding(
@@ -129,16 +121,6 @@ struct AddTorrentSourceView: View {
                             .autocorrectionDisabled()
                         #endif
                         .accessibilityIdentifier("torrent_add_magnet_field")
-
-                        Button(L10n.tr("torrentAdd.source.paste")) {
-                            store.send(.pasteFromClipboardTapped)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .appPillSurface()
-                        .foregroundStyle(AppTheme.accent)
-                        .accessibilityIdentifier("torrent_add_paste_magnet_button")
                     }
                 }
             }
