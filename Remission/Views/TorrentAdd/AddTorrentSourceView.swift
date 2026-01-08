@@ -3,7 +3,6 @@ import SwiftUI
 
 struct AddTorrentSourceView: View {
     @Bindable var store: StoreOf<AddTorrentSourceReducer>
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -25,7 +24,7 @@ struct AddTorrentSourceView: View {
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
             #else
@@ -91,7 +90,7 @@ struct AddTorrentSourceView: View {
 
                         switch store.source {
                         case .torrentFile:
-                            VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .center, spacing: 12) {
                                 Button(L10n.tr("torrentAdd.source.chooseFile")) {
                                     store.send(.chooseFileTapped)
                                 }
@@ -107,8 +106,11 @@ struct AddTorrentSourceView: View {
                                         .font(.footnote)
                                         .foregroundStyle(.secondary)
                                         .lineLimit(1)
+                                } else {
+                                    Spacer(minLength: 0)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         case .magnetLink:
                             TextField(
                                 L10n.tr("torrentAdd.source.magnet.placeholder"),
@@ -128,6 +130,7 @@ struct AddTorrentSourceView: View {
                             .accessibilityIdentifier("torrent_add_magnet_field")
                         }
                     }
+                    .padding(.bottom, -4)
                 }
             }
             .padding(12)
