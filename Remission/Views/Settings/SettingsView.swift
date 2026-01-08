@@ -134,6 +134,7 @@ struct SettingsView: View {
                     )
                 )
                 .labelsHidden()
+                .toggleStyle(.switch)
                 .accessibilityIdentifier("settings_auto_refresh_toggle")
                 .tint(AppTheme.accent)
             }
