@@ -188,22 +188,55 @@ extension AddTorrentView {
             }
 
             AppSectionCard(L10n.tr("torrentAdd.section.destination"), style: .card) {
-                TextField(
-                    "",
-                    text: Binding(
-                        get: { store.destinationPath },
-                        set: { store.send(.destinationPathChanged($0)) }
-                    ),
-                    prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
-                )
-                .labelsHidden()
-                .textContentType(.URL)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .appPillSurface()
-                .accessibilityIdentifier("torrent_add_destination_field")
-                .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
+                HStack(spacing: 8) {
+                    TextField(
+                        "",
+                        text: Binding(
+                            get: { store.destinationPath },
+                            set: { store.send(.destinationPathChanged($0)) }
+                        ),
+                        prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
+                    )
+                    .labelsHidden()
+                    .textContentType(.URL)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .appPillSurface()
+                    .accessibilityIdentifier("torrent_add_destination_field")
+                    .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
+
+                    if destinationSuggestions.isEmpty == false {
+                        Menu {
+                            ForEach(destinationSuggestions, id: \.self) { path in
+                                Button(path) {
+                                    store.send(.destinationSuggestionSelected(path))
+                                }
+                                if path != defaultDestination {
+                                    Button(role: .destructive) {
+                                        store.send(.destinationSuggestionDeleted(path))
+                                    } label: {
+                                        Label(
+                                            L10n.tr("torrentAdd.destination.remove"),
+                                            systemImage: "trash"
+                                        )
+                                    }
+                                }
+                                if path != destinationSuggestions.last {
+                                    Divider()
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 13, weight: .semibold))
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("torrent_add_destination_menu")
+                        .accessibilityLabel(L10n.tr("torrentAdd.destination.suggestions"))
+                    }
+                }
             }
 
             AppSectionCard(L10n.tr("torrentAdd.section.tags"), style: .card) {
@@ -292,6 +325,25 @@ extension AddTorrentView {
         .frame(maxWidth: .infinity, alignment: .leading)
         .appCardSurface(cornerRadius: 16)
         .padding(.horizontal, 12)
+    }
+}
+
+extension AddTorrentView {
+    private var defaultDestination: String {
+        store.serverDownloadDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var destinationSuggestions: [String] {
+        let defaultPath = defaultDestination
+        let recent = store.recentDownloadDirectories.filter { $0 != defaultPath }
+        var combined: [String] = []
+        if defaultPath.isEmpty == false {
+            combined.append(defaultPath)
+        }
+        for value in recent where combined.contains(value) == false {
+            combined.append(value)
+        }
+        return combined
     }
 }
 

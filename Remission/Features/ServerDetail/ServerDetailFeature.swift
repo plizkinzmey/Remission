@@ -372,7 +372,8 @@ struct ServerDetailReducer {
 
             case .torrentList(.delegate(.addTorrentRequested)):
                 state.addTorrent = AddTorrentReducer.State(
-                    connectionEnvironment: state.connectionEnvironment
+                    connectionEnvironment: state.connectionEnvironment,
+                    serverID: state.server.id
                 )
                 return .none
 

@@ -9,6 +9,7 @@ actor InMemoryUserPreferencesRepositoryStore {
         case setAutoRefreshEnabled
         case setTelemetryEnabled
         case updateDefaultSpeedLimits
+        case updateRecentDownloadDirectories
     }
 
     private var preferencesByServer: [UUID: UserPreferences]
@@ -110,6 +111,7 @@ extension UserPreferencesRepository {
             setAutoRefreshEnabled: makeSetAutoRefreshEnabled(store: store),
             setTelemetryEnabled: makeSetTelemetryEnabled(store: store),
             updateDefaultSpeedLimits: makeUpdateDefaultSpeedLimits(store: store),
+            updateRecentDownloadDirectories: makeUpdateRecentDownloadDirectories(store: store),
             observe: makeObserve(store: store)
         )
     }
@@ -189,6 +191,24 @@ extension UserPreferencesRepository {
             }
             await store.update(serverID: serverID) {
                 $0.defaultSpeedLimits = limits
+                $0.version = UserPreferences.currentVersion
+            }
+            await store.notifyObservers(serverID: serverID)
+            return await store.preferences(for: serverID)
+        }
+    }
+
+    private static func makeUpdateRecentDownloadDirectories(
+        store: InMemoryUserPreferencesRepositoryStore
+    ) -> @Sendable (UUID, [String]) async throws -> UserPreferences {
+        { serverID, directories in
+            if await store.shouldFail(.updateRecentDownloadDirectories) {
+                throw InMemoryUserPreferencesRepositoryError.operationFailed(
+                    .updateRecentDownloadDirectories
+                )
+            }
+            await store.update(serverID: serverID) {
+                $0.recentDownloadDirectories = directories
                 $0.version = UserPreferences.currentVersion
             }
             await store.notifyObservers(serverID: serverID)

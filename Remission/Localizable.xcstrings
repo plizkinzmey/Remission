@@ -4951,6 +4951,38 @@
           }
         }
       }
+    },
+    "torrentAdd.destination.suggestions": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saved paths"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Сохраненные пути"
+          }
+        }
+      }
+    },
+    "torrentAdd.destination.remove": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove path"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удалить путь"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

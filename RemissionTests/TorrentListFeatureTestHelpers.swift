@@ -92,6 +92,7 @@ extension UserPreferencesRepository {
             setAutoRefreshEnabled: { _, _ in preferences },
             setTelemetryEnabled: { _, _ in preferences },
             updateDefaultSpeedLimits: { _, _ in preferences },
+            updateRecentDownloadDirectories: { _, _ in preferences },
             observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
@@ -121,6 +122,11 @@ extension UserPreferencesRepository {
             updateDefaultSpeedLimits: { _, limits in
                 var prefs = DomainFixtures.userPreferences
                 prefs.defaultSpeedLimits = limits
+                return prefs
+            },
+            updateRecentDownloadDirectories: { _, directories in
+                var prefs = DomainFixtures.userPreferences
+                prefs.recentDownloadDirectories = directories
                 return prefs
             },
             observe: { _ in

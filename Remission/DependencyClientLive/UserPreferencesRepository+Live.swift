@@ -41,6 +41,11 @@ extension UserPreferencesRepository {
                     preferences.defaultSpeedLimits = limits
                 }
             },
+            updateRecentDownloadDirectories: { serverID, directories in
+                try await store.update(serverID: serverID) { preferences in
+                    preferences.recentDownloadDirectories = directories
+                }
+            },
             observe: { serverID in
                 store.observe(serverID: serverID)
             }

@@ -2,6 +2,60 @@ import ComposableArchitecture
 import Foundation
 
 extension AddTorrentReducer {
+    func loadDefaultDownloadDirectory(
+        environment: ServerConnectionEnvironment
+    ) -> Effect<Action> {
+        .run { send in
+            await send(
+                .defaultDownloadDirectoryResponse(
+                    TaskResult {
+                        try await withDependencies {
+                            environment.apply(to: &$0)
+                        } operation: {
+                            let state = try await sessionRepository.fetchState()
+                            return state.downloadDirectory
+                        }
+                    }
+                )
+            )
+        }
+        .cancellable(id: AddTorrentCancelID.loadDefaults, cancelInFlight: true)
+    }
+
+    func loadPreferences(serverID: UUID) -> Effect<Action> {
+        .run { send in
+            await send(
+                .preferencesResponse(
+                    TaskResult {
+                        try await userPreferencesRepository.load(serverID: serverID)
+                    }
+                )
+            )
+        }
+    }
+
+    func persistRecentDownloadDirectories(state: inout State) -> Effect<Action> {
+        guard let serverID = state.serverID else { return .none }
+        let updated = updatedRecentDirectories(
+            current: state.recentDownloadDirectories,
+            newValue: state.destinationPath,
+            defaultDirectory: state.serverDownloadDirectory
+        )
+        state.recentDownloadDirectories = updated
+        return .run { send in
+            await send(
+                .preferencesResponse(
+                    TaskResult {
+                        try await userPreferencesRepository.updateRecentDownloadDirectories(
+                            serverID: serverID,
+                            updated
+                        )
+                    }
+                )
+            )
+        }
+    }
+
     // swiftlint:disable function_body_length
     func handleSubmit(state: inout State) -> Effect<Action> {
         guard let input = state.pendingInput else { return .none }
@@ -149,4 +203,40 @@ extension AddTorrentReducer {
         let normalizedBase = base.hasSuffix("/") ? String(base.dropLast()) : base
         return normalizedBase + "/" + trimmedComponent
     }
+
+    func normalizedRecentDirectories(
+        _ directories: [String],
+        defaultDirectory: String
+    ) -> [String] {
+        let sanitized =
+            directories
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { $0.isEmpty == false }
+        var unique: [String] = []
+        for value in sanitized where unique.contains(value) == false {
+            unique.append(value)
+        }
+        let normalizedDefault = defaultDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        return unique.filter { $0 != normalizedDefault }
+    }
+
+    func updatedRecentDirectories(
+        current: [String],
+        newValue: String,
+        defaultDirectory: String
+    ) -> [String] {
+        let normalizedDefault = defaultDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        var base = normalizedRecentDirectories(current, defaultDirectory: defaultDirectory)
+        guard trimmed.isEmpty == false else { return base }
+        guard trimmed != normalizedDefault else { return base }
+        base.removeAll { $0 == trimmed }
+        base.insert(trimmed, at: 0)
+        if base.count > maxRecentDirectories {
+            base = Array(base.prefix(maxRecentDirectories))
+        }
+        return base
+    }
+
+    var maxRecentDirectories: Int { 8 }
 }

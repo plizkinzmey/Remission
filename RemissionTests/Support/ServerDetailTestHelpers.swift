@@ -65,6 +65,7 @@ extension UserPreferencesRepository {
             setAutoRefreshEnabled: { _, _ in preferences },
             setTelemetryEnabled: { _, _ in preferences },
             updateDefaultSpeedLimits: { _, _ in preferences },
+            updateRecentDownloadDirectories: { _, _ in preferences },
             observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()

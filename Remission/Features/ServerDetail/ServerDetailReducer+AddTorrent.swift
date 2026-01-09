@@ -57,7 +57,8 @@ extension ServerDetailReducer {
         case .success(let input):
             state.addTorrent = AddTorrentReducer.State(
                 pendingInput: input,
-                connectionEnvironment: state.connectionEnvironment
+                connectionEnvironment: state.connectionEnvironment,
+                serverID: state.server.id
             )
             return .none
 

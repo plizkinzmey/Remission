@@ -132,6 +132,12 @@ struct ServerDetailSpeedLimitTests {
                 preferencesBox.set(updated)
                 return updated
             },
+            updateRecentDownloadDirectories: { _, directories in
+                var updated = preferencesBox.value
+                updated.recentDownloadDirectories = directories
+                preferencesBox.set(updated)
+                return updated
+            },
             observe: { _ in
                 AsyncStream { cont in
                     Task { await continuationBox.set(cont) }

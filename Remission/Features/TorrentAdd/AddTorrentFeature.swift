@@ -26,6 +26,7 @@ struct AddTorrentReducer {
 
     @ObservableState
     struct State: Equatable {
+        var serverID: UUID?
         var pendingInput: PendingTorrentInput?
         var connectionEnvironment: ServerConnectionEnvironment?
         var source: Source = .torrentFile
@@ -34,6 +35,7 @@ struct AddTorrentReducer {
         var isFileImporterPresented: Bool = false
         var destinationPath: String = ""
         var serverDownloadDirectory: String = ""
+        var recentDownloadDirectories: [String] = []
         var startPaused: Bool = false
         var tags: [String] = []
         var newTag: String = ""
@@ -43,8 +45,10 @@ struct AddTorrentReducer {
 
         init(
             pendingInput: PendingTorrentInput? = nil,
-            connectionEnvironment: ServerConnectionEnvironment? = nil
+            connectionEnvironment: ServerConnectionEnvironment? = nil,
+            serverID: UUID? = nil
         ) {
+            self.serverID = serverID
             self.pendingInput = pendingInput
             self.connectionEnvironment = connectionEnvironment
             guard let pendingInput else { return }
@@ -68,6 +72,8 @@ struct AddTorrentReducer {
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
         case destinationPathChanged(String)
+        case destinationSuggestionSelected(String)
+        case destinationSuggestionDeleted(String)
         case startPausedChanged(Bool)
         case newTagChanged(String)
         case addTagTapped
@@ -75,6 +81,7 @@ struct AddTorrentReducer {
         case submitButtonTapped
         case submitResponse(Result<SubmitResult, SubmitError>)
         case defaultDownloadDirectoryResponse(TaskResult<String>)
+        case preferencesResponse(TaskResult<UserPreferences>)
         case closeButtonTapped
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
@@ -119,6 +126,7 @@ struct AddTorrentReducer {
     @Dependency(\.torrentRepository) var torrentRepository
     @Dependency(\.sessionRepository) var sessionRepository
     @Dependency(\.torrentFileLoader) var torrentFileLoader
+    @Dependency(\.userPreferencesRepository) var userPreferencesRepository
 
     enum AddTorrentCancelID {
         case submit
@@ -129,28 +137,16 @@ struct AddTorrentReducer {
         Reduce { state, action in
             switch action {
             case .task:
-                guard
-                    state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                var effects: [Effect<Action>] = []
+                if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                     let environment = state.connectionEnvironment
-                else {
-                    return .none
+                {
+                    effects.append(loadDefaultDownloadDirectory(environment: environment))
                 }
-
-                return .run { send in
-                    await send(
-                        .defaultDownloadDirectoryResponse(
-                            TaskResult {
-                                try await withDependencies {
-                                    environment.apply(to: &$0)
-                                } operation: {
-                                    let state = try await sessionRepository.fetchState()
-                                    return state.downloadDirectory
-                                }
-                            }
-                        )
-                    )
+                if let serverID = state.serverID {
+                    effects.append(loadPreferences(serverID: serverID))
                 }
-                .cancellable(id: AddTorrentCancelID.loadDefaults, cancelInFlight: true)
+                return .merge(effects)
 
             case .sourceChanged(let source):
                 state.source = source
@@ -194,6 +190,14 @@ struct AddTorrentReducer {
                 state.destinationPath = value
                 return .none
 
+            case .destinationSuggestionSelected(let value):
+                state.destinationPath = value
+                return .none
+
+            case .destinationSuggestionDeleted(let value):
+                state.recentDownloadDirectories.removeAll { $0 == value }
+                return persistRecentDownloadDirectories(state: &state)
+
             case .startPausedChanged(let value):
                 state.startPaused = value
                 return .none
@@ -226,7 +230,10 @@ struct AddTorrentReducer {
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = true
                 state.alert = successAlert(for: result.addResult)
-                return .send(.delegate(.addCompleted(result.addResult)))
+                return .merge(
+                    .send(.delegate(.addCompleted(result.addResult))),
+                    persistRecentDownloadDirectories(state: &state)
+                )
 
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false
@@ -247,9 +254,23 @@ struct AddTorrentReducer {
                 if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     state.destinationPath = directory
                 }
+                state.recentDownloadDirectories = normalizedRecentDirectories(
+                    state.recentDownloadDirectories,
+                    defaultDirectory: directory
+                )
                 return .none
 
             case .defaultDownloadDirectoryResponse(.failure):
+                return .none
+
+            case .preferencesResponse(.success(let preferences)):
+                state.recentDownloadDirectories = normalizedRecentDirectories(
+                    preferences.recentDownloadDirectories,
+                    defaultDirectory: state.serverDownloadDirectory
+                )
+                return .none
+
+            case .preferencesResponse(.failure):
                 return .none
 
             case .closeButtonTapped:

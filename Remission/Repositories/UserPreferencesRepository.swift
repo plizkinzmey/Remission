@@ -25,6 +25,10 @@ protocol UserPreferencesRepositoryProtocol: Sendable {
         serverID: UUID,
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences
+    func updateRecentDownloadDirectories(
+        serverID: UUID,
+        _ directories: [String]
+    ) async throws -> UserPreferences
     /// Наблюдает за изменениями настроек и возвращает поток актуальных значений.
     func observe(serverID: UUID) -> AsyncStream<UserPreferences>
 }
@@ -37,6 +41,8 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
     var setTelemetryEnabledClosure: @Sendable (UUID, Bool) async throws -> UserPreferences
     var updateDefaultSpeedLimitsClosure:
         @Sendable (UUID, UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
+    var updateRecentDownloadDirectoriesClosure:
+        @Sendable (UUID, [String]) async throws -> UserPreferences
     var observeClosure: @Sendable (UUID) -> AsyncStream<UserPreferences>
 
     init(
@@ -49,6 +55,8 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         updateDefaultSpeedLimits:
             @escaping @Sendable (UUID, UserPreferences.DefaultSpeedLimits)
             async throws -> UserPreferences,
+        updateRecentDownloadDirectories:
+            @escaping @Sendable (UUID, [String]) async throws -> UserPreferences,
         observe: @escaping @Sendable (UUID) -> AsyncStream<UserPreferences>
     ) {
         self.loadClosure = load
@@ -56,6 +64,7 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         self.setAutoRefreshEnabledClosure = setAutoRefreshEnabled
         self.setTelemetryEnabledClosure = setTelemetryEnabled
         self.updateDefaultSpeedLimitsClosure = updateDefaultSpeedLimits
+        self.updateRecentDownloadDirectoriesClosure = updateRecentDownloadDirectories
         self.observeClosure = observe
     }
 
@@ -89,6 +98,13 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
         _ limits: UserPreferences.DefaultSpeedLimits
     ) async throws -> UserPreferences {
         try await updateDefaultSpeedLimitsClosure(serverID, limits)
+    }
+
+    func updateRecentDownloadDirectories(
+        serverID: UUID,
+        _ directories: [String]
+    ) async throws -> UserPreferences {
+        try await updateRecentDownloadDirectoriesClosure(serverID, directories)
     }
 
     func observe(serverID: UUID) -> AsyncStream<UserPreferences> {
@@ -209,6 +225,11 @@ extension UserPreferencesRepository {
             preferences.defaultSpeedLimits = limits
             return preferences
         },
+        updateRecentDownloadDirectories: { _, directories in
+            var preferences: UserPreferences = .default
+            preferences.recentDownloadDirectories = directories
+            return preferences
+        },
         observe: { _ in
             AsyncStream { continuation in
                 continuation.finish()
@@ -231,6 +252,9 @@ extension UserPreferencesRepository {
         },
         updateDefaultSpeedLimits: { _, _ in
             throw UserPreferencesRepositoryError.notConfigured("updateDefaultSpeedLimits")
+        },
+        updateRecentDownloadDirectories: { _, _ in
+            throw UserPreferencesRepositoryError.notConfigured("updateRecentDownloadDirectories")
         },
         observe: { _ in
             AsyncStream { continuation in
