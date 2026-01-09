@@ -23,6 +23,7 @@ struct AppBootstrapTests {
         #expect(state.serverList.servers.count == 2)
         #expect(state.serverList.servers.first?.name == "UI Test NAS")
         #expect(state.serverList.servers.last?.name == "UI Test Seedbox")
+        #expect(state.hasLoadedServersOnce)
     }
 
     @Test
@@ -81,5 +82,6 @@ struct AppBootstrapTests {
         #expect(state.serverList.servers.count == 1)
         #expect(state.serverList.servers.first?.id == server.id)
         #expect(state.serverList.shouldLoadServersFromRepository == false)
+        #expect(state.hasLoadedServersOnce)
     }
 }

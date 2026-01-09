@@ -7,34 +7,21 @@ import Testing
 @MainActor
 struct AppFeatureTests {
     @Test
-    func selectingServerPreparesConnectionAndPushesDetail() async {
+    func selectingServerPushesDetail() async {
         var server = ServerConfig.previewLocalHTTP
         let identifier = UUID()
         server.id = identifier
-        let environment = ServerConnectionEnvironment.preview(server: server)
-        let handshake = try await environment.dependencies.transmissionClient.performHandshake()
         let store = TestStoreFactory.makeAppTestStore(
             initialState: {
                 var state: AppReducer.State = .init()
                 state.serverList.servers = [server]
                 return state
             }(),
-            configure: { dependencies in
-                dependencies.serverConnectionEnvironmentFactory = .mock(environment: environment)
-            }
+            configure: { _ in }
         )
 
         await store.send(.serverList(.serverTapped(identifier)))
         await store.receive(.serverList(.delegate(.serverSelected(server))))
-
-        #expect(store.state.pendingConnection?.server == server)
-
-        await store.receive(
-            .connectionPreparationResponse(
-                identifier,
-                .success(.init(environment: environment, handshake: handshake))
-            )
-        )
 
         #expect(store.state.path.last?.server == server)
         #expect(store.state.path.count == 1)

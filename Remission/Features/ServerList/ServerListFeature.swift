@@ -13,6 +13,7 @@ struct ServerListReducer {
         @Presents var editor: ServerEditorReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
+        var hasAutoSelectedSingleServer: Bool = false
         var pendingDeletion: ServerConfig?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
@@ -184,9 +185,20 @@ struct ServerListReducer {
                         state.hasPresentedInitialOnboarding = true
                     }
                 }
-                return .run { [servers] send in
+                let shouldAutoSelect =
+                    servers.count == 1
+                    && state.hasAutoSelectedSingleServer == false
+                    && state.onboarding == nil
+                    && state.editor == nil
+                if shouldAutoSelect {
+                    state.hasAutoSelectedSingleServer = true
+                }
+                return .run { [servers, shouldAutoSelect] send in
                     for server in servers {
                         await send(.connectionProbeRequested(server.id))
+                    }
+                    if shouldAutoSelect, let server = servers.first {
+                        await send(.delegate(.serverSelected(server)))
                     }
                 }
 

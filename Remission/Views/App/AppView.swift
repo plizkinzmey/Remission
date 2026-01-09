@@ -9,30 +9,23 @@ struct AppView: View {
         NavigationStack(
             path: $store.scope(state: \.path, action: \.path)
         ) {
-            ServerListView(
-                store: store.scope(state: \.serverList, action: \.serverList)
-            )
-            .navigationTitle(L10n.tr("app.title"))
-            .toolbar {
-                #if os(macOS)
-                    if shouldShowAddServerToolbarButton {
-                        ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
-                    }
-                #else
-                    ToolbarItemGroup(placement: .topBarTrailing) {
+            rootContent
+                .navigationTitle(L10n.tr("app.title"))
+                .toolbar {
+                    #if os(macOS)
                         if shouldShowAddServerToolbarButton {
-                            addServerButton
+                            ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
                         }
-                    }
-                #endif
-            }
+                    #else
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            if shouldShowAddServerToolbarButton {
+                                addServerButton
+                            }
+                        }
+                    #endif
+                }
         } destination: { store in
             ServerDetailView(store: store)
-        }
-        .overlay {
-            if let server = store.pendingConnection?.server, store.path.isEmpty {
-                connectingOverlay(server: server)
-            }
         }
         .appRootChrome()
         #if os(macOS)
@@ -44,6 +37,28 @@ struct AppView: View {
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
+        .task {
+            await store.send(.serverList(.task)).finish()
+        }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if shouldShowServerList {
+            ServerListView(
+                store: store.scope(state: \.serverList, action: \.serverList)
+            )
+        } else {
+            initialLoadingView
+        }
+    }
+
+    private var initialLoadingView: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var addServerButton: some View {
@@ -99,25 +114,17 @@ struct AppView: View {
         store.serverList.servers.isEmpty == false
     }
 
-    private func connectingOverlay(server: ServerConfig) -> some View {
-        ZStack {
-            Color.black.opacity(0.08)
-                .ignoresSafeArea()
-
-            VStack(spacing: 10) {
-                ProgressView()
-                    .controlSize(.large)
-                Text(L10n.tr("serverDetail.status.connecting"))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(server.name)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .padding(20)
-            .appCardSurface(cornerRadius: 16)
-            .padding(.horizontal, 24)
+    private var shouldShowServerList: Bool {
+        if store.hasLoadedServersOnce == false, store.path.isEmpty {
+            return false
         }
+        if store.path.isEmpty == false {
+            return true
+        }
+        if store.serverList.isLoading, store.serverList.servers.isEmpty {
+            return false
+        }
+        return true
     }
 }
 
