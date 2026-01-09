@@ -17,10 +17,7 @@ struct ServerDetailReducer {
         @Presents var settings: SettingsReducer.State?
         @Presents var diagnostics: DiagnosticsReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
-        @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
-        var isFileImporterPresented: Bool = false
-        var pendingAddTorrentInput: PendingTorrentInput?
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
@@ -59,9 +56,7 @@ struct ServerDetailReducer {
         case settings(PresentationAction<SettingsReducer.Action>)
         case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
-        case addTorrentSource(PresentationAction<AddTorrentSourceReducer.Action>)
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
-        case fileImporterPresented(Bool)
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
         case alert(PresentationAction<AlertAction>)
@@ -112,9 +107,6 @@ struct ServerDetailReducer {
             }
             .ifLet(\.$torrentDetail, action: \.torrentDetail) {
                 TorrentDetailReducer()
-            }
-            .ifLet(\.$addTorrentSource, action: \.addTorrentSource) {
-                AddTorrentSourceReducer()
             }
             .ifLet(\.$addTorrent, action: \.addTorrent) {
                 AddTorrentReducer()
@@ -379,7 +371,9 @@ struct ServerDetailReducer {
                 return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):
-                state.addTorrentSource = AddTorrentSourceReducer.State()
+                state.addTorrent = AddTorrentReducer.State(
+                    connectionEnvironment: state.connectionEnvironment
+                )
                 return .none
 
             case .torrentList:
@@ -400,10 +394,6 @@ struct ServerDetailReducer {
             case .torrentDetail:
                 return .none
 
-            case .fileImporterPresented(let isPresented):
-                state.isFileImporterPresented = isPresented
-                return .none
-
             case .fileImportResult(.success(let url)):
                 return handleFileImport(url: url, state: &state)
 
@@ -421,42 +411,6 @@ struct ServerDetailReducer {
                     result: .failure(error),
                     state: &state
                 )
-
-            case .addTorrentSource(.presented(.delegate(.closeRequested))):
-                state.addTorrentSource = nil
-                state.pendingAddTorrentInput = nil
-                return .none
-
-            case .addTorrentSource(.presented(.delegate(.fileRequested))):
-                state.isFileImporterPresented = true
-                return .none
-
-            case .addTorrentSource(.presented(.delegate(.magnetSubmitted(let magnet)))):
-                state.addTorrentSource = nil
-                state.pendingAddTorrentInput = nil
-                return handleMagnetResponse(
-                    result: .success(magnet),
-                    state: &state
-                )
-
-            case .addTorrentSource(.presented(.delegate(.fileSubmitted))):
-                guard let input = state.pendingAddTorrentInput else { return .none }
-                state.addTorrent = AddTorrentReducer.State(
-                    pendingInput: input,
-                    connectionEnvironment: state.connectionEnvironment
-                )
-                state.addTorrentSource = nil
-                state.pendingAddTorrentInput = nil
-                return .none
-
-            case .addTorrentSource(.presented(.sourceChanged(let source))):
-                if source == .magnetLink {
-                    state.pendingAddTorrentInput = nil
-                }
-                return .none
-
-            case .addTorrentSource:
-                return .none
 
             case .addTorrent(.presented(.delegate(.closeRequested))):
                 return .send(.addTorrent(.dismiss))

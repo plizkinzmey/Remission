@@ -173,7 +173,6 @@ struct ServerDetailImportTests {
                 ),
                 connectionEnvironment: $0.connectionEnvironment
             )
-            $0.isFileImporterPresented = false
         }
     }
 
@@ -184,7 +183,6 @@ struct ServerDetailImportTests {
             initialState: {
                 var state = ServerDetailReducer.State(server: server)
                 state.torrentList.connectionEnvironment = .preview(server: server)
-                state.isFileImporterPresented = true
                 return state
             }()
         ) {
@@ -222,7 +220,6 @@ struct ServerDetailImportTests {
         }
 
         await store.send(.fileImportLoaded(.failure(.failed("Corrupted file")))) {
-            $0.isFileImporterPresented = false
             $0.alert = AlertState {
                 TextState(L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"))
             } actions: {

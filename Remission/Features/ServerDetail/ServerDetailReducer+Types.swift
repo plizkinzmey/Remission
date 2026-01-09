@@ -22,17 +22,6 @@ extension ServerDetailReducer {
         }
     }
 
-    enum MagnetImportError: Equatable, Error {
-        case failed(String)
-
-        var message: String {
-            switch self {
-            case .failed(let message):
-                return message
-            }
-        }
-    }
-
     struct DeletionError: Equatable, Error {
         var message: String
     }

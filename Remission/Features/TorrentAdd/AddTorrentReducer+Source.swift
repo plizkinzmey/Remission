@@ -1,7 +1,21 @@
 import ComposableArchitecture
 import Foundation
 
-extension ServerDetailReducer {
+extension AddTorrentReducer {
+    func pendingInput(fromMagnet rawValue: String) -> PendingTorrentInput? {
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        guard let url = URL(string: trimmed),
+            url.scheme?.lowercased() == "magnet"
+        else {
+            return nil
+        }
+        return PendingTorrentInput(
+            payload: .magnetLink(url: url, rawValue: trimmed),
+            sourceDescription: "Magnet"
+        )
+    }
+
     func handleFileImport(url: URL, state: inout State) -> Effect<Action> {
         guard url.pathExtension.lowercased() == "torrent" else {
             state.alert = AlertState {
@@ -53,15 +67,16 @@ extension ServerDetailReducer {
         result: Result<PendingTorrentInput, FileImportError>,
         state: inout State
     ) -> Effect<Action> {
+        state.isFileImporterPresented = false
         switch result {
         case .success(let input):
-            state.addTorrent = AddTorrentReducer.State(
-                pendingInput: input,
-                connectionEnvironment: state.connectionEnvironment
-            )
+            state.source = .torrentFile
+            state.pendingInput = input
+            state.selectedFileName = input.sourceDescription
             return .none
-
         case .failure(let error):
+            state.pendingInput = nil
+            state.selectedFileName = nil
             state.alert = AlertState {
                 TextState(L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"))
             } actions: {

@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ServerDetailView: View {
     @Bindable var store: StoreOf<ServerDetailReducer>
@@ -89,20 +88,6 @@ struct ServerDetailView: View {
             DiagnosticsView(store: diagnosticsStore)
                 .appRootChrome()
         }
-        .sheet(
-            store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
-        ) { sourceStore in
-            NavigationStack {
-                AddTorrentSourceView(store: sourceStore)
-            }
-            .appRootChrome()
-            .fileImporter(
-                isPresented: fileImporterBinding,
-                allowedContentTypes: torrentContentTypes,
-                allowsMultipleSelection: false,
-                onCompletion: handleFileImport
-            )
-        }
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
@@ -142,29 +127,12 @@ struct ServerDetailView: View {
         }
     }
 
-    private var fileImporterBinding: Binding<Bool> {
-        Binding(
-            get: { store.isFileImporterPresented },
-            set: { store.send(.fileImporterPresented($0)) }
-        )
-    }
-
     private var shouldShowConnectionSection: Bool {
         switch store.connectionState.phase {
         case .ready:
             return false
         default:
             return true
-        }
-    }
-
-    private func handleFileImport(_ result: Result<[URL], any Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            store.send(.fileImportResult(.success(url)))
-        case .failure(let error):
-            store.send(.fileImportResult(.failure(error.localizedDescription)))
         }
     }
 
@@ -291,13 +259,6 @@ struct ServerDetailView: View {
         )
     }
 }
-
-private let torrentContentTypes: [UTType] = {
-    if let type = UTType(filenameExtension: "torrent") {
-        return [type]
-    }
-    return [.data]
-}()
 
 #Preview {
     ServerDetailView(

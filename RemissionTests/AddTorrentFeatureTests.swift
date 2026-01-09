@@ -46,19 +46,22 @@ extension AddTorrentFeatureTests {
         )
 
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:demo")!,
-                        rawValue: "magnet:?xt=urn:btih:demo"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:demo")!,
+                            rawValue: "magnet:?xt=urn:btih:demo"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: environment,
-                destinationPath: "/downloads",
-                startPaused: true,
-                tags: ["linux"]
-            )
+                    connectionEnvironment: environment
+                )
+                state.destinationPath = "/downloads"
+                state.startPaused = true
+                state.tags = ["linux"]
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -122,20 +125,23 @@ extension AddTorrentFeatureTests {
         )
 
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:duplicate")!,
-                        rawValue: "magnet:?xt=urn:btih:duplicate"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:duplicate")!,
+                            rawValue: "magnet:?xt=urn:btih:duplicate"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: .testEnvironment(
-                    server: .previewLocalHTTP,
-                    torrentRepository: repository
-                ),
-                destinationPath: "/downloads"
-            )
+                    connectionEnvironment: .testEnvironment(
+                        server: .previewLocalHTTP,
+                        torrentRepository: repository
+                    )
+                )
+                state.destinationPath = "/downloads"
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -184,20 +190,23 @@ extension AddTorrentFeatureTests {
         )
 
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:demo")!,
-                        rawValue: "magnet:?xt=urn:btih:demo"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:demo")!,
+                            rawValue: "magnet:?xt=urn:btih:demo"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: .testEnvironment(
-                    server: .previewLocalHTTP,
-                    torrentRepository: repository
-                ),
-                destinationPath: "/downloads"
-            )
+                    connectionEnvironment: .testEnvironment(
+                        server: .previewLocalHTTP,
+                        torrentRepository: repository
+                    )
+                )
+                state.destinationPath = "/downloads"
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -229,17 +238,20 @@ extension AddTorrentFeatureTests {
     func emptyDestinationShowsAlert() async {
         let environment = ServerConnectionEnvironment.preview(server: .previewLocalHTTP)
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:demo")!,
-                        rawValue: "magnet:?xt=urn:btih:demo"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:demo")!,
+                            rawValue: "magnet:?xt=urn:btih:demo"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: environment,
-                destinationPath: "   "
-            )
+                    connectionEnvironment: environment
+                )
+                state.destinationPath = "   "
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -268,20 +280,23 @@ extension AddTorrentFeatureTests {
         )
 
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:conflict")!,
-                        rawValue: "magnet:?xt=urn:btih:conflict"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:conflict")!,
+                            rawValue: "magnet:?xt=urn:btih:conflict"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: .testEnvironment(
-                    server: .previewLocalHTTP,
-                    torrentRepository: repository
-                ),
-                destinationPath: "/downloads"
-            )
+                    connectionEnvironment: .testEnvironment(
+                        server: .previewLocalHTTP,
+                        torrentRepository: repository
+                    )
+                )
+                state.destinationPath = "/downloads"
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -320,20 +335,23 @@ extension AddTorrentFeatureTests {
         )
 
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:mapping")!,
-                        rawValue: "magnet:?xt=urn:btih:mapping"
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:mapping")!,
+                            rawValue: "magnet:?xt=urn:btih:mapping"
+                        ),
+                        sourceDescription: "Magnet"
                     ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: .testEnvironment(
-                    server: .previewLocalHTTP,
-                    torrentRepository: repository
-                ),
-                destinationPath: "/downloads"
-            )
+                    connectionEnvironment: .testEnvironment(
+                        server: .previewLocalHTTP,
+                        torrentRepository: repository
+                    )
+                )
+                state.destinationPath = "/downloads"
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {
@@ -365,17 +383,20 @@ extension AddTorrentFeatureTests {
     @Test
     func missingConnectionEnvironmentShowsAlert() async {
         let store = TestStore(
-            initialState: AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .magnetLink(
-                        url: URL(string: "magnet:?xt=urn:btih:noenv")!,
-                        rawValue: "magnet:?xt=urn:btih:noenv"
-                    ),
-                    sourceDescription: "Magnet"
-                ),
-                connectionEnvironment: nil,
-                destinationPath: "/downloads"
-            )
+            initialState: {
+                var state = AddTorrentReducer.State(
+                    pendingInput: PendingTorrentInput(
+                        payload: .magnetLink(
+                            url: URL(string: "magnet:?xt=urn:btih:noenv")!,
+                            rawValue: "magnet:?xt=urn:btih:noenv"
+                        ),
+                        sourceDescription: "Magnet"
+                    )
+                )
+                state.connectionEnvironment = nil
+                state.destinationPath = "/downloads"
+                return state
+            }()
         ) {
             AddTorrentReducer()
         } withDependencies: {

@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AddTorrentView: View {
     @Bindable var store: StoreOf<AddTorrentReducer>
@@ -25,6 +26,7 @@ struct AddTorrentView: View {
                         }
                         .disabled(
                             store.isSubmitting
+                                || store.pendingInput == nil
                                 || store.destinationPath.trimmingCharacters(
                                     in: .whitespacesAndNewlines
                                 )
@@ -61,6 +63,7 @@ struct AddTorrentView: View {
                     }
                     .disabled(
                         store.isSubmitting
+                            || store.pendingInput == nil
                             || store.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines)
                                 .isEmpty
                     )
@@ -70,6 +73,12 @@ struct AddTorrentView: View {
         #endif
         .task { await store.send(.task).finish() }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .fileImporter(
+            isPresented: fileImporterBinding,
+            allowedContentTypes: torrentContentTypes,
+            allowsMultipleSelection: false,
+            onCompletion: handleFileImport
+        )
     }
 }
 
@@ -80,6 +89,23 @@ extension AddTorrentView {
 }
 
 extension AddTorrentView {
+    private var fileImporterBinding: Binding<Bool> {
+        Binding(
+            get: { store.isFileImporterPresented },
+            set: { store.send(.fileImporterPresented($0)) }
+        )
+    }
+
+    private func handleFileImport(_ result: Result<[URL], any Error>) {
+        switch result {
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            store.send(.fileImportResult(.success(url)))
+        case .failure(let error):
+            store.send(.fileImportResult(.failure(error.localizedDescription)))
+        }
+    }
+
     fileprivate var windowContent: some View {
         Group {
             #if os(macOS)
@@ -97,16 +123,66 @@ extension AddTorrentView {
     private var windowFormContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             AppSectionCard(L10n.tr("torrentAdd.section.source"), style: .card) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(store.pendingInput.displayName)
-                        .font(.body.weight(.semibold))
-                        .accessibilityIdentifier("torrent_add_source_description")
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker(
+                        L10n.tr("torrentAdd.source.picker.title"),
+                        selection: Binding(
+                            get: { store.source },
+                            set: { store.send(.sourceChanged($0)) }
+                        )
+                    ) {
+                        Text(L10n.tr("torrentAdd.source.option.file"))
+                            .tag(AddTorrentReducer.Source.torrentFile)
+                        Text(L10n.tr("torrentAdd.source.option.magnet"))
+                            .tag(AddTorrentReducer.Source.magnetLink)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    #if os(macOS)
+                        .controlSize(.large)
+                    #endif
+                    .accessibilityIdentifier("torrent_add_source_picker")
 
-                    if store.pendingInput.sourceDescription != store.pendingInput.displayName {
-                        Text(store.pendingInput.sourceDescription)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("torrent_add_source_name")
+                    switch store.source {
+                    case .torrentFile:
+                        HStack(alignment: .center, spacing: 12) {
+                            Button(L10n.tr("torrentAdd.source.chooseFile")) {
+                                store.send(.chooseFileTapped)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .frame(height: 34)
+                            .appPillSurface()
+                            .foregroundStyle(AppTheme.accent)
+                            .accessibilityIdentifier("torrent_add_choose_file_button")
+
+                            if let fileName = store.selectedFileName {
+                                Text(fileName)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            } else {
+                                Spacer(minLength: 0)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    case .magnetLink:
+                        TextField(
+                            L10n.tr("torrentAdd.source.magnet.placeholder"),
+                            text: Binding(
+                                get: { store.magnetText },
+                                set: { store.send(.magnetTextChanged($0)) }
+                            )
+                        )
+                        .textFieldStyle(.plain)
+                        .padding(.horizontal, 12)
+                        .frame(height: 34)
+                        .appPillSurface()
+                        #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        #endif
+                        .accessibilityIdentifier("torrent_add_magnet_field")
                     }
                 }
             }
@@ -223,19 +299,24 @@ extension AddTorrentView {
     NavigationStack {
         AddTorrentView(
             store: Store(
-                initialState: AddTorrentReducer.State(
-                    pendingInput: PendingTorrentInput(
+                initialState: {
+                    var state = AddTorrentReducer.State(
+                        connectionEnvironment: .preview(server: .previewLocalHTTP)
+                    )
+                    state.destinationPath = "/downloads"
+                    state.startPaused = true
+                    state.tags = ["linux", "ubuntu"]
+                    state.source = .magnetLink
+                    state.magnetText = "magnet:?xt=urn:btih:demo"
+                    state.pendingInput = PendingTorrentInput(
                         payload: .magnetLink(
                             url: URL(string: "magnet:?xt=urn:btih:demo")!,
                             rawValue: "magnet:?xt=urn:btih:demo"
                         ),
                         sourceDescription: "Буфер обмена"
-                    ),
-                    connectionEnvironment: .preview(server: .previewLocalHTTP),
-                    destinationPath: "/downloads",
-                    startPaused: true,
-                    tags: ["linux", "ubuntu"]
-                )
+                    )
+                    return state
+                }()
             ) {
                 AddTorrentReducer()
             } withDependencies: {
@@ -244,5 +325,12 @@ extension AddTorrentView {
         )
     }
 }
+
+private let torrentContentTypes: [UTType] = {
+    if let type = UTType(filenameExtension: "torrent") {
+        return [type]
+    }
+    return [.data]
+}()
 
 /// Простой layout для вывода тегов в несколько строк.
