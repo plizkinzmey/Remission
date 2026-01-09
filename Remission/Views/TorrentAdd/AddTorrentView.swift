@@ -31,7 +31,7 @@ struct AddTorrentView: View {
                                 .isEmpty
                         )
                         .accessibilityIdentifier("torrent_add_submit_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
             #else
@@ -83,7 +83,7 @@ extension AddTorrentView {
     fileprivate var windowContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                AppSectionCard(L10n.tr("torrentAdd.section.source")) {
+                AppSectionCard(L10n.tr("torrentAdd.section.source"), style: .card) {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(store.pendingInput.displayName)
                             .font(.body.weight(.semibold))
@@ -98,7 +98,7 @@ extension AddTorrentView {
                     }
                 }
 
-                AppSectionCard(L10n.tr("torrentAdd.section.destination")) {
+                AppSectionCard(L10n.tr("torrentAdd.section.destination"), style: .card) {
                     TextField(
                         "",
                         text: Binding(
@@ -117,23 +117,8 @@ extension AddTorrentView {
                     .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
                 }
 
-                AppSectionCard(L10n.tr("torrentAdd.section.parameters")) {
-                    Toggle(
-                        L10n.tr("torrentAdd.toggle.startPaused"),
-                        isOn: Binding(
-                            get: { store.startPaused },
-                            set: { store.send(.startPausedChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("torrent_add_start_paused_toggle")
-                }
-
-                AppSectionCard(L10n.tr("torrentAdd.section.tags")) {
+                AppSectionCard(L10n.tr("torrentAdd.section.tags"), style: .card) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(L10n.tr("torrentAdd.placeholder.tag"))
-                            .font(.subheadline)
-                            .accessibilityIdentifier("torrent_add_tag_title")
-
                         HStack(spacing: 10) {
                             TextField(
                                 "",
@@ -191,6 +176,26 @@ extension AddTorrentView {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                    }
+                }
+
+                AppSectionCard("", style: .plain) {
+                    HStack(spacing: 12) {
+                        Text(L10n.tr("torrentAdd.toggle.startPaused"))
+                            .foregroundStyle(.primary)
+
+                        Spacer(minLength: 0)
+
+                        Toggle(
+                            "",
+                            isOn: Binding(
+                                get: { store.startPaused },
+                                set: { store.send(.startPausedChanged($0)) }
+                            )
+                        )
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .accessibilityIdentifier("torrent_add_start_paused_toggle")
                     }
                 }
             }
