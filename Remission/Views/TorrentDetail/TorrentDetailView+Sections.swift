@@ -204,44 +204,18 @@ extension TorrentDetailView {
 
     var advancedSections: some View {
         AppSectionCard("") {
-            DisclosureGroup(
-                isExpanded: $isStatisticsExpanded
-            ) {
-                if isStatisticsExpanded {
-                    TorrentStatisticsView(store: store, showsContainer: false)
-                        .padding(.top, 8)
-                }
-            } label: {
-                Text(L10n.tr("torrentDetail.stats.title"))
-            }
-            .accessibilityIdentifier("torrent-statistics-section")
-
-            DisclosureGroup(
-                isExpanded: $isSpeedHistoryExpanded
-            ) {
-                if isSpeedHistoryExpanded {
-                    TorrentSpeedHistoryView(
-                        samples: store.speedHistory.samples,
-                        showsContainer: false
-                    )
-                    .padding(.top, 8)
-                }
-            } label: {
-                Text(L10n.tr("torrentDetail.speedHistory.title"))
-            }
-            .accessibilityIdentifier("torrent-speed-history-section")
-
             DisclosureGroup(isExpanded: $isFilesExpanded) {
                 if isFilesExpanded {
                     filesContent
                         .padding(.top, 8)
                 }
             } label: {
-                Text(
+                disclosureHeader(
                     String(
                         format: L10n.tr("torrentDetail.files.title"),
                         Int64(store.files.count)
-                    )
+                    ),
+                    isExpanded: $isFilesExpanded
                 )
             }
             .accessibilityIdentifier("torrent-files-section")
@@ -252,11 +226,12 @@ extension TorrentDetailView {
                         .padding(.top, 8)
                 }
             } label: {
-                Text(
+                disclosureHeader(
                     String(
                         format: L10n.tr("torrentDetail.trackers.title"),
                         Int64(store.trackers.count)
-                    )
+                    ),
+                    isExpanded: $isTrackersExpanded
                 )
             }
             .accessibilityIdentifier("torrent-trackers-section")
@@ -267,7 +242,10 @@ extension TorrentDetailView {
                         .padding(.top, 8)
                 }
             } label: {
-                Text(L10n.tr("torrentDetail.peers.title"))
+                disclosureHeader(
+                    L10n.tr("torrentDetail.peers.title"),
+                    isExpanded: $isPeersExpanded
+                )
             }
             .accessibilityIdentifier("torrent-peers-section")
         }
@@ -325,5 +303,21 @@ extension TorrentDetailView {
         } else {
             TorrentPeersView(peers: store.peers, showsContainer: false)
         }
+    }
+
+    private func disclosureHeader(
+        _ title: String,
+        isExpanded: Binding<Bool>
+    ) -> some View {
+        Button {
+            isExpanded.wrappedValue.toggle()
+        } label: {
+            HStack {
+                Text(title)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
