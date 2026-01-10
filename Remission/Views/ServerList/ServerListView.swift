@@ -246,6 +246,10 @@ struct ServerListView: View {
                 systemImage: "externaldrive.fill"
             )
             .font(.subheadline.weight(.semibold))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .minimumScaleFactor(0.85)
+            .allowsTightening(true)
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
             .background(Capsule().fill(Color.primary.opacity(0.08)))
