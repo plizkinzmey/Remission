@@ -182,8 +182,7 @@ extension UserPreferencesRepository {
         store: InMemoryUserPreferencesRepositoryStore
     )
         -> @Sendable (UUID, UserPreferences.DefaultSpeedLimits) async throws
-        -> UserPreferences
-    {
+        -> UserPreferences {
         { serverID, limits in
             if await store.shouldFail(.updateDefaultSpeedLimits) {
                 throw InMemoryUserPreferencesRepositoryError.operationFailed(

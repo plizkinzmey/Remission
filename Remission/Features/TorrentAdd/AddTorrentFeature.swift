@@ -139,8 +139,7 @@ struct AddTorrentReducer {
             case .task:
                 var effects: [Effect<Action>] = []
                 if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    let environment = state.connectionEnvironment
-                {
+                    let environment = state.connectionEnvironment {
                     effects.append(loadDefaultDownloadDirectory(environment: environment))
                 }
                 if let serverID = state.serverID {
@@ -188,7 +187,7 @@ struct AddTorrentReducer {
 
             case .destinationPathChanged(let value):
                 state.destinationPath = value
-                return .none
+                return persistRecentDownloadDirectories(state: &state)
 
             case .destinationSuggestionSelected(let value):
                 state.destinationPath = value

@@ -118,8 +118,7 @@ struct AppReducer {
 
     private func preferredServer(in state: State) -> ServerConfig? {
         if let lastID = state.path.ids.last,
-            let server = state.path[id: lastID]?.server
-        {
+            let server = state.path[id: lastID]?.server {
             return server
         }
         return preferredServer(from: Array(state.serverList.servers), in: state)
@@ -127,8 +126,7 @@ struct AppReducer {
 
     private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
         if let lastID = state.path.ids.last,
-            let server = state.path[id: lastID]?.server
-        {
+            let server = state.path[id: lastID]?.server {
             return server
         }
         return servers.max { lhs, rhs in
@@ -142,8 +140,7 @@ struct AppReducer {
     ) -> Effect<Action> {
         if let lastID = state.path.ids.last,
             let activeServer = state.path[id: lastID]?.server,
-            activeServer.id == server.id
-        {
+            activeServer.id == server.id {
             return .none
         }
         state.path.append(ServerDetailReducer.State(server: server))
@@ -157,8 +154,7 @@ struct AppReducer {
     ) -> Effect<Action> {
         if let lastID = state.path.ids.last,
             let activeServer = state.path[id: lastID]?.server,
-            activeServer.id == server.id
-        {
+            activeServer.id == server.id {
             return .send(
                 .path(.element(id: lastID, action: .fileImportResult(.success(url))))
             )

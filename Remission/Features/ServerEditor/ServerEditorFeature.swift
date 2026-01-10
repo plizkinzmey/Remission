@@ -5,13 +5,6 @@ import Foundation
 struct ServerEditorReducer {
     @ObservableState
     struct State: Equatable {
-        enum ConnectionStatus: Equatable {
-            case idle
-            case testing
-            case success(TransmissionHandshakeResult)
-            case failed(String)
-        }
-
         var server: ServerConfig
         var form: ServerConnectionFormState
         var validationError: String?
@@ -48,6 +41,13 @@ struct ServerEditorReducer {
                 || connectionStatus == .testing
                 || (requiresConnectionCheck && verifiedSubmission == nil)
         }
+    }
+
+    enum ConnectionStatus: Equatable {
+        case idle
+        case testing
+        case success(TransmissionHandshakeResult)
+        case failed(String)
     }
 
     enum Action: BindableAction, Equatable {
@@ -226,8 +226,7 @@ struct ServerEditorReducer {
         if currentServer.connection != verified.server.connection
             || currentServer.security != verified.server.security
             || currentServer.authentication?.username != verified.server.authentication?.username
-            || currentPassword != verified.password
-        {
+            || currentPassword != verified.password {
             state.connectionStatus = .idle
             state.pendingSubmission = nil
             state.verifiedSubmission = nil

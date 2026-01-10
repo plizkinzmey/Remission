@@ -274,6 +274,9 @@ struct ServerListReducer {
         }
     }
 
+}
+
+extension ServerListReducer {
     private func deleteServer(_ server: ServerConfig) -> Effect<Action> {
         .run { send in
             do {

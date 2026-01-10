@@ -7,7 +7,6 @@ import Testing
 @MainActor
 struct ServerDetailPreferencesTests {
     @Test
-    // swiftlint:disable:next function_body_length
     func preferencesUpdatePropagatesToTorrentList() async {
         let server = ServerConfig.previewLocalHTTP
         let handshake = makeHandshake()

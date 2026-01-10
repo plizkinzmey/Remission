@@ -12,7 +12,7 @@ struct AddTorrentSourceReducer {
     struct State: Equatable {
         var source: Source = .magnetLink
         var magnetText: String = ""
-        var selectedFileName: String? = nil
+        var selectedFileName: String?
         @Presents var alert: AlertState<AlertAction>?
 
         init(source: Source = .torrentFile) {

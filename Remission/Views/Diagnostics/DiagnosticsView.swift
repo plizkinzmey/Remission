@@ -53,7 +53,9 @@ struct DiagnosticsView: View {
             .alert($store.scope(state: \.alert, action: \.alert))
         }
     }
+}
 
+extension DiagnosticsView {
     @ViewBuilder
     private var windowContent: some View {
         VStack(spacing: 16) {
