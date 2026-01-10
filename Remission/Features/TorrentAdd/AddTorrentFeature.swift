@@ -138,9 +138,10 @@ struct AddTorrentReducer {
             switch action {
             case .task:
                 var effects: [Effect<Action>] = []
-                if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    let environment = state.connectionEnvironment {
-                    effects.append(loadDefaultDownloadDirectory(environment: environment))
+                if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let environment = state.connectionEnvironment {
+                        effects.append(loadDefaultDownloadDirectory(environment: environment))
+                    }
                 }
                 if let serverID = state.serverID {
                     effects.append(loadPreferences(serverID: serverID))

@@ -223,10 +223,12 @@ struct ServerEditorReducer {
             createdAt: state.server.createdAt
         )
         let currentPassword = state.form.password.isEmpty ? nil : state.form.password
-        if currentServer.connection != verified.server.connection
+        let shouldReset =
+            currentServer.connection != verified.server.connection
             || currentServer.security != verified.server.security
             || currentServer.authentication?.username != verified.server.authentication?.username
-            || currentPassword != verified.password {
+            || currentPassword != verified.password
+        if shouldReset {
             state.connectionStatus = .idle
             state.pendingSubmission = nil
             state.verifiedSubmission = nil

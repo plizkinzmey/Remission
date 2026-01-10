@@ -167,19 +167,24 @@ actor PersistentUserPreferencesStore {
         defaults: PreferencesUserDefaultsBox
     ) -> (preferencesByServer: [UUID: UserPreferences], legacyPreferences: UserPreferences?) {
         var result: [UUID: UserPreferences] = [:]
-        if let data = defaults.data(StorageKey.preferencesByServer),
-            let decoded = try? JSONDecoder().decode([String: UserPreferences].self, from: data) {
-            for (key, value) in decoded {
-                if let id = UUID(uuidString: key) {
-                    result[id] = UserPreferences.migratedToCurrentVersion(value)
+        if let data = defaults.data(StorageKey.preferencesByServer) {
+            if let decoded = try? JSONDecoder().decode(
+                [String: UserPreferences].self,
+                from: data
+            ) {
+                for (key, value) in decoded {
+                    if let id = UUID(uuidString: key) {
+                        result[id] = UserPreferences.migratedToCurrentVersion(value)
+                    }
                 }
             }
         }
 
         var legacy: UserPreferences?
-        if let data = defaults.data(StorageKey.legacyPreferences),
-            let decoded = try? JSONDecoder().decode(UserPreferences.self, from: data) {
-            legacy = UserPreferences.migratedToCurrentVersion(decoded)
+        if let data = defaults.data(StorageKey.legacyPreferences) {
+            if let decoded = try? JSONDecoder().decode(UserPreferences.self, from: data) {
+                legacy = UserPreferences.migratedToCurrentVersion(decoded)
+            }
         }
 
         return (result, legacy)

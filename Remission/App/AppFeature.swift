@@ -117,18 +117,14 @@ struct AppReducer {
     }
 
     private func preferredServer(in state: State) -> ServerConfig? {
-        if let lastID = state.path.ids.last,
-            let server = state.path[id: lastID]?.server {
-            return server
-        }
+        let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        if let lastServer { return lastServer }
         return preferredServer(from: Array(state.serverList.servers), in: state)
     }
 
     private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
-        if let lastID = state.path.ids.last,
-            let server = state.path[id: lastID]?.server {
-            return server
-        }
+        let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        if let lastServer { return lastServer }
         return servers.max { lhs, rhs in
             lhs.createdAt < rhs.createdAt
         }
@@ -138,9 +134,8 @@ struct AppReducer {
         _ server: ServerConfig,
         state: inout State
     ) -> Effect<Action> {
-        if let lastID = state.path.ids.last,
-            let activeServer = state.path[id: lastID]?.server,
-            activeServer.id == server.id {
+        let activeServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        if activeServer?.id == server.id {
             return .none
         }
         state.path.append(ServerDetailReducer.State(server: server))
@@ -152,9 +147,9 @@ struct AppReducer {
         in server: ServerConfig,
         state: inout State
     ) -> Effect<Action> {
-        if let lastID = state.path.ids.last,
-            let activeServer = state.path[id: lastID]?.server,
-            activeServer.id == server.id {
+        let activeServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        if activeServer?.id == server.id {
+            guard let lastID = state.path.ids.last else { return .none }
             return .send(
                 .path(.element(id: lastID, action: .fileImportResult(.success(url))))
             )

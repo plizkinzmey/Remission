@@ -244,8 +244,8 @@ extension TransmissionClientBootstrap {
             ) { [weak self] notification in
                 guard let self else { return }
                 guard let userInfo = notification.userInfo else { return }
-                if let senderPID = userInfo[senderKey] as? Int,
-                    senderPID == ProcessInfo.processInfo.processIdentifier {
+                guard let senderPID = userInfo[senderKey] as? Int else { return }
+                if senderPID == ProcessInfo.processInfo.processIdentifier {
                     return
                 }
                 guard let paths = userInfo[pathsKey] as? [String] else { return }

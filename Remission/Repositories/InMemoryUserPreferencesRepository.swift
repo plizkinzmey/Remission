@@ -102,6 +102,9 @@ enum InMemoryUserPreferencesRepositoryError: Error, LocalizedError, Sendable, Eq
 }
 
 extension UserPreferencesRepository {
+    private typealias DefaultSpeedLimitsUpdater =
+        @Sendable (UUID, UserPreferences.DefaultSpeedLimits) async throws -> UserPreferences
+
     static func inMemory(
         store: InMemoryUserPreferencesRepositoryStore
     ) -> UserPreferencesRepository {
@@ -180,9 +183,7 @@ extension UserPreferencesRepository {
 
     private static func makeUpdateDefaultSpeedLimits(
         store: InMemoryUserPreferencesRepositoryStore
-    )
-        -> @Sendable (UUID, UserPreferences.DefaultSpeedLimits) async throws
-        -> UserPreferences {
+    ) -> DefaultSpeedLimitsUpdater {
         { serverID, limits in
             if await store.shouldFail(.updateDefaultSpeedLimits) {
                 throw InMemoryUserPreferencesRepositoryError.operationFailed(
