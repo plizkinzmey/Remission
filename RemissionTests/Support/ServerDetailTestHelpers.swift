@@ -60,12 +60,13 @@ extension UserPreferencesRepository {
     /// Test helper scoped to ServerDetail tests to avoid collisions with other extensions.
     static func serverDetailTestValue(preferences: UserPreferences) -> UserPreferencesRepository {
         UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
+            load: { _ in preferences },
+            updatePollingInterval: { _, _ in preferences },
+            setAutoRefreshEnabled: { _, _ in preferences },
+            setTelemetryEnabled: { _, _ in preferences },
+            updateDefaultSpeedLimits: { _, _ in preferences },
+            updateRecentDownloadDirectories: { _, _ in preferences },
+            observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }

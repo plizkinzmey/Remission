@@ -67,8 +67,12 @@ struct InMemoryRepositoryTests {
     func userPreferencesRepositoryUpdatePollingInterval() async throws {
         let store = DomainFixtures.makeUserPreferencesStore()
         let repository = UserPreferencesRepository.inMemory(store: store)
+        let serverID = UUID()
 
-        let preferences = try await repository.updatePollingInterval(10)
+        let preferences = try await repository.updatePollingInterval(
+            serverID: serverID,
+            10
+        )
 
         #expect(preferences.pollingInterval == 10)
     }
@@ -87,8 +91,9 @@ struct InMemoryRepositoryTests {
         )
         let store = DomainFixtures.makeUserPreferencesStore(preferences: legacy)
         let repository = UserPreferencesRepository.inMemory(store: store)
+        let serverID = UUID()
 
-        let migrated = try await repository.load()
+        let migrated = try await repository.load(serverID: serverID)
 
         #expect(migrated.version == UserPreferences.currentVersion)
         #expect(migrated.isTelemetryEnabled == false)
@@ -100,9 +105,10 @@ struct InMemoryRepositoryTests {
         let store = DomainFixtures.makeUserPreferencesStore()
         await store.markFailure(.load)
         let repository = UserPreferencesRepository.inMemory(store: store)
+        let serverID = UUID()
 
         await #expect(throws: InMemoryUserPreferencesRepositoryError.self) {
-            _ = try await repository.load()
+            _ = try await repository.load(serverID: serverID)
         }
     }
 

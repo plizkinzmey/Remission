@@ -106,13 +106,14 @@ extension TorrentListView {
                     )
                     .textFieldStyle(.plain)
                     .font(.body)
+                    .foregroundStyle(.primary)
                 }
                 .accessibilityIdentifier("torrentlist_search_field")
             }
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
     #endif
 
@@ -532,6 +533,7 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrentlist_filter_picker")
         .pickerStyle(.segmented)
+        .foregroundStyle(.primary)
         #if os(macOS)
             .controlSize(.large)
         #endif
@@ -550,6 +552,7 @@ extension TorrentListView {
                     Text(store.sortOrder.title)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
+                        .foregroundStyle(.primary)
                     Spacer(minLength: 6)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.caption.weight(.semibold))
@@ -558,7 +561,7 @@ extension TorrentListView {
                 .padding(.horizontal, 12)
                 .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
                 .contentShape(Rectangle())
-                .appPillSurface()
+                .appToolbarPillSurface()
             }
             .accessibilityIdentifier("torrentlist_sort_picker")
             .buttonStyle(.plain)
@@ -658,13 +661,13 @@ private struct TorrentRowView: View {
             HStack(spacing: 12) {
                 Label(item.metrics.progressText, systemImage: "circle.dashed")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
 
                 if let etaText = item.metrics.etaText {
                     Label(etaText, systemImage: "clock")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                 }
 
                 Label(
@@ -672,13 +675,13 @@ private struct TorrentRowView: View {
                     systemImage: "person.2"
                 )
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.primary)
 
                 Spacer(minLength: 6)
 
                 Label(item.metrics.speedSummary, systemImage: "speedometer")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
             }
         }
@@ -815,7 +818,7 @@ private struct TorrentRowView: View {
         switch item.torrent.status {
         case .downloading: return .blue
         case .seeding: return .green
-        case .stopped: return .gray
+        case .stopped: return .primary
         case .checking, .checkWaiting: return .orange
         case .downloadWaiting, .seedWaiting: return .purple
         case .isolated: return .red

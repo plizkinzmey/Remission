@@ -3,23 +3,77 @@ import Foundation
 
 @Reducer
 struct AddTorrentReducer {
+    enum Source: String, CaseIterable, Equatable, Sendable {
+        case torrentFile
+        case magnetLink
+    }
+
+    enum FileImportResult: Equatable {
+        case success(URL)
+        case failure(String)
+    }
+
+    enum FileImportError: Equatable, Error {
+        case failed(String)
+
+        var message: String {
+            switch self {
+            case .failed(let message):
+                return message
+            }
+        }
+    }
+
     @ObservableState
     struct State: Equatable {
-        var pendingInput: PendingTorrentInput
+        var serverID: UUID?
+        var pendingInput: PendingTorrentInput?
         var connectionEnvironment: ServerConnectionEnvironment?
+        var source: Source = .torrentFile
+        var magnetText: String = ""
+        var selectedFileName: String?
+        var isFileImporterPresented: Bool = false
         var destinationPath: String = ""
         var serverDownloadDirectory: String = ""
+        var recentDownloadDirectories: [String] = []
         var startPaused: Bool = false
         var tags: [String] = []
         var newTag: String = ""
         var isSubmitting: Bool = false
         var closeOnAlertDismiss: Bool = false
         @Presents var alert: AlertState<AlertAction>?
+
+        init(
+            pendingInput: PendingTorrentInput? = nil,
+            connectionEnvironment: ServerConnectionEnvironment? = nil,
+            serverID: UUID? = nil
+        ) {
+            self.serverID = serverID
+            self.pendingInput = pendingInput
+            self.connectionEnvironment = connectionEnvironment
+            guard let pendingInput else { return }
+            switch pendingInput.payload {
+            case .torrentFile(_, let fileName):
+                source = .torrentFile
+                selectedFileName = fileName ?? pendingInput.sourceDescription
+            case .magnetLink(_, let rawValue):
+                source = .magnetLink
+                magnetText = rawValue
+            }
+        }
     }
 
     enum Action: Equatable {
         case task
+        case sourceChanged(Source)
+        case magnetTextChanged(String)
+        case chooseFileTapped
+        case fileImporterPresented(Bool)
+        case fileImportResult(FileImportResult)
+        case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
         case destinationPathChanged(String)
+        case destinationSuggestionSelected(String)
+        case destinationSuggestionDeleted(String)
         case startPausedChanged(Bool)
         case newTagChanged(String)
         case addTagTapped
@@ -27,6 +81,7 @@ struct AddTorrentReducer {
         case submitButtonTapped
         case submitResponse(Result<SubmitResult, SubmitError>)
         case defaultDownloadDirectoryResponse(TaskResult<String>)
+        case preferencesResponse(TaskResult<UserPreferences>)
         case closeButtonTapped
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
@@ -70,8 +125,10 @@ struct AddTorrentReducer {
 
     @Dependency(\.torrentRepository) var torrentRepository
     @Dependency(\.sessionRepository) var sessionRepository
+    @Dependency(\.torrentFileLoader) var torrentFileLoader
+    @Dependency(\.userPreferencesRepository) var userPreferencesRepository
 
-    private enum AddTorrentCancelID {
+    enum AddTorrentCancelID {
         case submit
         case loadDefaults
     }
@@ -80,32 +137,71 @@ struct AddTorrentReducer {
         Reduce { state, action in
             switch action {
             case .task:
-                guard
-                    state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-                    let environment = state.connectionEnvironment
-                else {
-                    return .none
+                var effects: [Effect<Action>] = []
+                if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let environment = state.connectionEnvironment {
+                        effects.append(loadDefaultDownloadDirectory(environment: environment))
+                    }
                 }
+                if let serverID = state.serverID {
+                    effects.append(loadPreferences(serverID: serverID))
+                }
+                return .merge(effects)
 
-                return .run { send in
-                    await send(
-                        .defaultDownloadDirectoryResponse(
-                            TaskResult {
-                                try await withDependencies {
-                                    environment.apply(to: &$0)
-                                } operation: {
-                                    let state = try await sessionRepository.fetchState()
-                                    return state.downloadDirectory
-                                }
-                            }
-                        )
-                    )
+            case .sourceChanged(let source):
+                state.source = source
+                if source == .magnetLink {
+                    state.selectedFileName = nil
+                    state.pendingInput = pendingInput(fromMagnet: state.magnetText)
+                } else {
+                    state.magnetText = ""
+                    state.pendingInput = nil
                 }
-                .cancellable(id: AddTorrentCancelID.loadDefaults, cancelInFlight: true)
+                return .none
+
+            case .magnetTextChanged(let value):
+                state.magnetText = value
+                if state.source == .magnetLink {
+                    state.pendingInput = pendingInput(fromMagnet: value)
+                }
+                return .none
+
+            case .chooseFileTapped:
+                state.isFileImporterPresented = true
+                return .none
+
+            case .fileImporterPresented(let isPresented):
+                state.isFileImporterPresented = isPresented
+                return .none
+
+            case .fileImportResult(.success(let url)):
+                return handleFileImport(url: url, state: &state)
+
+            case .fileImportResult(.failure(let message)):
+                return handleFileImportFailure(message: message, state: &state)
+
+            case .fileImportLoaded(.success(let input)):
+                return handleFileImportLoaded(result: .success(input), state: &state)
+
+            case .fileImportLoaded(.failure(let error)):
+                return handleFileImportLoaded(result: .failure(error), state: &state)
 
             case .destinationPathChanged(let value):
                 state.destinationPath = value
+                return persistRecentDownloadDirectories(state: &state)
+
+            case .destinationSuggestionSelected(let value):
+                state.destinationPath = value
                 return .none
+
+            case .destinationSuggestionDeleted(let value):
+                state.recentDownloadDirectories.removeAll { $0 == value }
+                if state.destinationPath == value {
+                    let fallback = state.serverDownloadDirectory
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    state.destinationPath = fallback
+                }
+                return persistRecentDownloadDirectories(state: &state)
 
             case .startPausedChanged(let value):
                 state.startPaused = value
@@ -139,7 +235,10 @@ struct AddTorrentReducer {
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = true
                 state.alert = successAlert(for: result.addResult)
-                return .send(.delegate(.addCompleted(result.addResult)))
+                return .merge(
+                    .send(.delegate(.addCompleted(result.addResult))),
+                    persistRecentDownloadDirectories(state: &state)
+                )
 
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false
@@ -160,9 +259,23 @@ struct AddTorrentReducer {
                 if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     state.destinationPath = directory
                 }
+                state.recentDownloadDirectories = normalizedRecentDirectories(
+                    state.recentDownloadDirectories,
+                    defaultDirectory: directory
+                )
                 return .none
 
             case .defaultDownloadDirectoryResponse(.failure):
+                return .none
+
+            case .preferencesResponse(.success(let preferences)):
+                state.recentDownloadDirectories = normalizedRecentDirectories(
+                    preferences.recentDownloadDirectories,
+                    defaultDirectory: state.serverDownloadDirectory
+                )
+                return .none
+
+            case .preferencesResponse(.failure):
                 return .none
 
             case .closeButtonTapped:
@@ -185,153 +298,5 @@ struct AddTorrentReducer {
             }
         }
         .ifLet(\.$alert, action: \.alert)
-    }
-
-    // swiftlint:disable function_body_length
-    private func handleSubmit(state: inout State) -> Effect<Action> {
-        let input = state.pendingInput
-        let destinationRaw = state.destinationPath.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        guard destinationRaw.isEmpty == false else {
-            state.alert = AlertState {
-                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(L10n.tr("torrentAdd.alert.destinationRequired.message"))
-            }
-            state.closeOnAlertDismiss = false
-            return .none
-        }
-
-        let destination = normalizeDestination(
-            destinationRaw,
-            defaultDownloadDirectory: state.serverDownloadDirectory
-        )
-        if destination != destinationRaw {
-            state.destinationPath = destination
-        }
-
-        guard let environment = state.connectionEnvironment else {
-            state.alert = AlertState {
-                TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(L10n.tr("torrentAdd.alert.noConnection.message"))
-            }
-            state.closeOnAlertDismiss = false
-            return .none
-        }
-
-        let tags = state.tags.isEmpty ? nil : state.tags
-        let startPaused = state.startPaused
-        state.isSubmitting = true
-        state.closeOnAlertDismiss = false
-
-        return .run { send in
-            let result = await Result {
-                try await withDependencies {
-                    environment.apply(to: &$0)
-                } operation: {
-                    try await torrentRepository.add(
-                        input,
-                        destinationPath: destination,
-                        startPaused: startPaused,
-                        tags: tags
-                    )
-                }
-            }
-
-            switch result {
-            case .success(let response):
-                await send(.submitResponse(.success(.init(addResult: response))))
-            case .failure(let error):
-                await send(.submitResponse(.failure(mapSubmitError(error))))
-            }
-        }
-        .cancellable(id: AddTorrentCancelID.submit, cancelInFlight: true)
-    }
-    // swiftlint:enable function_body_length
-
-    private func successAlert(
-        for result: TorrentRepository.AddResult
-    ) -> AlertState<AlertAction> {
-        let isDuplicate: Bool = result.status == .duplicate
-        let title: TextState =
-            isDuplicate
-            ? TextState(L10n.tr("torrentAdd.alert.duplicate.title"))
-            : TextState(L10n.tr("torrentAdd.alert.added.title"))
-        let message: TextState =
-            isDuplicate
-            ? TextState(
-                String(
-                    format: L10n.tr("torrentAdd.alert.duplicate.message"),
-                    result.name
-                )
-            )
-            : TextState(
-                String(
-                    format: L10n.tr("torrentAdd.alert.added.message"),
-                    result.name
-                )
-            )
-
-        return AlertState {
-            title
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState(L10n.tr("common.ok"))
-            }
-        } message: {
-            message
-        }
-    }
-
-    private func mapSubmitError(_ error: Error) -> SubmitError {
-        if let apiError = error as? APIError {
-            switch apiError {
-            case .unauthorized:
-                return .unauthorized
-            case .sessionConflict:
-                return .sessionConflict
-            case .unknown(let details):
-                return .failed(details)
-            default:
-                return .failed(apiError.localizedDescription)
-            }
-        }
-
-        if let mappingError = error as? DomainMappingError {
-            return .mapping(mappingError.localizedDescription)
-        }
-
-        return .failed(error.localizedDescription)
-    }
-
-    private func normalizeDestination(
-        _ destination: String,
-        defaultDownloadDirectory: String
-    ) -> String {
-        let base = defaultDownloadDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard base.isEmpty == false else { return destination }
-
-        let hasNestedPath = destination.hasPrefix("/") && destination.dropFirst().contains("/")
-        if hasNestedPath {
-            return destination
-        }
-
-        let trimmedComponent = destination.trimmingCharacters(
-            in: CharacterSet(charactersIn: "/")
-        )
-        guard trimmedComponent.isEmpty == false else { return destination }
-
-        let normalizedBase = base.hasSuffix("/") ? String(base.dropLast()) : base
-        return normalizedBase + "/" + trimmedComponent
     }
 }

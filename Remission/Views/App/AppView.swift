@@ -9,26 +9,21 @@ struct AppView: View {
         NavigationStack(
             path: $store.scope(state: \.path, action: \.path)
         ) {
-            ServerListView(
-                store: store.scope(state: \.serverList, action: \.serverList)
-            )
-            .navigationTitle(L10n.tr("app.title"))
-            .toolbar {
-                #if os(macOS)
-                    if shouldShowAddServerToolbarButton || shouldShowSettingsToolbarButton {
-                        ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
-                    }
-                #else
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        if shouldShowSettingsToolbarButton {
-                            settingsButton
-                        }
+            rootContent
+                .navigationTitle(L10n.tr("app.title"))
+                .toolbar {
+                    #if os(macOS)
                         if shouldShowAddServerToolbarButton {
-                            addServerButton
+                            ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
                         }
-                    }
-                #endif
-            }
+                    #else
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            if shouldShowAddServerToolbarButton {
+                                addServerButton
+                            }
+                        }
+                    #endif
+                }
         } destination: { store in
             ServerDetailView(store: store)
         }
@@ -42,11 +37,28 @@ struct AppView: View {
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
-        .sheet(
-            store: store.scope(state: \.$settings, action: \.settings)
-        ) { settingsStore in
-            SettingsView(store: settingsStore)
+        .task {
+            await store.send(.serverList(.task)).finish()
         }
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        if shouldShowServerList {
+            ServerListView(
+                store: store.scope(state: \.serverList, action: \.serverList)
+            )
+        } else {
+            initialLoadingView
+        }
+    }
+
+    private var initialLoadingView: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var addServerButton: some View {
@@ -57,15 +69,6 @@ struct AppView: View {
         }
         .accessibilityIdentifier("app_add_server_button")
         .accessibilityHint(L10n.tr("serverList.action.addServer"))
-    }
-
-    private var settingsButton: some View {
-        Button {
-            store.send(.settingsButtonTapped)
-        } label: {
-            Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
-        }
-        .accessibilityIdentifier("app_settings_button")
     }
 
     #if os(macOS)
@@ -81,23 +84,10 @@ struct AppView: View {
                     .accessibilityHint(L10n.tr("serverList.action.addServer"))
                 }
 
-                if shouldShowAddServerToolbarButton && shouldShowSettingsToolbarButton {
-                    Divider()
-                        .frame(height: 18)
-                }
-
-                if shouldShowSettingsToolbarButton {
-                    toolbarIconButton(
-                        systemImage: "gearshape",
-                        accessibilityIdentifier: "app_settings_button"
-                    ) {
-                        store.send(.settingsButtonTapped)
-                    }
-                }
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
 
         private func toolbarIconButton(
@@ -124,8 +114,17 @@ struct AppView: View {
         store.serverList.servers.isEmpty == false
     }
 
-    private var shouldShowSettingsToolbarButton: Bool {
-        true
+    private var shouldShowServerList: Bool {
+        if store.hasLoadedServersOnce == false, store.path.isEmpty {
+            return false
+        }
+        if store.path.isEmpty == false {
+            return true
+        }
+        if store.serverList.isLoading, store.serverList.servers.isEmpty {
+            return false
+        }
+        return true
     }
 }
 

@@ -24,12 +24,12 @@ extension TorrentListReducer {
 // MARK: - Helper methods
 
 extension TorrentListReducer {
-    func loadPreferences() -> Effect<Action> {
+    func loadPreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
             await send(
                 .userPreferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.load()
+                        try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
@@ -37,9 +37,9 @@ extension TorrentListReducer {
         .cancellable(id: CancelID.preferences, cancelInFlight: true)
     }
 
-    func observePreferences() -> Effect<Action> {
+    func observePreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
-            let stream = userPreferencesRepository.observe()
+            let stream = userPreferencesRepository.observe(serverID: serverID)
             for await preferences in stream {
                 await send(.userPreferencesResponse(.success(preferences)))
             }

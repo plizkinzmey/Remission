@@ -1,6 +1,5 @@
 import ComposableArchitecture
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct ServerDetailView: View {
     @Bindable var store: StoreOf<ServerDetailReducer>
@@ -79,19 +78,16 @@ struct ServerDetailView: View {
             .appRootChrome()
         }
         .sheet(
-            store: store.scope(state: \.$addTorrentSource, action: \.addTorrentSource)
-        ) { sourceStore in
-            NavigationStack {
-                AddTorrentSourceView(store: sourceStore)
-            }
-            .appRootChrome()
+            store: store.scope(state: \.$settings, action: \.settings)
+        ) { settingsStore in
+            SettingsView(store: settingsStore)
         }
-        .fileImporter(
-            isPresented: fileImporterBinding,
-            allowedContentTypes: torrentContentTypes,
-            allowsMultipleSelection: false,
-            onCompletion: handleFileImport
-        )
+        .sheet(
+            store: store.scope(state: \.$diagnostics, action: \.diagnostics)
+        ) { diagnosticsStore in
+            DiagnosticsView(store: diagnosticsStore)
+                .appRootChrome()
+        }
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
@@ -101,12 +97,22 @@ struct ServerDetailView: View {
                     macOSSettingsToolbarPill
                 }
             #else
-                ToolbarItem(placement: .primaryAction) {
-                    Button(L10n.tr("serverDetail.button.edit")) {
-                        store.send(.editButtonTapped)
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        store.send(.diagnosticsButtonTapped)
+                    } label: {
+                        Label(L10n.tr("diagnostics.title"), systemImage: "doc.text.below.ecg")
+                    }
+                    .accessibilityIdentifier("server_detail_diagnostics_button")
+                    .accessibilityHint(L10n.tr("diagnostics.title"))
+
+                    Button {
+                        store.send(.settingsButtonTapped)
+                    } label: {
+                        Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
                     }
                     .accessibilityIdentifier("server_detail_edit_button")
-                    .accessibilityHint(L10n.tr("serverDetail.button.edit"))
+                    .accessibilityHint(L10n.tr("app.action.settings"))
                 }
             #endif
         }
@@ -121,29 +127,12 @@ struct ServerDetailView: View {
         }
     }
 
-    private var fileImporterBinding: Binding<Bool> {
-        Binding(
-            get: { store.isFileImporterPresented },
-            set: { store.send(.fileImporterPresented($0)) }
-        )
-    }
-
     private var shouldShowConnectionSection: Bool {
         switch store.connectionState.phase {
         case .ready:
             return false
         default:
             return true
-        }
-    }
-
-    private func handleFileImport(_ result: Result<[URL], any Error>) {
-        switch result {
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            store.send(.fileImportResult(.success(url)))
-        case .failure(let error):
-            store.send(.fileImportResult(.failure(error.localizedDescription)))
         }
     }
 
@@ -157,9 +146,9 @@ struct ServerDetailView: View {
         private var macOSSettingsToolbarPill: some View {
             HStack(spacing: 10) {
                 Button {
-                    store.send(.editButtonTapped)
+                    store.send(.diagnosticsButtonTapped)
                 } label: {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "doc.text.below.ecg")
                         .font(.system(size: 14, weight: .semibold))
                         .frame(width: 24, height: 24)
                         .padding(.horizontal, 6)
@@ -167,8 +156,8 @@ struct ServerDetailView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("server_detail_edit_button")
-                .accessibilityLabel(L10n.tr("serverDetail.button.edit"))
+                .accessibilityIdentifier("server_detail_diagnostics_button")
+                .accessibilityLabel(L10n.tr("diagnostics.title"))
 
                 Divider()
                     .frame(height: 18)
@@ -184,12 +173,13 @@ struct ServerDetailView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityIdentifier("server_detail_app_settings_button")
+                .accessibilityIdentifier("server_detail_edit_button")
                 .accessibilityLabel(L10n.tr("app.action.settings"))
+
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
 
         private var macOSToolbarPillHeight: CGFloat { 34 }
@@ -269,13 +259,6 @@ struct ServerDetailView: View {
         )
     }
 }
-
-private let torrentContentTypes: [UTType] = {
-    if let type = UTType(filenameExtension: "torrent") {
-        return [type]
-    }
-    return [.data]
-}()
 
 #Preview {
     ServerDetailView(

@@ -58,6 +58,9 @@ enum AppBootstrap {
         if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
             applyFixture(fixture, to: &state)
         }
+        if existingState == nil, state.serverList.shouldLoadServersFromRepository == false {
+            state.hasLoadedServersOnce = true
+        }
         return state
     }
 

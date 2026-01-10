@@ -33,12 +33,12 @@ struct OnboardingView: View {
                         }
                         .accessibilityIdentifier("onboarding_cancel_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
-                        Button(L10n.tr("onboarding.action.saveServer")) {
+                        Button(L10n.tr("common.save")) {
                             store.send(.connectButtonTapped)
                         }
                         .disabled(store.isSaveButtonDisabled)
                         .accessibilityIdentifier("onboarding_submit_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
@@ -46,6 +46,20 @@ struct OnboardingView: View {
                 windowContent
                     .navigationTitle(L10n.tr("onboarding.title"))
                     .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button(checkConnectionButtonTitle) {
+                                if OnboardingViewEnvironment.isOnboardingUITest {
+                                    store.send(.uiTestBypassConnection)
+                                } else {
+                                    store.send(.checkConnectionButtonTapped)
+                                }
+                            }
+                            .disabled(
+                                store.connectionStatus == .testing
+                                    || store.form.isFormValid == false
+                            )
+                            .accessibilityIdentifier("onboarding_connection_check_button")
+                        }
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("onboarding.action.cancel")) {
                                 store.send(.cancelButtonTapped)
@@ -53,7 +67,7 @@ struct OnboardingView: View {
                             .accessibilityIdentifier("onboarding_cancel_button")
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("onboarding.action.saveServer")) {
+                            Button(L10n.tr("common.save")) {
                                 store.send(.connectButtonTapped)
                             }
                             .disabled(store.isSaveButtonDisabled)
@@ -80,6 +94,12 @@ struct OnboardingView: View {
 
                     if let validationError = store.validationError {
                         Text(validationError)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    if case .failed(let message) = store.connectionStatus {
+                        Text(message)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }

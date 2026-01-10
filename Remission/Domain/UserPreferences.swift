@@ -1,9 +1,9 @@
 import Foundation
 
-/// Пользовательские настройки приложения Remission.
+/// Пользовательские настройки Remission, привязанные к конкретному серверу.
 /// Хранят значения, влияющие на периодичность обновлений и дефолтные лимиты скоростей.
 struct UserPreferences: Equatable, Sendable, Codable {
-    static let currentVersion: Int = 2
+    static let currentVersion: Int = 3
 
     struct DefaultSpeedLimits: Equatable, Sendable, Codable {
         /// Значение лимита скачивания в КБ/с. `nil` означает отсутствие ограничения.
@@ -30,6 +30,8 @@ struct UserPreferences: Equatable, Sendable, Codable {
     var isTelemetryEnabled: Bool
     /// Дефолтные лимиты скоростей, применяемые при добавлении торрентов.
     var defaultSpeedLimits: DefaultSpeedLimits
+    /// История пользовательских путей загрузки (без дефолтного пути).
+    var recentDownloadDirectories: [String]
 
     private enum CodingKeys: String, CodingKey {
         case version
@@ -37,6 +39,7 @@ struct UserPreferences: Equatable, Sendable, Codable {
         case isAutoRefreshEnabled
         case isTelemetryEnabled
         case defaultSpeedLimits
+        case recentDownloadDirectories
     }
 
     public init(
@@ -44,6 +47,7 @@ struct UserPreferences: Equatable, Sendable, Codable {
         isAutoRefreshEnabled: Bool,
         isTelemetryEnabled: Bool,
         defaultSpeedLimits: DefaultSpeedLimits,
+        recentDownloadDirectories: [String] = [],
         version: Int = UserPreferences.currentVersion
     ) {
         self.version = version
@@ -51,6 +55,7 @@ struct UserPreferences: Equatable, Sendable, Codable {
         self.isAutoRefreshEnabled = isAutoRefreshEnabled
         self.isTelemetryEnabled = isTelemetryEnabled
         self.defaultSpeedLimits = defaultSpeedLimits
+        self.recentDownloadDirectories = recentDownloadDirectories
     }
 
     init(from decoder: Decoder) throws {
@@ -67,6 +72,11 @@ struct UserPreferences: Equatable, Sendable, Codable {
             DefaultSpeedLimits.self,
             forKey: .defaultSpeedLimits
         )
+        self.recentDownloadDirectories =
+            try container.decodeIfPresent(
+                [String].self,
+                forKey: .recentDownloadDirectories
+            ) ?? []
     }
 }
 
@@ -80,6 +90,7 @@ extension UserPreferences {
             downloadKilobytesPerSecond: nil,
             uploadKilobytesPerSecond: nil
         ),
+        recentDownloadDirectories: [],
         version: UserPreferences.currentVersion
     )
 }
@@ -91,6 +102,10 @@ extension UserPreferences {
 
         if migrated.version < 2 {
             migrated.isTelemetryEnabled = false
+        }
+
+        if migrated.version < 3 {
+            migrated.recentDownloadDirectories = []
         }
 
         if migrated.version < UserPreferences.currentVersion {

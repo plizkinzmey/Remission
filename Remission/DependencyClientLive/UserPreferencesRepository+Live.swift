@@ -18,31 +18,36 @@ extension UserPreferencesRepository {
         store: PersistentUserPreferencesStore
     ) -> UserPreferencesRepository {
         UserPreferencesRepository(
-            load: {
-                try await store.load()
+            load: { serverID in
+                try await store.load(serverID: serverID)
             },
-            updatePollingInterval: { interval in
-                try await store.update { preferences in
+            updatePollingInterval: { serverID, interval in
+                try await store.update(serverID: serverID) { preferences in
                     preferences.pollingInterval = interval
                 }
             },
-            setAutoRefreshEnabled: { isEnabled in
-                try await store.update { preferences in
+            setAutoRefreshEnabled: { serverID, isEnabled in
+                try await store.update(serverID: serverID) { preferences in
                     preferences.isAutoRefreshEnabled = isEnabled
                 }
             },
-            setTelemetryEnabled: { isEnabled in
-                try await store.update { preferences in
+            setTelemetryEnabled: { serverID, isEnabled in
+                try await store.update(serverID: serverID) { preferences in
                     preferences.isTelemetryEnabled = isEnabled
                 }
             },
-            updateDefaultSpeedLimits: { limits in
-                try await store.update { preferences in
+            updateDefaultSpeedLimits: { serverID, limits in
+                try await store.update(serverID: serverID) { preferences in
                     preferences.defaultSpeedLimits = limits
                 }
             },
-            observe: {
-                store.observe()
+            updateRecentDownloadDirectories: { serverID, directories in
+                try await store.update(serverID: serverID) { preferences in
+                    preferences.recentDownloadDirectories = directories
+                }
+            },
+            observe: { serverID in
+                store.observe(serverID: serverID)
             }
         )
     }
@@ -51,12 +56,14 @@ extension UserPreferencesRepository {
 /// Хранилище пользовательских настроек с поддержкой наблюдения изменений.
 actor PersistentUserPreferencesStore {
     private enum StorageKey {
-        static let preferences = "user_preferences"
+        static let legacyPreferences = "user_preferences"
+        static let preferencesByServer = "user_preferences_by_server"
     }
 
     private let defaults: PreferencesUserDefaultsBox
-    private var preferences: UserPreferences
-    private var observers: [UUID: AsyncStream<UserPreferences>.Continuation] = [:]
+    private var preferencesByServer: [UUID: UserPreferences]
+    private var legacyPreferences: UserPreferences?
+    private var observers: [UUID: [UUID: AsyncStream<UserPreferences>.Continuation]] = [:]
 
     init(
         defaults: PreferencesUserDefaultsBox = PreferencesUserDefaultsBox(defaults: .standard),
@@ -64,38 +71,56 @@ actor PersistentUserPreferencesStore {
     ) {
         self.defaults = defaults
         if resetStoredValue {
-            defaults.remove(StorageKey.preferences)
+            defaults.remove(StorageKey.legacyPreferences)
+            defaults.remove(StorageKey.preferencesByServer)
         }
-        self.preferences = Self.loadSnapshot(defaults: defaults)
+        let snapshot = Self.loadSnapshot(defaults: defaults)
+        self.preferencesByServer = snapshot.preferencesByServer
+        self.legacyPreferences = snapshot.legacyPreferences
     }
 
-    func load() async throws -> UserPreferences {
-        preferences
+    func load(serverID: UUID) async throws -> UserPreferences {
+        let current = currentPreferences(for: serverID)
+        if preferencesByServer[serverID] == nil {
+            preferencesByServer[serverID] = current
+            try persist(preferencesByServer)
+        }
+        return current
     }
 
-    func update(_ transform: (inout UserPreferences) -> Void) async throws -> UserPreferences {
-        transform(&preferences)
-        preferences.version = UserPreferences.currentVersion
-        try persist(preferences)
-        notifyObservers()
-        return preferences
+    func update(
+        serverID: UUID,
+        _ transform: (inout UserPreferences) -> Void
+    ) async throws -> UserPreferences {
+        var current = currentPreferences(for: serverID)
+        transform(&current)
+        current.version = UserPreferences.currentVersion
+        preferencesByServer[serverID] = current
+        try persist(preferencesByServer)
+        notifyObservers(serverID: serverID, preferences: current)
+        return current
     }
 
-    nonisolated func observe() -> AsyncStream<UserPreferences> {
+    nonisolated func observe(serverID: UUID) -> AsyncStream<UserPreferences> {
         AsyncStream { continuation in
             let id = UUID()
             Task { [weak self] in
                 guard let self else { return }
-                await self.addObserver(id: id, continuation: continuation)
+                await self.addObserver(
+                    serverID: serverID,
+                    id: id,
+                    continuation: continuation
+                )
             }
         }
     }
 
     private func addObserver(
+        serverID: UUID,
         id: UUID,
         continuation: AsyncStream<UserPreferences>.Continuation
     ) {
-        observers[id] = continuation
+        observers[serverID, default: [:]][id] = continuation
         continuation.onTermination = { [weak self] _ in
             guard let self else { return }
             Task { await self.removeObserver(id: id) }
@@ -103,52 +128,66 @@ actor PersistentUserPreferencesStore {
     }
 
     private func removeObserver(id: UUID) {
-        observers[id] = nil
-    }
-
-    private func notifyObservers() {
-        let current = preferences
-        for continuation in observers.values {
-            continuation.yield(current)
+        for key in observers.keys {
+            observers[key]?[id] = nil
+            if observers[key]?.isEmpty == true {
+                observers[key] = nil
+            }
         }
     }
 
-    private func persist(_ preferences: UserPreferences) throws {
-        let data = try JSONEncoder().encode(preferences)
-        defaults.set(data, forKey: StorageKey.preferences)
+    private func notifyObservers(
+        serverID: UUID,
+        preferences: UserPreferences
+    ) {
+        for continuation in observers[serverID, default: [:]].values {
+            continuation.yield(preferences)
+        }
     }
 
-    private static func loadSnapshot(defaults: PreferencesUserDefaultsBox) -> UserPreferences {
-        guard let data = defaults.data(StorageKey.preferences) else {
-            let preferences: UserPreferences = .default
-            do {
-                let data = try JSONEncoder().encode(preferences)
-                defaults.set(data, forKey: StorageKey.preferences)
-            } catch {
-                // If we can't persist defaults, fall back to in-memory defaults.
-            }
-            return preferences
+    private func persist(_ preferencesByServer: [UUID: UserPreferences]) throws {
+        let encoded = preferencesByServer.reduce(into: [String: UserPreferences]()) {
+            $0[$1.key.uuidString] = $1.value
         }
-        do {
-            let decoded = try JSONDecoder().decode(UserPreferences.self, from: data)
-            let migrated = UserPreferences.migratedToCurrentVersion(decoded)
-            guard migrated != decoded else {
-                return migrated
-            }
+        let data = try JSONEncoder().encode(encoded)
+        defaults.set(data, forKey: StorageKey.preferencesByServer)
+    }
 
-            do {
-                let data = try JSONEncoder().encode(migrated)
-                defaults.set(data, forKey: StorageKey.preferences)
-            } catch {
-                defaults.remove(StorageKey.preferences)
-                return .default
-            }
-
-            return migrated
-        } catch {
-            defaults.remove(StorageKey.preferences)
-            return .default
+    private func currentPreferences(for serverID: UUID) -> UserPreferences {
+        if let existing = preferencesByServer[serverID] {
+            return UserPreferences.migratedToCurrentVersion(existing)
         }
+        if let legacy = legacyPreferences {
+            return UserPreferences.migratedToCurrentVersion(legacy)
+        }
+        return .default
+    }
+
+    private static func loadSnapshot(
+        defaults: PreferencesUserDefaultsBox
+    ) -> (preferencesByServer: [UUID: UserPreferences], legacyPreferences: UserPreferences?) {
+        var result: [UUID: UserPreferences] = [:]
+        if let data = defaults.data(StorageKey.preferencesByServer) {
+            if let decoded = try? JSONDecoder().decode(
+                [String: UserPreferences].self,
+                from: data
+            ) {
+                for (key, value) in decoded {
+                    if let id = UUID(uuidString: key) {
+                        result[id] = UserPreferences.migratedToCurrentVersion(value)
+                    }
+                }
+            }
+        }
+
+        var legacy: UserPreferences?
+        if let data = defaults.data(StorageKey.legacyPreferences) {
+            if let decoded = try? JSONDecoder().decode(UserPreferences.self, from: data) {
+                legacy = UserPreferences.migratedToCurrentVersion(decoded)
+            }
+        }
+
+        return (result, legacy)
     }
 }
 

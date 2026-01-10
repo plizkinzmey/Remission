@@ -6,17 +6,30 @@ import Foundation
 struct SettingsReducer {
     @ObservableState
     struct State: Equatable {
+        var serverID: UUID
+        var serverName: String
         var isLoading: Bool = true
+        var isSaving: Bool = false
         var pollingIntervalSeconds: Double = 5
         var isAutoRefreshEnabled: Bool = true
         var isTelemetryEnabled: Bool = false
         var persistedPreferences: UserPreferences?
+        var hasPendingChanges: Bool = false
         var defaultSpeedLimits: UserPreferences.DefaultSpeedLimits = .init(
             downloadKilobytesPerSecond: nil,
             uploadKilobytesPerSecond: nil
         )
         @Presents var alert: AlertState<AlertAction>?
-        @Presents var diagnostics: DiagnosticsReducer.State?
+
+        init(
+            serverID: UUID,
+            serverName: String,
+            isLoading: Bool = true
+        ) {
+            self.serverID = serverID
+            self.serverName = serverName
+            self.isLoading = isLoading
+        }
     }
 
     enum Action: Equatable {
@@ -28,11 +41,11 @@ struct SettingsReducer {
         case downloadLimitChanged(String)
         case uploadLimitChanged(String)
         case preferencesResponse(TaskResult<UserPreferences>)
+        case saveButtonTapped
+        case cancelButtonTapped
+        case saveResponse(TaskResult<UserPreferences>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
-        case diagnosticsButtonTapped
-        case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
-        case diagnosticsDismissed
     }
 
     enum AlertAction: Equatable {
@@ -47,10 +60,7 @@ struct SettingsReducer {
 
     private enum CancelID {
         case observation
-        case updatePollingInterval
-        case setAutoRefresh
-        case setTelemetry
-        case updateSpeedLimits
+        case save
     }
 
     var body: some Reducer<State, Action> {
@@ -60,65 +70,89 @@ struct SettingsReducer {
                 state.alert = nil
                 if state.persistedPreferences != nil {
                     state.isLoading = false
-                    return observePreferences()
+                    return observePreferences(serverID: state.serverID)
                 }
                 state.isLoading = true
                 return .merge(
-                    loadPreferences(),
-                    observePreferences()
+                    loadPreferences(serverID: state.serverID),
+                    observePreferences(serverID: state.serverID)
                 )
 
             case .teardown:
-                var effects: [Effect<Action>] = [
+                let effects: [Effect<Action>] = [
                     .cancel(id: CancelID.observation),
-                    .cancel(id: CancelID.updatePollingInterval),
-                    .cancel(id: CancelID.setAutoRefresh),
-                    .cancel(id: CancelID.setTelemetry),
-                    .cancel(id: CancelID.updateSpeedLimits)
+                    .cancel(id: CancelID.save)
                 ]
-                if state.diagnostics != nil {
-                    effects.append(.send(.diagnostics(.presented(.teardown))))
-                }
                 return .merge(effects)
 
             case .pollingIntervalChanged(let seconds):
                 state.pollingIntervalSeconds = seconds
-                return updatePollingInterval(seconds)
+                state.hasPendingChanges = true
+                return .none
 
             case .autoRefreshToggled(let isEnabled):
                 state.isAutoRefreshEnabled = isEnabled
-                return setAutoRefreshEnabled(isEnabled)
+                state.hasPendingChanges = true
+                return .none
 
             case .telemetryToggled(let isEnabled):
                 state.isTelemetryEnabled = isEnabled
-                return setTelemetryEnabled(isEnabled)
+                state.hasPendingChanges = true
+                return .none
 
             case .downloadLimitChanged(let value):
                 state.defaultSpeedLimits.downloadKilobytesPerSecond = parse(limit: value)
-                return updateDefaultSpeedLimits(state.defaultSpeedLimits)
+                state.hasPendingChanges = true
+                return .none
 
             case .uploadLimitChanged(let value):
                 state.defaultSpeedLimits.uploadKilobytesPerSecond = parse(limit: value)
-                return updateDefaultSpeedLimits(state.defaultSpeedLimits)
+                state.hasPendingChanges = true
+                return .none
 
             case .preferencesResponse(.success(let preferences)):
                 state.isLoading = false
                 state.persistedPreferences = preferences
-                state.pollingIntervalSeconds = preferences.pollingInterval
-                state.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
-                state.isTelemetryEnabled = preferences.isTelemetryEnabled
-                state.defaultSpeedLimits = preferences.defaultSpeedLimits
+                if state.hasPendingChanges == false {
+                    apply(preferences: preferences, to: &state)
+                }
                 state.alert = nil
                 return .none
 
             case .preferencesResponse(.failure(let error)):
                 state.isLoading = false
-                if let persisted = state.persistedPreferences {
-                    state.pollingIntervalSeconds = persisted.pollingInterval
-                    state.isAutoRefreshEnabled = persisted.isAutoRefreshEnabled
-                    state.isTelemetryEnabled = persisted.isTelemetryEnabled
-                    state.defaultSpeedLimits = persisted.defaultSpeedLimits
+                state.alert = AlertState {
+                    TextState(L10n.tr("settings.alert.saveFailed.title"))
+                } actions: {
+                    ButtonState(role: .cancel, action: .dismiss) {
+                        TextState(L10n.tr("settings.alert.close"))
+                    }
+                } message: {
+                    TextState(describe(error))
                 }
+                return .none
+
+            case .saveButtonTapped:
+                state.isSaving = true
+                state.alert = nil
+                return savePreferences(from: state)
+
+            case .cancelButtonTapped:
+                if let persisted = state.persistedPreferences {
+                    apply(preferences: persisted, to: &state)
+                }
+                state.hasPendingChanges = false
+                return .send(.delegate(.closeRequested))
+
+            case .saveResponse(.success(let preferences)):
+                state.isSaving = false
+                state.hasPendingChanges = false
+                state.persistedPreferences = preferences
+                apply(preferences: preferences, to: &state)
+                return .send(.delegate(.closeRequested))
+
+            case .saveResponse(.failure(let error)):
+                state.isSaving = false
                 state.alert = AlertState {
                     TextState(L10n.tr("settings.alert.saveFailed.title"))
                 } actions: {
@@ -139,55 +173,26 @@ struct SettingsReducer {
 
             case .delegate:
                 return .none
-
-            case .diagnosticsButtonTapped:
-                state.diagnostics = DiagnosticsReducer.State()
-                return .none
-
-            case .diagnostics(.presented(.delegate(.closeRequested))):
-                return .concatenate(
-                    .send(.diagnostics(.presented(.teardown))),
-                    .send(.diagnosticsDismissed)
-                )
-
-            case .diagnostics(.dismiss):
-                return .concatenate(
-                    .send(.diagnostics(.presented(.teardown))),
-                    .send(.diagnosticsDismissed)
-                )
-
-            case .diagnosticsDismissed:
-                state.diagnostics = nil
-                return .none
-
-            case .diagnostics(.presented) where state.diagnostics == nil:
-                return .none
-
-            case .diagnostics:
-                return .none
             }
         }
         .ifLet(\.$alert, action: \.alert)
-        .ifLet(\.$diagnostics, action: \.diagnostics) {
-            DiagnosticsReducer()
-        }
     }
 
-    private func loadPreferences() -> Effect<Action> {
+    private func loadPreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
             await send(
                 .preferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.load()
+                        try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
         }
     }
 
-    private func observePreferences() -> Effect<Action> {
+    private func observePreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
-            let stream = userPreferencesRepository.observe()
+            let stream = userPreferencesRepository.observe(serverID: serverID)
             for await preferences in stream {
                 await send(.preferencesResponse(.success(preferences)))
             }
@@ -195,58 +200,48 @@ struct SettingsReducer {
         .cancellable(id: CancelID.observation, cancelInFlight: true)
     }
 
-    private func updatePollingInterval(_ seconds: Double) -> Effect<Action> {
-        .run { send in
+    private func savePreferences(from state: State) -> Effect<Action> {
+        let serverID = state.serverID
+        let pollingInterval = state.pollingIntervalSeconds
+        let isAutoRefreshEnabled = state.isAutoRefreshEnabled
+        let isTelemetryEnabled = state.isTelemetryEnabled
+        let limits = state.defaultSpeedLimits
+        return .run { send in
             await send(
-                .preferencesResponse(
+                .saveResponse(
                     TaskResult {
-                        try await userPreferencesRepository.updatePollingInterval(seconds)
+                        _ = try await userPreferencesRepository.setAutoRefreshEnabled(
+                            serverID: serverID,
+                            isAutoRefreshEnabled
+                        )
+                        _ = try await userPreferencesRepository.updatePollingInterval(
+                            serverID: serverID,
+                            pollingInterval
+                        )
+                        _ = try await userPreferencesRepository.updateDefaultSpeedLimits(
+                            serverID: serverID,
+                            limits
+                        )
+                        _ = try await userPreferencesRepository.setTelemetryEnabled(
+                            serverID: serverID,
+                            isTelemetryEnabled
+                        )
+                        return try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
         }
-        .cancellable(id: CancelID.updatePollingInterval, cancelInFlight: true)
+        .cancellable(id: CancelID.save, cancelInFlight: true)
     }
 
-    private func setAutoRefreshEnabled(_ isEnabled: Bool) -> Effect<Action> {
-        .run { send in
-            await send(
-                .preferencesResponse(
-                    TaskResult {
-                        try await userPreferencesRepository.setAutoRefreshEnabled(isEnabled)
-                    }
-                )
-            )
-        }
-        .cancellable(id: CancelID.setAutoRefresh, cancelInFlight: true)
-    }
-
-    private func setTelemetryEnabled(_ isEnabled: Bool) -> Effect<Action> {
-        .run { send in
-            await send(
-                .preferencesResponse(
-                    TaskResult {
-                        try await userPreferencesRepository.setTelemetryEnabled(isEnabled)
-                    }
-                )
-            )
-        }
-        .cancellable(id: CancelID.setTelemetry, cancelInFlight: true)
-    }
-
-    private func updateDefaultSpeedLimits(
-        _ limits: UserPreferences.DefaultSpeedLimits
-    ) -> Effect<Action> {
-        .run { send in
-            await send(
-                .preferencesResponse(
-                    TaskResult {
-                        try await userPreferencesRepository.updateDefaultSpeedLimits(limits)
-                    }
-                )
-            )
-        }
-        .cancellable(id: CancelID.updateSpeedLimits, cancelInFlight: true)
+    private func apply(
+        preferences: UserPreferences,
+        to state: inout State
+    ) {
+        state.pollingIntervalSeconds = preferences.pollingInterval
+        state.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
+        state.isTelemetryEnabled = preferences.isTelemetryEnabled
+        state.defaultSpeedLimits = preferences.defaultSpeedLimits
     }
 
     private func describe(_ error: Error) -> String {

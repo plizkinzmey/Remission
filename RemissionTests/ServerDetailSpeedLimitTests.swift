@@ -107,32 +107,38 @@ struct ServerDetailSpeedLimitTests {
         let continuationBox = ServerDetailPreferencesContinuationBox()
 
         let repository = UserPreferencesRepository(
-            load: { preferencesBox.value },
-            updatePollingInterval: { interval in
+            load: { _ in preferencesBox.value },
+            updatePollingInterval: { _, interval in
                 var updated = preferencesBox.value
                 updated.pollingInterval = interval
                 preferencesBox.set(updated)
                 return updated
             },
-            setAutoRefreshEnabled: { isEnabled in
+            setAutoRefreshEnabled: { _, isEnabled in
                 var updated = preferencesBox.value
                 updated.isAutoRefreshEnabled = isEnabled
                 preferencesBox.set(updated)
                 return updated
             },
-            setTelemetryEnabled: { isEnabled in
+            setTelemetryEnabled: { _, isEnabled in
                 var updated = preferencesBox.value
                 updated.isTelemetryEnabled = isEnabled
                 preferencesBox.set(updated)
                 return updated
             },
-            updateDefaultSpeedLimits: { limits in
+            updateDefaultSpeedLimits: { _, limits in
                 var updated = preferencesBox.value
                 updated.defaultSpeedLimits = limits
                 preferencesBox.set(updated)
                 return updated
             },
-            observe: {
+            updateRecentDownloadDirectories: { _, directories in
+                var updated = preferencesBox.value
+                updated.recentDownloadDirectories = directories
+                preferencesBox.set(updated)
+                return updated
+            },
+            observe: { _ in
                 AsyncStream { cont in
                     Task { await continuationBox.set(cont) }
                 }

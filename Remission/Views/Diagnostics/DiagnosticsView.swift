@@ -15,17 +15,6 @@ struct DiagnosticsView: View {
                     .safeAreaInset(edge: .bottom) {
                         AppWindowFooterBar {
                             Spacer(minLength: 0)
-                            if let export = exportText {
-                                ShareLink(
-                                    item: export,
-                                    message: Text(L10n.tr("diagnostics.exportAll"))
-                                ) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .accessibilityIdentifier("diagnostics_export_all_button")
-                                        .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
-                                }
-                                .disabled(store.entries.isEmpty)
-                            }
                             Button(L10n.tr("diagnostics.clear")) {
                                 store.send(.clearTapped)
                             }
@@ -36,7 +25,7 @@ struct DiagnosticsView: View {
                                 store.send(.delegate(.closeRequested))
                             }
                             .accessibilityIdentifier("diagnostics_close_button")
-                            .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                            .buttonStyle(AppPrimaryButtonStyle())
                         }
                     }
                     .frame(minWidth: 560, minHeight: 420)
@@ -57,21 +46,6 @@ struct DiagnosticsView: View {
                                 .disabled(store.entries.isEmpty || store.isLoading)
                                 .accessibilityIdentifier("diagnostics_clear_button")
                             }
-                            ToolbarItem(placement: .primaryAction) {
-                                if let export = exportText {
-                                    ShareLink(
-                                        item: export,
-                                        message: Text(L10n.tr("diagnostics.exportAll"))
-                                    ) {
-                                        Image(systemName: "square.and.arrow.up")
-                                            .accessibilityIdentifier(
-                                                "diagnostics_export_all_button"
-                                            )
-                                            .accessibilityLabel(L10n.tr("diagnostics.exportAll"))
-                                    }
-                                    .disabled(store.entries.isEmpty)
-                                }
-                            }
                         }
                 #endif
             }
@@ -79,63 +53,53 @@ struct DiagnosticsView: View {
             .alert($store.scope(state: \.alert, action: \.alert))
         }
     }
+}
 
+extension DiagnosticsView {
     @ViewBuilder
     private var windowContent: some View {
         VStack(spacing: 16) {
-            if store.isLoading && store.visibleEntries.isEmpty {
-                ProgressView(L10n.tr("diagnostics.loading"))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if store.visibleEntries.isEmpty {
-                VStack(spacing: 16) {
-                    ContentUnavailableView(
-                        L10n.tr("diagnostics.empty.title"),
-                        systemImage: "doc.text.magnifyingglass",
-                        description: Text(
-                            L10n.tr("diagnostics.empty.message"))
-                    )
-                    .accessibilityIdentifier("diagnostics_empty_state")
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                VStack(spacing: 12) {
-                    filterBar
-
-                    if let limitNotice = limitNoticeText {
-                        limitNoticeView(limitNotice)
-                    }
-
-                    logList
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        #if os(macOS)
-                            .frame(minHeight: 240)
-                        #endif
-                        .layoutPriority(1)
-                }
-                .padding(12)
-                .appCardSurface(cornerRadius: 16)
+            filterSection
                 .padding(.horizontal, 12)
+
+            VStack(spacing: 12) {
+                if let limitNotice = limitNoticeText {
+                    limitNoticeView(limitNotice)
+                }
+
+                logContent
             }
+            .padding(12)
+            .appCardSurface(cornerRadius: 16)
+            .padding(.horizontal, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    private var filterBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Picker(
-                L10n.tr("diagnostics.level"),
-                selection: Binding<AppLogLevel?>(
-                    get: { store.selectedLevel },
-                    set: { store.send(.levelSelected($0)) }
-                )
-            ) {
-                Text(L10n.tr("diagnostics.level.all")).tag(AppLogLevel?.none)
-                ForEach(diagnosticsLevelOptions, id: \.self) { level in
-                    Text(diagnosticsLevelLabel(level)).tag(AppLogLevel?.some(level))
+    private var filterSection: some View {
+        AppSectionCard(L10n.tr("diagnostics.level")) {
+            fieldRow(label: L10n.tr("diagnostics.level")) {
+                Picker(
+                    "",
+                    selection: Binding<AppLogLevel?>(
+                        get: { store.selectedLevel },
+                        set: { store.send(.levelSelected($0)) }
+                    )
+                ) {
+                    Text(L10n.tr("diagnostics.level.all")).tag(AppLogLevel?.none)
+                    ForEach(diagnosticsLevelOptions, id: \.self) { level in
+                        Text(diagnosticsLevelLabel(level)).tag(AppLogLevel?.some(level))
+                    }
                 }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("diagnostics_level_picker")
+                .tint(AppTheme.accent)
+                #if os(macOS)
+                    .controlSize(.large)
+                #endif
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("diagnostics_level_picker")
+
+            Divider()
 
             TextField(
                 L10n.tr("diagnostics.search.placeholder"),
@@ -324,6 +288,40 @@ struct DiagnosticsView: View {
             )
             .accessibilityLabel(text)
             .accessibilityIdentifier("diagnostics_metadata_\(text)")
+    }
+
+    private var logContent: some View {
+        ZStack {
+            logList
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .opacity(store.visibleEntries.isEmpty ? 0 : 1)
+
+            if store.isLoading && store.visibleEntries.isEmpty {
+                ProgressView(L10n.tr("diagnostics.loading"))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #if os(macOS)
+            .frame(minHeight: 260)
+        #endif
+        .layoutPriority(1)
+    }
+
+    private func fieldRow<Content: View>(
+        label: String,
+        @ViewBuilder field: () -> Content
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+
+            Spacer(minLength: 12)
+
+            field()
+                .frame(maxWidth: 360, alignment: .trailing)
+        }
     }
 
     private func accessibilityLabel(for entry: DiagnosticsLogEntry) -> String {

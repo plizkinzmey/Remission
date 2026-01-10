@@ -10,8 +10,10 @@ struct ServerListReducer {
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var onboarding: OnboardingReducer.State?
+        @Presents var editor: ServerEditorReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
+        var hasAutoSelectedSingleServer: Bool = false
         var pendingDeletion: ServerConfig?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
@@ -25,6 +27,7 @@ struct ServerListReducer {
         case deleteConfirmation(PresentationAction<DeleteConfirmationAction>)
         case alert(PresentationAction<Alert>)
         case onboarding(PresentationAction<OnboardingReducer.Action>)
+        case editor(PresentationAction<ServerEditorReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
         case connectionProbeRequested(UUID)
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
@@ -44,7 +47,6 @@ struct ServerListReducer {
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
-        case serverEditRequested(ServerConfig)
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
@@ -90,7 +92,8 @@ struct ServerListReducer {
                 guard let server = state.servers[id: id] else {
                     return .none
                 }
-                return .send(.delegate(.serverEditRequested(server)))
+                state.editor = ServerEditorReducer.State(server: server)
+                return .none
 
             case .deleteButtonTapped(let id):
                 guard let server = state.servers[id: id] else { return .none }
@@ -146,6 +149,24 @@ struct ServerListReducer {
             case .onboarding:
                 return .none
 
+            case .editor(.presented(.delegate(.didUpdate(let server)))):
+                if let index = state.servers.index(id: server.id) {
+                    state.servers[index] = server
+                }
+                state.editor = nil
+                return .send(.connectionProbeRequested(server.id))
+
+            case .editor(.presented(.delegate(.cancelled))):
+                state.editor = nil
+                return .none
+
+            case .editor(.dismiss):
+                state.editor = nil
+                return .none
+
+            case .editor:
+                return .none
+
             case .serverRepositoryResponse(.success(let servers)):
                 state.isLoading = false
                 state.servers = IdentifiedArrayOf(uniqueElements: servers)
@@ -164,9 +185,20 @@ struct ServerListReducer {
                         state.hasPresentedInitialOnboarding = true
                     }
                 }
-                return .run { [servers] send in
+                let shouldAutoSelect =
+                    servers.count == 1
+                    && state.hasAutoSelectedSingleServer == false
+                    && state.onboarding == nil
+                    && state.editor == nil
+                if shouldAutoSelect {
+                    state.hasAutoSelectedSingleServer = true
+                }
+                return .run { [servers, shouldAutoSelect] send in
                     for server in servers {
                         await send(.connectionProbeRequested(server.id))
+                    }
+                    if shouldAutoSelect, let server = servers.first {
+                        await send(.delegate(.serverSelected(server)))
                     }
                 }
 
@@ -237,8 +269,14 @@ struct ServerListReducer {
         .ifLet(\.$onboarding, action: \.onboarding) {
             OnboardingReducer()
         }
+        .ifLet(\.$editor, action: \.editor) {
+            ServerEditorReducer()
+        }
     }
 
+}
+
+extension ServerListReducer {
     private func deleteServer(_ server: ServerConfig) -> Effect<Action> {
         .run { send in
             do {

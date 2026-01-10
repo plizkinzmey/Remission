@@ -3,7 +3,6 @@ import SwiftUI
 
 struct AddTorrentSourceView: View {
     @Bindable var store: StoreOf<AddTorrentSourceReducer>
-    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -25,7 +24,7 @@ struct AddTorrentSourceView: View {
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
             #else
@@ -59,16 +58,30 @@ struct AddTorrentSourceView: View {
     private var continueDisabled: Bool {
         switch store.source {
         case .torrentFile:
-            return true
+            return store.selectedFileName == nil
         case .magnetLink:
             return store.magnetText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
     }
 
     private var windowContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                AppSectionCard(L10n.tr("torrentAdd.source.picker.title"), style: .plain) {
+        Group {
+            #if os(macOS)
+                windowFormContent
+            #else
+                ScrollView {
+                    windowFormContent
+                }
+            #endif
+        }
+    }
+}
+
+extension AddTorrentSourceView {
+    private var windowFormContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            AppSectionCard(L10n.tr("torrentAdd.source.picker.title"), style: .plain) {
+                VStack(alignment: .leading, spacing: 12) {
                     Picker(
                         L10n.tr("torrentAdd.source.picker.title"),
                         selection: Binding(
@@ -87,32 +100,31 @@ struct AddTorrentSourceView: View {
                         .controlSize(.large)
                     #endif
                     .accessibilityIdentifier("torrent_add_source_picker")
-                }
 
-                switch store.source {
-                case .torrentFile:
-                    AppSectionCard(
-                        L10n.tr("torrentAdd.source.chooseFile"),
-                        footer: L10n.tr("torrentAdd.source.chooseFile.hint"),
-                        style: .plain
-                    ) {
-                        Button(L10n.tr("torrentAdd.source.chooseFile")) {
-                            store.send(.chooseFileTapped)
+                    switch store.source {
+                    case .torrentFile:
+                        HStack(alignment: .center, spacing: 12) {
+                            Button(L10n.tr("torrentAdd.source.chooseFile")) {
+                                store.send(.chooseFileTapped)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal, 12)
+                            .frame(height: 34)
+                            .appPillSurface()
+                            .foregroundStyle(AppTheme.accent)
+                            .accessibilityIdentifier("torrent_add_choose_file_button")
+
+                            if let fileName = store.selectedFileName {
+                                Text(fileName)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            } else {
+                                Spacer(minLength: 0)
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .appPillSurface()
-                        .foregroundStyle(AppTheme.accent)
-                        .accessibilityIdentifier("torrent_add_choose_file_button")
-                    }
-
-                case .magnetLink:
-                    AppSectionCard(
-                        L10n.tr("torrentAdd.source.option.magnet"),
-                        footer: L10n.tr("torrentAdd.source.magnet.hint"),
-                        style: .plain
-                    ) {
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    case .magnetLink:
                         TextField(
                             L10n.tr("torrentAdd.source.magnet.placeholder"),
                             text: Binding(
@@ -129,23 +141,14 @@ struct AddTorrentSourceView: View {
                             .autocorrectionDisabled()
                         #endif
                         .accessibilityIdentifier("torrent_add_magnet_field")
-
-                        Button(L10n.tr("torrentAdd.source.paste")) {
-                            store.send(.pasteFromClipboardTapped)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .appPillSurface()
-                        .foregroundStyle(AppTheme.accent)
-                        .accessibilityIdentifier("torrent_add_paste_magnet_button")
                     }
                 }
+                .padding(.bottom, -4)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .appCardSurface(cornerRadius: 16)
-            .padding(.horizontal, 12)
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(cornerRadius: 16)
+        .padding(.horizontal, 12)
     }
 }
