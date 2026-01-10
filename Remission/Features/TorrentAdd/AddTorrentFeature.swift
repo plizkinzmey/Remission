@@ -196,6 +196,11 @@ struct AddTorrentReducer {
 
             case .destinationSuggestionDeleted(let value):
                 state.recentDownloadDirectories.removeAll { $0 == value }
+                if state.destinationPath == value {
+                    let fallback = state.serverDownloadDirectory
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    state.destinationPath = fallback
+                }
                 return persistRecentDownloadDirectories(state: &state)
 
             case .startPausedChanged(let value):

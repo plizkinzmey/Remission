@@ -5,6 +5,9 @@ import UniformTypeIdentifiers
 
 struct AddTorrentView: View {
     @Bindable var store: StoreOf<AddTorrentReducer>
+    @State private var isCustomPathEditorPresented: Bool = false
+    @State private var customPathDraft: String = ""
+    private let destinationFieldHeight: CGFloat = 32
 
     var body: some View {
         Group {
@@ -73,6 +76,9 @@ struct AddTorrentView: View {
         #endif
         .task { await store.send(.task).finish() }
         .alert($store.scope(state: \.alert, action: \.alert))
+        .sheet(isPresented: $isCustomPathEditorPresented) {
+            customPathEditor
+        }
         .fileImporter(
             isPresented: fileImporterBinding,
             allowedContentTypes: torrentContentTypes,
@@ -188,55 +194,7 @@ extension AddTorrentView {
             }
 
             AppSectionCard(L10n.tr("torrentAdd.section.destination"), style: .card) {
-                HStack(spacing: 8) {
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: { store.destinationPath },
-                            set: { store.send(.destinationPathChanged($0)) }
-                        ),
-                        prompt: Text(L10n.tr("torrentAdd.placeholder.destination"))
-                    )
-                    .labelsHidden()
-                    .textContentType(.URL)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .appPillSurface()
-                    .accessibilityIdentifier("torrent_add_destination_field")
-                    .accessibilityHint(L10n.tr("torrentAdd.placeholder.destination"))
-
-                    if destinationSuggestions.isEmpty == false {
-                        Menu {
-                            ForEach(destinationSuggestions, id: \.self) { path in
-                                Button(path) {
-                                    store.send(.destinationSuggestionSelected(path))
-                                }
-                                if path != defaultDestination {
-                                    Button(role: .destructive) {
-                                        store.send(.destinationSuggestionDeleted(path))
-                                    } label: {
-                                        Label(
-                                            L10n.tr("torrentAdd.destination.remove"),
-                                            systemImage: "trash"
-                                        )
-                                    }
-                                }
-                                if path != destinationSuggestions.last {
-                                    Divider()
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(width: 28, height: 28)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("torrent_add_destination_menu")
-                        .accessibilityLabel(L10n.tr("torrentAdd.destination.suggestions"))
-                    }
-                }
+                destinationMenu
             }
 
             AppSectionCard(L10n.tr("torrentAdd.section.tags"), style: .card) {
@@ -344,6 +302,93 @@ extension AddTorrentView {
             combined.append(value)
         }
         return combined
+    }
+}
+
+extension AddTorrentView {
+    private var destinationMenu: some View {
+        let customPaths = destinationSuggestions.filter { $0 != defaultDestination }
+        return Menu {
+            Button(L10n.tr("torrentAdd.destination.custom")) {
+                customPathDraft = store.destinationPath
+                isCustomPathEditorPresented = true
+            }
+
+            if destinationSuggestions.isEmpty == false {
+                Divider()
+
+                ForEach(destinationSuggestions, id: \.self) { path in
+                    Button(path) {
+                        store.send(.destinationSuggestionSelected(path))
+                    }
+                }
+            }
+
+            if customPaths.isEmpty == false {
+                Divider()
+
+                Menu(L10n.tr("torrentAdd.destination.remove")) {
+                    ForEach(customPaths, id: \.self) { path in
+                        Button(role: .destructive) {
+                            store.send(.destinationSuggestionDeleted(path))
+                        } label: {
+                            Text(path)
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Text(
+                    store.destinationPath.isEmpty
+                        ? L10n.tr("torrentAdd.placeholder.destination")
+                        : store.destinationPath
+                )
+                .lineLimit(1)
+                .foregroundStyle(
+                    store.destinationPath.isEmpty ? .secondary : .primary
+                )
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: destinationFieldHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .appPillSurface()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.tr("torrentAdd.destination.suggestions"))
+        .accessibilityIdentifier("torrent_add_destination_field")
+    }
+
+    private var customPathEditor: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(L10n.tr("torrentAdd.destination.customTitle"))
+                .font(.headline)
+            TextField(
+                L10n.tr("torrentAdd.placeholder.destination"),
+                text: $customPathDraft
+            )
+            .textFieldStyle(.roundedBorder)
+            .textContentType(.URL)
+            HStack {
+                Spacer(minLength: 0)
+                Button(L10n.tr("common.cancel")) {
+                    isCustomPathEditorPresented = false
+                }
+                Button(L10n.tr("common.save")) {
+                    store.send(.destinationPathChanged(customPathDraft))
+                    isCustomPathEditorPresented = false
+                }
+                .disabled(customPathDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 360)
     }
 }
 
