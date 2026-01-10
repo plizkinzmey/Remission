@@ -272,6 +272,8 @@ extension TorrentListView {
                 offlineBanner(offline)
                     .padding(.bottom, 4)
             }
+            storageSummaryView
+                .frame(maxWidth: .infinity, alignment: .leading)
             #if !os(macOS)
                 controls
             #endif
@@ -366,6 +368,31 @@ extension TorrentListView {
             .accessibilityIdentifier("torrent_list_offline_retry")
         }
         .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var storageSummaryView: some View {
+        if let summary = store.storageSummary {
+            let total = StorageFormatters.bytes(summary.totalBytes)
+            let free = StorageFormatters.bytes(summary.freeBytes)
+            Label(
+                String(format: L10n.tr("storage.summary"), total, free),
+                systemImage: "externaldrive.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 10)
+            #if os(macOS)
+                .frame(height: macOSToolbarPillHeight)
+            #else
+                .padding(.vertical, 6)
+            #endif
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .accessibilityIdentifier("torrent_list_storage_summary")
+        }
     }
 
     private var emptyStateView: some View {
@@ -508,13 +535,21 @@ extension TorrentListView {
 
     #if os(macOS)
         private var filterAndSortRowMacOS: some View {
-            ZStack(alignment: .trailing) {
+            ZStack {
                 filterSegmentedControl
                     .labelsHidden()
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                sortPicker
-                    .labelsHidden()
+                HStack(spacing: 12) {
+                    if store.storageSummary != nil {
+                        storageSummaryView
+                    }
+
+                    Spacer(minLength: 0)
+
+                    sortPicker
+                        .labelsHidden()
+                }
             }
         }
     #endif
@@ -988,6 +1023,10 @@ extension TorrentListReducer.State {
                     return TorrentListItem.State(torrent: torrent)
                 }()
             ]
+        )
+        state.storageSummary = StorageSummary(
+            totalBytes: 12_000_000_000,
+            freeBytes: 4_000_000_000
         )
         return state
     }

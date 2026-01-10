@@ -262,9 +262,26 @@ private func fetchSessionState(
 ) async throws -> SessionState {
     let session = try await transmissionClient.sessionGet()
     let stats = try await transmissionClient.sessionStats()
+    let sessionArguments = try mapper.arguments(
+        from: session,
+        context: "session-get"
+    )
+    let downloadDirectory = try mapper.requireString(
+        "download-dir",
+        in: sessionArguments,
+        context: "session-get"
+    )
+    let freeSpaceBytes: Int64
+    do {
+        let freeSpaceResponse = try await transmissionClient.freeSpace(downloadDirectory)
+        freeSpaceBytes = try mapper.mapFreeSpaceBytes(from: freeSpaceResponse)
+    } catch {
+        freeSpaceBytes = 0
+    }
     let state = try mapper.mapSessionState(
         sessionResponse: session,
-        statsResponse: stats
+        statsResponse: stats,
+        freeSpaceBytes: freeSpaceBytes
     )
     try await cacheState(state)
     return state

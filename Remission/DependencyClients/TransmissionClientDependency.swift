@@ -9,6 +9,7 @@
         var sessionGet: @Sendable () async throws -> TransmissionResponse
         var sessionSet: @Sendable (AnyCodable) async throws -> TransmissionResponse
         var sessionStats: @Sendable () async throws -> TransmissionResponse
+        var freeSpace: @Sendable (String) async throws -> TransmissionResponse
         var torrentGet: @Sendable ([Int]?, [String]?) async throws -> TransmissionResponse
         var torrentAdd:
             @Sendable (
@@ -38,6 +39,9 @@
             },
             sessionStats: {
                 throw TransmissionClientDependencyError.notConfigured("sessionStats")
+            },
+            freeSpace: { _ in
+                throw TransmissionClientDependencyError.notConfigured("freeSpace")
             },
             torrentGet: { _, _ in
                 throw TransmissionClientDependencyError.notConfigured("torrentGet")

@@ -154,12 +154,22 @@ public struct SessionState: Equatable, Sendable, Codable {
         }
     }
 
+    public struct Storage: Equatable, Sendable, Codable {
+        /// Свободное место в байтах (`free-space` → `size-bytes`).
+        public var freeBytes: Int64
+
+        public init(freeBytes: Int64) {
+            self.freeBytes = freeBytes
+        }
+    }
+
     public var rpc: RPC
     /// Директория загрузки по умолчанию (`session-get` → `download-dir`).
     public var downloadDirectory: String
     public var speedLimits: SpeedLimits
     public var queue: Queue
     public var throughput: Throughput
+    public var storage: Storage
     /// Кумулятивная статистика (`session-stats` → `cumulative-stats`).
     public var cumulativeStats: LifetimeStats
     /// Текущая статистика (`session-stats` → `current-stats`).
@@ -171,6 +181,7 @@ public struct SessionState: Equatable, Sendable, Codable {
         speedLimits: SpeedLimits,
         queue: Queue,
         throughput: Throughput,
+        storage: Storage,
         cumulativeStats: LifetimeStats,
         currentStats: LifetimeStats
     ) {
@@ -179,6 +190,7 @@ public struct SessionState: Equatable, Sendable, Codable {
         self.speedLimits = speedLimits
         self.queue = queue
         self.throughput = throughput
+        self.storage = storage
         self.cumulativeStats = cumulativeStats
         self.currentStats = currentStats
     }
@@ -214,6 +226,7 @@ extension SessionState {
                 downloadSpeed: 9_500_000,
                 uploadSpeed: 1_200_000
             ),
+            storage: .init(freeBytes: 1_500_000_000_000),
             cumulativeStats: .init(
                 filesAdded: 542,
                 downloadedBytes: 8_450_000_000_000,
@@ -258,6 +271,7 @@ extension SessionState {
                 downloadSpeed: 0,
                 uploadSpeed: 0
             ),
+            storage: .init(freeBytes: 250_000_000_000),
             cumulativeStats: .init(
                 filesAdded: 120,
                 downloadedBytes: 1_200_000_000_000,

@@ -110,6 +110,10 @@ struct TransmissionClientProtocolTests {
                 throw APIError.unknown(details: "mock")
             }
 
+            func freeSpace(path: String) async throws -> TransmissionResponse {
+                throw APIError.unknown(details: "mock")
+            }
+
             func torrentGet(ids: [Int]?, fields: [String]?) async throws -> TransmissionResponse {
                 throw APIError.unknown(details: "mock")
             }
@@ -186,6 +190,10 @@ struct TransmissionClientProtocolTests {
             }
 
             func sessionStats() async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "success") }
+            }
+
+            func freeSpace(path: String) async throws -> TransmissionResponse {
                 await MainActor.run { TransmissionResponse(result: "success") }
             }
 
@@ -313,6 +321,10 @@ struct TransmissionClientProtocolTests {
             }
 
             func sessionStats() async throws -> TransmissionResponse {
+                await MainActor.run { TransmissionResponse(result: "test-success") }
+            }
+
+            func freeSpace(path: String) async throws -> TransmissionResponse {
                 await MainActor.run { TransmissionResponse(result: "test-success") }
             }
 
@@ -583,6 +595,7 @@ private func placeholderFailureScenarios(
             { _ = try await dependency.sessionSet(AnyCodable.object([:])) }
         ),
         ("sessionStats", { _ = try await dependency.sessionStats() }),
+        ("freeSpace", { _ = try await dependency.freeSpace("/") }),
         ("torrentGet", { _ = try await dependency.torrentGet(nil, nil) }),
         (
             "torrentAdd",

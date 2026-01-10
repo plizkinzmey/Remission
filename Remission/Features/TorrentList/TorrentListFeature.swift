@@ -51,6 +51,7 @@ struct TorrentListReducer {
         var errorPresenter: ErrorPresenter<Retry>.State = .init()
         var pendingRemoveTorrentID: Torrent.Identifier?
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
+        var storageSummary: StorageSummary?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
@@ -100,6 +101,7 @@ struct TorrentListReducer {
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case restoreCachedSnapshot
         case torrentsResponse(TaskResult<State.FetchSuccess>)
+        case storageUpdated(StorageSummary?)
         case goOffline(message: String)
         case delegate(Delegate)
     }
@@ -406,6 +408,10 @@ struct TorrentListReducer {
                     return payload.isFromCache ? .none : .cancel(id: CancelID.polling)
                 }
                 return schedulePolling(after: state.pollingInterval)
+
+            case .storageUpdated(let summary):
+                state.storageSummary = summary
+                return .none
 
             case .torrentsResponse(.failure(let error)):
                 if error is CancellationError {

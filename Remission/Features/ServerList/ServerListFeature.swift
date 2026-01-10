@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Dependencies
 import Foundation
 
 @Reducer
@@ -31,6 +32,8 @@ struct ServerListReducer {
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
         case connectionProbeRequested(UUID)
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
+        case storageRequested(UUID)
+        case storageResponse(UUID, TaskResult<StorageSummary>)
         case delegate(Delegate)
     }
 
@@ -55,6 +58,7 @@ struct ServerListReducer {
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
+    @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -254,10 +258,58 @@ struct ServerListReducer {
 
             case .connectionProbeResponse(let id, .success(let result)):
                 state.connectionStatuses[id] = .init(phase: .connected(result.handshake))
-                return .none
+                return .send(.storageRequested(id))
 
             case .connectionProbeResponse(let id, .failure(let error)):
                 state.connectionStatuses[id] = .init(phase: .failed(describe(error)))
+                return .none
+
+            case .storageRequested(let id):
+                guard let server = state.servers[id: id] else { return .none }
+                if state.connectionStatuses[id]?.isLoadingStorage == true {
+                    return .none
+                }
+                if state.connectionStatuses[id]?.storageSummary != nil {
+                    return .none
+                }
+                state.connectionStatuses[id]?.isLoadingStorage = true
+                return .run { [server] send in
+                    do {
+                        let environment = try await serverConnectionEnvironmentFactory(server)
+                        let session = try await withDependencies {
+                            environment.apply(to: &$0)
+                        } operation: {
+                            @Dependency(\.sessionRepository) var sessionRepository:
+                                SessionRepository
+                            return try await sessionRepository.fetchState()
+                        }
+                        let torrents = try await withDependencies {
+                            environment.apply(to: &$0)
+                        } operation: {
+                            @Dependency(\.torrentRepository) var torrentRepository:
+                                TorrentRepository
+                            return try await torrentRepository.fetchList()
+                        }
+                        let snapshot = try? await environment.snapshot.load()
+                        let summary = makeStorageSummary(
+                            torrents: torrents,
+                            session: session,
+                            updatedAt: snapshot?.latestUpdatedAt
+                        )
+                        await send(.storageResponse(id, .success(summary)))
+                    } catch {
+                        await send(.storageResponse(id, .failure(error)))
+                    }
+                }
+                .cancellable(id: ConnectionCancellationID.storage(id), cancelInFlight: true)
+
+            case .storageResponse(let id, .success(let summary)):
+                state.connectionStatuses[id]?.storageSummary = summary
+                state.connectionStatuses[id]?.isLoadingStorage = false
+                return .none
+
+            case .storageResponse(let id, .failure):
+                state.connectionStatuses[id]?.isLoadingStorage = false
                 return .none
 
             case .delegate:
@@ -346,6 +398,22 @@ extension ServerListReducer {
             TextState(L10n.tr("serverList.alert.delete.message"))
         }
     }
+
+    private func makeStorageSummary(
+        torrents: [Torrent],
+        session: SessionState,
+        updatedAt: Date?
+    ) -> StorageSummary {
+        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
+            total + Int64(torrent.summary.progress.totalSize)
+        }
+        let totalBytes = usedBytes + session.storage.freeBytes
+        return StorageSummary(
+            totalBytes: totalBytes,
+            freeBytes: session.storage.freeBytes,
+            updatedAt: updatedAt
+        )
+    }
 }
 
 extension ServerListReducer {
@@ -358,6 +426,8 @@ extension ServerListReducer {
 
     struct ConnectionStatus: Equatable {
         var phase: ConnectionStatusPhase = .idle
+        var storageSummary: StorageSummary?
+        var isLoadingStorage: Bool = false
 
         var isProbing: Bool {
             if case .probing = phase { return true }
@@ -368,4 +438,5 @@ extension ServerListReducer {
 
 private enum ConnectionCancellationID: Hashable {
     case connectionProbe(UUID)
+    case storage(UUID)
 }

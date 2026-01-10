@@ -24,6 +24,9 @@
                 sessionStats: {
                     try await client.sessionStats()
                 },
+                freeSpace: { path in
+                    try await client.freeSpace(path: path)
+                },
                 torrentGet: { ids, fields in
                     try await client.torrentGet(ids: ids, fields: fields)
                 },

@@ -122,6 +122,7 @@ struct ServerListView: View {
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
                 HStack(spacing: 10) {
+                    storageSummaryChip(for: server)
                     connectionStatusChip(for: server)
                     securityBadge(for: server)
                     editButton(for: server)
@@ -232,6 +233,25 @@ struct ServerListView: View {
             .frame(height: macOSToolbarPillHeight)
             .background(Capsule().fill(descriptor.tint.opacity(0.15)))
             .foregroundStyle(descriptor.tint)
+    }
+
+    @ViewBuilder
+    private func storageSummaryChip(for server: ServerConfig) -> some View {
+        let summary = store.connectionStatuses[server.id]?.storageSummary
+        if let summary {
+            let total = StorageFormatters.bytes(summary.totalBytes)
+            let free = StorageFormatters.bytes(summary.freeBytes)
+            Label(
+                String(format: L10n.tr("storage.summary.short"), total, free),
+                systemImage: "externaldrive.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 10)
+            .frame(height: macOSToolbarPillHeight)
+            .background(Capsule().fill(Color.primary.opacity(0.08)))
+            .foregroundStyle(.primary)
+            .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
+        }
     }
 
     @ViewBuilder

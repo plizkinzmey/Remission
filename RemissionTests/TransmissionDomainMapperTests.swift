@@ -103,7 +103,8 @@ struct TransmissionDomainMapperTests {
 
         let state: SessionState = try mapper.mapSessionState(
             sessionResponse: sessionResponse,
-            statsResponse: statsResponse
+            statsResponse: statsResponse,
+            freeSpaceBytes: 500_000_000_000
         )
 
         #expect(state.rpc.rpcVersion == 17)
@@ -112,6 +113,7 @@ struct TransmissionDomainMapperTests {
         #expect(state.speedLimits.download.kilobytesPerSecond == 8192)
         #expect(state.queue.downloadLimit.count == 5)
         #expect(state.throughput.totalTorrentCount == 10)
+        #expect(state.storage.freeBytes == 500_000_000_000)
         #expect(state.cumulativeStats.filesAdded == 120)
         #expect(state.currentStats.downloadedBytes == 120_000_000)
     }
@@ -134,7 +136,8 @@ struct TransmissionDomainMapperTests {
             performing: {
                 try mapper.mapSessionState(
                     sessionResponse: sessionResponse,
-                    statsResponse: statsResponse
+                    statsResponse: statsResponse,
+                    freeSpaceBytes: 0
                 )
             }
         )
