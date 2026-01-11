@@ -691,32 +691,52 @@ private struct TorrentRowView: View {
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
                 .accessibilityValue(item.metrics.progressText)
 
-            HStack(spacing: 12) {
-                Label(item.metrics.progressText, systemImage: "circle.dashed")
+            #if os(iOS)
+                HStack(spacing: 12) {
+                    Label(
+                        peersText,
+                        systemImage: "person.2"
+                    )
                     .font(.caption)
                     .foregroundStyle(.primary)
-                    .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
 
-                if let etaText = item.metrics.etaText {
-                    Label(etaText, systemImage: "clock")
+                    Spacer(minLength: 6)
+
+                    Label(item.metrics.speedSummary, systemImage: "speedometer")
                         .font(.caption)
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                        .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
                 }
+            #else
+                HStack(spacing: 12) {
+                    Label(item.metrics.progressText, systemImage: "circle.dashed")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
 
-                Label(
-                    peersText,
-                    systemImage: "person.2"
-                )
-                .font(.caption)
-                .foregroundStyle(.primary)
+                    if let etaText = item.metrics.etaText {
+                        Label(etaText, systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                    }
 
-                Spacer(minLength: 6)
-
-                Label(item.metrics.speedSummary, systemImage: "speedometer")
+                    Label(
+                        peersText,
+                        systemImage: "person.2"
+                    )
                     .font(.caption)
                     .foregroundStyle(.primary)
-                    .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
-            }
+
+                    Spacer(minLength: 6)
+
+                    Label(item.metrics.speedSummary, systemImage: "speedometer")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
+                }
+            #endif
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
