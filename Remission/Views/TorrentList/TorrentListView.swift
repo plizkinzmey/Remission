@@ -8,59 +8,66 @@ struct TorrentListView: View {
     @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
-        container
+        Group {
             #if os(macOS)
-                .toolbar {
-                    if store.connectionEnvironment != nil {
-                        ToolbarItem(placement: .principal) {
-                            macOSToolbarControls
+                container
+                    .toolbar {
+                        if store.connectionEnvironment != nil {
+                            ToolbarItem(placement: .principal) {
+                                macOSToolbarControls
+                            }
                         }
                     }
-                }
             #else
-                .searchable(
-                    text: $searchText,
-                    placement: .automatic,
-                    prompt: Text(L10n.tr("torrentList.search.prompt"))
-                ) {
-                    ForEach(searchSuggestions, id: \.self) { suggestion in
-                        Text(suggestion)
-                        .searchCompletion(suggestion)
-                    }
+                if shouldShowSearchBar {
+                    container
+                        .searchable(
+                            text: $searchText,
+                            placement: .automatic,
+                            prompt: Text(L10n.tr("torrentList.search.prompt"))
+                        ) {
+                            ForEach(searchSuggestions, id: \.self) { suggestion in
+                                Text(suggestion)
+                                    .searchCompletion(suggestion)
+                            }
+                        }
+                } else {
+                    container
                 }
             #endif
-            #if os(iOS)
-                .refreshable {
-                    await store.send(.refreshRequested).finish()
-                }
-            #endif
-            .onAppear {
-                if searchText != store.searchQuery {
-                    searchText = store.searchQuery
-                }
+        }
+        #if os(iOS)
+            .refreshable {
+                await store.send(.refreshRequested).finish()
             }
-            .onDisappear {
-                searchTask?.cancel()
-                searchTask = nil
+        #endif
+        .onAppear {
+            if searchText != store.searchQuery {
+                searchText = store.searchQuery
             }
-            .onChange(of: searchText) { _, newValue in
-                searchTask?.cancel()
-                guard newValue != store.searchQuery else { return }
-                searchTask = Task { @MainActor in
-                    guard Task.isCancelled == false else { return }
-                    await store.send(.searchQueryChanged(newValue)).finish()
-                }
+        }
+        .onDisappear {
+            searchTask?.cancel()
+            searchTask = nil
+        }
+        .onChange(of: searchText) { _, newValue in
+            searchTask?.cancel()
+            guard newValue != store.searchQuery else { return }
+            searchTask = Task { @MainActor in
+                guard Task.isCancelled == false else { return }
+                await store.send(.searchQueryChanged(newValue)).finish()
             }
-            .onChange(of: store.searchQuery) { _, newValue in
-                guard newValue != searchText else { return }
-                searchText = newValue
-            }
-            .alert(
-                $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-            )
-            .confirmationDialog(
-                $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
-            )
+        }
+        .onChange(of: store.searchQuery) { _, newValue in
+            guard newValue != searchText else { return }
+            searchText = newValue
+        }
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
+        .confirmationDialog(
+            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+        )
     }
 }
 
@@ -108,6 +115,12 @@ extension TorrentListView {
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
         private var macOSSortPickerWidth: CGFloat { 150 }
+    #endif
+
+    #if os(iOS)
+        private var shouldShowSearchBar: Bool {
+            store.connectionEnvironment != nil && store.visibleItems.isEmpty == false
+        }
     #endif
     private var longestStatusTitle: String {
         let titles = [
@@ -170,8 +183,8 @@ extension TorrentListView {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #else
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+            if shouldCenterEmptyState {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(L10n.tr("torrentList.section.title"))
                         .font(.headline.weight(.semibold))
                         .frame(maxWidth: .infinity, alignment: .center)
@@ -182,7 +195,32 @@ extension TorrentListView {
                         refreshIndicator
                     }
 
-                    content
+                    if let banner = store.errorPresenter.banner {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                        )
+                        .padding(.bottom, 6)
+                    }
+
+                    if let offline = store.offlineState {
+                        offlineBanner(offline)
+                            .padding(.bottom, 4)
+                    }
+
+                    storageSummaryView
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    controls
+
+                    Spacer(minLength: 0)
+
+                    emptyStateView
+
+                    Spacer(minLength: 0)
 
                     if store.connectionEnvironment != nil && store.isPollingEnabled == false {
                         Text(L10n.tr("torrentList.autorefresh.disabled"))
@@ -191,11 +229,47 @@ extension TorrentListView {
                             .accessibilityIdentifier("torrentlist_autorefresh_disabled")
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.tr("torrentList.section.title"))
+                            .font(.headline.weight(.semibold))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .accessibilityIdentifier("torrent_list_header")
+                            .allowsHitTesting(false)
+
+                        if store.isRefreshing {
+                            refreshIndicator
+                        }
+
+                        content
+
+                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                            Text(L10n.tr("torrentList.autorefresh.disabled"))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                }
             }
         #endif
     }
+
+    #if os(iOS)
+        private var shouldCenterEmptyState: Bool {
+            guard store.connectionEnvironment != nil else { return false }
+            if case .loaded = store.phase {
+                return store.visibleItems.isEmpty
+            }
+            return false
+        }
+    #endif
 
     #if os(macOS)
         @ViewBuilder
@@ -400,31 +474,16 @@ extension TorrentListView {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #else
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .center, spacing: 8) {
                 Image(systemName: "tray")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
                 Text(L10n.tr("torrentList.empty.title"))
                     .font(.subheadline)
                     .bold()
-                Text(L10n.tr("torrentList.empty.message"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    Button(L10n.tr("torrentList.action.refresh")) {
-                        store.send(.refreshRequested)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(L10n.tr("torrentList.action.add")) {
-                        store.send(.addTorrentButtonTapped)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("torrent_list_empty_add_button")
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #endif
     }
@@ -540,9 +599,11 @@ extension TorrentListView {
         #else
             VStack(alignment: .leading, spacing: 12) {
                 filterSegmentedControl
-                HStack {
-                    sortPicker
-                    Spacer(minLength: 0)
+                if store.visibleItems.isEmpty == false {
+                    HStack {
+                        sortPicker
+                        Spacer(minLength: 0)
+                    }
                 }
             }
             .padding(.vertical, 4)
