@@ -261,7 +261,7 @@ extension TorrentListView {
                     .padding(.bottom, 4)
             }
             storageSummaryView
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .center)
             #if !os(macOS)
                 controls
             #endif
@@ -369,11 +369,11 @@ extension TorrentListView {
             )
             .font(.subheadline.weight(.semibold))
             .foregroundStyle(.primary)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
             #if os(macOS)
                 .frame(height: macOSToolbarPillHeight)
             #else
-                .padding(.vertical, 6)
+                .frame(height: 34)
             #endif
             .background(
                 Capsule()
