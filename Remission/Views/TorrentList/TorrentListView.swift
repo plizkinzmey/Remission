@@ -34,18 +34,6 @@ struct TorrentListView: View {
                     await store.send(.refreshRequested).finish()
                 }
             #endif
-            #if !os(macOS)
-                .toolbar {
-                    if store.connectionEnvironment != nil {
-                        ToolbarItem(placement: .primaryAction) {
-                            addButton
-                        }
-                        ToolbarItem(placement: .secondaryAction) {
-                            refreshButton
-                        }
-                    }
-                }
-            #endif
             .onAppear {
                 if searchText != store.searchQuery {
                     searchText = store.searchQuery
@@ -615,24 +603,6 @@ extension TorrentListView {
             .accessibilityIdentifier("torrentlist_sort_picker")
             .pickerStyle(.menu)
         #endif
-    }
-
-    private var refreshButton: some View {
-        Button {
-            store.send(.refreshRequested)
-        } label: {
-            Label(L10n.tr("torrentList.refresh.label"), systemImage: "arrow.clockwise")
-        }
-        .accessibilityIdentifier("torrentlist_refresh_button")
-    }
-
-    private var addButton: some View {
-        Button {
-            store.send(.addTorrentButtonTapped)
-        } label: {
-            Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
-        }
-        .accessibilityIdentifier("torrentlist_add_button")
     }
 
     private var refreshIndicator: some View {

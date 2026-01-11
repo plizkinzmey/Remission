@@ -98,13 +98,15 @@ struct ServerDetailView: View {
                 }
             #else
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        store.send(.diagnosticsButtonTapped)
-                    } label: {
-                        Label(L10n.tr("diagnostics.title"), systemImage: "doc.text.below.ecg")
+                    if store.torrentList.connectionEnvironment != nil {
+                        Button {
+                            store.send(.torrentList(.addTorrentButtonTapped))
+                        } label: {
+                            Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
+                        }
+                        .accessibilityIdentifier("torrentlist_add_button")
+                        .accessibilityHint(L10n.tr("torrentList.action.add"))
                     }
-                    .accessibilityIdentifier("server_detail_diagnostics_button")
-                    .accessibilityHint(L10n.tr("diagnostics.title"))
 
                     Button {
                         store.send(.settingsButtonTapped)
@@ -113,6 +115,14 @@ struct ServerDetailView: View {
                     }
                     .accessibilityIdentifier("server_detail_edit_button")
                     .accessibilityHint(L10n.tr("app.action.settings"))
+
+                    Button {
+                        store.send(.diagnosticsButtonTapped)
+                    } label: {
+                        Label(L10n.tr("diagnostics.title"), systemImage: "doc.text.below.ecg")
+                    }
+                    .accessibilityIdentifier("server_detail_diagnostics_button")
+                    .accessibilityHint(L10n.tr("diagnostics.title"))
                 }
             #endif
         }
