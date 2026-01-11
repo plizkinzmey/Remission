@@ -54,11 +54,6 @@ struct AddTorrentView: View {
                         store.send(.closeButtonTapped)
                     }
                     .accessibilityIdentifier("torrent_add_cancel_button")
-
-                    Button(L10n.tr("serverDetail.button.close")) {
-                        store.send(.closeButtonTapped)
-                    }
-                    .accessibilityIdentifier("torrent_add_close_button")
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.tr("torrentAdd.action.add")) {
