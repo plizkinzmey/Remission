@@ -4989,6 +4989,22 @@
         }
       }
     },
+    "torrentList.status.abbrev.checking" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "П"
+          }
+        }
+      }
+    },
     "torrentList.status.downloading" : {
       "localizations" : {
         "en" : {
@@ -5001,6 +5017,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Скачивание"
+          }
+        }
+      }
+    },
+    "torrentList.status.abbrev.downloading" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "D"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С"
           }
         }
       }
@@ -5021,6 +5053,22 @@
         }
       }
     },
+    "torrentList.status.abbrev.waiting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ж"
+          }
+        }
+      }
+    },
     "torrentList.status.error" : {
       "localizations" : {
         "en" : {
@@ -5033,6 +5081,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ошибка"
+          }
+        }
+      }
+    },
+    "torrentList.status.abbrev.error" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "О"
           }
         }
       }
@@ -5053,6 +5117,22 @@
         }
       }
     },
+    "torrentList.status.abbrev.paused" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "P"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "П"
+          }
+        }
+      }
+    },
     "torrentList.status.seeding" : {
       "localizations" : {
         "en" : {
@@ -5065,6 +5145,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Раздача"
+          }
+        }
+      }
+    },
+    "torrentList.status.abbrev.seeding" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Р"
           }
         }
       }
