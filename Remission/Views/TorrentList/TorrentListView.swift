@@ -173,6 +173,8 @@ extension TorrentListView {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     Text(L10n.tr("torrentList.section.title"))
+                        .font(.headline.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .accessibilityIdentifier("torrent_list_header")
                         .allowsHitTesting(false)
 
