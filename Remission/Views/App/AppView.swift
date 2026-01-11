@@ -32,7 +32,11 @@ struct AppView: View {
             path: $store.scope(state: \.path, action: \.path)
         ) {
             rootContent
-                .navigationTitle(L10n.tr("app.title"))
+                #if os(iOS)
+                    .navigationTitle("")
+                #else
+                    .navigationTitle(L10n.tr("app.title"))
+                #endif
                 .toolbar {
                     #if os(macOS)
                         if shouldShowAddServerToolbarButton {

@@ -1701,6 +1701,7 @@
       }
     },
     "serverList.action.delete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
