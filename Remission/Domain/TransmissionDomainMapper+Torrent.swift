@@ -154,9 +154,12 @@ extension TransmissionDomainMapper {
     func makeDetails(
         from dict: [String: AnyCodable]
     ) -> Torrent.Details {
-        Torrent.Details(
+        let addedDate =
+            dateValue("addedDate", in: dict)
+            ?? dateValue("dateAdded", in: dict)
+        return Torrent.Details(
             downloadDirectory: stringValue("downloadDir", in: dict) ?? "",
-            addedDate: dateValue("dateAdded", in: dict),
+            addedDate: addedDate,
             files: torrentFiles(in: dict),
             trackers: torrentTrackers(in: dict),
             trackerStats: torrentTrackerStats(in: dict),

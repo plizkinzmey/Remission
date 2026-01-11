@@ -25,7 +25,7 @@ enum TorrentListFields {
     static let details: [String] =
         summary + [
             "downloadDir",
-            "dateAdded",
+            "addedDate",
             "files",
             "fileStats",
             "trackers",
