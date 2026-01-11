@@ -46,20 +46,6 @@ struct OnboardingView: View {
                 windowContent
                     .navigationTitle(L10n.tr("onboarding.title"))
                     .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button(checkConnectionButtonTitle) {
-                                if OnboardingViewEnvironment.isOnboardingUITest {
-                                    store.send(.uiTestBypassConnection)
-                                } else {
-                                    store.send(.checkConnectionButtonTapped)
-                                }
-                            }
-                            .disabled(
-                                store.connectionStatus == .testing
-                                    || store.form.isFormValid == false
-                            )
-                            .accessibilityIdentifier("onboarding_connection_check_button")
-                        }
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("onboarding.action.cancel")) {
                                 store.send(.cancelButtonTapped)
@@ -103,6 +89,23 @@ struct OnboardingView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+
+                    #if os(iOS)
+                        Button(checkConnectionButtonTitle) {
+                            if OnboardingViewEnvironment.isOnboardingUITest {
+                                store.send(.uiTestBypassConnection)
+                            } else {
+                                store.send(.checkConnectionButtonTapped)
+                            }
+                        }
+                        .disabled(
+                            store.connectionStatus == .testing
+                                || store.form.isFormValid == false
+                        )
+                        .accessibilityIdentifier("onboarding_connection_check_button")
+                        .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    #endif
                 }
             }
         }

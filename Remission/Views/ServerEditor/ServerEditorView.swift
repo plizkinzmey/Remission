@@ -42,16 +42,6 @@ struct ServerEditorView: View {
                 windowContent
                     .navigationTitle(L10n.tr("serverEditor.title"))
                     .toolbar {
-                        ToolbarItem(placement: .primaryAction) {
-                            Button(checkConnectionButtonTitle) {
-                                store.send(.checkConnectionButtonTapped)
-                            }
-                            .disabled(
-                                store.connectionStatus == .testing
-                                    || store.form.isFormValid == false
-                            )
-                            .accessibilityIdentifier("server_editor_connection_check_button")
-                        }
                         ToolbarItem(placement: .cancellationAction) {
                             Button(L10n.tr("common.cancel")) {
                                 store.send(.cancelButtonTapped)
@@ -91,6 +81,19 @@ struct ServerEditorView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+
+                    #if os(iOS)
+                        Button(checkConnectionButtonTitle) {
+                            store.send(.checkConnectionButtonTapped)
+                        }
+                        .disabled(
+                            store.connectionStatus == .testing
+                                || store.form.isFormValid == false
+                        )
+                        .accessibilityIdentifier("server_editor_connection_check_button")
+                        .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    #endif
                 }
             }
         }
