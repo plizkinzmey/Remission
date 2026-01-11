@@ -190,6 +190,38 @@
         }
       }
     },
+    "app.startup.loading": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading..."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Загрузка..."
+          }
+        }
+      }
+    },
+    "app.startup.subtitle": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote control for Transmission servers"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Удаленное управление серверами Transmission"
+          }
+        }
+      }
+    },
     "common.cancel": {
       "localizations": {
         "en": {

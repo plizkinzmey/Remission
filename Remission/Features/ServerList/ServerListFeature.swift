@@ -181,13 +181,15 @@ struct ServerListReducer {
                     }
                 )
                 if servers.isEmpty {
-                    let shouldShowOnboarding =
-                        state.hasPresentedInitialOnboarding == false
-                        && onboardingProgressRepository.hasCompletedOnboarding() == false
-                    if shouldShowOnboarding {
-                        state.onboarding = OnboardingReducer.State()
-                        state.hasPresentedInitialOnboarding = true
-                    }
+                    #if os(macOS)
+                        let shouldShowOnboarding =
+                            state.hasPresentedInitialOnboarding == false
+                            && onboardingProgressRepository.hasCompletedOnboarding() == false
+                        if shouldShowOnboarding {
+                            state.onboarding = OnboardingReducer.State()
+                            state.hasPresentedInitialOnboarding = true
+                        }
+                    #endif
                 }
                 let shouldAutoSelect =
                     servers.count == 1

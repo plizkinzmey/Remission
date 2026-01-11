@@ -6,6 +6,28 @@ struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
 
     var body: some View {
+        #if os(iOS)
+            ZStack {
+                navigationContent
+                if shouldShowStartup {
+                    startupView
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
+            }
+            .background(AppBackgroundView())
+            .appRootChrome()
+        #else
+            navigationContent
+                .appRootChrome()
+                .handlesExternalEvents(
+                    preferring: Set(["*"]),
+                    allowing: Set(["*"])
+                )
+        #endif
+    }
+
+    private var navigationContent: some View {
         NavigationStack(
             path: $store.scope(state: \.path, action: \.path)
         ) {
@@ -27,13 +49,6 @@ struct AppView: View {
         } destination: { store in
             ServerDetailView(store: store)
         }
-        .appRootChrome()
-        #if os(macOS)
-            .handlesExternalEvents(
-                preferring: Set(["*"]),
-                allowing: Set(["*"])
-            )
-        #endif
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
@@ -44,13 +59,19 @@ struct AppView: View {
 
     @ViewBuilder
     private var rootContent: some View {
-        if shouldShowServerList {
+        #if os(iOS)
             ServerListView(
                 store: store.scope(state: \.serverList, action: \.serverList)
             )
-        } else {
-            initialLoadingView
-        }
+        #else
+            if shouldShowServerList {
+                ServerListView(
+                    store: store.scope(state: \.serverList, action: \.serverList)
+                )
+            } else {
+                initialLoadingView
+            }
+        #endif
     }
 
     private var initialLoadingView: some View {
@@ -60,6 +81,31 @@ struct AppView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+
+    #if os(iOS)
+        private var startupView: some View {
+            ZStack {
+                AppBackgroundView()
+                    .ignoresSafeArea()
+                VStack(spacing: 18) {
+                    Image(systemName: "antenna.radiowaves.left.and.right.circle.fill")
+                        .font(.system(size: 52, weight: .semibold))
+                        .foregroundStyle(AppTheme.accent)
+                    Text(L10n.tr("app.title"))
+                        .font(.largeTitle.bold())
+                    Text(L10n.tr("app.startup.subtitle"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                    ProgressView(L10n.tr("app.startup.loading"))
+                        .controlSize(.large)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .accessibilityIdentifier("app_startup_view")
+        }
+    #endif
 
     private var addServerButton: some View {
         Button {
@@ -115,17 +161,23 @@ struct AppView: View {
     }
 
     private var shouldShowServerList: Bool {
-        if store.hasLoadedServersOnce == false, store.path.isEmpty {
-            return false
-        }
         if store.path.isEmpty == false {
             return true
+        }
+        if store.hasLoadedServersOnce == false {
+            return store.serverList.isLoading
         }
         if store.serverList.isLoading, store.serverList.servers.isEmpty {
             return false
         }
         return true
     }
+
+    #if os(iOS)
+        private var shouldShowStartup: Bool {
+            store.path.isEmpty && store.hasLoadedServersOnce == false
+        }
+    #endif
 }
 
 #Preview("AppView Empty") {
