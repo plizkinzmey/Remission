@@ -19,15 +19,15 @@ struct ServerDetailView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             #else
-                List {
+                VStack(alignment: .leading, spacing: 12) {
                     if shouldShowConnectionSection {
-                        connectionSection
+                        connectionCard
                     }
                     if store.connectionEnvironment != nil {
                         torrentsSection
                     }
                 }
-                .scrollContentBackground(.hidden)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             #endif
         }
         .navigationTitle(store.server.name)
@@ -146,11 +146,15 @@ struct ServerDetailView: View {
         }
     }
 
-    private var connectionSection: some View {
-        Section(L10n.tr("serverDetail.section.connection")) {
-            connectionContent
+    #if os(iOS) || os(visionOS)
+        private var connectionCard: some View {
+            AppSectionCard(L10n.tr("serverDetail.section.connection")) {
+                connectionContent
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
-    }
+    #endif
 
     #if os(macOS)
         private var macOSSettingsToolbarPill: some View {

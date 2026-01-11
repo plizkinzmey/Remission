@@ -170,25 +170,27 @@ extension TorrentListView {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #else
-            Section {
-                content
-                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                    Text(L10n.tr("torrentList.autorefresh.disabled"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.tr("torrentList.section.title"))
+                        .accessibilityIdentifier("torrent_list_header")
+                        .allowsHitTesting(false)
+
+                    if store.isRefreshing {
+                        refreshIndicator
+                    }
+
+                    content
+
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                    }
                 }
-            } header: {
-                Text(L10n.tr("torrentList.section.title"))
-                    .accessibilityIdentifier("torrent_list_header")
-                    .allowsHitTesting(false)
-            }
-            .safeAreaInset(edge: .top) {
-                if store.isRefreshing {
-                    refreshIndicator
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 16)
-                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
             }
         #endif
     }
@@ -443,15 +445,45 @@ extension TorrentListView {
 
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
+            let actions = rowActions(for: item)
             TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
-                actions: rowActions(for: item),
+                actions: actions,
                 longestStatusTitle: longestStatusTitle
             )
             .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-            .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-            .listRowBackground(rowBackground(for: item))
+            #if os(iOS)
+                .padding(.horizontal, 0)
+                .padding(.vertical, 10)
+                .appCardSurface(cornerRadius: 14)
+                .contentShape(
+                    .contextMenuPreview,
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+            #else
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+            #endif
+            #if os(iOS)
+                .contextMenu {
+                    if let actions {
+                        Button(
+                            actions.isActive
+                                ? L10n.tr("torrentDetail.actions.pause")
+                                : L10n.tr("torrentDetail.actions.start")
+                        ) {
+                            actions.onStartPause()
+                        }
+                        Button(L10n.tr("torrentDetail.actions.verify")) {
+                            actions.onVerify()
+                        }
+                        Button(L10n.tr("torrentDetail.actions.remove"), role: .destructive) {
+                            actions.onRemove()
+                        }
+                    }
+                }
+            #endif
         }
     }
 
@@ -474,13 +506,7 @@ extension TorrentListView {
     #endif
 
     private func rowBackground(for item: TorrentListItem.State) -> some View {
-        let color: Color =
-            item.torrent.status == .isolated
-            ? Color.red.opacity(0.08)
-            : Color.clear
-
-        return RoundedRectangle(cornerRadius: 8)
-            .fill(color)
+        TorrentRowBackgroundView(isIsolated: item.torrent.status == .isolated)
     }
 
     private func rowActions(
@@ -648,9 +674,11 @@ private struct TorrentRowView: View {
                 Spacer(minLength: 12)
 
                 HStack(spacing: 6) {
-                    if let actions {
-                        actionsPill(actions)
-                    }
+                    #if os(macOS)
+                        if let actions {
+                            actionsPill(actions)
+                        }
+                    #endif
                     statusBadge
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -690,7 +718,8 @@ private struct TorrentRowView: View {
                     .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
             }
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
@@ -781,29 +810,38 @@ private struct TorrentRowView: View {
 
     private var statusBadge: some View {
         ZStack {
-            Text(longestStatusTitle)
+            Text(statusAbbreviation)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .hidden()
-
-            Text(statusTitle)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 34)
+        .frame(width: 28, height: 28)
         .background(
-            Capsule(style: .continuous)
+            Circle()
                 .fill(statusColor.opacity(0.15))
         )
         .overlay(
-            Capsule(style: .continuous)
+            Circle()
                 .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
         )
         .foregroundStyle(statusColor)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
+        .accessibilityLabel(statusTitle)
+    }
+
+    private var statusAbbreviation: String {
+        switch item.torrent.status {
+        case .stopped:
+            return L10n.tr("torrentList.status.abbrev.paused")
+        case .checkWaiting, .checking:
+            return L10n.tr("torrentList.status.abbrev.checking")
+        case .downloadWaiting, .seedWaiting:
+            return L10n.tr("torrentList.status.abbrev.waiting")
+        case .downloading:
+            return L10n.tr("torrentList.status.abbrev.downloading")
+        case .seeding:
+            return L10n.tr("torrentList.status.abbrev.seeding")
+        case .isolated:
+            return L10n.tr("torrentList.status.abbrev.error")
+        }
     }
 
     private var statusTitle: String {
@@ -832,6 +870,24 @@ private struct TorrentRowView: View {
 
     private var progressColor: Color {
         statusColor
+    }
+}
+
+private struct TorrentRowBackgroundView: View {
+    let isIsolated: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let fillColor: Color =
+            isIsolated
+            ? Color.red.opacity(0.08)
+            : Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.06)
+        return RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(fillColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
     }
 }
 
