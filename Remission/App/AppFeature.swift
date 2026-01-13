@@ -23,6 +23,7 @@ struct AppReducer {
     }
 
     enum Action: Equatable {
+        case task
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case openTorrentFile(URL)
@@ -31,6 +32,9 @@ struct AppReducer {
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
+            case .task:
+                return .send(.serverList(.task))
+
             case .openTorrentFile(let url):
                 guard url.isFileURL else { return .none }
                 guard url.pathExtension.lowercased() == "torrent" else { return .none }

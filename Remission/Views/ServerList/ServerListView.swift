@@ -32,7 +32,6 @@ struct ServerListView: View {
                 .padding(.top, 12)
             }
         }
-        .task { await store.send(.task).finish() }
         .alert(
             $store.scope(state: \.alert, action: \.alert)
         )

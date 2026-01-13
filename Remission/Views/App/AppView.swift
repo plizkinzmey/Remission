@@ -38,7 +38,7 @@ struct AppView: View {
                         minStartupDurationElapsed = true
                     }
                 }
-                await store.send(.serverList(.task)).finish()
+                await store.send(.task).finish()
             }
             .onChange(of: minStartupDurationElapsed) { _, hasElapsed in
                 if hasElapsed {
@@ -52,7 +52,7 @@ struct AppView: View {
                     preferring: Set(["*"]),
                     allowing: Set(["*"])
                 )
-                .task { await store.send(.serverList(.task)).finish() }
+                .task { await store.send(.task).finish() }
         #endif
     }
 
