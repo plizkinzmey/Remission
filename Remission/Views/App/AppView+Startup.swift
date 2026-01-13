@@ -145,7 +145,7 @@ extension AppView {
         }
 
         var shouldShowStartup: Bool {
-            minStartupDurationElapsed == false
+            store.startup.minDurationElapsed == false
         }
 
         var brandTextGradient: LinearGradient {

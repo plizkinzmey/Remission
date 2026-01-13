@@ -10,6 +10,9 @@ struct AppReducer {
         var path: StackState<ServerDetailReducer.State>
         var pendingTorrentFileURL: URL?
         var hasLoadedServersOnce: Bool = false
+        #if os(iOS)
+            var startup: StartupState = .init()
+        #endif
 
         init(
             version: AppStateVersion = .latest,
@@ -24,16 +27,47 @@ struct AppReducer {
 
     enum Action: Equatable {
         case task
+        case startupTimerElapsed
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case openTorrentFile(URL)
     }
 
+    @Dependency(\.appClock) var appClock
+
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
-                return .send(.serverList(.task))
+                var effects: [Effect<Action>] = [
+                    .send(.serverList(.task))
+                ]
+                #if os(iOS)
+                    if state.startup.shouldScheduleTimer {
+                        state.startup.isTimerScheduled = true
+                        effects.append(
+                            .run { send in
+                                let clock = appClock.clock()
+                                do {
+                                    try await clock.sleep(for: StartupState.minimumDuration)
+                                    await send(.startupTimerElapsed)
+                                } catch is CancellationError {
+                                    return
+                                }
+                            }
+                            .cancellable(id: StartupCancellationID.timer, cancelInFlight: true)
+                        )
+                    }
+                #endif
+                return .merge(effects)
+
+            case .startupTimerElapsed:
+                #if os(iOS)
+                    state.startup.hasPresentedOnce = true
+                    state.startup.minDurationElapsed = true
+                    state.startup.isTimerScheduled = false
+                #endif
+                return .none
 
             case .openTorrentFile(let url):
                 guard url.isFileURL else { return .none }
@@ -166,3 +200,21 @@ struct AppReducer {
         )
     }
 }
+
+#if os(iOS)
+    struct StartupState: Equatable {
+        static let minimumDuration: Duration = .seconds(4)
+
+        var hasPresentedOnce: Bool = false
+        var minDurationElapsed: Bool = false
+        var isTimerScheduled: Bool = false
+
+        var shouldScheduleTimer: Bool {
+            hasPresentedOnce == false && isTimerScheduled == false
+        }
+    }
+
+    private enum StartupCancellationID {
+        case timer
+    }
+#endif

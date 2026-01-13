@@ -2,10 +2,6 @@ import ComposableArchitecture
 import Foundation
 import SwiftUI
 
-/// Временная фабрика конфигурации TransmissionClient. До появления onboarding
-/// возвращает тестовую локальную конфигурацию.
-enum TransmissionClientBootstrap {}
-
 @main
 struct RemissionApp: App {
     @StateObject var store: StoreOf<AppReducer>
@@ -58,85 +54,6 @@ struct RemissionApp: App {
             // из-за чего размер прыгает между экранами. Нам нужен стабильный размер окна.
             .windowResizability(.contentMinSize)
         #endif
-    }
-}
-
-extension TransmissionClientBootstrap {
-    static func makeLiveDependency(
-        dependencies: DependencyValues
-    ) -> TransmissionClientDependency {
-        let logger = dependencies.appLogger.withCategory("bootstrap")
-        logger.debug("Начало инициализации live dependency TransmissionClient.")
-        guard
-            let config = makeConfig(
-                credentialsStore: dependencies.keychainCredentials,
-                appLogger: dependencies.appLogger.withCategory("bootstrap.transmission")
-            )
-        else {
-            logger.warning("Конфигурация TransmissionClient недоступна, используем placeholder.")
-            return TransmissionClientDependency.placeholder
-        }
-
-        let appClock = dependencies[keyPath: \.appClock]
-        let client = TransmissionClient(config: config, clock: appClock.clock())
-        #if canImport(ComposableArchitecture)
-            let trustPromptCenter = dependencies.transmissionTrustPromptCenter
-            client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
-        #endif
-        let dependency = TransmissionClientDependency.live(client: client)
-        logger.debug("Успешно создан live dependency TransmissionClient для \(config.baseURL)")
-        return dependency
-    }
-
-    static func makeConfig(
-        credentialsStore: KeychainCredentialsDependency,
-        appLogger: AppLogger,
-        fileURL: URL = ServerConfigStoragePaths.defaultURL()
-    ) -> TransmissionClientConfig? {
-        let records = ServerConfigStoragePaths.loadSnapshot(fileURL: fileURL)
-        guard let record = mostRecentRecord(in: records) else {
-            return nil
-        }
-
-        let mapper = TransmissionDomainMapper()
-        guard let server = try? mapper.mapServerConfig(record: record, credentials: nil) else {
-            appLogger.error("Не удалось преобразовать сохранённую конфигурацию сервера.")
-            return nil
-        }
-
-        let password: String? = {
-            guard let credentialsKey = server.credentialsKey else { return nil }
-            do {
-                return try credentialsStore.load(credentialsKey)?.password
-            } catch {
-                appLogger.error(
-                    "Не удалось загрузить пароль из Keychain: \(error.localizedDescription)")
-                return nil
-            }
-        }()
-
-        let loggerContext = TransmissionLogContext(
-            serverID: server.id,
-            host: server.connection.host,
-            path: server.connection.path
-        )
-        return server.makeTransmissionClientConfig(
-            password: password,
-            network: .default,
-            logger: DefaultTransmissionLogger(
-                appLogger: appLogger,
-                baseContext: loggerContext
-            )
-        )
-    }
-
-    private static func mostRecentRecord(
-        in records: [StoredServerConfigRecord]
-    ) -> StoredServerConfigRecord? {
-        records.sorted { lhs, rhs in
-            (lhs.createdAt ?? .distantPast) > (rhs.createdAt ?? .distantPast)
-        }
-        .first
     }
 }
 
