@@ -266,6 +266,9 @@ xcodebuild -scheme Remission -configuration Debug build | xcbeautify
 ### Локальный релиз (main-only)
 
 Скрипт `Scripts/release_local.sh` собирает **iOS IPA** и **macOS .app (zip)** с автоматической установкой `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` на время сборки.
+Перед релизом версия обновляется автоматически: скрипт правит `Remission.xcodeproj/project.pbxproj` и делает коммит, если не указан `--no-version-commit`.
+
+Важно: релиз считается корректным только при наличии git-тега `vX.Y.Z`, поэтому запускать скрипт нужно с `--tag` (и обычно `--push`).
 
 ```bash
 # релиз только из main (ветка должна быть активной) + чистый git status
@@ -274,8 +277,14 @@ Scripts/release_local.sh --version 1.2.3
 # или авто-bump от последнего тега vX.Y.Z
 Scripts/release_local.sh --bump patch
 
-# опционально: создать тег и запушить main + тег
+# обязательно: создать тег и запушить main + тег (релиз без тега запрещён)
 Scripts/release_local.sh --bump minor --tag --push
+
+# если указываете версию вручную — тоже добавляйте --tag/--push
+Scripts/release_local.sh --version 1.2.3 --tag --push
+
+# если нужно обновить версию без автокоммита
+Scripts/release_local.sh --version 1.2.3 --no-version-commit
 ```
 
 Артефакты сохраняются в `Build/Releases/vX.Y.Z/`. Для iOS export используется `ExportOptions.plist` (можно переопределить `--export-options-plist`).

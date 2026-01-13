@@ -114,6 +114,18 @@ extension AppView {
                                 .easeInOut(duration: 3.0).delay(0.5),
                                 value: isStartupTextVisible
                             )
+
+                        Text(appVersionText)
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(captionTextColor.opacity(0.75))
+                            .padding(.top, 6)
+                            .opacity(isStartupTextVisible ? 1 : 0)
+                            .blur(radius: isStartupTextVisible ? 0 : 6)
+                            .offset(y: isStartupTextVisible ? 0 : 16)
+                            .animation(
+                                .easeInOut(duration: 3.0).delay(0.65),
+                                value: isStartupTextVisible
+                            )
                     }
 
                     Spacer()
@@ -125,9 +137,6 @@ extension AppView {
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                     isStartupTextVisible = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + minStartupDuration) {
-                    minStartupDurationElapsed = true
                 }
             }
             .onDisappear {
@@ -188,6 +197,27 @@ extension AppView {
                 return Color.white.opacity(0.75)
             }
             return Color(red: 0.35, green: 0.28, blue: 0.22).opacity(0.9)
+        }
+
+        var appVersionLabel: String {
+            let info = Bundle.main.infoDictionary
+            let shortVersion = info?["CFBundleShortVersionString"] as? String
+
+            return shortVersion?.isEmpty == false ? shortVersion ?? "-" : "-"
+        }
+
+        var appVersionText: String {
+            #if DEBUG
+                return String(
+                    format: L10n.tr("app.startup.version.debug"),
+                    appVersionLabel
+                )
+            #else
+                return String(
+                    format: L10n.tr("app.startup.version"),
+                    appVersionLabel
+                )
+            #endif
         }
     #endif
 }

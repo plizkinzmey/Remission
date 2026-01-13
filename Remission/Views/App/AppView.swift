@@ -6,10 +6,11 @@ struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
     @State var isStartupTextVisible: Bool = false
     @State var minStartupDurationElapsed: Bool = false
+    @State var hasScheduledStartupTimer: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     /// Минимальное время отображения splash-экрана (в секундах)
-    let minStartupDuration: TimeInterval = 3.0
+    let minStartupDuration: TimeInterval = 4.0
 
     var body: some View {
         #if os(iOS)
@@ -29,6 +30,13 @@ struct AppView: View {
             }
             .animation(.easeInOut(duration: 0.6), value: shouldShowStartup)
             .task {
+                if hasScheduledStartupTimer == false {
+                    hasScheduledStartupTimer = true
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(minStartupDuration))
+                        minStartupDurationElapsed = true
+                    }
+                }
                 await store.send(.serverList(.task)).finish()
             }
         #else
