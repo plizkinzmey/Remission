@@ -51,5 +51,8 @@ struct ServerListView: View {
             ServerEditorView(store: editorStore)
                 .appRootChrome()
         }
+        #if os(iOS)
+            .background(AppBackgroundView())
+        #endif
     }
 }

@@ -41,6 +41,9 @@ struct TorrentListView: View {
                 await store.send(.refreshRequested).finish()
             }
         #endif
+        #if os(iOS)
+            .background(AppBackgroundView())
+        #endif
         .onAppear {
             if searchText != store.searchQuery {
                 searchText = store.searchQuery
@@ -888,7 +891,10 @@ private struct TorrentRowView: View {
     }
 
     private var peersText: String {
-        "\(item.torrent.summary.peers.connected) peers"
+        String(
+            format: L10n.tr("torrentList.peers"),
+            Int64(item.torrent.summary.peers.connected)
+        )
     }
 
     private var statusBadge: some View {

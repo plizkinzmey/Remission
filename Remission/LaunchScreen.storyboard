@@ -9,54 +9,8 @@
                     <view key="view" contentMode="scaleToFill" id="O5Q-Jo-1Rj">
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
-                        <subviews>
-                            <imageView alpha="0.14" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="d2b-9J-Tm5">
-                                <rect key="frame" x="253" y="64" width="200" height="200"/>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="200" id="0vW-HO-qhy"/>
-                                    <constraint firstAttribute="width" constant="200" id="yOV-Yh-4kT"/>
-                                </constraints>
-                            </imageView>
-                            <imageView alpha="0.10" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="a3c-WQ-0kP">
-                                <rect key="frame" x="-80" y="612" width="240" height="240"/>
-                                <constraints>
-                                    <constraint firstAttribute="height" constant="240" id="g3A-3c-1ma"/>
-                                    <constraint firstAttribute="width" constant="240" id="hHu-V9-tGN"/>
-                                </constraints>
-                            </imageView>
-                            <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" alignment="center" spacing="12" translatesAutoresizingMaskIntoConstraints="NO" id="8iW-jg-Tus">
-                                <subviews>
-                                    <imageView opaque="NO" userInteractionEnabled="NO" contentMode="scaleAspectFit" image="LaunchIcon" translatesAutoresizingMaskIntoConstraints="NO" id="5x0-7W-6mQ">
-                                        <constraints>
-                                            <constraint firstAttribute="height" constant="120" id="dKM-9c-3nH"/>
-                                            <constraint firstAttribute="width" constant="120" id="fRk-XU-n1V"/>
-                                        </constraints>
-                                    </imageView>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Remission" textAlignment="center" lineBreakMode="tailTruncation" adjustsFontForContentSizeCategory="NO" translatesAutoresizingMaskIntoConstraints="NO" id="8rQ-vT-7oD">
-                                        <fontDescription key="fontDescription" type="system" weight="semibold" textStyle="largeTitle"/>
-                                        <color key="textColor" systemColor="labelColor"/>
-                                    </label>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Remote control for Transmission servers" textAlignment="center" lineBreakMode="tailTruncation" adjustsFontForContentSizeCategory="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Wk7-kN-h1P">
-                                        <fontDescription key="fontDescription" type="system" textStyle="subheadline"/>
-                                        <color key="textColor" systemColor="secondaryLabelColor"/>
-                                    </label>
-                                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="•••" textAlignment="center" lineBreakMode="tailTruncation" adjustsFontForContentSizeCategory="NO" translatesAutoresizingMaskIntoConstraints="NO" id="0LT-pp-3I3">
-                                        <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="14"/>
-                                        <color key="textColor" systemColor="secondaryLabelColor"/>
-                                    </label>
-                                </subviews>
-                            </stackView>
-                        </subviews>
                         <viewLayoutGuide key="safeArea" id="t2E-x6-yvN"/>
-                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
-                        <constraints>
-                            <constraint firstItem="d2b-9J-Tm5" firstAttribute="top" secondItem="O5Q-Jo-1Rj" secondAttribute="top" constant="64" id="4Fb-9G-Bcg"/>
-                            <constraint firstAttribute="trailing" secondItem="d2b-9J-Tm5" secondAttribute="trailing" constant="-40" id="6cQ-sq-Yx0"/>
-                            <constraint firstItem="a3c-WQ-0kP" firstAttribute="leading" secondItem="O5Q-Jo-1Rj" secondAttribute="leading" constant="-80" id="W9k-1Q-ujg"/>
-                            <constraint firstAttribute="bottom" secondItem="a3c-WQ-0kP" secondAttribute="bottom" constant="-40" id="b8F-BA-2pJ"/>
-                            <constraint firstItem="8iW-jg-Tus" firstAttribute="centerX" secondItem="O5Q-Jo-1Rj" secondAttribute="centerX" id="cn0-41-8t4"/>
-                            <constraint firstItem="8iW-jg-Tus" firstAttribute="centerY" secondItem="O5Q-Jo-1Rj" secondAttribute="centerY" id="u8l-7X-wpv"/>
-                        </constraints>
+                        <color key="backgroundColor" red="0" green="0" blue="0" alpha="0" colorSpace="custom" customColorSpace="sRGB"/>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="5bJ-1h-6H6" userLabel="First Responder" sceneMemberID="firstResponder"/>
@@ -64,10 +18,4 @@
             <point key="canvasLocation" x="52" y="47"/>
         </scene>
     </scenes>
-    <resources>
-        <image name="LaunchIcon" width="1024" height="1024"/>
-        <namedColor name="AccentColor">
-            <color red="0.2" green="0.56000000000000005" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
-        </namedColor>
-    </resources>
 </document>
