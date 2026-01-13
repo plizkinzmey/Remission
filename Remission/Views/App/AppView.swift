@@ -153,8 +153,8 @@ struct AppView: View {
         if store.path.isEmpty == false {
             return true
         }
-        if store.hasLoadedServersOnce == false {
-            return store.serverList.isLoading
+        guard store.hasLoadedServersOnce else {
+            return false
         }
         if store.serverList.isLoading, store.serverList.servers.isEmpty {
             return false

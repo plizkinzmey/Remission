@@ -60,4 +60,12 @@ extension ServerListView {
         .multilineTextAlignment(.center)
         .padding()
     }
+
+    var loadingState: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.large)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }

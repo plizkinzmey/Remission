@@ -12,7 +12,11 @@ struct ServerListView: View {
     var body: some View {
         Group {
             if store.servers.isEmpty {
-                emptyState
+                if store.isLoading {
+                    loadingState
+                } else {
+                    emptyState
+                }
             } else {
                 VStack(alignment: .center, spacing: 12) {
                     Text(L10n.tr("Servers"))
