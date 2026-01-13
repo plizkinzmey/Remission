@@ -54,15 +54,20 @@ pipe_xcbeautify_if_available() {
 }
 
 SKIP_WORKTREE_RESTORE="false"
+ASSUME_UNCHANGED_RESTORE="false"
 
 update_project_versions() {
   local pbxproj="$1"
   local version="$2"
-  local build_number="$3"
 
-  if git ls-files -v "$pbxproj" | grep -q '^H'; then
+  local flag
+  flag="$(git ls-files -v "$pbxproj" | awk '{print $1}')"
+  if [[ "$flag" == "H" ]]; then
     SKIP_WORKTREE_RESTORE="true"
     git update-index --no-skip-worktree "$pbxproj"
+  elif [[ "$flag" == "S" ]]; then
+    ASSUME_UNCHANGED_RESTORE="true"
+    git update-index --no-assume-unchanged "$pbxproj"
   fi
 
   VERSION="$version" BUILD_NUMBER="$build_number" PBXPROJ="$pbxproj" python3 - <<'PY'
@@ -72,16 +77,10 @@ import re
 
 path = Path(os.environ["PBXPROJ"])
 version = os.environ["VERSION"]
-build_number = os.environ["BUILD_NUMBER"]
 text = path.read_text()
 text = re.sub(
     r"(MARKETING_VERSION\\s*=\\s*)([^;]+);",
     rf"\\g<1>{version};",
-    text,
-)
-text = re.sub(
-    r"(CURRENT_PROJECT_VERSION\\s*=\\s*)([^;]+);",
-    rf"\\g<1>{build_number};",
     text,
 )
 path.write_text(text)
@@ -185,8 +184,8 @@ main() {
     build_number=$((build_number_base + 1))
   fi
 
-  update_project_versions "$pbxproj" "$version" "$build_number"
-  ok "Обновлены версии в project.pbxproj: ${version} (build ${build_number})"
+  update_project_versions "$pbxproj" "$version"
+  ok "Обновлена версия в project.pbxproj: ${version}"
 
   if git diff --quiet -- "$pbxproj"; then
     info "project.pbxproj не изменился после обновления версии."
@@ -202,6 +201,9 @@ main() {
 
   if [[ "$SKIP_WORKTREE_RESTORE" == "true" ]]; then
     git update-index --skip-worktree "$pbxproj"
+  fi
+  if [[ "$ASSUME_UNCHANGED_RESTORE" == "true" ]]; then
+    git update-index --assume-unchanged "$pbxproj"
   fi
 
   if [[ "$version_only" == "true" ]]; then
