@@ -53,10 +53,17 @@ pipe_xcbeautify_if_available() {
   fi
 }
 
+SKIP_WORKTREE_RESTORE="false"
+
 update_project_versions() {
   local pbxproj="$1"
   local version="$2"
   local build_number="$3"
+
+  if git ls-files -v "$pbxproj" | grep -q '^H'; then
+    SKIP_WORKTREE_RESTORE="true"
+    git update-index --no-skip-worktree "$pbxproj"
+  fi
 
   VERSION="$version" BUILD_NUMBER="$build_number" PBXPROJ="$pbxproj" python3 - <<'PY'
 from pathlib import Path
@@ -181,12 +188,20 @@ main() {
   update_project_versions "$pbxproj" "$version" "$build_number"
   ok "Обновлены версии в project.pbxproj: ${version} (build ${build_number})"
 
-  if [[ "$version_commit" == "true" ]]; then
-    git add "$pbxproj"
-    git commit -m "Обновить версию ${version}"
-    ok "Закоммичена версия ${version}"
+  if git diff --quiet -- "$pbxproj"; then
+    info "project.pbxproj не изменился после обновления версии."
   else
-    info "project.pbxproj обновлён, но не закоммичен (--no-version-commit)."
+    if [[ "$version_commit" == "true" ]]; then
+      git add "$pbxproj"
+      git commit -m "Обновить версию ${version}"
+      ok "Закоммичена версия ${version}"
+    else
+      info "project.pbxproj обновлён, но не закоммичен (--no-version-commit)."
+    fi
+  fi
+
+  if [[ "$SKIP_WORKTREE_RESTORE" == "true" ]]; then
+    git update-index --skip-worktree "$pbxproj"
   fi
 
   if [[ "$version_only" == "true" ]]; then
