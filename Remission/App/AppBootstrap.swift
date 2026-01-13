@@ -49,12 +49,6 @@ enum AppBootstrap {
     ) -> AppReducer.State {
         var state = existingState ?? AppReducer.State()
         migrate(&state, to: targetVersion)
-        preloadPersistedServersIfNeeded(
-            &state,
-            existingState: existingState,
-            storageFileURL: storageFileURL,
-            environment: environment
-        )
         if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
             applyFixture(fixture, to: &state)
         }
@@ -111,31 +105,6 @@ enum AppBootstrap {
         case .v1:
             break
         }
-    }
-
-    private static func preloadPersistedServersIfNeeded(
-        _ state: inout AppReducer.State,
-        existingState: AppReducer.State?,
-        storageFileURL: URL,
-        environment: [String: String]
-    ) {
-        guard existingState == nil else { return }
-        let isRunningUITests = environment["XCTestConfigurationFilePath"] != nil
-        let isDefaultStoragePath = storageFileURL == ServerConfigStoragePaths.defaultURL()
-        if isRunningUITests && isDefaultStoragePath {
-            return
-        }
-        let records = ServerConfigStoragePaths.loadSnapshot(fileURL: storageFileURL)
-        guard records.isEmpty == false else { return }
-
-        let mapper = TransmissionDomainMapper()
-        let servers: [ServerConfig] = records.compactMap { record in
-            try? mapper.mapServerConfig(record: record, credentials: nil)
-        }
-
-        guard servers.isEmpty == false else { return }
-        state.serverList.servers = IdentifiedArrayOf(uniqueElements: servers)
-        state.serverList.shouldLoadServersFromRepository = false
     }
 
     private static func applyFixture(

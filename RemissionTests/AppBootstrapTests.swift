@@ -49,7 +49,7 @@ struct AppBootstrapTests {
     }
 
     @Test
-    func loadsPersistedServersFromStorage() throws {
+    func bootstrapDoesNotLoadServersFromStorage() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("app-bootstrap-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -79,9 +79,8 @@ struct AppBootstrapTests {
 
         let state = AppBootstrap.makeInitialState(arguments: [], storageFileURL: fileURL)
 
-        #expect(state.serverList.servers.count == 1)
-        #expect(state.serverList.servers.first?.id == server.id)
-        #expect(state.serverList.shouldLoadServersFromRepository == false)
-        #expect(state.hasLoadedServersOnce)
+        #expect(state.serverList.servers.isEmpty)
+        #expect(state.serverList.shouldLoadServersFromRepository)
+        #expect(state.hasLoadedServersOnce == false)
     }
 }

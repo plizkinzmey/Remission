@@ -3,12 +3,10 @@
     import Dependencies
 
     extension TransmissionClientDependency: DependencyKey {
-        /// Возвращает рабочую live-реализацию, собранную через TransmissionClientBootstrap.
-        /// При недоступной конфигурации откатывается к безопасному placeholder.
+        /// Возвращает безопасный placeholder и требует явной настройки через
+        /// ServerConnectionEnvironmentFactory или overrides в тестах/превью.
         static var liveValue: Self {
-            TransmissionClientBootstrap.makeLiveDependency(
-                dependencies: DependencyValues.appDefault()
-            )
+            .placeholder
         }
     }
 

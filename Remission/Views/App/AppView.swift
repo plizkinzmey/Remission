@@ -52,6 +52,7 @@ struct AppView: View {
                     preferring: Set(["*"]),
                     allowing: Set(["*"])
                 )
+                .task { await store.send(.serverList(.task)).finish() }
         #endif
     }
 

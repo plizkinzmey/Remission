@@ -287,25 +287,26 @@ struct TransmissionClientProtocolTests {
     @Suite("TransmissionClientDependency LiveValue Tests")
     struct TransmissionClientLiveValueTests {
         @MainActor
-        @Test("TransmissionClientDependency.liveValue предоставляет рабочую реализацию")
-        func testLiveValueProvidesOperationalDependency() {
+        @Test("TransmissionClientDependency.liveValue возвращает placeholder")
+        func testLiveValueProvidesPlaceholder() async {
             let dependency = TransmissionClientDependency.liveValue
-            dependency.setTrustDecisionHandler { _ in
-                .trustPermanently
+            do {
+                _ = try await dependency.sessionGet()
+                Issue.record("Expected liveValue to be unconfigured placeholder")
+            } catch TransmissionClientDependencyError.notConfigured(let name) {
+                #expect(name == "sessionGet")
+            } catch {
+                Issue.record("Unexpected error: \(String(reflecting: error))")
             }
         }
 
         @MainActor
-        @Test("Инициализация liveValue выполняется быстрее 50 мс")
-        func testLiveValueInitializationPerformance() {
-            let clock = ContinuousClock()
-            let start = clock.now
+        @Test("liveValue можно безопасно использовать без побочных эффектов")
+        func testLiveValueDoesNotRequireSetup() {
             let dependency = TransmissionClientDependency.liveValue
             dependency.setTrustDecisionHandler { _ in
                 .trustPermanently
             }
-            let duration = clock.now - start
-            #expect(duration < .milliseconds(50))
         }
     }
 

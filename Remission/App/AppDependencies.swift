@@ -7,9 +7,7 @@ enum AppDependencies {
     /// Сборка live-набора зависимостей для основной Scheме приложения.
     static func makeLive() -> DependencyValues {
         var dependencies = DependencyValues.appDefault()
-        dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(
-            dependencies: dependencies
-        )
+        dependencies.transmissionClient = .placeholder
         dependencies.userPreferencesRepository = .persistent()
         return dependencies
     }
