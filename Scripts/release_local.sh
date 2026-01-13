@@ -61,15 +61,22 @@ update_project_versions() {
   VERSION="$version" BUILD_NUMBER="$build_number" PBXPROJ="$pbxproj" python3 - <<'PY'
 from pathlib import Path
 import os
+import re
 
 path = Path(os.environ["PBXPROJ"])
 version = os.environ["VERSION"]
 build_number = os.environ["BUILD_NUMBER"]
 text = path.read_text()
-text = text.replace("MARKETING_VERSION = 1.0;", f"MARKETING_VERSION = {version};")
-text = text.replace("MARKETING_VERSION = $(APP_MARKETING_VERSION);", f"MARKETING_VERSION = {version};")
-text = text.replace("CURRENT_PROJECT_VERSION = 1;", f"CURRENT_PROJECT_VERSION = {build_number};")
-text = text.replace("CURRENT_PROJECT_VERSION = $(APP_BUILD_VERSION);", f"CURRENT_PROJECT_VERSION = {build_number};")
+text = re.sub(
+    r"(MARKETING_VERSION\\s*=\\s*)([^;]+);",
+    rf"\\1{version};",
+    text,
+)
+text = re.sub(
+    r"(CURRENT_PROJECT_VERSION\\s*=\\s*)([^;]+);",
+    rf"\\1{build_number};",
+    text,
+)
 path.write_text(text)
 PY
 }
