@@ -28,7 +28,7 @@ struct ServerListView: View {
                     serverList
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 8)
                 .padding(.top, 12)
             }
         }

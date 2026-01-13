@@ -4,12 +4,12 @@ import SwiftUI
 
 struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
-    @State private var isStartupTextVisible: Bool = false
-    @State private var minStartupDurationElapsed: Bool = false
-    @Environment(\.colorScheme) private var colorScheme
+    @State var isStartupTextVisible: Bool = false
+    @State var minStartupDurationElapsed: Bool = false
+    @Environment(\.colorScheme) var colorScheme
 
     /// Минимальное время отображения splash-экрана (в секундах)
-    private let minStartupDuration: TimeInterval = 3.0
+    let minStartupDuration: TimeInterval = 3.0
 
     var body: some View {
         #if os(iOS)

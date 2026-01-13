@@ -15,8 +15,9 @@ extension ServerListView {
             List {
                 serverRows
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .scrollIndicators(.hidden)
         #endif
     }
 
@@ -29,7 +30,8 @@ extension ServerListView {
                 .accessibilityLabel(server.name)
                 #if os(iOS)
                     .listRowBackground(Color.clear)
-                    .listRowInsets(.init(top: 8, leading: 0, bottom: 12, trailing: 0))
+                    .listRowInsets(.init(top: 8, leading: 8, bottom: 12, trailing: 8))
+                    .listRowSeparator(.hidden)
                 #endif
         }
     }
