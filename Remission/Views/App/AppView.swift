@@ -28,6 +28,9 @@ struct AppView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.6), value: shouldShowStartup)
+            .task {
+                await store.send(.serverList(.task)).finish()
+            }
         #else
             navigationContent
                 .appRootChrome()
@@ -66,9 +69,6 @@ struct AppView: View {
         }
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
-        }
-        .task {
-            await store.send(.serverList(.task)).finish()
         }
         .background(AppBackgroundView())
         .appRootChrome()
