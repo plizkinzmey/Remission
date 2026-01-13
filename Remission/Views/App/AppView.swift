@@ -7,6 +7,7 @@ struct AppView: View {
     @State var isStartupTextVisible: Bool = false
     @State var minStartupDurationElapsed: Bool = false
     @State var hasScheduledStartupTimer: Bool = false
+    @State var hasPresentedStartupOnce: Bool = false
     @Environment(\.colorScheme) var colorScheme
 
     /// Минимальное время отображения splash-экрана (в секундах)
@@ -30,7 +31,7 @@ struct AppView: View {
             }
             .animation(.easeInOut(duration: 0.6), value: shouldShowStartup)
             .task {
-                if hasScheduledStartupTimer == false {
+                if hasScheduledStartupTimer == false, hasPresentedStartupOnce == false {
                     hasScheduledStartupTimer = true
                     Task { @MainActor in
                         try? await Task.sleep(for: .seconds(minStartupDuration))
@@ -38,6 +39,11 @@ struct AppView: View {
                     }
                 }
                 await store.send(.serverList(.task)).finish()
+            }
+            .onChange(of: minStartupDurationElapsed) { _, hasElapsed in
+                if hasElapsed {
+                    hasPresentedStartupOnce = true
+                }
             }
         #else
             navigationContent

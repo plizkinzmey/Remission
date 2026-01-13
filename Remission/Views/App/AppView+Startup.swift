@@ -145,9 +145,7 @@ extension AppView {
         }
 
         var shouldShowStartup: Bool {
-            // Минимум 3 секунды + до завершения первичной загрузки серверов.
-            store.path.isEmpty
-                && (minStartupDurationElapsed == false || store.hasLoadedServersOnce == false)
+            minStartupDurationElapsed == false
         }
 
         var brandTextGradient: LinearGradient {
