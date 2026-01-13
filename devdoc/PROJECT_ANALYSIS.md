@@ -29,7 +29,7 @@
 - `Remission/App/RemissionApp.swift`: `@main` entry point.
 - `Remission/App/AppBootstrap.swift`: сборка начального состояния, миграция, фикстуры для UI-тестов.
 - `Remission/App/AppDependencies.swift`: построение зависимостей для live/preview/test/UI-test окружений.
-- `Remission/App/AppFeature.swift`: корневой TCA reducer (AppReducer).
+- `Remission/App/AppFeature.swift`: корневой TCA reducer (AppReducer), стартовый таймер и запуск загрузки серверов.
 
 ### 4.2 Корневое состояние и навигация
 - `AppReducer.State`: `serverList`, `path (StackState<ServerDetailReducer.State>)`, versioning.
@@ -120,7 +120,7 @@
 ## 16. Ключевые entry points по коду
 - `Remission/App/RemissionApp.swift` — запуск, выбор зависимостей.
 - `Remission/App/AppBootstrap.swift` — миграции состояния и фикстуры UI тестов.
-- `Remission/App/AppFeature.swift` — root reducer.
+- `Remission/App/AppFeature.swift` — root reducer, стартовый таймер и запуск загрузки серверов.
 - `Remission/Network/Transmission/TransmissionClient.swift` — RPC, handshake, retry.
 - `Remission/Domain/TransmissionDomainMapper.swift` — маппинг RPC → domain.
 
