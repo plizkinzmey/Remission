@@ -2540,6 +2540,23 @@
         }
       }
     },
+    "torrentAdd.destination.remove" : {
+      "comment" : "Title for the menu that removes custom download destinations.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove path"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить путь"
+          }
+        }
+      }
+    },
     "torrentAdd.destination.suggestions" : {
       "localizations" : {
         "en" : {
