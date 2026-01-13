@@ -76,12 +76,12 @@ build_number = os.environ["BUILD_NUMBER"]
 text = path.read_text()
 text = re.sub(
     r"(MARKETING_VERSION\\s*=\\s*)([^;]+);",
-    rf"\\1{version};",
+    rf"\\g<1>{version};",
     text,
 )
 text = re.sub(
     r"(CURRENT_PROJECT_VERSION\\s*=\\s*)([^;]+);",
-    rf"\\1{build_number};",
+    rf"\\g<1>{build_number};",
     text,
 )
 path.write_text(text)
