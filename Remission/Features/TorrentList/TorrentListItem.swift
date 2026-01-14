@@ -8,12 +8,14 @@ extension TorrentListItem {
     struct State: Equatable, Identifiable, Sendable {
         var torrent: Torrent
         var metrics: Metrics
+        var isRemoving: Bool
 
         var id: Torrent.Identifier { torrent.id }
 
-        init(torrent: Torrent) {
+        init(torrent: Torrent, isRemoving: Bool = false) {
             self.torrent = torrent
             self.metrics = Metrics(torrent: torrent)
+            self.isRemoving = isRemoving
         }
 
         mutating func update(with torrent: Torrent) {

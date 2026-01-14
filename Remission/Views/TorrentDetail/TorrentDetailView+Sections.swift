@@ -192,6 +192,10 @@ extension TorrentDetailView {
                         ? store.downloadDir
                         : L10n.tr("torrentDetail.mainInfo.unknown")
                 )
+                if store.tags.isEmpty == false {
+                    Divider()
+                    tagsRow
+                }
                 Divider()
                 TorrentDetailLabelValueRow(
                     label: L10n.tr("torrentDetail.mainInfo.added"),
@@ -234,6 +238,31 @@ extension TorrentDetailView {
 
     private var isSeeding: Bool {
         store.status == Torrent.Status.seeding.rawValue
+    }
+
+    var tagsRow: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.tr("torrentDetail.mainInfo.tags"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 6) {
+                    ForEach(store.tags, id: \.self) { tag in
+                        Text(tag)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 8)
+                            .frame(height: 20)
+                            .background(
+                                Capsule()
+                                    .fill(Color.primary.opacity(0.08))
+                            )
+                            .foregroundStyle(.primary)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("torrent_detail_tags")
+        }
     }
 
     var advancedSections: some View {

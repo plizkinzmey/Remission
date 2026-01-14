@@ -81,9 +81,11 @@ extension TorrentListReducer {
     ) -> Effect<Action> {
         if var existing = state.items[id: torrent.id] {
             existing.update(with: torrent)
+            existing.isRemoving = state.removingTorrentIDs.contains(torrent.id)
             state.items[id: torrent.id] = existing
         } else {
-            state.items.append(TorrentListItem.State(torrent: torrent))
+            let isRemoving = state.removingTorrentIDs.contains(torrent.id)
+            state.items.append(TorrentListItem.State(torrent: torrent, isRemoving: isRemoving))
         }
         state.phase = .loaded
         state.errorPresenter.banner = nil
@@ -119,6 +121,7 @@ extension TorrentListReducer {
         state: inout State,
         identifier: Torrent.Identifier
     ) -> Effect<Action> {
+        state.removingTorrentIDs.remove(identifier)
         state.items.remove(id: identifier)
         state.phase = .loaded
         state.errorPresenter.banner = nil
@@ -153,7 +156,8 @@ extension TorrentListReducer {
 
     func merge(
         items: IdentifiedArrayOf<TorrentListItem.State>,
-        with torrents: [Torrent]
+        with torrents: [Torrent],
+        removingIDs: Set<Torrent.Identifier>
     ) -> IdentifiedArrayOf<TorrentListItem.State> {
         var updated: IdentifiedArrayOf<TorrentListItem.State> = []
         updated.reserveCapacity(torrents.count)
@@ -161,9 +165,11 @@ extension TorrentListReducer {
         for torrent in torrents {
             if var existing = items[id: torrent.id] {
                 existing.update(with: torrent)
+                existing.isRemoving = removingIDs.contains(torrent.id)
                 updated.append(existing)
             } else {
-                updated.append(TorrentListItem.State(torrent: torrent))
+                let isRemoving = removingIDs.contains(torrent.id)
+                updated.append(TorrentListItem.State(torrent: torrent, isRemoving: isRemoving))
             }
         }
 

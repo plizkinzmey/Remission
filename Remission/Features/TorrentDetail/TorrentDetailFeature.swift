@@ -519,6 +519,7 @@ extension TorrentDetailReducer.State {
         torrentID = torrent.id
         name = torrent.name
         status = torrent.status.rawValue
+        tags = torrent.tags
         percentDone = torrent.summary.progress.percentDone
         totalSize = torrent.summary.progress.totalSize
         downloadedEver = torrent.summary.progress.downloadedEver

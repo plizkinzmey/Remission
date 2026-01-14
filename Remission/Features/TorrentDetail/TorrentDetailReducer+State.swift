@@ -30,6 +30,7 @@ extension TorrentDetailReducer {
         var connectionEnvironment: ServerConnectionEnvironment?
         var name: String = ""
         var status: Int = 0
+        var tags: [String] = []
         var percentDone: Double = 0.0
         var totalSize: Int = 0
         var downloadedEver: Int = 0
@@ -64,6 +65,7 @@ extension TorrentDetailReducer {
             connectionEnvironment: ServerConnectionEnvironment? = nil,
             name: String = "",
             status: Int = 0,
+            tags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -95,6 +97,7 @@ extension TorrentDetailReducer {
             self.connectionEnvironment = connectionEnvironment
             self.name = name
             self.status = status
+            self.tags = tags
             self.percentDone = percentDone
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
@@ -149,6 +152,7 @@ extension TorrentDetailReducer {
             connectionEnvironment: ServerConnectionEnvironment? = nil,
             name: String = "",
             status: Int = 0,
+            tags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -181,6 +185,7 @@ extension TorrentDetailReducer {
                 connectionEnvironment: connectionEnvironment,
                 name: name,
                 status: status,
+                tags: tags,
                 percentDone: percentDone,
                 totalSize: totalSize,
                 downloadedEver: downloadedEver,

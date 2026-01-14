@@ -47,12 +47,12 @@ extension TorrentListReducer {
                         )
                     }
                 }
-                await send(.commandResponse(.success(true)))
+                await send(.commandResponse(torrentID, .success(true)))
             } catch {
                 let message =
                     (error as? APIError)?.userFriendlyMessage
                     ?? describe(error)
-                await send(.commandResponse(.failure(.init(message: message))))
+                await send(.commandResponse(torrentID, .failure(.init(message: message))))
             }
         }
         .cancellable(id: CancelID.command(torrentID), cancelInFlight: true)
@@ -64,7 +64,14 @@ extension TorrentListReducer {
         state: inout State,
         trigger: FetchTrigger
     ) -> Effect<Action> {
-        let shouldFetchStorage = trigger == .initial || trigger == .manualRefresh
+        let shouldFetchStorage: Bool = {
+            switch trigger {
+            case .initial, .manualRefresh, .polling, .command:
+                return true
+            case .preferencesChanged:
+                return false
+            }
+        }()
         if state.serverID == nil {
             state.serverID = state.connectionEnvironment?.serverID ?? state.cacheKey?.serverID
         }

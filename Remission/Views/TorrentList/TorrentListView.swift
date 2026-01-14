@@ -514,9 +514,12 @@ extension TorrentListView {
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
                 actions: actions,
-                longestStatusTitle: longestStatusTitle
+                longestStatusTitle: longestStatusTitle,
+                isLocked: item.isRemoving
             )
             .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+            .opacity(item.isRemoving ? 0.6 : 1)
+            .disabled(item.isRemoving)
             #if os(iOS)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
@@ -531,7 +534,7 @@ extension TorrentListView {
             #endif
             #if os(iOS)
                 .contextMenu {
-                    if let actions {
+                    if let actions, actions.isLocked == false {
                         Button(
                             actions.isActive
                                 ? L10n.tr("torrentDetail.actions.pause")
@@ -559,11 +562,14 @@ extension TorrentListView {
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
                         actions: rowActions(for: item),
-                        longestStatusTitle: longestStatusTitle
+                        longestStatusTitle: longestStatusTitle,
+                        isLocked: item.isRemoving
                     )
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .appCardSurface(cornerRadius: 14)
+                    .opacity(item.isRemoving ? 0.6 : 1)
+                    .disabled(item.isRemoving)
                 }
             }
         }
@@ -581,6 +587,7 @@ extension TorrentListView {
 
         return TorrentRowView.RowActions(
             isActive: isActive,
+            isLocked: item.isRemoving,
             onStartPause: {
                 store.send(isActive ? .pauseTapped(item.id) : .startTapped(item.id))
             },
@@ -620,7 +627,7 @@ extension TorrentListView {
                     .labelsHidden()
                     .frame(maxWidth: .infinity, alignment: .center)
 
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     if store.storageSummary != nil {
                         storageSummaryView
                     }
@@ -713,6 +720,7 @@ private struct TorrentRowView: View {
     var openRequested: (() -> Void)?
     var actions: RowActions?
     var longestStatusTitle: String
+    var isLocked: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -727,6 +735,7 @@ private struct TorrentRowView: View {
                                 .lineLimit(2)
                         }
                         .buttonStyle(.plain)
+                        .disabled(isLocked)
                         .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                     } else {
                         Text(item.torrent.name)
@@ -751,6 +760,12 @@ private struct TorrentRowView: View {
             }
             .frame(maxWidth: .infinity)
 
+            #if os(iOS)
+                if item.torrent.tags.isEmpty == false {
+                    tagsRow
+                }
+            #endif
+
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
                 .frame(maxWidth: .infinity)
@@ -758,7 +773,7 @@ private struct TorrentRowView: View {
                 .accessibilityValue(item.metrics.progressText)
 
             #if os(iOS)
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 12) {
                     Label(
                         peersText,
                         systemImage: "person.2"
@@ -780,7 +795,8 @@ private struct TorrentRowView: View {
                     Label(item.metrics.progressText, systemImage: "circle.dashed")
                         .font(.caption)
                         .foregroundStyle(.primary)
-                        .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
+                        .accessibilityIdentifier(
+                            "torrent_row_progress_\(item.torrent.id.rawValue)")
 
                     if let etaText = item.metrics.etaText {
                         Label(etaText, systemImage: "clock")
@@ -795,12 +811,20 @@ private struct TorrentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.primary)
 
+                    if item.torrent.tags.isEmpty == false {
+                        tagsInlineRow
+                            .layoutPriority(0)
+                    }
+
                     Spacer(minLength: 6)
 
                     Label(item.metrics.speedSummary, systemImage: "speedometer")
                         .font(.caption)
                         .foregroundStyle(.primary)
-                        .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                        .accessibilityIdentifier(
+                            "torrent_row_speed_\(item.torrent.id.rawValue)")
                 }
             #endif
         }
@@ -826,6 +850,7 @@ private struct TorrentRowView: View {
 
     struct RowActions {
         var isActive: Bool
+        var isLocked: Bool
         var onStartPause: () -> Void
         var onVerify: () -> Void
         var onRemove: () -> Void
@@ -839,6 +864,7 @@ private struct TorrentRowView: View {
                     ? L10n.tr("torrentDetail.actions.pause")
                     : L10n.tr("torrentDetail.actions.start"),
                 tint: actions.isActive ? .orange : .green,
+                isLocked: actions.isLocked,
                 action: actions.onStartPause
             )
 
@@ -849,6 +875,7 @@ private struct TorrentRowView: View {
                 systemImage: "checkmark.shield.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.verify"),
                 tint: .blue,
+                isLocked: actions.isLocked,
                 action: actions.onVerify
             )
 
@@ -859,6 +886,7 @@ private struct TorrentRowView: View {
                 systemImage: "trash.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.remove"),
                 tint: .red,
+                isLocked: actions.isLocked,
                 action: actions.onRemove
             )
         }
@@ -875,6 +903,7 @@ private struct TorrentRowView: View {
         systemImage: String,
         accessibilityLabel: String,
         tint: Color,
+        isLocked: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -884,10 +913,61 @@ private struct TorrentRowView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
+        .disabled(isLocked)
         .accessibilityLabel(accessibilityLabel)
         #if os(macOS)
             .help(accessibilityLabel)
         #endif
+    }
+
+    private var tagsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 6) {
+                ForEach(item.torrent.tags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .frame(height: 20)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary.opacity(0.08))
+                        )
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("torrent_row_tags_\(item.torrent.id.rawValue)")
+    }
+
+    private var tagsInlineRow: some View {
+        let maxInlineTags = 3
+        let tags = Array(item.torrent.tags.prefix(maxInlineTags))
+        let remaining = item.torrent.tags.count - tags.count
+
+        return HStack(spacing: 6) {
+            ForEach(tags, id: \.self) { tag in
+                pillLabel(tag)
+            }
+            if remaining > 0 {
+                pillLabel("+\(remaining)")
+            }
+        }
+        .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
+    }
+
+    private func pillLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .foregroundStyle(.primary)
     }
 
     private var peersText: String {

@@ -5,6 +5,7 @@ enum TorrentListFields {
         "id",
         "name",
         "status",
+        "labels",
         "percentDone",
         "totalSize",
         "downloadedEver",

@@ -50,6 +50,7 @@ struct TorrentListReducer {
         var lastSnapshotAt: Date?
         var errorPresenter: ErrorPresenter<Retry>.State = .init()
         var pendingRemoveTorrentID: Torrent.Identifier?
+        var removingTorrentIDs: Set<Torrent.Identifier> = []
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
         var storageSummary: StorageSummary?
 
@@ -94,7 +95,7 @@ struct TorrentListReducer {
         case verifyTapped(Torrent.Identifier)
         case removeTapped(Torrent.Identifier)
         case removeConfirmation(PresentationAction<RemoveConfirmationAction>)
-        case commandResponse(Result<Bool, CommandError>)
+        case commandResponse(Torrent.Identifier, Result<Bool, CommandError>)
         case addTorrentButtonTapped
         case errorPresenter(ErrorPresenter<State.Retry>.Action)
         case pollingTick
@@ -244,6 +245,8 @@ struct TorrentListReducer {
                 state.hasLoadedPreferences = false
                 state.offlineState = nil
                 state.errorPresenter.banner = nil
+                state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.removeAll()
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -294,12 +297,22 @@ struct TorrentListReducer {
                 state.removeConfirmation = nil
                 guard let id = state.pendingRemoveTorrentID else { return .none }
                 state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.insert(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = true
+                    state.items[id: id] = item
+                }
                 return performCommand(.remove(deleteData: false), torrentID: id, state: &state)
 
             case .removeConfirmation(.presented(.deleteWithData)):
                 state.removeConfirmation = nil
                 guard let id = state.pendingRemoveTorrentID else { return .none }
                 state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.insert(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = true
+                    state.items[id: id] = item
+                }
                 return performCommand(.remove(deleteData: true), torrentID: id, state: &state)
 
             case .removeConfirmation(.presented(.cancel)):
@@ -310,10 +323,15 @@ struct TorrentListReducer {
             case .removeConfirmation:
                 return .none
 
-            case .commandResponse(.success):
+            case .commandResponse(_, .success):
                 return .send(.commandRefreshRequested)
 
-            case .commandResponse(.failure(let error)):
+            case .commandResponse(let id, .failure(let error)):
+                state.removingTorrentIDs.remove(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = false
+                    state.items[id: id] = item
+                }
                 let message = error.message
                 return .send(
                     .errorPresenter(
@@ -391,7 +409,13 @@ struct TorrentListReducer {
                 state.isRefreshing = false
                 state.errorPresenter.banner = nil
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
-                state.items = merge(items: state.items, with: payload.torrents)
+                state.items = merge(
+                    items: state.items,
+                    with: payload.torrents,
+                    removingIDs: state.removingTorrentIDs
+                )
+                let currentIDs = Set(state.items.map(\.id))
+                state.removingTorrentIDs.formIntersection(currentIDs)
                 if payload.isFromCache == false {
                     state.failedAttempts = 0
                     state.offlineState = nil

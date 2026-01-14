@@ -108,6 +108,7 @@ extension TransmissionDomainMapper {
             throw DomainMappingError.unsupportedStatus(rawValue: statusRaw)
         }
 
+        let tags = torrentTags(in: dict)
         let summary: Torrent.Summary = makeSummary(from: dict)
         let details: Torrent.Details? = includeDetails ? makeDetails(from: dict) : nil
 
@@ -115,6 +116,7 @@ extension TransmissionDomainMapper {
             id: Torrent.Identifier(rawValue: id),
             name: name,
             status: status,
+            tags: tags,
             summary: summary,
             details: details
         )
@@ -165,6 +167,17 @@ extension TransmissionDomainMapper {
             trackerStats: torrentTrackerStats(in: dict),
             speedSamples: []
         )
+    }
+
+    func torrentTags(
+        in dict: [String: AnyCodable]
+    ) -> [String] {
+        guard let labelsAny = dict["labels"],
+            case .array(let array) = labelsAny
+        else {
+            return []
+        }
+        return array.compactMap { $0.stringValue }.filter { $0.isEmpty == false }
     }
 
     private func makeAddResult(

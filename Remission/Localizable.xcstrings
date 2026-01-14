@@ -3533,6 +3533,22 @@
         }
       }
     },
+    "torrentDetail.mainInfo.tags" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags:"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги:"
+          }
+        }
+      }
+    },
     "torrentDetail.mainInfo.progress" : {
       "localizations" : {
         "en" : {
