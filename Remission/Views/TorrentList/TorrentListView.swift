@@ -122,7 +122,8 @@ extension TorrentListView {
 
     #if os(iOS)
         private var shouldShowSearchBar: Bool {
-            store.connectionEnvironment != nil && store.visibleItems.isEmpty == false
+            guard store.connectionEnvironment != nil else { return false }
+            return store.visibleItems.isEmpty == false || store.searchQuery.isEmpty == false
         }
     #endif
     private var longestStatusTitle: String {
