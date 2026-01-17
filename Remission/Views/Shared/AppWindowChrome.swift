@@ -32,11 +32,40 @@ struct AppWindowFooterBar<Content: View>: View {
         HStack(spacing: 10) {
             content
         }
-        .padding(12)
+        .padding(.horizontal, AppFooterMetrics.contentInset)
         .frame(maxWidth: .infinity)
-        .appCardSurface(cornerRadius: 16)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
+        .frame(height: AppFooterMetrics.barHeight)
+        .appPillSurface()
+        .padding(.horizontal, AppFooterMetrics.contentInset)
+        .padding(.top, AppFooterMetrics.bottomInset + AppFooterMetrics.capsuleVerticalNudge)
+        .padding(
+            .bottom,
+            max(0, AppFooterMetrics.bottomInset - AppFooterMetrics.capsuleVerticalNudge)
+        )
+    }
+}
+struct AppFooterLayout<Content: View, Footer: View>: View {
+    @ViewBuilder let content: Content
+    @ViewBuilder let footer: Footer
+
+    init(@ViewBuilder content: () -> Content, @ViewBuilder footer: () -> Footer) {
+        self.content = content()
+        self.footer = footer()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            content
+                .padding(.horizontal, AppFooterMetrics.layoutInset)
+                .padding(.top, 12)
+
+            Spacer(minLength: 0)
+
+            AppWindowFooterBar {
+                footer
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }
 

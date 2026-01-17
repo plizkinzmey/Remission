@@ -287,6 +287,7 @@ struct ServerDetailReducer {
                 )
                 state.torrentList.connectionEnvironment = environment
                 state.torrentList.cacheKey = environment.cacheKey
+                state.torrentList.handshake = response.handshake
                 let effects: Effect<Action> = .concatenate(
                     .send(.torrentList(.task)),
                     .send(.torrentList(.refreshRequested))
@@ -303,6 +304,7 @@ struct ServerDetailReducer {
                 state.torrentDetail?.applyConnectionEnvironment(nil)
                 state.addTorrent?.connectionEnvironment = nil
                 state.torrentList.connectionEnvironment = nil
+                state.torrentList.handshake = nil
                 let message = describe(error)
                 state.connectionRetryAttempts += 1
                 state.connectionState.phase = .offline(

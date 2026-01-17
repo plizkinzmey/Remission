@@ -143,49 +143,53 @@ extension TorrentListView {
     @ViewBuilder
     private var container: some View {
         #if os(macOS)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center) {
-                    Spacer(minLength: 0)
-                    Text(L10n.tr("torrentList.section.title"))
-                        .font(.title3.weight(.semibold))
-                        .accessibilityIdentifier("torrent_list_header")
-                    Spacer(minLength: 0)
+            AppFooterLayout {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center) {
+                        Spacer(minLength: 0)
+                        Text(L10n.tr("torrentList.section.title"))
+                            .font(.title3.weight(.semibold))
+                            .accessibilityIdentifier("torrent_list_header")
+                        Spacer(minLength: 0)
+                    }
+
+                    if store.isRefreshing {
+                        refreshIndicator
+                            .padding(.vertical, 2)
+                    }
+
+                    if let banner = store.errorPresenter.banner {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                        )
+                        .padding(.bottom, 6)
+                    }
+
+                    if let offline = store.offlineState {
+                        offlineBanner(offline)
+                            .padding(.bottom, 4)
+                    }
+
+                    controls
+
+                    macOSScrollableContent
+                        .frame(maxWidth: .infinity, alignment: .top)
+
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                    }
                 }
-
-                if store.isRefreshing {
-                    refreshIndicator
-                        .padding(.vertical, 2)
-                }
-
-                if let banner = store.errorPresenter.banner {
-                    ErrorBannerView(
-                        message: banner.message,
-                        onRetry: banner.retry == nil
-                            ? nil
-                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                        onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                    )
-                    .padding(.bottom, 6)
-                }
-
-                if let offline = store.offlineState {
-                    offlineBanner(offline)
-                        .padding(.bottom, 4)
-                }
-
-                controls
-
-                macOSScrollableContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
-                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                    Text(L10n.tr("torrentList.autorefresh.disabled"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            } footer: {
+                footerBar
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #else
             if shouldCenterEmptyState {
                 VStack(alignment: .leading, spacing: 12) {
@@ -342,9 +346,9 @@ extension TorrentListView {
                 offlineBanner(offline)
                     .padding(.bottom, 4)
             }
-            storageSummaryView
-                .frame(maxWidth: .infinity, alignment: .center)
             #if !os(macOS)
+                storageSummaryView
+                    .frame(maxWidth: .infinity, alignment: .center)
                 controls
             #endif
 
@@ -463,6 +467,39 @@ extension TorrentListView {
             )
             .accessibilityIdentifier("torrent_list_storage_summary")
         }
+    }
+
+    private var footerBar: some View {
+        AppFooterInfoBar(
+            leftText: storageSummaryText,
+            centerText: AppVersion.footerText,
+            rightText: transmissionVersionText
+        )
+        .accessibilityIdentifier("torrent_list_footer")
+    }
+
+    private var storageSummaryText: String? {
+        guard let summary = store.storageSummary else { return nil }
+        let total = StorageFormatters.bytes(summary.totalBytes)
+        let free = StorageFormatters.bytes(summary.freeBytes)
+        return String(format: L10n.tr("storage.summary.short"), total, free)
+    }
+
+    private var transmissionVersionText: String? {
+        guard let handshake = store.handshake else { return nil }
+        let description = handshake.serverVersionDescription?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let versionText: String
+        if let description, description.isEmpty == false {
+            versionText = description
+        } else {
+            versionText = String(
+                format: L10n.tr("serverDetail.status.rpcVersion"),
+                Int64(handshake.rpcVersion)
+            )
+        }
+        return "\(L10n.tr("serverList.transmissionVersionLabel")) \(versionText)"
     }
 
     private var emptyStateView: some View {
@@ -629,10 +666,6 @@ extension TorrentListView {
                     .frame(maxWidth: .infinity, alignment: .center)
 
                 HStack(alignment: .center, spacing: 12) {
-                    if store.storageSummary != nil {
-                        storageSummaryView
-                    }
-
                     Spacer(minLength: 0)
 
                     sortPicker

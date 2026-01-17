@@ -53,6 +53,7 @@ struct TorrentListReducer {
         var removingTorrentIDs: Set<Torrent.Identifier> = []
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
         var storageSummary: StorageSummary?
+        var handshake: TransmissionHandshakeResult?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery

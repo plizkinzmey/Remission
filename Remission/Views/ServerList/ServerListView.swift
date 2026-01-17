@@ -11,30 +11,64 @@ struct ServerListView: View {
 
     var body: some View {
         Group {
-            if store.servers.isEmpty {
-                if store.isLoading {
-                    loadingState
-                } else {
-                    emptyState
+            #if os(macOS)
+                AppFooterLayout {
+                    Group {
+                        if store.servers.isEmpty {
+                            if store.isLoading {
+                                loadingState
+                            } else {
+                                emptyState
+                            }
+                        } else {
+                            VStack(alignment: .center, spacing: 12) {
+                                Text(L10n.tr("Servers"))
+                                    .font(.title3.bold())
+                                Text(
+                                    L10n.tr(
+                                        "Manage connections, security and actions for each Transmission server."
+                                    )
+                                )
+                                .font(.footnote)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                                serverList
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
+                    }
+                } footer: {
+                    AppFooterInfoBar(centerText: AppVersion.footerText)
+                        .accessibilityIdentifier("server_list_footer")
                 }
-            } else {
-                VStack(alignment: .center, spacing: 12) {
-                    Text(L10n.tr("Servers"))
-                        .font(.title3.bold())
-                    Text(
-                        L10n.tr(
-                            "Manage connections, security and actions for each Transmission server."
-                        )
-                    )
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
-                    .multilineTextAlignment(.center)
-                    serverList
+            #else
+                Group {
+                    if store.servers.isEmpty {
+                        if store.isLoading {
+                            loadingState
+                        } else {
+                            emptyState
+                        }
+                    } else {
+                        VStack(alignment: .center, spacing: 12) {
+                            Text(L10n.tr("Servers"))
+                                .font(.title3.bold())
+                            Text(
+                                L10n.tr(
+                                    "Manage connections, security and actions for each Transmission server."
+                                )
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.center)
+                            serverList
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 8)
+                        .padding(.top, 12)
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 8)
-                .padding(.top, 12)
-            }
+            #endif
         }
         .alert(
             $store.scope(state: \.alert, action: \.alert)
