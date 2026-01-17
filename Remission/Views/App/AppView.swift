@@ -64,6 +64,9 @@ struct AppView: View {
         } destination: { store in
             ServerDetailView(store: store)
         }
+        #if os(macOS)
+            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+        #endif
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
