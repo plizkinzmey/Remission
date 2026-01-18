@@ -22,8 +22,7 @@ struct AppFooterInfoBar: View {
             footerCell(text: rightText, alignment: .trailing)
         }
         .padding(.horizontal, AppFooterMetrics.contentInset)
-        .frame(height: 28)
-        .padding(.vertical, 2)
+        .frame(height: AppFooterMetrics.barHeight)
         .frame(maxWidth: .infinity, alignment: .center)
     }
 
