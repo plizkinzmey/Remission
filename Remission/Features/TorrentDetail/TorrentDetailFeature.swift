@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import Foundation
 
-// swiftlint:disable type_body_length
-
 @Reducer
 struct TorrentDetailReducer {
     enum Action: Equatable {
@@ -322,5 +320,3 @@ struct TorrentDetailReducer {
         }
     }
 }
-
-// swiftlint:enable type_body_length
