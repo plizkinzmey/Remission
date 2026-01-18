@@ -34,7 +34,7 @@ struct AppWindowFooterBar<Content: View>: View {
         }
         .padding(.horizontal, AppFooterMetrics.contentInset)
         .frame(maxWidth: .infinity)
-        .frame(height: AppFooterMetrics.barHeight)
+        .padding(.vertical, 6)
         .appPillSurface()
         .padding(.horizontal, AppFooterMetrics.contentInset)
         .padding(.top, AppFooterMetrics.bottomInset + AppFooterMetrics.capsuleVerticalNudge)
