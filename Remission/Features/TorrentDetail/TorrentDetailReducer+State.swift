@@ -233,3 +233,50 @@ extension TorrentDetailReducer {
         }
     }
 }
+
+extension TorrentDetailReducer.State {
+    mutating func apply(_ torrent: Torrent) {
+        torrentID = torrent.id
+        name = torrent.name
+        status = torrent.status.rawValue
+        tags = torrent.tags
+        lastSyncedTags = torrent.tags
+        category = TorrentCategory.category(from: torrent.tags)
+        percentDone = torrent.summary.progress.percentDone
+        totalSize = torrent.summary.progress.totalSize
+        downloadedEver = torrent.summary.progress.downloadedEver
+        uploadedEver = torrent.summary.progress.uploadedEver
+        uploadRatio = torrent.summary.progress.uploadRatio
+        eta = torrent.summary.progress.etaSeconds
+
+        rateDownload = torrent.summary.transfer.downloadRate
+        rateUpload = torrent.summary.transfer.uploadRate
+        downloadLimit = torrent.summary.transfer.downloadLimit.kilobytesPerSecond
+        downloadLimited = torrent.summary.transfer.downloadLimit.isEnabled
+        uploadLimit = torrent.summary.transfer.uploadLimit.kilobytesPerSecond
+        uploadLimited = torrent.summary.transfer.uploadLimit.isEnabled
+
+        peersConnected = torrent.summary.peers.connected
+        peers = IdentifiedArray(uniqueElements: torrent.summary.peers.sources)
+
+        if let details = torrent.details {
+            hasLoadedMetadata = true
+            downloadDir = details.downloadDirectory
+            if let addedDate = details.addedDate {
+                dateAdded = Int(addedDate.timeIntervalSince1970)
+            } else {
+                dateAdded = 0
+            }
+            files = IdentifiedArray(uniqueElements: details.files)
+            trackers = IdentifiedArray(uniqueElements: details.trackers)
+            trackerStats = IdentifiedArray(uniqueElements: details.trackerStats)
+        } else {
+            hasLoadedMetadata = false
+            downloadDir = ""
+            dateAdded = 0
+            files = []
+            trackers = []
+            trackerStats = []
+        }
+    }
+}
