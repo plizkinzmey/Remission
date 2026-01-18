@@ -13,7 +13,7 @@ struct DiagnosticsView: View {
                         windowContent
                     }
                     .safeAreaInset(edge: .bottom) {
-                        AppWindowFooterBar {
+                        AppWindowFooterBar(contentPadding: 6) {
                             Spacer(minLength: 0)
                             Button(L10n.tr("diagnostics.clear")) {
                                 store.send(.clearTapped)

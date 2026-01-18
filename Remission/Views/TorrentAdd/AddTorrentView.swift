@@ -17,7 +17,7 @@ struct AddTorrentView: View {
                     windowContent
                 }
                 .safeAreaInset(edge: .bottom) {
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Spacer(minLength: 0)
                         Button(L10n.tr("torrentAdd.action.cancel")) {
                             store.send(.closeButtonTapped)

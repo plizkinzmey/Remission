@@ -12,7 +12,7 @@ struct TorrentDetailView: View {
             #if os(macOS)
                 VStack(spacing: 12) {
                     macOSContentCard
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Spacer(minLength: 0)
                         Button(L10n.tr("serverDetail.button.close")) {
                             store.send(.delegate(.closeRequested))

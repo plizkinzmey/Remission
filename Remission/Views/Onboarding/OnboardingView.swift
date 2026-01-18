@@ -14,7 +14,7 @@ struct OnboardingView: View {
                     windowContent
                 }
                 .safeAreaInset(edge: .bottom) {
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Button(checkConnectionButtonTitle) {
                             if OnboardingViewEnvironment.isOnboardingUITest {
                                 store.send(.uiTestBypassConnection)

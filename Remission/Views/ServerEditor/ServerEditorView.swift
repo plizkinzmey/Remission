@@ -12,7 +12,7 @@ struct ServerEditorView: View {
                     windowContent
                 }
                 .safeAreaInset(edge: .bottom) {
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Button(checkConnectionButtonTitle) {
                             store.send(.checkConnectionButtonTapped)
                         }

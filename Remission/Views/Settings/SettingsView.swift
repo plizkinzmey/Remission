@@ -16,7 +16,7 @@ struct SettingsView: View {
                         windowContent
                     }
                     .safeAreaInset(edge: .bottom) {
-                        AppWindowFooterBar {
+                        AppWindowFooterBar(contentPadding: 6) {
                             Spacer(minLength: 0)
                             Button(L10n.tr("common.cancel")) {
                                 store.send(.cancelButtonTapped)

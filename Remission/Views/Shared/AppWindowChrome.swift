@@ -23,9 +23,11 @@ struct AppWindowHeader<Trailing: View>: View {
 
 struct AppWindowFooterBar<Content: View>: View {
     @ViewBuilder let content: Content
+    let contentPadding: CGFloat
 
-    init(@ViewBuilder content: () -> Content) {
+    init(contentPadding: CGFloat = 0, @ViewBuilder content: () -> Content) {
         self.content = content()
+        self.contentPadding = contentPadding
     }
 
     var body: some View {
@@ -33,8 +35,9 @@ struct AppWindowFooterBar<Content: View>: View {
             content
         }
         .padding(.horizontal, AppFooterMetrics.contentInset)
+        .padding(.vertical, contentPadding)
         .frame(maxWidth: .infinity)
-        .frame(height: AppFooterMetrics.barHeight)
+        .frame(minHeight: AppFooterMetrics.barHeight)
         .appPillSurface()
         .padding(.horizontal, AppFooterMetrics.contentInset)
         .padding(.top, AppFooterMetrics.bottomInset + AppFooterMetrics.capsuleVerticalNudge)
