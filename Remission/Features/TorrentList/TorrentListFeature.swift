@@ -40,6 +40,7 @@ struct TorrentListReducer {
         var items: IdentifiedArrayOf<TorrentListItem.State> = []
         var searchQuery: String = ""
         var selectedFilter: Filter = .all
+        var selectedCategory: CategoryFilter = .all
         var sortOrder: SortOrder = .name
         var isRefreshing: Bool = false
         var isPollingEnabled: Bool = true
@@ -61,7 +62,9 @@ struct TorrentListReducer {
             // сохраняя их в State и инвалидации через DiffID. Это избавит от лишних O(n log n)
             // пересчётов при каждом `body` и заметно разгрузит UI при больших библиотеках.
             let filtered = items.filter {
-                selectedFilter.matches($0) && matchesSearch($0, query: query)
+                selectedFilter.matches($0)
+                    && selectedCategory.matches($0)
+                    && matchesSearch($0, query: query)
             }
             let sorted = filtered.sorted {
                 sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
@@ -89,6 +92,7 @@ struct TorrentListReducer {
         case commandRefreshRequested
         case searchQueryChanged(String)
         case filterChanged(Filter)
+        case categoryChanged(CategoryFilter)
         case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
         case startTapped(Torrent.Identifier)
@@ -153,6 +157,54 @@ struct TorrentListReducer {
             case .errors:
                 // Transmission помечает проблемные торренты статусом isolated.
                 return item.torrent.status == .isolated
+            }
+        }
+    }
+
+    enum CategoryFilter: String, Equatable, CaseIterable, Hashable, Sendable {
+        case all
+        case programs
+        case movies
+        case series
+        case books
+        case other
+
+        var title: String {
+            switch self {
+            case .all:
+                return L10n.tr("torrentList.category.all")
+            case .programs:
+                return TorrentCategory.programs.title
+            case .movies:
+                return TorrentCategory.movies.title
+            case .series:
+                return TorrentCategory.series.title
+            case .books:
+                return TorrentCategory.books.title
+            case .other:
+                return TorrentCategory.other.title
+            }
+        }
+
+        fileprivate func matches(_ item: TorrentListItem.State) -> Bool {
+            guard let category = mappedCategory else { return true }
+            return TorrentCategory.category(from: item.torrent.tags) == category
+        }
+
+        private var mappedCategory: TorrentCategory? {
+            switch self {
+            case .all:
+                return nil
+            case .programs:
+                return .programs
+            case .movies:
+                return .movies
+            case .series:
+                return .series
+            case .books:
+                return .books
+            case .other:
+                return .other
             }
         }
     }
@@ -270,6 +322,10 @@ struct TorrentListReducer {
 
             case .filterChanged(let filter):
                 state.selectedFilter = filter
+                return .none
+
+            case .categoryChanged(let category):
+                state.selectedCategory = category
                 return .none
 
             case .sortChanged(let sort):
