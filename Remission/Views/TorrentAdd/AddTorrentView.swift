@@ -190,21 +190,52 @@ extension AddTorrentView {
             }
 
             AppSectionCard(L10n.tr("torrentAdd.section.category"), style: .card) {
-                Picker(
-                    "",
-                    selection: Binding(
-                        get: { store.category },
-                        set: { store.send(.categoryChanged($0)) }
-                    )
-                ) {
-                    ForEach(TorrentCategory.ordered, id: \.self) { category in
-                        Text(category.title)
-                            .tag(category)
-                    }
+                HStack(spacing: 12) {
+                    #if os(macOS)
+                        Menu {
+                            ForEach(TorrentCategory.ordered, id: \.self) { category in
+                                Button(category.title) {
+                                    store.send(.categoryChanged(category))
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(store.category.title)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.9)
+                                    .foregroundStyle(.primary)
+                                Spacer(minLength: 6)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption.weight(.semibold))
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12)
+                            .frame(width: 170, height: 34)
+                            .contentShape(Rectangle())
+                            .appToolbarPillSurface()
+                        }
+                        .accessibilityIdentifier("torrent_add_category_picker")
+                        .buttonStyle(.plain)
+                    #else
+                        Picker(
+                            "",
+                            selection: Binding(
+                                get: { store.category },
+                                set: { store.send(.categoryChanged($0)) }
+                            )
+                        ) {
+                            ForEach(TorrentCategory.ordered, id: \.self) { category in
+                                Text(category.title)
+                                    .tag(category)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .accessibilityIdentifier("torrent_add_category_picker")
+                    #endif
+
+                    Spacer(minLength: 0)
                 }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .accessibilityIdentifier("torrent_add_category_picker")
             }
 
             AppSectionCard("", style: .plain) {
