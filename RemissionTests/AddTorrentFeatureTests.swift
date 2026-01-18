@@ -59,7 +59,7 @@ extension AddTorrentFeatureTests {
                 )
                 state.destinationPath = "/downloads"
                 state.startPaused = true
-                state.tags = ["linux"]
+                state.category = .programs
                 return state
             }()
         ) {
@@ -104,7 +104,7 @@ extension AddTorrentFeatureTests {
         #expect(capturedValue?.input.displayName == "magnet:?xt=urn:btih:demo")
         #expect(capturedValue?.destination == "/downloads")
         #expect(capturedValue?.startPaused == true)
-        #expect(capturedValue?.tags == ["linux"])
+        #expect(capturedValue?.tags == ["programs"])
     }
 
     @Test

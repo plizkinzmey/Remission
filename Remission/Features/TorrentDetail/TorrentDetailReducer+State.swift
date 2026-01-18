@@ -31,6 +31,8 @@ extension TorrentDetailReducer {
         var name: String = ""
         var status: Int = 0
         var tags: [String] = []
+        var category: TorrentCategory = .other
+        var lastSyncedTags: [String] = []
         var percentDone: Double = 0.0
         var totalSize: Int = 0
         var downloadedEver: Int = 0
@@ -66,6 +68,8 @@ extension TorrentDetailReducer {
             name: String = "",
             status: Int = 0,
             tags: [String] = [],
+            category: TorrentCategory = .other,
+            lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -98,6 +102,8 @@ extension TorrentDetailReducer {
             self.name = name
             self.status = status
             self.tags = tags
+            self.category = category
+            self.lastSyncedTags = lastSyncedTags
             self.percentDone = percentDone
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
@@ -153,6 +159,8 @@ extension TorrentDetailReducer {
             name: String = "",
             status: Int = 0,
             tags: [String] = [],
+            category: TorrentCategory = .other,
+            lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -186,6 +194,8 @@ extension TorrentDetailReducer {
                 name: name,
                 status: status,
                 tags: tags,
+                category: category,
+                lastSyncedTags: lastSyncedTags,
                 percentDone: percentDone,
                 totalSize: totalSize,
                 downloadedEver: downloadedEver,

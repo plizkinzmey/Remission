@@ -84,9 +84,6 @@ struct AddTorrentView: View {
 }
 
 extension AddTorrentView {
-    fileprivate func sanitizedTagIdentifier(_ tag: String) -> String {
-        tag.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression)
-    }
 }
 
 extension AddTorrentView {
@@ -192,66 +189,22 @@ extension AddTorrentView {
                 destinationMenu
             }
 
-            AppSectionCard(L10n.tr("torrentAdd.section.tags"), style: .card) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
-                        TextField(
-                            "",
-                            text: Binding(
-                                get: { store.newTag },
-                                set: { store.send(.newTagChanged($0)) }
-                            ),
-                            prompt: Text(L10n.tr("torrentAdd.placeholder.tag"))
-                        )
-                        .labelsHidden()
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 10)
-                        .frame(height: 32)
-                        .appPillSurface()
-                        .accessibilityIdentifier("torrent_add_tag_field")
-
-                        Button {
-                            store.send(.addTagTapped)
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("torrent_add_tag_button")
-                        .accessibilityHint(L10n.tr("torrentAdd.placeholder.tag"))
-                    }
-                    if store.tags.isEmpty == false {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(store.tags, id: \.self) { tag in
-                                let tagId = sanitizedTagIdentifier(tag)
-                                let tagLabelId = "torrent_add_tag_label_\(tagId)"
-                                HStack(spacing: 12) {
-                                    Text(tag)
-                                        .font(.subheadline)
-                                        .accessibilityIdentifier(tagLabelId)
-                                    Button {
-                                        store.send(.removeTag(tag))
-                                    } label: {
-                                        Image(systemName: "xmark.circle.fill")
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityIdentifier("torrent_add_tag_remove_\(tagId)")
-                                    .accessibilityLabel(
-                                        String(
-                                            format: L10n.tr("Remove tag %@"),
-                                            locale: Locale.current,
-                                            tag
-                                        )
-                                    )
-                                }
-                                .padding(.vertical, 4)
-                            }
-                        }
-                    } else {
-                        Text(L10n.tr("torrentAdd.tags.empty"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            AppSectionCard(L10n.tr("torrentAdd.section.category"), style: .card) {
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { store.category },
+                        set: { store.send(.categoryChanged($0)) }
+                    )
+                ) {
+                    ForEach(TorrentCategory.ordered, id: \.self) { category in
+                        Text(category.title)
+                            .tag(category)
                     }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("torrent_add_category_picker")
             }
 
             AppSectionCard("", style: .plain) {
@@ -397,7 +350,7 @@ extension AddTorrentView {
                     )
                     state.destinationPath = "/downloads"
                     state.startPaused = true
-                    state.tags = ["linux", "ubuntu"]
+                    state.category = .series
                     state.source = .magnetLink
                     state.magnetText = "magnet:?xt=urn:btih:demo"
                     state.pendingInput = PendingTorrentInput(

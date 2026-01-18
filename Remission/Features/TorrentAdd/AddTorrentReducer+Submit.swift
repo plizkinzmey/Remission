@@ -98,7 +98,7 @@ extension AddTorrentReducer {
             return .none
         }
 
-        let tags = state.tags.isEmpty ? nil : state.tags
+        let tags = TorrentCategory.tags(for: state.category)
         let startPaused = state.startPaused
         state.isSubmitting = true
         state.closeOnAlertDismiss = false

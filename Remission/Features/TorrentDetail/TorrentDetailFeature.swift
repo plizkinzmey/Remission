@@ -21,6 +21,8 @@ struct TorrentDetailReducer {
         case toggleUploadLimit(Bool)
         case downloadLimitChanged(Int)
         case uploadLimitChanged(Int)
+        case categoryChanged(TorrentCategory)
+        case categoryUpdateResponse(CategoryUpdateResult)
         case commandDidFinish(String)
         case commandFailed(String)
         case dismissError
@@ -89,6 +91,11 @@ struct TorrentDetailReducer {
     enum ErrorRetry: Equatable {
         case reloadDetails
         case command(CommandKind)
+    }
+
+    enum CategoryUpdateResult: Equatable {
+        case success
+        case failure(String)
     }
 
     @Dependency(\.dateProvider) var dateProvider
@@ -246,6 +253,33 @@ struct TorrentDetailReducer {
                     state: &state,
                     limit: .upload(.init(isEnabled: true, kilobytesPerSecond: bounded))
                 )
+
+            case .categoryChanged(let category):
+                guard state.category != category else { return .none }
+                guard state.connectionEnvironment != nil else {
+                    state.alert = .connectionMissing()
+                    return .none
+                }
+                state.category = category
+                state.tags = TorrentCategory.tags(for: category)
+                return updateCategory(state: &state)
+
+            case .categoryUpdateResponse(.success):
+                state.lastSyncedTags = state.tags
+                state.pendingListSync = true
+                return .send(.refreshRequested)
+
+            case .categoryUpdateResponse(.failure(let message)):
+                state.tags = state.lastSyncedTags
+                state.category = TorrentCategory.category(from: state.lastSyncedTags)
+                state.errorPresenter.banner = .init(
+                    message: String(
+                        format: L10n.tr("torrentDetail.error.updateCategory"),
+                        message
+                    ),
+                    retry: nil
+                )
+                return .none
 
             case .commandDidFinish(let message):
                 state.alert = .info(message: message)
@@ -483,6 +517,38 @@ struct TorrentDetailReducer {
         }
     }
 
+    private func updateCategory(
+        state: inout State
+    ) -> Effect<Action> {
+        guard let environment = state.connectionEnvironment else {
+            state.alert = .connectionMissing()
+            return .none
+        }
+
+        let torrentID = state.torrentID
+        let labels = state.tags
+        return .run { send in
+            let result = await Result {
+                try await withDependencies {
+                    environment.apply(to: &$0)
+                } operation: {
+                    @Dependency(\.torrentRepository) var repository: TorrentRepository
+                    try await repository.updateLabels(labels, for: [torrentID])
+                }
+            }
+
+            let mapped: CategoryUpdateResult
+            switch result {
+            case .success:
+                mapped = .success
+            case .failure(let error):
+                mapped = .failure(Self.describe(error))
+            }
+
+            await send(.categoryUpdateResponse(mapped))
+        }
+    }
+
     private static func filePriority(from priority: Int) -> TorrentRepository.FilePriority? {
         switch priority {
         case -1: return .low
@@ -520,6 +586,8 @@ extension TorrentDetailReducer.State {
         name = torrent.name
         status = torrent.status.rawValue
         tags = torrent.tags
+        lastSyncedTags = torrent.tags
+        category = TorrentCategory.category(from: torrent.tags)
         percentDone = torrent.summary.progress.percentDone
         totalSize = torrent.summary.progress.totalSize
         downloadedEver = torrent.summary.progress.downloadedEver

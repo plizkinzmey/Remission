@@ -176,6 +176,38 @@
         }
       }
     },
+    "app.footer.version" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия %@"
+          }
+        }
+      }
+    },
+    "app.footer.version.debug" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ · Dev"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия %@ · Dev"
+          }
+        }
+      }
+    },
     "app.startup.brand" : {
       "localizations" : {
         "en" : {
@@ -204,70 +236,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Быстрый контроль торрентов"
-          }
-        }
-      }
-    },
-    "app.startup.version.debug" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@ · Dev"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Версия %@ · Dev"
-          }
-        }
-      }
-    },
-    "app.footer.version.debug" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@ · Dev"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Версия %@ · Dev"
-          }
-        }
-      }
-    },
-    "app.startup.version" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Версия %@"
-          }
-        }
-      }
-    },
-    "app.footer.version" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Версия %@"
           }
         }
       }
@@ -318,6 +286,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Удаленное управление серверами Transmission"
+          }
+        }
+      }
+    },
+    "app.startup.version" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия %@"
+          }
+        }
+      }
+    },
+    "app.startup.version.debug" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@ · Dev"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия %@ · Dev"
           }
         }
       }
@@ -1013,6 +1013,7 @@
       }
     },
     "Remove tag %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2702,6 +2703,7 @@
       }
     },
     "torrentAdd.placeholder.tag" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2713,6 +2715,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Добавить тег"
+          }
+        }
+      }
+    },
+    "torrentAdd.section.category" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Категория"
           }
         }
       }
@@ -2750,6 +2768,7 @@
       }
     },
     "torrentAdd.section.tags" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2910,6 +2929,7 @@
       }
     },
     "torrentAdd.tags.empty" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2953,6 +2973,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Запустить в паузе"
+          }
+        }
+      }
+    },
+    "torrentCategory.books" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Books"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Книги"
+          }
+        }
+      }
+    },
+    "torrentCategory.movies" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Movies"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кино"
+          }
+        }
+      }
+    },
+    "torrentCategory.other" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Другое"
+          }
+        }
+      }
+    },
+    "torrentCategory.programs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Programs"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Программы"
+          }
+        }
+      }
+    },
+    "torrentCategory.series" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Series"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сериалы"
           }
         }
       }
@@ -3261,6 +3361,22 @@
         }
       }
     },
+    "torrentDetail.error.updateCategory" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to update category: %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось изменить категорию: %@"
+          }
+        }
+      }
+    },
     "torrentDetail.eta.hoursMinutes" : {
       "localizations" : {
         "en" : {
@@ -3501,6 +3617,22 @@
         }
       }
     },
+    "torrentDetail.mainInfo.category" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Категория"
+          }
+        }
+      }
+    },
     "torrentDetail.mainInfo.downloaded" : {
       "localizations" : {
         "en" : {
@@ -3565,22 +3697,6 @@
         }
       }
     },
-    "torrentDetail.mainInfo.tags" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tags:"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Теги:"
-          }
-        }
-      }
-    },
     "torrentDetail.mainInfo.progress" : {
       "localizations" : {
         "en" : {
@@ -3625,6 +3741,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Статус:"
+          }
+        }
+      }
+    },
+    "torrentDetail.mainInfo.tags" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags:"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Теги:"
           }
         }
       }
@@ -4813,6 +4946,23 @@
         }
       }
     },
+    "torrentList.peers" : {
+      "comment" : "Label for the number of connected peers in the torrent list. Argument: peer count.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld peers"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld пиров"
+          }
+        }
+      }
+    },
     "torrentList.refresh.progress" : {
       "localizations" : {
         "en" : {
@@ -4857,23 +5007,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Торренты"
-          }
-        }
-      }
-    },
-    "torrentList.peers" : {
-      "comment" : "Label for the number of connected peers in the torrent list. Argument: peer count.",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld peers"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld пиров"
           }
         }
       }

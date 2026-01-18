@@ -807,6 +807,123 @@ struct TorrentDetailFeatureTests {
 
         await store.receive(.delegate(.torrentUpdated(updatedTorrent)))
     }
+
+    @Test("categoryChanged обновляет labels и синхронизирует список")
+    func categoryChangeUpdatesLabels() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.tags = []
+
+        var updatedTorrent = torrent
+        updatedTorrent.tags = ["movies"]
+
+        let capturedLabels = LockedValue<[String]>([])
+        let repository = TorrentRepository.test(
+            fetchDetails: { _ in updatedTorrent },
+            updateLabels: { labels, ids in
+                #expect(ids == [torrent.id])
+                capturedLabels.withValue { $0 = labels }
+            }
+        )
+        let environment = makeEnvironment(repository: repository)
+
+        var initialState = TorrentDetailReducer.State(
+            torrentID: torrent.id,
+            connectionEnvironment: environment
+        )
+        initialState.apply(torrent)
+
+        let timestamp = Date(timeIntervalSince1970: 1_000)
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
+
+        await store.send(.categoryChanged(.movies)) {
+            $0.category = .movies
+            $0.tags = ["movies"]
+        }
+
+        await store.receive(.categoryUpdateResponse(.success)) {
+            $0.lastSyncedTags = ["movies"]
+            $0.pendingListSync = true
+        }
+        await store.receive(.refreshRequested) {
+            $0.isLoading = true
+            $0.errorPresenter.banner = nil
+        }
+
+        let response = TorrentDetailReducer.DetailsResponse(
+            torrent: updatedTorrent,
+            timestamp: timestamp
+        )
+        await store.receive(.detailsResponse(.success(response))) {
+            $0.isLoading = false
+            assign(&$0, from: updatedTorrent)
+            $0.speedHistory.samples = [
+                SpeedSample(
+                    timestamp: timestamp,
+                    downloadRate: updatedTorrent.summary.transfer.downloadRate,
+                    uploadRate: updatedTorrent.summary.transfer.uploadRate
+                )
+            ]
+            $0.pendingListSync = false
+        }
+
+        await store.receive(.delegate(.torrentUpdated(updatedTorrent)))
+        #expect(capturedLabels.value == ["movies"])
+    }
+
+    @Test("categoryChanged откатывает изменения при ошибке")
+    func categoryChangeFailureReverts() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.tags = []
+
+        let repository = TorrentRepository.test(
+            updateLabels: { _, _ in
+                throw APIError.unauthorized
+            }
+        )
+        let environment = makeEnvironment(repository: repository)
+
+        var initialState = TorrentDetailReducer.State(
+            torrentID: torrent.id,
+            connectionEnvironment: environment
+        )
+        initialState.apply(torrent)
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.categoryChanged(.books)) {
+            $0.category = .books
+            $0.tags = ["books"]
+        }
+
+        await store.receive(
+            .categoryUpdateResponse(
+                .failure(APIError.unauthorized.userFriendlyMessage)
+            )
+        ) {
+            $0.tags = []
+            $0.category = .other
+            $0.errorPresenter.banner = .init(
+                message: String(
+                    format: L10n.tr("torrentDetail.error.updateCategory"),
+                    APIError.unauthorized.userFriendlyMessage
+                ),
+                retry: nil
+            )
+        }
+    }
 }
 
 // swiftlint:enable file_length

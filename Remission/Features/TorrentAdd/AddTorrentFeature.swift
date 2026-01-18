@@ -37,8 +37,7 @@ struct AddTorrentReducer {
         var serverDownloadDirectory: String = ""
         var recentDownloadDirectories: [String] = []
         var startPaused: Bool = false
-        var tags: [String] = []
-        var newTag: String = ""
+        var category: TorrentCategory = .other
         var isSubmitting: Bool = false
         var closeOnAlertDismiss: Bool = false
         @Presents var alert: AlertState<AlertAction>?
@@ -75,9 +74,7 @@ struct AddTorrentReducer {
         case destinationSuggestionSelected(String)
         case destinationSuggestionDeleted(String)
         case startPausedChanged(Bool)
-        case newTagChanged(String)
-        case addTagTapped
-        case removeTag(String)
+        case categoryChanged(TorrentCategory)
         case submitButtonTapped
         case submitResponse(Result<SubmitResult, SubmitError>)
         case defaultDownloadDirectoryResponse(TaskResult<String>)
@@ -207,25 +204,8 @@ struct AddTorrentReducer {
                 state.startPaused = value
                 return .none
 
-            case .newTagChanged(let value):
-                state.newTag = value
-                return .none
-
-            case .addTagTapped:
-                let tag = state.newTag.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard tag.isEmpty == false else {
-                    return .none
-                }
-                if state.tags.contains(where: { $0.caseInsensitiveCompare(tag) == .orderedSame }) {
-                    state.newTag = ""
-                    return .none
-                }
-                state.tags.append(tag)
-                state.newTag = ""
-                return .none
-
-            case .removeTag(let tag):
-                state.tags.removeAll { $0.caseInsensitiveCompare(tag) == .orderedSame }
+            case .categoryChanged(let category):
+                state.category = category
                 return .none
 
             case .submitButtonTapped:

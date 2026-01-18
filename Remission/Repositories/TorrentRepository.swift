@@ -23,6 +23,7 @@ protocol TorrentRepositoryProtocol: Sendable {
         _ settings: TorrentRepository.TransferSettings,
         for ids: [Torrent.Identifier]
     ) async throws
+    func updateLabels(_ labels: [String], for ids: [Torrent.Identifier]) async throws
     func updateFileSelection(
         _ updates: [TorrentRepository.FileSelectionUpdate],
         in torrentID: Torrent.Identifier
@@ -99,6 +100,7 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     var verifyClosure: @Sendable ([Torrent.Identifier]) async throws -> Void
     var updateTransferSettingsClosure:
         @Sendable (TransferSettings, [Torrent.Identifier]) async throws -> Void
+    var updateLabelsClosure: @Sendable ([String], [Torrent.Identifier]) async throws -> Void
     var updateFileSelectionClosure:
         @Sendable ([FileSelectionUpdate], Torrent.Identifier) async throws -> Void
     var cacheListClosure: @Sendable ([Torrent]) async throws -> Void
@@ -118,6 +120,7 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         updateTransferSettings:
             @escaping @Sendable (TransferSettings, [Torrent.Identifier])
             async throws -> Void,
+        updateLabels: @escaping @Sendable ([String], [Torrent.Identifier]) async throws -> Void,
         updateFileSelection:
             @escaping @Sendable ([FileSelectionUpdate], Torrent.Identifier)
             async throws -> Void,
@@ -132,6 +135,7 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         self.removeClosure = remove
         self.verifyClosure = verify
         self.updateTransferSettingsClosure = updateTransferSettings
+        self.updateLabelsClosure = updateLabels
         self.updateFileSelectionClosure = updateFileSelection
         self.cacheListClosure = cacheList
         self.loadCachedListClosure = loadCachedList
@@ -175,6 +179,10 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
         for ids: [Torrent.Identifier]
     ) async throws {
         try await updateTransferSettingsClosure(settings, ids)
+    }
+
+    func updateLabels(_ labels: [String], for ids: [Torrent.Identifier]) async throws {
+        try await updateLabelsClosure(labels, ids)
     }
 
     func updateFileSelection(
@@ -312,6 +320,19 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
                         try ensureSuccess(response, context: "torrent-set")
                     }
 
+            let updateLabels: @Sendable ([String], [Torrent.Identifier]) async throws -> Void =
+                { labels, ids in
+                    guard labels.isEmpty == false else { return }
+                    let arguments: [String: AnyCodable] = [
+                        "labels": .array(labels.map { .string($0) })
+                    ]
+                    let response = try await transmissionClient.torrentSet(
+                        ids.map(\.rawValue),
+                        .object(arguments)
+                    )
+                    try ensureSuccess(response, context: "torrent-set")
+                }
+
             let updateFileSelection:
                 @Sendable ([FileSelectionUpdate], Torrent.Identifier) async throws
                     -> Void = { updates, torrentID in
@@ -335,6 +356,7 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
                 remove: remove,
                 verify: verify,
                 updateTransferSettings: updateTransferSettings,
+                updateLabels: updateLabels,
                 updateFileSelection: updateFileSelection,
                 cacheList: cacheList,
                 loadCachedList: loadCachedList
@@ -474,6 +496,7 @@ extension TorrentRepository {
         remove: { _, _ in },
         verify: { _ in },
         updateTransferSettings: { _, _ in },
+        updateLabels: { _, _ in },
         updateFileSelection: { _, _ in }
     )
 
@@ -501,6 +524,9 @@ extension TorrentRepository {
         },
         updateTransferSettings: { _, _ in
             throw TorrentRepositoryError.notConfigured("updateTransferSettings")
+        },
+        updateLabels: { _, _ in
+            throw TorrentRepositoryError.notConfigured("updateLabels")
         },
         updateFileSelection: { _, _ in
             throw TorrentRepositoryError.notConfigured("updateFileSelection")
