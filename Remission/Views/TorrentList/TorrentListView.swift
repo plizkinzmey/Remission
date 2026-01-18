@@ -118,6 +118,7 @@ extension TorrentListView {
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
         private var macOSSortPickerWidth: CGFloat { 150 }
+        private var macOSCategoryPickerWidth: CGFloat { 170 }
     #endif
 
     #if os(iOS)
@@ -647,10 +648,11 @@ extension TorrentListView {
         #else
             VStack(alignment: .leading, spacing: 12) {
                 filterSegmentedControl
-                if store.visibleItems.isEmpty == false {
-                    HStack {
+                HStack(spacing: 12) {
+                    categoryPicker
+                    Spacer(minLength: 0)
+                    if store.visibleItems.isEmpty == false {
                         sortPicker
-                        Spacer(minLength: 0)
                     }
                 }
             }
@@ -660,17 +662,22 @@ extension TorrentListView {
 
     #if os(macOS)
         private var filterAndSortRowMacOS: some View {
-            ZStack {
+            HStack(alignment: .center, spacing: 12) {
+                categoryPicker
+                    .labelsHidden()
+                    .frame(width: macOSCategoryPickerWidth)
+
+                Spacer(minLength: 0)
+
                 filterSegmentedControl
                     .labelsHidden()
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: 360)
 
-                HStack(alignment: .center, spacing: 12) {
-                    Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-                    sortPicker
-                        .labelsHidden()
-                }
+                sortPicker
+                    .labelsHidden()
+                    .frame(width: macOSSortPickerWidth)
             }
         }
     #endif
@@ -734,6 +741,49 @@ extension TorrentListView {
                 }
             }
             .accessibilityIdentifier("torrentlist_sort_picker")
+            .pickerStyle(.menu)
+        #endif
+    }
+
+    private var categoryPicker: some View {
+        #if os(macOS)
+            Menu {
+                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
+                    Button(category.title) {
+                        store.send(.categoryChanged(category))
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(store.selectedCategory.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 6)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(width: macOSCategoryPickerWidth, height: macOSToolbarPillHeight)
+                .contentShape(Rectangle())
+                .appToolbarPillSurface()
+            }
+            .accessibilityIdentifier("torrentlist_category_picker")
+            .buttonStyle(.plain)
+        #else
+            Picker(
+                L10n.tr("torrentList.category.title"),
+                selection: Binding(
+                    get: { store.selectedCategory },
+                    set: { store.send(.categoryChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
+                    Text(category.title).tag(category)
+                }
+            }
+            .accessibilityIdentifier("torrentlist_category_picker")
             .pickerStyle(.menu)
         #endif
     }
