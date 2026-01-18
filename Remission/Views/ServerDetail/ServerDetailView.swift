@@ -10,13 +10,14 @@ struct ServerDetailView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     if shouldShowConnectionSection {
                         connectionCard
+                            .padding(.horizontal, AppFooterMetrics.layoutInset)
                     }
                     if store.connectionEnvironment != nil {
                         torrentsSection
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 0)
                 .padding(.vertical, 12)
             #else
                 VStack(alignment: .leading, spacing: 12) {

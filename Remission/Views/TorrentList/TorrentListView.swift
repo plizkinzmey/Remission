@@ -296,11 +296,11 @@ extension TorrentListView {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(0..<placeholderCount, id: \.self) { index in
                                     TorrentRowSkeletonView(index: index)
-                                        .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
                                         .appCardSurface(cornerRadius: 14)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 2)
                         }
                         .scrollIndicators(.hidden)
@@ -316,6 +316,7 @@ extension TorrentListView {
                     } else {
                         ScrollView {
                             torrentRowsMacOS
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.vertical, 2)
                         }
                         .scrollIndicators(.hidden)
@@ -604,13 +605,13 @@ extension TorrentListView {
                         longestStatusTitle: longestStatusTitle,
                         isLocked: item.isRemoving
                     )
-                    .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .appCardSurface(cornerRadius: 14)
                     .opacity(item.isRemoving ? 0.6 : 1)
                     .disabled(item.isRemoving)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     #endif
 
