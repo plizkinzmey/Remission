@@ -98,12 +98,12 @@ struct TorrentDetailReducer {
 
     @Dependency(\.dateProvider) var dateProvider
 
-    private enum FetchTrigger {
+    enum FetchTrigger {
         case initial
         case manual
     }
 
-    private enum CancelID: Hashable {
+    enum CancelID: Hashable {
         case loadTorrentDetails
         case commandExecution
     }
