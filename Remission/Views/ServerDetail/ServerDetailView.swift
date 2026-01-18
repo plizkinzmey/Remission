@@ -18,7 +18,8 @@ struct ServerDetailView: View {
                     }
                 }
                 .padding(.horizontal, 0)
-                .padding(.vertical, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 0)
             #else
                 VStack(alignment: .leading, spacing: 12) {
                     if shouldShowConnectionSection {
