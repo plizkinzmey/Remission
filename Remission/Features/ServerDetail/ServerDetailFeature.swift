@@ -14,10 +14,10 @@ struct ServerDetailReducer {
         @Presents var alert: AlertState<AlertAction>?
         var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
         @Presents var editor: ServerEditorReducer.State?
+        @Presents var settings: SettingsReducer.State?
+        @Presents var diagnostics: DiagnosticsReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
-        @Presents var addTorrentSource: AddTorrentSourceReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
-        var isFileImporterPresented: Bool = false
         var isDeleting: Bool = false
         var connectionState: ConnectionState = .init()
         var connectionEnvironment: ServerConnectionEnvironment?
@@ -39,6 +39,7 @@ struct ServerDetailReducer {
         case task
         case editButtonTapped
         case settingsButtonTapped
+        case diagnosticsButtonTapped
         case deleteButtonTapped
         case deleteCompleted(DeletionResult)
         case httpWarningResetButtonTapped
@@ -52,10 +53,10 @@ struct ServerDetailReducer {
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
         case editor(PresentationAction<ServerEditorReducer.Action>)
+        case settings(PresentationAction<SettingsReducer.Action>)
+        case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
-        case addTorrentSource(PresentationAction<AddTorrentSourceReducer.Action>)
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
-        case fileImporterPresented(Bool)
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
         case alert(PresentationAction<AlertAction>)
@@ -78,7 +79,6 @@ struct ServerDetailReducer {
         case serverUpdated(ServerConfig)
         case serverDeleted(UUID)
         case torrentSelected(Torrent.Identifier)
-        case openSettingsRequested
     }
 
     @Dependency(\.credentialsRepository) var credentialsRepository
@@ -92,15 +92,55 @@ struct ServerDetailReducer {
     @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
     var body: some Reducer<State, Action> {
+        core
+            .ifLet(\.$alert, action: \.alert) {
+                EmptyReducer()
+            }
+            .ifLet(\.$editor, action: \.editor) {
+                ServerEditorReducer()
+            }
+            .ifLet(\.$settings, action: \.settings) {
+                SettingsReducer()
+            }
+            .ifLet(\.$diagnostics, action: \.diagnostics) {
+                DiagnosticsReducer()
+            }
+            .ifLet(\.$torrentDetail, action: \.torrentDetail) {
+                TorrentDetailReducer()
+            }
+            .ifLet(\.$addTorrent, action: \.addTorrent) {
+                AddTorrentReducer()
+            }
+        Scope(state: \.torrentList, action: \.torrentList) {
+            TorrentListReducer()
+        }
+        Scope(state: \.errorPresenter, action: \.errorPresenter) {
+            ErrorPresenter<ErrorRetry>()
+        }
+    }
+
+    private var core: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
-                return .merge(
-                    loadPreferences(),
-                    observePreferences(),
+                let hasReadyConnection: Bool = {
+                    guard state.connectionEnvironment != nil else { return false }
+                    if case .ready = state.connectionState.phase {
+                        return true
+                    }
+                    return false
+                }()
+                var effects: [Effect<Action>] = [
+                    loadPreferences(serverID: state.server.id),
+                    observePreferences(serverID: state.server.id),
                     startConnectionIfNeeded(state: &state),
                     .send(.torrentList(.restoreCachedSnapshot))
-                )
+                ]
+                if hasReadyConnection {
+                    effects.append(.send(.torrentList(.task)))
+                    effects.append(.send(.torrentList(.refreshRequested)))
+                }
+                return .merge(effects)
 
             case .retryConnectionButtonTapped:
                 state.connectionRetryAttempts = 0
@@ -115,7 +155,15 @@ struct ServerDetailReducer {
                 return .none
 
             case .settingsButtonTapped:
-                return .send(.delegate(.openSettingsRequested))
+                state.settings = SettingsReducer.State(
+                    serverID: state.server.id,
+                    serverName: state.server.name
+                )
+                return .none
+
+            case .diagnosticsButtonTapped:
+                state.diagnostics = DiagnosticsReducer.State()
+                return .none
 
             case .deleteButtonTapped:
                 state.alert = makeDeleteAlert()
@@ -239,6 +287,7 @@ struct ServerDetailReducer {
                 )
                 state.torrentList.connectionEnvironment = environment
                 state.torrentList.cacheKey = environment.cacheKey
+                state.torrentList.handshake = response.handshake
                 let effects: Effect<Action> = .concatenate(
                     .send(.torrentList(.task)),
                     .send(.torrentList(.refreshRequested))
@@ -255,6 +304,7 @@ struct ServerDetailReducer {
                 state.torrentDetail?.applyConnectionEnvironment(nil)
                 state.addTorrent?.connectionEnvironment = nil
                 state.torrentList.connectionEnvironment = nil
+                state.torrentList.handshake = nil
                 let message = describe(error)
                 state.connectionRetryAttempts += 1
                 state.connectionState.phase = .offline(
@@ -323,7 +373,10 @@ struct ServerDetailReducer {
                 return .none
 
             case .torrentList(.delegate(.addTorrentRequested)):
-                state.addTorrentSource = AddTorrentSourceReducer.State()
+                state.addTorrent = AddTorrentReducer.State(
+                    connectionEnvironment: state.connectionEnvironment,
+                    serverID: state.server.id
+                )
                 return .none
 
             case .torrentList:
@@ -344,10 +397,6 @@ struct ServerDetailReducer {
             case .torrentDetail:
                 return .none
 
-            case .fileImporterPresented(let isPresented):
-                state.isFileImporterPresented = isPresented
-                return .none
-
             case .fileImportResult(.success(let url)):
                 return handleFileImport(url: url, state: &state)
 
@@ -366,25 +415,6 @@ struct ServerDetailReducer {
                     state: &state
                 )
 
-            case .addTorrentSource(.presented(.delegate(.closeRequested))):
-                state.addTorrentSource = nil
-                return .none
-
-            case .addTorrentSource(.presented(.delegate(.fileRequested))):
-                state.addTorrentSource = nil
-                state.isFileImporterPresented = true
-                return .none
-
-            case .addTorrentSource(.presented(.delegate(.magnetSubmitted(let magnet)))):
-                state.addTorrentSource = nil
-                return handleMagnetResponse(
-                    result: .success(magnet),
-                    state: &state
-                )
-
-            case .addTorrentSource:
-                return .none
-
             case .addTorrent(.presented(.delegate(.closeRequested))):
                 return .send(.addTorrent(.dismiss))
 
@@ -392,6 +422,32 @@ struct ServerDetailReducer {
                 return .send(.torrentList(.delegate(.added(result))))
 
             case .addTorrent:
+                return .none
+
+            case .settings(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.settings(.presented(.teardown))),
+                    .send(.settings(.dismiss))
+                )
+
+            case .settings(.dismiss):
+                state.settings = nil
+                return .none
+
+            case .settings(.presented):
+                return .none
+
+            case .diagnostics(.presented(.delegate(.closeRequested))):
+                return .concatenate(
+                    .send(.diagnostics(.presented(.teardown))),
+                    .send(.diagnostics(.dismiss))
+                )
+
+            case .diagnostics(.dismiss):
+                state.diagnostics = nil
+                return .none
+
+            case .diagnostics(.presented):
                 return .none
 
             case .userPreferencesResponse(.success(let preferences)):
@@ -413,25 +469,6 @@ struct ServerDetailReducer {
             case .delegate:
                 return .none
             }
-        }
-        .ifLet(\.$alert, action: \.alert)
-        .ifLet(\.$editor, action: \.editor) {
-            ServerEditorReducer()
-        }
-        .ifLet(\.$torrentDetail, action: \.torrentDetail) {
-            TorrentDetailReducer()
-        }
-        .ifLet(\.$addTorrentSource, action: \.addTorrentSource) {
-            AddTorrentSourceReducer()
-        }
-        .ifLet(\.$addTorrent, action: \.addTorrent) {
-            AddTorrentReducer()
-        }
-        Scope(state: \.torrentList, action: \.torrentList) {
-            TorrentListReducer()
-        }
-        Scope(state: \.errorPresenter, action: \.errorPresenter) {
-            ErrorPresenter<ErrorRetry>()
         }
     }
 
@@ -555,12 +592,12 @@ struct ServerDetailReducer {
         return false
     }
 
-    private func loadPreferences() -> Effect<Action> {
+    private func loadPreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
             await send(
                 .userPreferencesResponse(
                     TaskResult {
-                        try await userPreferencesRepository.load()
+                        try await userPreferencesRepository.load(serverID: serverID)
                     }
                 )
             )
@@ -568,9 +605,9 @@ struct ServerDetailReducer {
         .cancellable(id: ConnectionCancellationID.preferences, cancelInFlight: true)
     }
 
-    private func observePreferences() -> Effect<Action> {
+    private func observePreferences(serverID: UUID) -> Effect<Action> {
         .run { send in
-            let stream = userPreferencesRepository.observe()
+            let stream = userPreferencesRepository.observe(serverID: serverID)
             for await preferences in stream {
                 await send(.userPreferencesResponse(.success(preferences)))
             }

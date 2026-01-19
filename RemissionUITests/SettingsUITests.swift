@@ -8,7 +8,7 @@ final class SettingsUITests: BaseUITestCase {
         let snapshot = mutateSettingsAndCaptureSnapshot(suiteName: suiteName)
         let (app, controls) = openSettings(suiteName: suiteName, reset: false)
         assertSnapshotMatches(snapshot, controls: controls)
-        controls.closeButton.tap()
+        controls.cancelButton.tap()
         app.terminate()
     }
 
@@ -18,7 +18,7 @@ final class SettingsUITests: BaseUITestCase {
         enableTelemetryUsingUI(suiteName: suiteName)
         let (app, controls) = openSettings(suiteName: suiteName, reset: false)
         assertTelemetryEnabled(controls: controls, suiteName: suiteName)
-        controls.closeButton.tap()
+        controls.cancelButton.tap()
         app.terminate()
     }
 
@@ -35,6 +35,10 @@ final class SettingsUITests: BaseUITestCase {
         reset: Bool
     ) -> (XCUIApplication, SettingsControls) {
         let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ],
             environment: makePreferencesEnvironment(
                 suiteName: suiteName,
                 reset: reset
@@ -58,7 +62,8 @@ final class SettingsUITests: BaseUITestCase {
         let (app, controls) = openSettings(suiteName: suiteName, reset: true)
         let snapshot = mutateSettingsForSnapshot(controls: controls, app: app)
         RunLoop.current.run(until: Date().addingTimeInterval(1.2))
-        controls.closeButton.tap()
+        controls.saveButton.tap()
+        _ = controls.autoRefreshToggle.waitForDisappearance(timeout: 3)
         app.terminate()
         return snapshot
     }
@@ -126,7 +131,8 @@ final class SettingsUITests: BaseUITestCase {
         assertTelemetryDisabledByDefault(controls: controls)
         toggleTelemetryOnIfNeeded(controls: controls, app: app, suiteName: suiteName)
         RunLoop.current.run(until: Date().addingTimeInterval(1.0))
-        controls.closeButton.tap()
+        controls.saveButton.tap()
+        _ = controls.autoRefreshToggle.waitForDisappearance(timeout: 3)
         app.terminate()
     }
 
@@ -208,7 +214,7 @@ final class SettingsUITests: BaseUITestCase {
                 toggle: controls.autoRefreshToggle
             )
             RunLoop.current.run(until: Date().addingTimeInterval(1.2))
-            controls.closeButton.tap()
+            controls.saveButton.tap()
             _ = controls.autoRefreshToggle.waitForDisappearance(timeout: 3)
 
             let reopened = openSettingsControls(app)
@@ -217,10 +223,10 @@ final class SettingsUITests: BaseUITestCase {
             let reopenedUpload = trimmedFieldValue(reopened.uploadField) ?? ""
             XCTAssertTrue(matchesPersistedField(reopenedDownload, expected: savedDownload))
             XCTAssertTrue(matchesPersistedField(reopenedUpload, expected: savedUpload))
-            reopened.closeButton.tap()
+            reopened.cancelButton.tap()
             XCTAssertTrue(reopened.autoRefreshToggle.waitForDisappearance(timeout: 3))
         #else
-            controls.closeButton.tap()
+            controls.cancelButton.tap()
             XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
             _ = app
         #endif

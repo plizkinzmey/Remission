@@ -3,8 +3,6 @@ import SwiftUI
 
 struct TorrentDetailView: View {
     @Bindable var store: StoreOf<TorrentDetailReducer>
-    @State var isSpeedHistoryExpanded: Bool = false
-    @State var isStatisticsExpanded: Bool = false
     @State var isFilesExpanded: Bool = false
     @State var isTrackersExpanded: Bool = false
     @State var isPeersExpanded: Bool = false
@@ -14,7 +12,7 @@ struct TorrentDetailView: View {
             #if os(macOS)
                 VStack(spacing: 12) {
                     macOSContentCard
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Spacer(minLength: 0)
                         Button(L10n.tr("serverDetail.button.close")) {
                             store.send(.delegate(.closeRequested))

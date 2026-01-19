@@ -40,6 +40,7 @@ struct TorrentListReducer {
         var items: IdentifiedArrayOf<TorrentListItem.State> = []
         var searchQuery: String = ""
         var selectedFilter: Filter = .all
+        var selectedCategory: CategoryFilter = .all
         var sortOrder: SortOrder = .name
         var isRefreshing: Bool = false
         var isPollingEnabled: Bool = true
@@ -50,7 +51,10 @@ struct TorrentListReducer {
         var lastSnapshotAt: Date?
         var errorPresenter: ErrorPresenter<Retry>.State = .init()
         var pendingRemoveTorrentID: Torrent.Identifier?
+        var removingTorrentIDs: Set<Torrent.Identifier> = []
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
+        var storageSummary: StorageSummary?
+        var handshake: TransmissionHandshakeResult?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             let query = normalizedSearchQuery
@@ -58,7 +62,9 @@ struct TorrentListReducer {
             // сохраняя их в State и инвалидации через DiffID. Это избавит от лишних O(n log n)
             // пересчётов при каждом `body` и заметно разгрузит UI при больших библиотеках.
             let filtered = items.filter {
-                selectedFilter.matches($0) && matchesSearch($0, query: query)
+                selectedFilter.matches($0)
+                    && selectedCategory.matches($0)
+                    && matchesSearch($0, query: query)
             }
             let sorted = filtered.sorted {
                 sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
@@ -86,6 +92,7 @@ struct TorrentListReducer {
         case commandRefreshRequested
         case searchQueryChanged(String)
         case filterChanged(Filter)
+        case categoryChanged(CategoryFilter)
         case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
         case startTapped(Torrent.Identifier)
@@ -93,13 +100,14 @@ struct TorrentListReducer {
         case verifyTapped(Torrent.Identifier)
         case removeTapped(Torrent.Identifier)
         case removeConfirmation(PresentationAction<RemoveConfirmationAction>)
-        case commandResponse(Result<Bool, CommandError>)
+        case commandResponse(Torrent.Identifier, Result<Bool, CommandError>)
         case addTorrentButtonTapped
         case errorPresenter(ErrorPresenter<State.Retry>.Action)
         case pollingTick
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case restoreCachedSnapshot
         case torrentsResponse(TaskResult<State.FetchSuccess>)
+        case storageUpdated(StorageSummary?)
         case goOffline(message: String)
         case delegate(Delegate)
     }
@@ -149,6 +157,54 @@ struct TorrentListReducer {
             case .errors:
                 // Transmission помечает проблемные торренты статусом isolated.
                 return item.torrent.status == .isolated
+            }
+        }
+    }
+
+    enum CategoryFilter: String, Equatable, CaseIterable, Hashable, Sendable {
+        case all
+        case programs
+        case movies
+        case series
+        case books
+        case other
+
+        var title: String {
+            switch self {
+            case .all:
+                return L10n.tr("torrentList.category.all")
+            case .programs:
+                return TorrentCategory.programs.title
+            case .movies:
+                return TorrentCategory.movies.title
+            case .series:
+                return TorrentCategory.series.title
+            case .books:
+                return TorrentCategory.books.title
+            case .other:
+                return TorrentCategory.other.title
+            }
+        }
+
+        fileprivate func matches(_ item: TorrentListItem.State) -> Bool {
+            guard let category = mappedCategory else { return true }
+            return TorrentCategory.category(from: item.torrent.tags) == category
+        }
+
+        private var mappedCategory: TorrentCategory? {
+            switch self {
+            case .all:
+                return nil
+            case .programs:
+                return .programs
+            case .movies:
+                return .movies
+            case .series:
+                return .series
+            case .books:
+                return .books
+            case .other:
+                return .other
             }
         }
     }
@@ -228,9 +284,12 @@ struct TorrentListReducer {
                 if state.items.isEmpty {
                     state.phase = .loading
                 }
+                guard let serverID = state.serverID else {
+                    return .send(.restoreCachedSnapshot)
+                }
                 return .merge(
-                    loadPreferences(),
-                    observePreferences(),
+                    loadPreferences(serverID: serverID),
+                    observePreferences(serverID: serverID),
                     .send(.restoreCachedSnapshot)
                 )
 
@@ -239,6 +298,8 @@ struct TorrentListReducer {
                 state.hasLoadedPreferences = false
                 state.offlineState = nil
                 state.errorPresenter.banner = nil
+                state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.removeAll()
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -261,6 +322,10 @@ struct TorrentListReducer {
 
             case .filterChanged(let filter):
                 state.selectedFilter = filter
+                return .none
+
+            case .categoryChanged(let category):
+                state.selectedCategory = category
                 return .none
 
             case .sortChanged(let sort):
@@ -289,12 +354,22 @@ struct TorrentListReducer {
                 state.removeConfirmation = nil
                 guard let id = state.pendingRemoveTorrentID else { return .none }
                 state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.insert(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = true
+                    state.items[id: id] = item
+                }
                 return performCommand(.remove(deleteData: false), torrentID: id, state: &state)
 
             case .removeConfirmation(.presented(.deleteWithData)):
                 state.removeConfirmation = nil
                 guard let id = state.pendingRemoveTorrentID else { return .none }
                 state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.insert(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = true
+                    state.items[id: id] = item
+                }
                 return performCommand(.remove(deleteData: true), torrentID: id, state: &state)
 
             case .removeConfirmation(.presented(.cancel)):
@@ -305,10 +380,15 @@ struct TorrentListReducer {
             case .removeConfirmation:
                 return .none
 
-            case .commandResponse(.success):
+            case .commandResponse(_, .success):
                 return .send(.commandRefreshRequested)
 
-            case .commandResponse(.failure(let error)):
+            case .commandResponse(let id, .failure(let error)):
+                state.removingTorrentIDs.remove(id)
+                if var item = state.items[id: id] {
+                    item.isRemoving = false
+                    state.items[id: id] = item
+                }
                 let message = error.message
                 return .send(
                     .errorPresenter(
@@ -386,7 +466,13 @@ struct TorrentListReducer {
                 state.isRefreshing = false
                 state.errorPresenter.banner = nil
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
-                state.items = merge(items: state.items, with: payload.torrents)
+                state.items = merge(
+                    items: state.items,
+                    with: payload.torrents,
+                    removingIDs: state.removingTorrentIDs
+                )
+                let currentIDs = Set(state.items.map(\.id))
+                state.removingTorrentIDs.formIntersection(currentIDs)
                 if payload.isFromCache == false {
                     state.failedAttempts = 0
                     state.offlineState = nil
@@ -403,6 +489,10 @@ struct TorrentListReducer {
                     return payload.isFromCache ? .none : .cancel(id: CancelID.polling)
                 }
                 return schedulePolling(after: state.pollingInterval)
+
+            case .storageUpdated(let summary):
+                state.storageSummary = summary
+                return .none
 
             case .torrentsResponse(.failure(let error)):
                 if error is CancellationError {

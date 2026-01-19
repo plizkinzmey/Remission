@@ -56,6 +56,10 @@ final class ServerUITests: BaseUITestCase {
     func testSettingsScreenShowsControlsAndAllowsEditing() {
         let suiteName = "ui-settings-smoke"
         let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ],
             environment: [
                 "UI_TESTING_PREFERENCES_SUITE": suiteName,
                 "UI_TESTING_RESET_PREFERENCES": "1"
@@ -68,7 +72,7 @@ final class ServerUITests: BaseUITestCase {
         adjustPollingSlider(controls)
         let savedUploadInSession = updateLimitFields(controls)
 
-        controls.closeButton.tap()
+        controls.saveButton.tap()
         XCTAssertTrue(
             controls.autoRefreshToggle.waitForDisappearance(timeout: 3),
             "Settings sheet did not close"
@@ -141,6 +145,9 @@ final class ServerUITests: BaseUITestCase {
             XCTAssertTrue(controls.autoRefreshToggle.exists, "Auto-refresh toggle отсутствует")
         #else
             XCTAssertFalse(autoValue.isEmpty, "Auto-refresh toggle не реагирует")
+            if ["0", "off", "false"].contains(autoValue.lowercased()) {
+                controls.autoRefreshToggle.tap()
+            }
         #endif
     }
 

@@ -7,9 +7,7 @@ enum AppDependencies {
     /// Сборка live-набора зависимостей для основной Scheме приложения.
     static func makeLive() -> DependencyValues {
         var dependencies = DependencyValues.appDefault()
-        dependencies.transmissionClient = TransmissionClientBootstrap.makeLiveDependency(
-            dependencies: dependencies
-        )
+        dependencies.transmissionClient = .placeholder
         dependencies.userPreferencesRepository = .persistent()
         return dependencies
     }
@@ -96,6 +94,7 @@ enum AppDependencies {
                     remove: { _, _ in throw APIError.networkUnavailable },
                     verify: { _ in throw APIError.networkUnavailable },
                     updateTransferSettings: { _, _ in throw APIError.networkUnavailable },
+                    updateLabels: { _, _ in throw APIError.networkUnavailable },
                     updateFileSelection: { _, _ in throw APIError.networkUnavailable }
                 )
             } else {
@@ -121,6 +120,9 @@ enum AppDependencies {
                     verify: { ids in try await baseRepository.verify(ids) },
                     updateTransferSettings: { settings, ids in
                         try await baseRepository.updateTransferSettings(settings, for: ids)
+                    },
+                    updateLabels: { labels, ids in
+                        try await baseRepository.updateLabels(labels, for: ids)
                     },
                     updateFileSelection: { updates, id in
                         try await baseRepository.updateFileSelection(updates, in: id)
@@ -153,6 +155,7 @@ enum AppDependencies {
                     remove: { _, _ in throw APIError.networkUnavailable },
                     verify: { _ in throw APIError.networkUnavailable },
                     updateTransferSettings: { _, _ in throw APIError.networkUnavailable },
+                    updateLabels: { _, _ in throw APIError.networkUnavailable },
                     updateFileSelection: { _, _ in throw APIError.networkUnavailable }
                 )
             } else {
@@ -178,6 +181,9 @@ enum AppDependencies {
                     verify: { ids in try await baseRepository.verify(ids) },
                     updateTransferSettings: { settings, ids in
                         try await baseRepository.updateTransferSettings(settings, for: ids)
+                    },
+                    updateLabels: { labels, ids in
+                        try await baseRepository.updateLabels(labels, for: ids)
                     },
                     updateFileSelection: { updates, id in
                         try await baseRepository.updateFileSelection(updates, in: id)

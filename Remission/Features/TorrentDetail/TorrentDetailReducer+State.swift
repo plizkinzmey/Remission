@@ -30,6 +30,9 @@ extension TorrentDetailReducer {
         var connectionEnvironment: ServerConnectionEnvironment?
         var name: String = ""
         var status: Int = 0
+        var tags: [String] = []
+        var category: TorrentCategory = .other
+        var lastSyncedTags: [String] = []
         var percentDone: Double = 0.0
         var totalSize: Int = 0
         var downloadedEver: Int = 0
@@ -64,6 +67,9 @@ extension TorrentDetailReducer {
             connectionEnvironment: ServerConnectionEnvironment? = nil,
             name: String = "",
             status: Int = 0,
+            tags: [String] = [],
+            category: TorrentCategory = .other,
+            lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -95,6 +101,9 @@ extension TorrentDetailReducer {
             self.connectionEnvironment = connectionEnvironment
             self.name = name
             self.status = status
+            self.tags = tags
+            self.category = category
+            self.lastSyncedTags = lastSyncedTags
             self.percentDone = percentDone
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
@@ -149,6 +158,9 @@ extension TorrentDetailReducer {
             connectionEnvironment: ServerConnectionEnvironment? = nil,
             name: String = "",
             status: Int = 0,
+            tags: [String] = [],
+            category: TorrentCategory = .other,
+            lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
@@ -181,6 +193,9 @@ extension TorrentDetailReducer {
                 connectionEnvironment: connectionEnvironment,
                 name: name,
                 status: status,
+                tags: tags,
+                category: category,
+                lastSyncedTags: lastSyncedTags,
                 percentDone: percentDone,
                 totalSize: totalSize,
                 downloadedEver: downloadedEver,
@@ -215,6 +230,53 @@ extension TorrentDetailReducer {
                 return true
             }
             return pendingCommands.contains(where: { $0.category == category })
+        }
+    }
+}
+
+extension TorrentDetailReducer.State {
+    mutating func apply(_ torrent: Torrent) {
+        torrentID = torrent.id
+        name = torrent.name
+        status = torrent.status.rawValue
+        tags = torrent.tags
+        lastSyncedTags = torrent.tags
+        category = TorrentCategory.category(from: torrent.tags)
+        percentDone = torrent.summary.progress.percentDone
+        totalSize = torrent.summary.progress.totalSize
+        downloadedEver = torrent.summary.progress.downloadedEver
+        uploadedEver = torrent.summary.progress.uploadedEver
+        uploadRatio = torrent.summary.progress.uploadRatio
+        eta = torrent.summary.progress.etaSeconds
+
+        rateDownload = torrent.summary.transfer.downloadRate
+        rateUpload = torrent.summary.transfer.uploadRate
+        downloadLimit = torrent.summary.transfer.downloadLimit.kilobytesPerSecond
+        downloadLimited = torrent.summary.transfer.downloadLimit.isEnabled
+        uploadLimit = torrent.summary.transfer.uploadLimit.kilobytesPerSecond
+        uploadLimited = torrent.summary.transfer.uploadLimit.isEnabled
+
+        peersConnected = torrent.summary.peers.connected
+        peers = IdentifiedArray(uniqueElements: torrent.summary.peers.sources)
+
+        if let details = torrent.details {
+            hasLoadedMetadata = true
+            downloadDir = details.downloadDirectory
+            if let addedDate = details.addedDate {
+                dateAdded = Int(addedDate.timeIntervalSince1970)
+            } else {
+                dateAdded = 0
+            }
+            files = IdentifiedArray(uniqueElements: details.files)
+            trackers = IdentifiedArray(uniqueElements: details.trackers)
+            trackerStats = IdentifiedArray(uniqueElements: details.trackerStats)
+        } else {
+            hasLoadedMetadata = false
+            downloadDir = ""
+            dateAdded = 0
+            files = []
+            trackers = []
+            trackerStats = []
         }
     }
 }

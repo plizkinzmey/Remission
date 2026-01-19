@@ -7,7 +7,7 @@ enum AppTheme {
         static func subtle(_ colorScheme: ColorScheme) -> Color {
             switch colorScheme {
             case .dark: return Color.white.opacity(0.12)
-            case .light: return Color.black.opacity(0.08)
+            case .light: return Color.black.opacity(0.14)
             @unknown default: return Color.white.opacity(0.12)
             }
         }

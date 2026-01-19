@@ -1,4 +1,5 @@
 import ComposableArchitecture
+import Dependencies
 import Foundation
 
 @Reducer
@@ -10,8 +11,10 @@ struct ServerListReducer {
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var onboarding: OnboardingReducer.State?
+        @Presents var editor: ServerEditorReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var shouldLoadServersFromRepository: Bool = true
+        var hasAutoSelectedSingleServer: Bool = false
         var pendingDeletion: ServerConfig?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
@@ -25,9 +28,12 @@ struct ServerListReducer {
         case deleteConfirmation(PresentationAction<DeleteConfirmationAction>)
         case alert(PresentationAction<Alert>)
         case onboarding(PresentationAction<OnboardingReducer.Action>)
+        case editor(PresentationAction<ServerEditorReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
         case connectionProbeRequested(UUID)
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
+        case storageRequested(UUID)
+        case storageResponse(UUID, TaskResult<StorageSummary>)
         case delegate(Delegate)
     }
 
@@ -44,7 +50,6 @@ struct ServerListReducer {
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
-        case serverEditRequested(ServerConfig)
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
@@ -53,6 +58,7 @@ struct ServerListReducer {
     @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
     @Dependency(\.transmissionTrustStoreClient) var transmissionTrustStoreClient
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
+    @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -90,7 +96,8 @@ struct ServerListReducer {
                 guard let server = state.servers[id: id] else {
                     return .none
                 }
-                return .send(.delegate(.serverEditRequested(server)))
+                state.editor = ServerEditorReducer.State(server: server)
+                return .none
 
             case .deleteButtonTapped(let id):
                 guard let server = state.servers[id: id] else { return .none }
@@ -146,6 +153,24 @@ struct ServerListReducer {
             case .onboarding:
                 return .none
 
+            case .editor(.presented(.delegate(.didUpdate(let server)))):
+                if let index = state.servers.index(id: server.id) {
+                    state.servers[index] = server
+                }
+                state.editor = nil
+                return .send(.connectionProbeRequested(server.id))
+
+            case .editor(.presented(.delegate(.cancelled))):
+                state.editor = nil
+                return .none
+
+            case .editor(.dismiss):
+                state.editor = nil
+                return .none
+
+            case .editor:
+                return .none
+
             case .serverRepositoryResponse(.success(let servers)):
                 state.isLoading = false
                 state.servers = IdentifiedArrayOf(uniqueElements: servers)
@@ -156,17 +181,30 @@ struct ServerListReducer {
                     }
                 )
                 if servers.isEmpty {
-                    let shouldShowOnboarding =
-                        state.hasPresentedInitialOnboarding == false
-                        && onboardingProgressRepository.hasCompletedOnboarding() == false
-                    if shouldShowOnboarding {
-                        state.onboarding = OnboardingReducer.State()
-                        state.hasPresentedInitialOnboarding = true
-                    }
+                    #if os(macOS)
+                        let shouldShowOnboarding =
+                            state.hasPresentedInitialOnboarding == false
+                            && onboardingProgressRepository.hasCompletedOnboarding() == false
+                        if shouldShowOnboarding {
+                            state.onboarding = OnboardingReducer.State()
+                            state.hasPresentedInitialOnboarding = true
+                        }
+                    #endif
                 }
-                return .run { [servers] send in
+                let shouldAutoSelect =
+                    servers.count == 1
+                    && state.hasAutoSelectedSingleServer == false
+                    && state.onboarding == nil
+                    && state.editor == nil
+                if shouldAutoSelect {
+                    state.hasAutoSelectedSingleServer = true
+                }
+                return .run { [servers, shouldAutoSelect] send in
                     for server in servers {
                         await send(.connectionProbeRequested(server.id))
+                    }
+                    if shouldAutoSelect, let server = servers.first {
+                        await send(.delegate(.serverSelected(server)))
                     }
                 }
 
@@ -222,10 +260,58 @@ struct ServerListReducer {
 
             case .connectionProbeResponse(let id, .success(let result)):
                 state.connectionStatuses[id] = .init(phase: .connected(result.handshake))
-                return .none
+                return .send(.storageRequested(id))
 
             case .connectionProbeResponse(let id, .failure(let error)):
                 state.connectionStatuses[id] = .init(phase: .failed(describe(error)))
+                return .none
+
+            case .storageRequested(let id):
+                guard let server = state.servers[id: id] else { return .none }
+                if state.connectionStatuses[id]?.isLoadingStorage == true {
+                    return .none
+                }
+                if state.connectionStatuses[id]?.storageSummary != nil {
+                    return .none
+                }
+                state.connectionStatuses[id]?.isLoadingStorage = true
+                return .run { [server] send in
+                    do {
+                        let environment = try await serverConnectionEnvironmentFactory(server)
+                        let session = try await withDependencies {
+                            environment.apply(to: &$0)
+                        } operation: {
+                            @Dependency(\.sessionRepository) var sessionRepository:
+                                SessionRepository
+                            return try await sessionRepository.fetchState()
+                        }
+                        let torrents = try await withDependencies {
+                            environment.apply(to: &$0)
+                        } operation: {
+                            @Dependency(\.torrentRepository) var torrentRepository:
+                                TorrentRepository
+                            return try await torrentRepository.fetchList()
+                        }
+                        let snapshot = try? await environment.snapshot.load()
+                        let summary = makeStorageSummary(
+                            torrents: torrents,
+                            session: session,
+                            updatedAt: snapshot?.latestUpdatedAt
+                        )
+                        await send(.storageResponse(id, .success(summary)))
+                    } catch {
+                        await send(.storageResponse(id, .failure(error)))
+                    }
+                }
+                .cancellable(id: ConnectionCancellationID.storage(id), cancelInFlight: true)
+
+            case .storageResponse(let id, .success(let summary)):
+                state.connectionStatuses[id]?.storageSummary = summary
+                state.connectionStatuses[id]?.isLoadingStorage = false
+                return .none
+
+            case .storageResponse(let id, .failure):
+                state.connectionStatuses[id]?.isLoadingStorage = false
                 return .none
 
             case .delegate:
@@ -237,8 +323,14 @@ struct ServerListReducer {
         .ifLet(\.$onboarding, action: \.onboarding) {
             OnboardingReducer()
         }
+        .ifLet(\.$editor, action: \.editor) {
+            ServerEditorReducer()
+        }
     }
 
+}
+
+extension ServerListReducer {
     private func deleteServer(_ server: ServerConfig) -> Effect<Action> {
         .run { send in
             do {
@@ -308,6 +400,22 @@ struct ServerListReducer {
             TextState(L10n.tr("serverList.alert.delete.message"))
         }
     }
+
+    private func makeStorageSummary(
+        torrents: [Torrent],
+        session: SessionState,
+        updatedAt: Date?
+    ) -> StorageSummary {
+        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
+            total + Int64(torrent.summary.progress.totalSize)
+        }
+        let totalBytes = usedBytes + session.storage.freeBytes
+        return StorageSummary(
+            totalBytes: totalBytes,
+            freeBytes: session.storage.freeBytes,
+            updatedAt: updatedAt
+        )
+    }
 }
 
 extension ServerListReducer {
@@ -320,6 +428,8 @@ extension ServerListReducer {
 
     struct ConnectionStatus: Equatable {
         var phase: ConnectionStatusPhase = .idle
+        var storageSummary: StorageSummary?
+        var isLoadingStorage: Bool = false
 
         var isProbing: Bool {
             if case .probing = phase { return true }
@@ -330,4 +440,5 @@ extension ServerListReducer {
 
 private enum ConnectionCancellationID: Hashable {
     case connectionProbe(UUID)
+    case storage(UUID)
 }

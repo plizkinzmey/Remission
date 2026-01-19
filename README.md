@@ -266,6 +266,9 @@ xcodebuild -scheme Remission -configuration Debug build | xcbeautify
 ### Локальный релиз (main-only)
 
 Скрипт `Scripts/release_local.sh` собирает **iOS IPA** и **macOS .app (zip)** с автоматической установкой `MARKETING_VERSION`/`CURRENT_PROJECT_VERSION` на время сборки.
+Перед релизом версия обновляется автоматически: скрипт правит `Remission.xcodeproj/project.pbxproj` и делает коммит, если не указан `--no-version-commit`.
+
+Важно: релиз считается корректным только при наличии git-тега `vX.Y.Z`, поэтому запускать скрипт нужно с `--tag` (и обычно `--push`).
 
 ```bash
 # релиз только из main (ветка должна быть активной) + чистый git status
@@ -274,8 +277,14 @@ Scripts/release_local.sh --version 1.2.3
 # или авто-bump от последнего тега vX.Y.Z
 Scripts/release_local.sh --bump patch
 
-# опционально: создать тег и запушить main + тег
+# обязательно: создать тег и запушить main + тег (релиз без тега запрещён)
 Scripts/release_local.sh --bump minor --tag --push
+
+# если указываете версию вручную — тоже добавляйте --tag/--push
+Scripts/release_local.sh --version 1.2.3 --tag --push
+
+# если нужно обновить версию без автокоммита
+Scripts/release_local.sh --version 1.2.3 --no-version-commit
 ```
 
 Артефакты сохраняются в `Build/Releases/vX.Y.Z/`. Для iOS export используется `ExportOptions.plist` (можно переопределить `--export-options-plist`).
@@ -450,7 +459,7 @@ xcodebuild test \
 `ServerConnectionEnvironment` инкапсулирует TransmissionClient/TorrentRepository для конкретного сервера. Если список торрентов перестал обновляться (поллинг завис в ошибке, UI не выходит из «Подключаемся…»):
 
 1. **Повторите подключение** — на экране сервера нажмите «Повторить подключение». Редьюсер заново вызовет `serverConnectionEnvironmentFactory.make(...)` и пересоздаст клиент.
-2. **Сделайте teardown вручную** — закройте экран деталей или перезапустите приложение. Это диспатчит `.torrentList(.teardown)` и принудительно обнуляет окружение; при следующем `task` произойдёт bootstrap.
+2. **Сделайте teardown вручную** — закройте экран деталей или перезапустите приложение. Это диспатчит `.torrentList(.teardown)` и принудительно обнуляет окружение; при следующем `task` окружение будет создано заново.
 3. **Пересохраните сервер** — нажмите «Редактировать», измените любой параметр (или нажмите «Сохранить» без изменений). Обновлённый `connectionFingerprint` вызовет teardown и создание нового окружения.
 4. **Используйте фикстуру** — для UI-тестов и ручного smoke прогона запустите приложение с аргументом `--ui-testing-fixture=torrent-list-sample`: он подставит in-memory зависимости и гарантирует чистое состояние.
 

@@ -41,6 +41,9 @@ public protocol TransmissionClientProtocol: Sendable {
     /// Получить статистику сессии (активные торренты, скорости, счётчики).
     func sessionStats() async throws -> ClientResult
 
+    /// Получить свободное место по указанному пути (`free-space`).
+    func freeSpace(path: String) async throws -> ClientResult
+
     /// Получить информацию о торрентах.
     /// - Parameters:
     ///   - ids: Опциональный массив ID торрентов для фильтрации.

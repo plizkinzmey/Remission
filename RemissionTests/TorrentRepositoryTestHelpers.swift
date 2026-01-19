@@ -39,6 +39,10 @@ extension TorrentRepository {
             ) async throws -> Void = { _, _ in
                 throw TorrentRepositoryTestError.unimplemented
             },
+        updateLabels: @escaping @Sendable ([String], [Torrent.Identifier]) async throws -> Void = {
+            _, _ in
+            throw TorrentRepositoryTestError.unimplemented
+        },
         updateFileSelection:
             @escaping @Sendable (
                 [TorrentRepository.FileSelectionUpdate],
@@ -56,6 +60,7 @@ extension TorrentRepository {
             remove: remove,
             verify: verify,
             updateTransferSettings: updateTransferSettings,
+            updateLabels: updateLabels,
             updateFileSelection: updateFileSelection
         )
     }

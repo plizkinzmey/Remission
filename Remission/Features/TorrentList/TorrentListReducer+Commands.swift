@@ -47,12 +47,12 @@ extension TorrentListReducer {
                         )
                     }
                 }
-                await send(.commandResponse(.success(true)))
+                await send(.commandResponse(torrentID, .success(true)))
             } catch {
                 let message =
                     (error as? APIError)?.userFriendlyMessage
                     ?? describe(error)
-                await send(.commandResponse(.failure(.init(message: message))))
+                await send(.commandResponse(torrentID, .failure(.init(message: message))))
             }
         }
         .cancellable(id: CancelID.command(torrentID), cancelInFlight: true)
@@ -64,6 +64,14 @@ extension TorrentListReducer {
         state: inout State,
         trigger: FetchTrigger
     ) -> Effect<Action> {
+        let shouldFetchStorage: Bool = {
+            switch trigger {
+            case .initial, .manualRefresh, .polling, .command:
+                return true
+            case .preferencesChanged:
+                return false
+            }
+        }()
         if state.serverID == nil {
             state.serverID = state.connectionEnvironment?.serverID ?? state.cacheKey?.serverID
         }
@@ -94,6 +102,15 @@ extension TorrentListReducer {
                 guard let snapshot = try await client.load() else { return }
                 guard let cached = snapshot.torrents else { return }
 
+                if shouldFetchStorage {
+                    let summary = makeStorageSummary(
+                        torrents: cached.value,
+                        session: snapshot.session?.value,
+                        updatedAt: snapshot.latestUpdatedAt
+                    )
+                    await send(.storageUpdated(summary))
+                }
+
                 await send(
                     .torrentsResponse(
                         .success(
@@ -120,8 +137,25 @@ extension TorrentListReducer {
                     @Dependency(\.torrentRepository) var repository: TorrentRepository
                     return try await repository.fetchList()
                 }
+                let session =
+                    shouldFetchStorage
+                    ? (try? await withDependencies {
+                        environment.apply(to: &$0)
+                    } operation: {
+                        @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
+                        return try await sessionRepository.fetchState()
+                    })
+                    : nil
                 let snapshot = (try? await environment.snapshot.load()) ?? nil
                 let updatedAt = snapshot?.torrents?.updatedAt
+                if shouldFetchStorage {
+                    let summary = makeStorageSummary(
+                        torrents: torrents,
+                        session: session,
+                        updatedAt: updatedAt
+                    )
+                    await send(.storageUpdated(summary))
+                }
                 await send(
                     .torrentsResponse(
                         .success(
@@ -136,6 +170,14 @@ extension TorrentListReducer {
             } catch {
                 if let snapshot = try? await environment.snapshot.load() {
                     if let cached = snapshot.torrents {
+                        if shouldFetchStorage {
+                            let summary = makeStorageSummary(
+                                torrents: cached.value,
+                                session: snapshot.session?.value,
+                                updatedAt: snapshot.latestUpdatedAt
+                            )
+                            await send(.storageUpdated(summary))
+                        }
                         await send(
                             .torrentsResponse(
                                 .success(
@@ -153,6 +195,23 @@ extension TorrentListReducer {
             }
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
+    }
+
+    private func makeStorageSummary(
+        torrents: [Torrent],
+        session: SessionState?,
+        updatedAt: Date?
+    ) -> StorageSummary? {
+        guard let session else { return nil }
+        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
+            total + Int64(torrent.summary.progress.totalSize)
+        }
+        let totalBytes = usedBytes + session.storage.freeBytes
+        return StorageSummary(
+            totalBytes: totalBytes,
+            freeBytes: session.storage.freeBytes,
+            updatedAt: updatedAt
+        )
     }
     // swiftlint:enable cyclomatic_complexity function_body_length
 }

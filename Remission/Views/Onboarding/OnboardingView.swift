@@ -14,7 +14,7 @@ struct OnboardingView: View {
                     windowContent
                 }
                 .safeAreaInset(edge: .bottom) {
-                    AppWindowFooterBar {
+                    AppWindowFooterBar(contentPadding: 6) {
                         Button(checkConnectionButtonTitle) {
                             if OnboardingViewEnvironment.isOnboardingUITest {
                                 store.send(.uiTestBypassConnection)
@@ -33,12 +33,12 @@ struct OnboardingView: View {
                         }
                         .accessibilityIdentifier("onboarding_cancel_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
-                        Button(L10n.tr("onboarding.action.saveServer")) {
+                        Button(L10n.tr("common.save")) {
                             store.send(.connectButtonTapped)
                         }
                         .disabled(store.isSaveButtonDisabled)
                         .accessibilityIdentifier("onboarding_submit_button")
-                        .buttonStyle(AppFooterButtonStyle(variant: .accent))
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
                 }
                 .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
@@ -53,7 +53,7 @@ struct OnboardingView: View {
                             .accessibilityIdentifier("onboarding_cancel_button")
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("onboarding.action.saveServer")) {
+                            Button(L10n.tr("common.save")) {
                                 store.send(.connectButtonTapped)
                             }
                             .disabled(store.isSaveButtonDisabled)
@@ -83,6 +83,29 @@ struct OnboardingView: View {
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
+
+                    if case .failed(let message) = store.connectionStatus {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    }
+
+                    #if os(iOS)
+                        Button(checkConnectionButtonTitle) {
+                            if OnboardingViewEnvironment.isOnboardingUITest {
+                                store.send(.uiTestBypassConnection)
+                            } else {
+                                store.send(.checkConnectionButtonTapped)
+                            }
+                        }
+                        .disabled(
+                            store.connectionStatus == .testing
+                                || store.form.isFormValid == false
+                        )
+                        .accessibilityIdentifier("onboarding_connection_check_button")
+                        .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    #endif
                 }
             }
         }

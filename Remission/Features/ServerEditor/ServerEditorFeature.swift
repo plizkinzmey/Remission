@@ -10,7 +10,10 @@ struct ServerEditorReducer {
         var validationError: String?
         var isSaving: Bool = false
         var hasLoadedCredentials: Bool = false
-        var pendingWarningFingerprint: String?
+        var originalPassword: String?
+        var connectionStatus: ConnectionStatus = .idle
+        var pendingSubmission: SubmissionContext?
+        var verifiedSubmission: SubmissionContext?
         @Presents var alert: AlertState<AlertAction>?
 
         init(server: ServerConfig, password: String? = nil) {
@@ -18,23 +21,49 @@ struct ServerEditorReducer {
             var form = ServerConnectionFormState()
             form.load(from: server, password: password)
             self.form = form
+            self.originalPassword = password
         }
+
+        var requiresConnectionCheck: Bool {
+            let currentServer = form.makeServerConfig(id: server.id, createdAt: server.createdAt)
+            let originalUsername = server.authentication?.username ?? ""
+            let currentUsername = currentServer.authentication?.username ?? ""
+            let passwordChanged = (originalPassword ?? "") != form.password
+            return currentServer.connection != server.connection
+                || currentServer.security != server.security
+                || currentUsername != originalUsername
+                || passwordChanged
+        }
+
+        var isSaveButtonDisabled: Bool {
+            isSaving
+                || form.isFormValid == false
+                || connectionStatus == .testing
+                || (requiresConnectionCheck && verifiedSubmission == nil)
+        }
+    }
+
+    enum ConnectionStatus: Equatable {
+        case idle
+        case testing
+        case success(TransmissionHandshakeResult)
+        case failed(String)
     }
 
     enum Action: BindableAction, Equatable {
         case binding(BindingAction<State>)
         case task
+        case checkConnectionButtonTapped
         case saveButtonTapped
         case cancelButtonTapped
         case credentialsLoaded(String?)
+        case connectionTestFinished(ConnectionTestResult)
         case saveCompleted(Result<ServerConfig, EditorError>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
 
     enum AlertAction: Equatable {
-        case insecureTransportConfirmed
-        case insecureTransportCancelled
         case errorDismissed
     }
 
@@ -49,33 +78,16 @@ struct ServerEditorReducer {
 
     @Dependency(\.credentialsRepository) var credentialsRepository
     @Dependency(\.serverConfigRepository) var serverConfigRepository
-    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
+    @Dependency(\.serverConnectionProbe) var serverConnectionProbe
 
     var body: some Reducer<State, Action> {
         BindingReducer()
 
         Reduce { state, action in
             switch action {
-            case .binding(\.form.transport):
-                state.validationError = nil
-                if state.form.transport == .https {
-                    state.form.suppressInsecureWarning = false
-                    state.pendingWarningFingerprint = nil
-                    return .none
-                }
-                return presentInsecureTransportWarning(state: &state)
-
-            case .binding(\.form.suppressInsecureWarning):
-                if let fingerprint = state.form.insecureFingerprint {
-                    httpWarningPreferencesStore.setSuppressed(
-                        fingerprint,
-                        state.form.suppressInsecureWarning
-                    )
-                }
-                return .none
-
             case .binding:
                 state.validationError = nil
+                resetVerificationIfNeeded(state: &state)
                 return .none
 
             case .task:
@@ -92,20 +104,41 @@ struct ServerEditorReducer {
                 }
 
             case .credentialsLoaded(let password):
-                if let password {
-                    state.form.password = password
-                }
+                state.form.password = password ?? ""
+                state.originalPassword = password
+                resetVerificationIfNeeded(state: &state)
                 return .none
+
+            case .checkConnectionButtonTapped:
+                guard state.connectionStatus != .testing else { return .none }
+                guard let context = prepareSubmission(state: &state) else { return .none }
+                return startConnectionProbe(state: &state, context: context)
 
             case .saveButtonTapped:
                 guard state.form.isFormValid else {
                     state.validationError = L10n.tr("onboarding.error.validation.hostPort")
                     return .none
                 }
-                return persistChanges(state: &state, forceAllowInsecureTransport: false)
+                if state.requiresConnectionCheck && state.verifiedSubmission == nil {
+                    state.validationError = L10n.tr("onboarding.error.validation.checkRequired")
+                    return .none
+                }
+                return persistChanges(state: &state)
 
             case .cancelButtonTapped:
                 return .send(.delegate(.cancelled))
+
+            case .connectionTestFinished(.success(let handshake)):
+                state.connectionStatus = .success(handshake)
+                state.verifiedSubmission = state.pendingSubmission
+                state.pendingSubmission = nil
+                return .none
+
+            case .connectionTestFinished(.failure(let message)):
+                state.connectionStatus = .failed(message)
+                state.pendingSubmission = nil
+                state.verifiedSubmission = nil
+                return .none
 
             case .saveCompleted(.success(let server)):
                 state.isSaving = false
@@ -125,17 +158,6 @@ struct ServerEditorReducer {
                 }
                 return .none
 
-            case .alert(.presented(.insecureTransportConfirmed)):
-                state.alert = nil
-                state.pendingWarningFingerprint = nil
-                return persistChanges(state: &state, forceAllowInsecureTransport: true)
-
-            case .alert(.presented(.insecureTransportCancelled)):
-                state.alert = nil
-                state.pendingWarningFingerprint = nil
-                state.form.transport = .https
-                return .none
-
             case .alert(.presented(.errorDismissed)):
                 state.alert = nil
                 return .none
@@ -150,43 +172,93 @@ struct ServerEditorReducer {
         .ifLet(\.$alert, action: \.alert)
     }
 
-    private func presentInsecureTransportWarning(
+    private func prepareSubmission(
         state: inout State
-    ) -> Effect<Action> {
-        guard state.form.transport == .http else { return .none }
-        guard let fingerprint = state.form.insecureFingerprint else { return .none }
-        if httpWarningPreferencesStore.isSuppressed(fingerprint) {
-            return .none
+    ) -> SubmissionContext? {
+        guard state.form.isFormValid, state.form.portValue != nil else {
+            state.validationError = L10n.tr("onboarding.error.validation.hostPort")
+            return nil
         }
-        state.pendingWarningFingerprint = fingerprint
-        state.alert = makeInsecureTransportAlert()
-        return .none
+        state.validationError = nil
+        return makeSubmissionContext(state: state)
+    }
+
+    private func makeSubmissionContext(
+        state: State
+    ) -> SubmissionContext {
+        let server = state.form.makeServerConfig(
+            id: state.server.id,
+            createdAt: state.server.createdAt
+        )
+        let password = state.form.password.isEmpty ? nil : state.form.password
+        return SubmissionContext(server: server, password: password)
+    }
+
+    private func startConnectionProbe(
+        state: inout State,
+        context: SubmissionContext
+    ) -> Effect<Action> {
+        state.pendingSubmission = context
+        state.connectionStatus = .testing
+        state.verifiedSubmission = nil
+        return .run { [context] send in
+            do {
+                let result = try await serverConnectionProbe.run(
+                    .init(server: context.server, password: context.password),
+                    nil
+                )
+                await send(.connectionTestFinished(.success(result.handshake)))
+            } catch let probeError as ServerConnectionProbe.ProbeError {
+                await send(.connectionTestFinished(.failure(probeError.displayMessage)))
+            } catch {
+                await send(.connectionTestFinished(.failure(describe(error))))
+            }
+        }
+    }
+
+    private func resetVerificationIfNeeded(state: inout State) {
+        guard let verified = state.verifiedSubmission else { return }
+        let currentServer = state.form.makeServerConfig(
+            id: state.server.id,
+            createdAt: state.server.createdAt
+        )
+        let currentPassword = state.form.password.isEmpty ? nil : state.form.password
+        let shouldReset =
+            currentServer.connection != verified.server.connection
+            || currentServer.security != verified.server.security
+            || currentServer.authentication?.username != verified.server.authentication?.username
+            || currentPassword != verified.password
+        if shouldReset {
+            state.connectionStatus = .idle
+            state.pendingSubmission = nil
+            state.verifiedSubmission = nil
+        }
+    }
+
+    private func describe(_ error: Error) -> String {
+        let nsError = error as NSError
+        let rawMessage =
+            nsError.localizedDescription.isEmpty
+            ? String(describing: error)
+            : nsError.localizedDescription
+        return localizeConnectionMessage(rawMessage)
+    }
+
+    private func localizeConnectionMessage(_ message: String) -> String {
+        let lowercased = message.lowercased()
+        if lowercased.contains("timeout") || lowercased.contains("timed out") {
+            return L10n.tr("onboarding.connection.timeout")
+        }
+        if lowercased.contains("cancelled") || lowercased.contains("canceled") {
+            return L10n.tr("onboarding.connection.cancelled")
+        }
+        return message
     }
 
     private func persistChanges(
-        state: inout State,
-        forceAllowInsecureTransport: Bool
+        state: inout State
     ) -> Effect<Action> {
         guard state.isSaving == false else { return .none }
-
-        if state.form.usesInsecureTransport {
-            if let fingerprint = state.form.insecureFingerprint {
-                if state.form.suppressInsecureWarning {
-                    httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-                }
-
-                if forceAllowInsecureTransport == false {
-                    let isSuppressed = httpWarningPreferencesStore.isSuppressed(fingerprint)
-                    if isSuppressed == false {
-                        state.pendingWarningFingerprint = fingerprint
-                        state.alert = makeInsecureTransportAlert()
-                        return .none
-                    }
-                } else {
-                    httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-                }
-            }
-        }
 
         let originalServer = state.server
         let updatedServer = state.form.makeServerConfig(
@@ -195,7 +267,6 @@ struct ServerEditorReducer {
         )
         let password = state.form.password.isEmpty ? nil : state.form.password
         state.validationError = nil
-        state.pendingWarningFingerprint = nil
         state.isSaving = true
 
         return .run { send in
@@ -225,21 +296,16 @@ struct ServerEditorReducer {
             }
         }
     }
+}
 
-    private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
-        AlertState {
-            TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
-        } actions: {
-            ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
-            }
-            ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                TextState(L10n.tr("common.cancel"))
-            }
-        } message: {
-            TextState(
-                L10n.tr("onboarding.alert.insecureConnection.message")
-            )
-        }
+extension ServerEditorReducer {
+    struct SubmissionContext: Equatable, Sendable {
+        var server: ServerConfig
+        var password: String?
+    }
+
+    enum ConnectionTestResult: Equatable {
+        case success(TransmissionHandshakeResult)
+        case failure(String)
     }
 }

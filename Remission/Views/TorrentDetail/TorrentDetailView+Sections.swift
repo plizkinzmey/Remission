@@ -15,32 +15,53 @@ extension TorrentDetailView {
     }
 
     var summaryHeaderWide: some View {
-        HStack(alignment: .center, spacing: 16) {
-            summaryProgressView
-            summaryStatusStack
-            Spacer(minLength: 12)
-            summaryMetricsCompact
+        Group {
+            if shouldShowTransferMetrics {
+                HStack(alignment: .center, spacing: 16) {
+                    Spacer(minLength: 0)
+                    summaryStatusCluster
+                    Spacer(minLength: 12)
+                    summaryMetricsCompact
+                }
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    Spacer(minLength: 0)
+                    summaryStatusCluster
+                    Spacer(minLength: 0)
+                }
+            }
         }
     }
 
     var summaryHeaderNarrow: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 16) {
-                summaryProgressView
-                summaryStatusStack
-                Spacer(minLength: 8)
+        Group {
+            if shouldShowTransferMetrics {
+                HStack(alignment: .center, spacing: 16) {
+                    Spacer(minLength: 0)
+                    summaryStatusCluster
+                    Spacer(minLength: 8)
+                    summaryMetricsCompact
+                }
+            } else {
+                HStack(alignment: .center, spacing: 16) {
+                    Spacer(minLength: 0)
+                    summaryStatusCluster
+                    Spacer(minLength: 0)
+                }
             }
-            Divider()
-            summaryMetrics
         }
     }
 
     var summaryProgressView: some View {
-        ProgressView(
-            value: store.hasLoadedMetadata ? store.percentDone : 0,
-            total: 1.0
-        )
-        .progressViewStyle(.circular)
+        let progress = store.hasLoadedMetadata ? clampedProgress : 0
+        return ZStack {
+            Circle()
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 4)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(AppTheme.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+        }
         .frame(width: 52, height: 52)
         .accessibilityLabel(L10n.tr("torrentDetail.progress.accessibility"))
         .accessibilityValue(progressDescription)
@@ -54,24 +75,8 @@ extension TorrentDetailView {
             Text(TorrentDetailFormatters.statusText(for: store.status))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            if store.eta > 0 {
-                Text(
-                    String(
-                        format: L10n.tr("torrentDetail.eta.remaining"),
-                        TorrentDetailFormatters.eta(store.eta)
-                    )
-                )
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            } else if store.hasLoadedMetadata {
-                Text(L10n.tr("torrentDetail.eta.unavailable"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(L10n.tr("torrentDetail.eta.waitMetadata"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
         }
     }
 
@@ -116,12 +121,23 @@ extension TorrentDetailView {
         .frame(minWidth: 180, alignment: .leading)
     }
 
+    var summaryStatusCluster: some View {
+        HStack(alignment: .top, spacing: 16) {
+            summaryProgressView
+            summaryStatusStack
+        }
+    }
+
     var progressDescription: String {
         guard store.hasLoadedMetadata else {
             return L10n.tr("torrentDetail.progress.none")
         }
         let percent = max(0, min(100, Int((store.percentDone * 100).rounded())))
         return "\(percent)%"
+    }
+
+    var clampedProgress: Double {
+        max(0, min(store.percentDone, 1))
     }
 
     var loadingOverlay: some View {
@@ -177,17 +193,21 @@ extension TorrentDetailView {
                         : L10n.tr("torrentDetail.mainInfo.unknown")
                 )
                 Divider()
+                categoryRow
+                Divider()
                 TorrentDetailLabelValueRow(
                     label: L10n.tr("torrentDetail.mainInfo.added"),
                     value: store.hasLoadedMetadata && store.dateAdded > 0
                         ? TorrentDetailFormatters.date(from: store.dateAdded)
                         : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
-                Divider()
-                TorrentDetailLabelValueRow(
-                    label: L10n.tr("torrentDetail.mainInfo.eta"),
-                    value: etaDescription
-                )
+                if shouldShowEtaRow {
+                    Divider()
+                    TorrentDetailLabelValueRow(
+                        label: L10n.tr("torrentDetail.mainInfo.eta"),
+                        value: etaDescription
+                    )
+                }
             }
         }
         .accessibilityIdentifier("torrent-main-info")
@@ -202,46 +222,87 @@ extension TorrentDetailView {
             : L10n.tr("torrentDetail.mainInfo.waitingMetadata")
     }
 
+    private var shouldShowTransferMetrics: Bool {
+        isDownloading || isSeeding
+    }
+
+    private var shouldShowEtaRow: Bool {
+        isDownloading || isSeeding
+    }
+
+    private var isDownloading: Bool {
+        store.status == Torrent.Status.downloading.rawValue
+    }
+
+    private var isSeeding: Bool {
+        store.status == Torrent.Status.seeding.rawValue
+    }
+
+    var categoryRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Text(L10n.tr("torrentDetail.mainInfo.category"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            #if os(macOS)
+                Menu {
+                    ForEach(TorrentCategory.ordered, id: \.self) { category in
+                        Button(category.title) {
+                            store.send(.categoryChanged(category))
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 8) {
+                        Text(store.category.title)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 6)
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
+                    .frame(width: 170, height: 34)
+                    .contentShape(Rectangle())
+                    .appToolbarPillSurface()
+                }
+                .accessibilityIdentifier("torrent_detail_category_picker")
+                .buttonStyle(.plain)
+            #else
+                Picker(
+                    "",
+                    selection: Binding(
+                        get: { store.category },
+                        set: { store.send(.categoryChanged($0)) }
+                    )
+                ) {
+                    ForEach(TorrentCategory.ordered, id: \.self) { category in
+                        Text(category.title)
+                            .tag(category)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("torrent_detail_category_picker")
+            #endif
+        }
+    }
+
     var advancedSections: some View {
         AppSectionCard("") {
-            DisclosureGroup(
-                isExpanded: $isStatisticsExpanded
-            ) {
-                if isStatisticsExpanded {
-                    TorrentStatisticsView(store: store, showsContainer: false)
-                        .padding(.top, 8)
-                }
-            } label: {
-                Text(L10n.tr("torrentDetail.stats.title"))
-            }
-            .accessibilityIdentifier("torrent-statistics-section")
-
-            DisclosureGroup(
-                isExpanded: $isSpeedHistoryExpanded
-            ) {
-                if isSpeedHistoryExpanded {
-                    TorrentSpeedHistoryView(
-                        samples: store.speedHistory.samples,
-                        showsContainer: false
-                    )
-                    .padding(.top, 8)
-                }
-            } label: {
-                Text(L10n.tr("torrentDetail.speedHistory.title"))
-            }
-            .accessibilityIdentifier("torrent-speed-history-section")
-
             DisclosureGroup(isExpanded: $isFilesExpanded) {
                 if isFilesExpanded {
                     filesContent
                         .padding(.top, 8)
                 }
             } label: {
-                Text(
+                disclosureHeader(
                     String(
                         format: L10n.tr("torrentDetail.files.title"),
                         Int64(store.files.count)
-                    )
+                    ),
+                    isExpanded: $isFilesExpanded
                 )
             }
             .accessibilityIdentifier("torrent-files-section")
@@ -252,11 +313,12 @@ extension TorrentDetailView {
                         .padding(.top, 8)
                 }
             } label: {
-                Text(
+                disclosureHeader(
                     String(
                         format: L10n.tr("torrentDetail.trackers.title"),
                         Int64(store.trackers.count)
-                    )
+                    ),
+                    isExpanded: $isTrackersExpanded
                 )
             }
             .accessibilityIdentifier("torrent-trackers-section")
@@ -267,7 +329,10 @@ extension TorrentDetailView {
                         .padding(.top, 8)
                 }
             } label: {
-                Text(L10n.tr("torrentDetail.peers.title"))
+                disclosureHeader(
+                    L10n.tr("torrentDetail.peers.title"),
+                    isExpanded: $isPeersExpanded
+                )
             }
             .accessibilityIdentifier("torrent-peers-section")
         }
@@ -325,5 +390,21 @@ extension TorrentDetailView {
         } else {
             TorrentPeersView(peers: store.peers, showsContainer: false)
         }
+    }
+
+    private func disclosureHeader(
+        _ title: String,
+        isExpanded: Binding<Bool>
+    ) -> some View {
+        Button {
+            isExpanded.wrappedValue.toggle()
+        } label: {
+            HStack {
+                Text(title)
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

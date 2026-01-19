@@ -3,7 +3,8 @@ import Foundation
 extension TransmissionDomainMapper {
     func mapSessionState(
         sessionResponse: TransmissionResponse,
-        statsResponse: TransmissionResponse
+        statsResponse: TransmissionResponse,
+        freeSpaceBytes: Int64
     ) throws -> SessionState {
         let sessionArguments: [String: AnyCodable] = try arguments(
             from: sessionResponse,
@@ -24,6 +25,7 @@ extension TransmissionDomainMapper {
         let speedLimits: SessionState.SpeedLimits = makeSpeedLimits(from: sessionArguments)
         let queue: SessionState.Queue = makeQueue(from: sessionArguments)
         let throughput: SessionState.Throughput = makeThroughput(from: statsArguments)
+        let storage = SessionState.Storage(freeBytes: freeSpaceBytes)
 
         let cumulativeStats: SessionState.LifetimeStats = try mapLifetimeStats(
             from: statsArguments,
@@ -42,8 +44,34 @@ extension TransmissionDomainMapper {
             speedLimits: speedLimits,
             queue: queue,
             throughput: throughput,
+            storage: storage,
             cumulativeStats: cumulativeStats,
             currentStats: currentStats
+        )
+    }
+
+    func mapFreeSpaceBytes(
+        from response: TransmissionResponse
+    ) throws -> Int64 {
+        let arguments: [String: AnyCodable] = try arguments(
+            from: response,
+            context: "free-space"
+        )
+        let value = try requireField(
+            "size-bytes",
+            in: arguments,
+            context: "free-space"
+        )
+        if let int = value.intValue {
+            return Int64(int)
+        }
+        if let double = value.doubleValue {
+            return Int64(double)
+        }
+        throw DomainMappingError.invalidType(
+            field: "size-bytes",
+            expected: "int",
+            context: "free-space"
         )
     }
 

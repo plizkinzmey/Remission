@@ -20,7 +20,12 @@ final class RemissionUITests: BaseUITestCase {
 
     @MainActor
     func testSettingsScreenShowsControls() {
-        let app = launchApp()
+        let app = launchApp(
+            arguments: [
+                "--ui-testing-fixture=server-list-sample",
+                "--ui-testing-scenario=server-list-sample"
+            ]
+        )
 
         let controls = openSettingsControls(app)
         waitForSettingsLoaded(app)
@@ -30,7 +35,7 @@ final class RemissionUITests: BaseUITestCase {
         XCTAssertTrue(controls.downloadField.exists, "Download limit field missing")
         XCTAssertTrue(controls.uploadField.exists, "Upload limit field missing")
 
-        controls.closeButton.tap()
+        controls.cancelButton.tap()
         XCTAssertTrue(controls.autoRefreshToggle.waitForDisappearance(timeout: 3))
     }
 

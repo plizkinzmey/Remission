@@ -9,6 +9,8 @@ usage() {
 Usage:
   Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--export-options-plist PATH]
   Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--export-options-plist PATH]
+  Scripts/release_local.sh --version X.Y.Z --no-version-commit [--tag] [--push]
+  Scripts/release_local.sh --version X.Y.Z --version-only [--no-version-commit]
 
   Scripts/release_local.sh --version X.Y.Z --platform {all|ios|macos}
 
@@ -28,6 +30,9 @@ Outputs:
 
 Notes:
   - iOS export signing depends on your certificates/profiles and export options plist.
+  - Скрипт обновляет MARKETING_VERSION/CURRENT_PROJECT_VERSION в project.pbxproj и делает коммит,
+    если не указан --no-version-commit.
+  - --version-only обновляет версию (и опционально коммитит) без сборки.
 EOF
 }
 
@@ -46,6 +51,40 @@ pipe_xcbeautify_if_available() {
   else
     cat
   fi
+}
+
+SKIP_WORKTREE_RESTORE="false"
+ASSUME_UNCHANGED_RESTORE="false"
+
+update_project_versions() {
+  local pbxproj="$1"
+  local version="$2"
+
+  local flag
+  flag="$(git ls-files -v "$pbxproj" | awk '{print $1}')"
+  if [[ "$flag" == "H" ]]; then
+    SKIP_WORKTREE_RESTORE="true"
+    git update-index --no-skip-worktree "$pbxproj"
+  elif [[ "$flag" == "S" ]]; then
+    ASSUME_UNCHANGED_RESTORE="true"
+    git update-index --no-assume-unchanged "$pbxproj"
+  fi
+
+  VERSION="$version" BUILD_NUMBER="$build_number" PBXPROJ="$pbxproj" python3 - <<'PY'
+from pathlib import Path
+import os
+import re
+
+path = Path(os.environ["PBXPROJ"])
+version = os.environ["VERSION"]
+text = path.read_text()
+text = re.sub(
+    r"(MARKETING_VERSION\\s*=\\s*)([^;]+);",
+    rf"\\g<1>{version};",
+    text,
+)
+path.write_text(text)
+PY
 }
 
 require_branch_main() {
@@ -100,6 +139,8 @@ main() {
   local tag="false"
   local push="false"
   local allow_dirty="false"
+  local version_commit="true"
+  local version_only="false"
   local export_options_plist="ExportOptions.plist"
   local platform="all"
 
@@ -110,6 +151,8 @@ main() {
       --tag) tag="true"; shift ;;
       --push) push="true"; shift ;;
       --allow-dirty) allow_dirty="true"; shift ;;
+      --no-version-commit) version_commit="false"; shift ;;
+      --version-only) version_only="true"; shift ;;
       --export-options-plist) export_options_plist="${2:-}"; shift 2 ;;
       --platform) platform="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
@@ -123,15 +166,6 @@ main() {
   require_branch_main
   require_clean_tree "$allow_dirty"
 
-  case "$platform" in
-    all|ios|macos) ;;
-    *) die "Некорректный --platform: $platform (ожидаю all|ios|macos)" ;;
-  esac
-
-  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
-    [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
-  fi
-
   if [[ -n "$bump" ]]; then
     local last
     last="$(last_tag_version)"
@@ -140,8 +174,51 @@ main() {
 
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
 
-  local build_number
-  build_number="$(compute_build_number)"
+  local pbxproj="${ROOT_DIR}/Remission.xcodeproj/project.pbxproj"
+  [[ -f "$pbxproj" ]] || die "Не найден project.pbxproj: $pbxproj"
+
+  local build_number_base
+  build_number_base="$(compute_build_number)"
+  local build_number="$build_number_base"
+  if [[ "$version_commit" == "true" ]]; then
+    build_number=$((build_number_base + 1))
+  fi
+
+  update_project_versions "$pbxproj" "$version"
+  ok "Обновлена версия в project.pbxproj: ${version}"
+
+  if git diff --quiet -- "$pbxproj"; then
+    info "project.pbxproj не изменился после обновления версии."
+  else
+    if [[ "$version_commit" == "true" ]]; then
+      git add "$pbxproj"
+      git commit -m "Обновить версию ${version}"
+      ok "Закоммичена версия ${version}"
+    else
+      info "project.pbxproj обновлён, но не закоммичен (--no-version-commit)."
+    fi
+  fi
+
+  if [[ "$SKIP_WORKTREE_RESTORE" == "true" ]]; then
+    git update-index --skip-worktree "$pbxproj"
+  fi
+  if [[ "$ASSUME_UNCHANGED_RESTORE" == "true" ]]; then
+    git update-index --assume-unchanged "$pbxproj"
+  fi
+
+  if [[ "$version_only" == "true" ]]; then
+    ok "Версия обновлена, сборка пропущена (--version-only)."
+    exit 0
+  fi
+
+  case "$platform" in
+    all|ios|macos) ;;
+    *) die "Некорректный --platform: $platform (ожидаю all|ios|macos)" ;;
+  esac
+
+  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
+  fi
 
   local release_tag="v${version}"
   local out_dir="Build/Releases/${release_tag}"

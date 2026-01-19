@@ -4,49 +4,99 @@ import SwiftUI
 
 struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
+    @State var isStartupTextVisible: Bool = false
+    @Environment(\.colorScheme) var colorScheme
 
     var body: some View {
+        #if os(iOS)
+            ZStack {
+                if shouldShowStartup {
+                    startupView
+                        .transition(
+                            .asymmetric(
+                                insertion: .opacity,
+                                removal: .opacity.combined(with: .scale(scale: 0.95))
+                            )
+                        )
+                        .zIndex(1)
+                } else {
+                    navigationContent
+                }
+            }
+            .animation(.easeInOut(duration: 0.6), value: shouldShowStartup)
+            .task {
+                await store.send(.task).finish()
+            }
+        #else
+            navigationContent
+                .appRootChrome()
+                .handlesExternalEvents(
+                    preferring: Set(["*"]),
+                    allowing: Set(["*"])
+                )
+                .task { await store.send(.task).finish() }
+        #endif
+    }
+
+    private var navigationContent: some View {
         NavigationStack(
             path: $store.scope(state: \.path, action: \.path)
         ) {
-            ServerListView(
-                store: store.scope(state: \.serverList, action: \.serverList)
-            )
-            .navigationTitle(L10n.tr("app.title"))
-            .toolbar {
-                #if os(macOS)
-                    if shouldShowAddServerToolbarButton || shouldShowSettingsToolbarButton {
-                        ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
-                    }
+            rootContent
+                #if os(iOS)
+                    .navigationTitle("")
                 #else
-                    ToolbarItemGroup(placement: .topBarTrailing) {
-                        if shouldShowSettingsToolbarButton {
-                            settingsButton
-                        }
-                        if shouldShowAddServerToolbarButton {
-                            addServerButton
-                        }
-                    }
+                    .navigationTitle(L10n.tr("app.title"))
                 #endif
-            }
+                .toolbar {
+                    #if os(macOS)
+                        if shouldShowAddServerToolbarButton {
+                            ToolbarItem(placement: .primaryAction) { macOSToolbarPill }
+                        }
+                    #else
+                        ToolbarItemGroup(placement: .topBarTrailing) {
+                            if shouldShowAddServerToolbarButton {
+                                addServerButton
+                            }
+                        }
+                    #endif
+                }
         } destination: { store in
             ServerDetailView(store: store)
         }
-        .appRootChrome()
         #if os(macOS)
-            .handlesExternalEvents(
-                preferring: Set(["*"]),
-                allowing: Set(["*"])
-            )
+            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         #endif
         .onOpenURL { url in
             store.send(.openTorrentFile(url))
         }
-        .sheet(
-            store: store.scope(state: \.$settings, action: \.settings)
-        ) { settingsStore in
-            SettingsView(store: settingsStore)
+        .background(AppBackgroundView())
+        .appRootChrome()
+    }
+
+    @ViewBuilder
+    private var rootContent: some View {
+        #if os(iOS)
+            ServerListView(
+                store: store.scope(state: \.serverList, action: \.serverList)
+            )
+        #else
+            if shouldShowServerList {
+                ServerListView(
+                    store: store.scope(state: \.serverList, action: \.serverList)
+                )
+            } else {
+                initialLoadingView
+            }
+        #endif
+    }
+
+    private var initialLoadingView: some View {
+        VStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.large)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var addServerButton: some View {
@@ -57,15 +107,6 @@ struct AppView: View {
         }
         .accessibilityIdentifier("app_add_server_button")
         .accessibilityHint(L10n.tr("serverList.action.addServer"))
-    }
-
-    private var settingsButton: some View {
-        Button {
-            store.send(.settingsButtonTapped)
-        } label: {
-            Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
-        }
-        .accessibilityIdentifier("app_settings_button")
     }
 
     #if os(macOS)
@@ -81,23 +122,10 @@ struct AppView: View {
                     .accessibilityHint(L10n.tr("serverList.action.addServer"))
                 }
 
-                if shouldShowAddServerToolbarButton && shouldShowSettingsToolbarButton {
-                    Divider()
-                        .frame(height: 18)
-                }
-
-                if shouldShowSettingsToolbarButton {
-                    toolbarIconButton(
-                        systemImage: "gearshape",
-                        accessibilityIdentifier: "app_settings_button"
-                    ) {
-                        store.send(.settingsButtonTapped)
-                    }
-                }
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
 
         private func toolbarIconButton(
@@ -124,9 +152,19 @@ struct AppView: View {
         store.serverList.servers.isEmpty == false
     }
 
-    private var shouldShowSettingsToolbarButton: Bool {
-        true
+    private var shouldShowServerList: Bool {
+        if store.path.isEmpty == false {
+            return true
+        }
+        guard store.hasLoadedServersOnce else {
+            return false
+        }
+        if store.serverList.isLoading, store.serverList.servers.isEmpty {
+            return false
+        }
+        return true
     }
+
 }
 
 #Preview("AppView Empty") {

@@ -807,79 +807,123 @@ struct TorrentDetailFeatureTests {
 
         await store.receive(.delegate(.torrentUpdated(updatedTorrent)))
     }
-}
 
-@MainActor
-private func makeDetailStore(
-    torrent: Torrent,
-    repository: TorrentRepository,
-    timestamp: Date
-) -> TestStoreOf<TorrentDetailReducer> {
-    let environment = makeEnvironment(repository: repository)
-    var initialState = TorrentDetailReducer.State(
-        torrentID: torrent.id,
-        connectionEnvironment: environment
-    )
-    initialState.apply(torrent)
-    return TestStoreFactory.make(
-        initialState: initialState,
-        reducer: { TorrentDetailReducer() },
-        configure: { dependencies in
-            dependencies.torrentRepository = repository
-            dependencies.dateProvider.now = { timestamp }
+    @Test("categoryChanged обновляет labels и синхронизирует список")
+    func categoryChangeUpdatesLabels() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.tags = []
+
+        var updatedTorrent = torrent
+        updatedTorrent.tags = ["movies"]
+
+        let capturedLabels = LockedValue<[String]>([])
+        let repository = TorrentRepository.test(
+            fetchDetails: { _ in updatedTorrent },
+            updateLabels: { labels, ids in
+                #expect(ids == [torrent.id])
+                capturedLabels.withValue { $0 = labels }
+            }
+        )
+        let environment = makeEnvironment(repository: repository)
+
+        var initialState = TorrentDetailReducer.State(
+            torrentID: torrent.id,
+            connectionEnvironment: environment
+        )
+        initialState.apply(torrent)
+
+        let timestamp = Date(timeIntervalSince1970: 1_000)
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+                dependencies.dateProvider.now = { timestamp }
+            }
+        )
+
+        await store.send(.categoryChanged(.movies)) {
+            $0.category = .movies
+            $0.tags = ["movies"]
         }
-    )
-}
 
-private func assign(
-    _ state: inout TorrentDetailReducer.State,
-    from torrent: Torrent
-) {
-    state.name = torrent.name
-    state.status = torrent.status.rawValue
-    state.percentDone = torrent.summary.progress.percentDone
-    state.totalSize = torrent.summary.progress.totalSize
-    state.downloadedEver = torrent.summary.progress.downloadedEver
-    state.uploadedEver = torrent.summary.progress.uploadedEver
-    state.uploadRatio = torrent.summary.progress.uploadRatio
-    state.eta = torrent.summary.progress.etaSeconds
-
-    state.rateDownload = torrent.summary.transfer.downloadRate
-    state.rateUpload = torrent.summary.transfer.uploadRate
-    state.downloadLimit = torrent.summary.transfer.downloadLimit.kilobytesPerSecond
-    state.downloadLimited = torrent.summary.transfer.downloadLimit.isEnabled
-    state.uploadLimit = torrent.summary.transfer.uploadLimit.kilobytesPerSecond
-    state.uploadLimited = torrent.summary.transfer.uploadLimit.isEnabled
-
-    state.peersConnected = torrent.summary.peers.connected
-    state.peers = IdentifiedArray(uniqueElements: torrent.summary.peers.sources)
-
-    if let details = torrent.details {
-        state.downloadDir = details.downloadDirectory
-        if let addedDate = details.addedDate {
-            state.dateAdded = Int(addedDate.timeIntervalSince1970)
-        } else {
-            state.dateAdded = 0
+        await store.receive(.categoryUpdateResponse(.success)) {
+            $0.lastSyncedTags = ["movies"]
+            $0.pendingListSync = true
         }
-        state.files = IdentifiedArray(uniqueElements: details.files)
-        state.trackers = IdentifiedArray(uniqueElements: details.trackers)
-        state.trackerStats = IdentifiedArray(uniqueElements: details.trackerStats)
-    } else {
-        state.files = []
-        state.trackers = []
-        state.trackerStats = []
-        state.downloadDir = ""
-        state.dateAdded = 0
+        await store.receive(.refreshRequested) {
+            $0.isLoading = true
+            $0.errorPresenter.banner = nil
+        }
+
+        let response = TorrentDetailReducer.DetailsResponse(
+            torrent: updatedTorrent,
+            timestamp: timestamp
+        )
+        await store.receive(.detailsResponse(.success(response))) {
+            $0.isLoading = false
+            assign(&$0, from: updatedTorrent)
+            $0.speedHistory.samples = [
+                SpeedSample(
+                    timestamp: timestamp,
+                    downloadRate: updatedTorrent.summary.transfer.downloadRate,
+                    uploadRate: updatedTorrent.summary.transfer.uploadRate
+                )
+            ]
+            $0.pendingListSync = false
+        }
+
+        await store.receive(.delegate(.torrentUpdated(updatedTorrent)))
+        #expect(capturedLabels.value == ["movies"])
     }
-    state.hasLoadedMetadata = torrent.details != nil
+
+    @Test("categoryChanged откатывает изменения при ошибке")
+    func categoryChangeFailureReverts() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.tags = []
+
+        let repository = TorrentRepository.test(
+            updateLabels: { _, _ in
+                throw APIError.unauthorized
+            }
+        )
+        let environment = makeEnvironment(repository: repository)
+
+        var initialState = TorrentDetailReducer.State(
+            torrentID: torrent.id,
+            connectionEnvironment: environment
+        )
+        initialState.apply(torrent)
+
+        let store = TestStoreFactory.make(
+            initialState: initialState,
+            reducer: { TorrentDetailReducer() },
+            configure: { dependencies in
+                dependencies.torrentRepository = repository
+            }
+        )
+
+        await store.send(.categoryChanged(.books)) {
+            $0.category = .books
+            $0.tags = ["books"]
+        }
+
+        await store.receive(
+            .categoryUpdateResponse(
+                .failure(APIError.unauthorized.userFriendlyMessage)
+            )
+        ) {
+            $0.tags = []
+            $0.category = .other
+            $0.errorPresenter.banner = .init(
+                message: String(
+                    format: L10n.tr("torrentDetail.error.updateCategory"),
+                    APIError.unauthorized.userFriendlyMessage
+                ),
+                retry: nil
+            )
+        }
+    }
 }
 
-private func makeEnvironment(
-    repository: TorrentRepository
-) -> ServerConnectionEnvironment {
-    ServerConnectionEnvironment.testEnvironment(
-        server: .previewLocalHTTP,
-        torrentRepository: repository
-    )
-}
 // swiftlint:enable file_length

@@ -8,71 +8,69 @@ struct TorrentListView: View {
     @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
-        container
+        Group {
             #if os(macOS)
-                .toolbar {
-                    if store.connectionEnvironment != nil {
-                        ToolbarItem(placement: .principal) {
-                            macOSToolbarControls
+                container
+                    .toolbar {
+                        if store.connectionEnvironment != nil {
+                            ToolbarItem(placement: .principal) {
+                                macOSToolbarControls
+                            }
                         }
                     }
-                }
             #else
-                .searchable(
-                    text: $searchText,
-                    placement: .automatic,
-                    prompt: Text(L10n.tr("torrentList.search.prompt"))
-                ) {
-                    ForEach(searchSuggestions, id: \.self) { suggestion in
-                        Text(suggestion)
-                        .searchCompletion(suggestion)
-                    }
-                }
-            #endif
-            #if os(iOS)
-                .refreshable {
-                    await store.send(.refreshRequested).finish()
-                }
-            #endif
-            #if !os(macOS)
-                .toolbar {
-                    if store.connectionEnvironment != nil {
-                        ToolbarItem(placement: .primaryAction) {
-                            addButton
+                if shouldShowSearchBar {
+                    container
+                        .searchable(
+                            text: $searchText,
+                            placement: .automatic,
+                            prompt: Text(L10n.tr("torrentList.search.prompt"))
+                        ) {
+                            ForEach(searchSuggestions, id: \.self) { suggestion in
+                                Text(suggestion)
+                                    .searchCompletion(suggestion)
+                            }
                         }
-                        ToolbarItem(placement: .secondaryAction) {
-                            refreshButton
-                        }
-                    }
+                } else {
+                    container
                 }
             #endif
-            .onAppear {
-                if searchText != store.searchQuery {
-                    searchText = store.searchQuery
-                }
+        }
+        #if os(iOS)
+            .refreshable {
+                await store.send(.refreshRequested).finish()
             }
-            .onDisappear {
-                searchTask?.cancel()
-                searchTask = nil
+        #endif
+        #if os(iOS)
+            .background(AppBackgroundView())
+        #endif
+        .onAppear {
+            if searchText != store.searchQuery {
+                searchText = store.searchQuery
             }
-            .onChange(of: searchText) { _, newValue in
-                searchTask?.cancel()
-                guard newValue != store.searchQuery else { return }
-                searchTask = Task { @MainActor in
-                    guard Task.isCancelled == false else { return }
-                    await store.send(.searchQueryChanged(newValue)).finish()
-                }
+        }
+        .onDisappear {
+            searchTask?.cancel()
+            searchTask = nil
+        }
+        .onChange(of: searchText) { _, newValue in
+            searchTask?.cancel()
+            guard newValue != store.searchQuery else { return }
+            searchTask = Task { @MainActor in
+                guard Task.isCancelled == false else { return }
+                await store.send(.searchQueryChanged(newValue)).finish()
             }
-            .onChange(of: store.searchQuery) { _, newValue in
-                guard newValue != searchText else { return }
-                searchText = newValue
-            }
-            .alert(
-                $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-            )
-            .confirmationDialog(
-                $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
-            )
+        }
+        .onChange(of: store.searchQuery) { _, newValue in
+            guard newValue != searchText else { return }
+            searchText = newValue
+        }
+        .alert(
+            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+        )
+        .confirmationDialog(
+            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+        )
     }
 }
 
@@ -106,19 +104,28 @@ extension TorrentListView {
                     )
                     .textFieldStyle(.plain)
                     .font(.body)
+                    .foregroundStyle(.primary)
                 }
                 .accessibilityIdentifier("torrentlist_search_field")
             }
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
+            .appToolbarPillSurface()
         }
     #endif
 
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
         private var macOSSortPickerWidth: CGFloat { 150 }
+        private var macOSCategoryPickerWidth: CGFloat { 170 }
+    #endif
+
+    #if os(iOS)
+        private var shouldShowSearchBar: Bool {
+            guard store.connectionEnvironment != nil else { return false }
+            return store.visibleItems.isEmpty == false || store.searchQuery.isEmpty == false
+        }
     #endif
     private var longestStatusTitle: String {
         let titles = [
@@ -137,72 +144,141 @@ extension TorrentListView {
     @ViewBuilder
     private var container: some View {
         #if os(macOS)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .center) {
-                    Spacer(minLength: 0)
-                    Text(L10n.tr("torrentList.section.title"))
-                        .font(.title3.weight(.semibold))
-                        .accessibilityIdentifier("torrent_list_header")
-                    Spacer(minLength: 0)
+            AppFooterLayout {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .center) {
+                        Spacer(minLength: 0)
+                        Text(L10n.tr("torrentList.section.title"))
+                            .font(.title3.weight(.semibold))
+                            .accessibilityIdentifier("torrent_list_header")
+                        Spacer(minLength: 0)
+                    }
+
+                    if store.isRefreshing {
+                        refreshIndicator
+                            .padding(.vertical, 2)
+                    }
+
+                    if let banner = store.errorPresenter.banner {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                        )
+                        .padding(.bottom, 6)
+                    }
+
+                    if let offline = store.offlineState {
+                        offlineBanner(offline)
+                            .padding(.bottom, 4)
+                    }
+
+                    controls
+
+                    macOSScrollableContent
+                        .frame(maxWidth: .infinity, alignment: .top)
+
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                    }
                 }
-
-                if store.isRefreshing {
-                    refreshIndicator
-                        .padding(.vertical, 2)
-                }
-
-                if let banner = store.errorPresenter.banner {
-                    ErrorBannerView(
-                        message: banner.message,
-                        onRetry: banner.retry == nil
-                            ? nil
-                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                        onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                    )
-                    .padding(.bottom, 6)
-                }
-
-                if let offline = store.offlineState {
-                    offlineBanner(offline)
-                        .padding(.bottom, 4)
-                }
-
-                controls
-
-                macOSScrollableContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-
-                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                    Text(L10n.tr("torrentList.autorefresh.disabled"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                }
+                .frame(maxWidth: .infinity, alignment: .top)
+            } footer: {
+                footerBar
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #else
-            Section {
-                content
-                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                    Text(L10n.tr("torrentList.autorefresh.disabled"))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+            if shouldCenterEmptyState {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(L10n.tr("torrentList.section.title"))
+                        .font(.headline.weight(.semibold))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .accessibilityIdentifier("torrent_list_header")
+                        .allowsHitTesting(false)
+
+                    if store.isRefreshing {
+                        refreshIndicator
+                    }
+
+                    if let banner = store.errorPresenter.banner {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                        )
+                        .padding(.bottom, 6)
+                    }
+
+                    if let offline = store.offlineState {
+                        offlineBanner(offline)
+                            .padding(.bottom, 4)
+                    }
+
+                    storageSummaryView
+                        .frame(maxWidth: .infinity, alignment: .center)
+
+                    controls
+
+                    Spacer(minLength: 0)
+
+                    emptyStateView
+
+                    Spacer(minLength: 0)
+
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                    }
                 }
-            } header: {
-                Text(L10n.tr("torrentList.section.title"))
-                    .accessibilityIdentifier("torrent_list_header")
-                    .allowsHitTesting(false)
-            }
-            .safeAreaInset(edge: .top) {
-                if store.isRefreshing {
-                    refreshIndicator
-                        .padding(.vertical, 4)
-                        .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        Text(L10n.tr("torrentList.section.title"))
+                            .font(.headline.weight(.semibold))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .accessibilityIdentifier("torrent_list_header")
+                            .allowsHitTesting(false)
+
+                        if store.isRefreshing {
+                            refreshIndicator
+                        }
+
+                        content
+
+                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                            Text(L10n.tr("torrentList.autorefresh.disabled"))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                 }
             }
         #endif
     }
+
+    #if os(iOS)
+        private var shouldCenterEmptyState: Bool {
+            guard store.connectionEnvironment != nil else { return false }
+            if case .loaded = store.phase {
+                return store.visibleItems.isEmpty
+            }
+            return false
+        }
+    #endif
 
     #if os(macOS)
         @ViewBuilder
@@ -220,11 +296,11 @@ extension TorrentListView {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(0..<placeholderCount, id: \.self) { index in
                                     TorrentRowSkeletonView(index: index)
-                                        .padding(.horizontal, 12)
                                         .padding(.vertical, 10)
                                         .appCardSurface(cornerRadius: 14)
                                 }
                             }
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.vertical, 2)
                         }
                         .scrollIndicators(.hidden)
@@ -240,6 +316,7 @@ extension TorrentListView {
                     } else {
                         ScrollView {
                             torrentRowsMacOS
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.vertical, 2)
                         }
                         .scrollIndicators(.hidden)
@@ -272,6 +349,8 @@ extension TorrentListView {
                     .padding(.bottom, 4)
             }
             #if !os(macOS)
+                storageSummaryView
+                    .frame(maxWidth: .infinity, alignment: .center)
                 controls
             #endif
 
@@ -367,6 +446,64 @@ extension TorrentListView {
         .padding(.vertical, 8)
     }
 
+    @ViewBuilder
+    private var storageSummaryView: some View {
+        if let summary = store.storageSummary {
+            let total = StorageFormatters.bytes(summary.totalBytes)
+            let free = StorageFormatters.bytes(summary.freeBytes)
+            Label(
+                String(format: L10n.tr("storage.summary"), total, free),
+                systemImage: "externaldrive.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 12)
+            #if os(macOS)
+                .frame(height: macOSToolbarPillHeight)
+            #else
+                .frame(height: 34)
+            #endif
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .accessibilityIdentifier("torrent_list_storage_summary")
+        }
+    }
+
+    private var footerBar: some View {
+        AppFooterInfoBar(
+            leftText: storageSummaryText,
+            centerText: AppVersion.footerText,
+            rightText: transmissionVersionText
+        )
+        .accessibilityIdentifier("torrent_list_footer")
+    }
+
+    private var storageSummaryText: String? {
+        guard let summary = store.storageSummary else { return nil }
+        let total = StorageFormatters.bytes(summary.totalBytes)
+        let free = StorageFormatters.bytes(summary.freeBytes)
+        return String(format: L10n.tr("storage.summary.short"), total, free)
+    }
+
+    private var transmissionVersionText: String? {
+        guard let handshake = store.handshake else { return nil }
+        let description = handshake.serverVersionDescription?.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        let versionText: String
+        if let description, description.isEmpty == false {
+            versionText = description
+        } else {
+            versionText = String(
+                format: L10n.tr("serverDetail.status.rpcVersion"),
+                Int64(handshake.rpcVersion)
+            )
+        }
+        return "\(L10n.tr("serverList.transmissionVersionLabel")) \(versionText)"
+    }
+
     private var emptyStateView: some View {
         #if os(macOS)
             VStack(spacing: 16) {
@@ -380,31 +517,16 @@ extension TorrentListView {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #else
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .center, spacing: 8) {
                 Image(systemName: "tray")
                     .font(.largeTitle)
                     .foregroundStyle(.secondary)
                 Text(L10n.tr("torrentList.empty.title"))
                     .font(.subheadline)
                     .bold()
-                Text(L10n.tr("torrentList.empty.message"))
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                HStack(spacing: 12) {
-                    Button(L10n.tr("torrentList.action.refresh")) {
-                        store.send(.refreshRequested)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(L10n.tr("torrentList.action.add")) {
-                        store.send(.addTorrentButtonTapped)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .accessibilityIdentifier("torrent_list_empty_add_button")
-                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #endif
     }
@@ -427,15 +549,48 @@ extension TorrentListView {
 
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
+            let actions = rowActions(for: item)
             TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
-                actions: rowActions(for: item),
-                longestStatusTitle: longestStatusTitle
+                actions: actions,
+                longestStatusTitle: longestStatusTitle,
+                isLocked: item.isRemoving
             )
             .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-            .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-            .listRowBackground(rowBackground(for: item))
+            .opacity(item.isRemoving ? 0.6 : 1)
+            .disabled(item.isRemoving)
+            #if os(iOS)
+                .padding(.horizontal, 0)
+                .padding(.vertical, 10)
+                .appCardSurface(cornerRadius: 14)
+                .contentShape(
+                    .contextMenuPreview,
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+            #else
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+            #endif
+            #if os(iOS)
+                .contextMenu {
+                    if let actions, actions.isLocked == false {
+                        Button(
+                            actions.isActive
+                                ? L10n.tr("torrentDetail.actions.pause")
+                                : L10n.tr("torrentDetail.actions.start")
+                        ) {
+                            actions.onStartPause()
+                        }
+                        Button(L10n.tr("torrentDetail.actions.verify")) {
+                            actions.onVerify()
+                        }
+                        Button(L10n.tr("torrentDetail.actions.remove"), role: .destructive) {
+                            actions.onRemove()
+                        }
+                    }
+                }
+            #endif
         }
     }
 
@@ -447,24 +602,21 @@ extension TorrentListView {
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
                         actions: rowActions(for: item),
-                        longestStatusTitle: longestStatusTitle
+                        longestStatusTitle: longestStatusTitle,
+                        isLocked: item.isRemoving
                     )
-                    .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .appCardSurface(cornerRadius: 14)
+                    .opacity(item.isRemoving ? 0.6 : 1)
+                    .disabled(item.isRemoving)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     #endif
 
     private func rowBackground(for item: TorrentListItem.State) -> some View {
-        let color: Color =
-            item.torrent.status == .isolated
-            ? Color.red.opacity(0.08)
-            : Color.clear
-
-        return RoundedRectangle(cornerRadius: 8)
-            .fill(color)
+        TorrentRowBackgroundView(isIsolated: item.torrent.status == .isolated)
     }
 
     private func rowActions(
@@ -475,6 +627,7 @@ extension TorrentListView {
 
         return TorrentRowView.RowActions(
             isActive: isActive,
+            isLocked: item.isRemoving,
             onStartPause: {
                 store.send(isActive ? .pauseTapped(item.id) : .startTapped(item.id))
             },
@@ -496,9 +649,12 @@ extension TorrentListView {
         #else
             VStack(alignment: .leading, spacing: 12) {
                 filterSegmentedControl
-                HStack {
-                    sortPicker
+                HStack(spacing: 12) {
+                    categoryPicker
                     Spacer(minLength: 0)
+                    if store.visibleItems.isEmpty == false {
+                        sortPicker
+                    }
                 }
             }
             .padding(.vertical, 4)
@@ -507,13 +663,22 @@ extension TorrentListView {
 
     #if os(macOS)
         private var filterAndSortRowMacOS: some View {
-            ZStack(alignment: .trailing) {
+            HStack(alignment: .center, spacing: 12) {
+                categoryPicker
+                    .labelsHidden()
+                    .frame(width: macOSCategoryPickerWidth)
+
+                Spacer(minLength: 0)
+
                 filterSegmentedControl
                     .labelsHidden()
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: 360)
+
+                Spacer(minLength: 0)
 
                 sortPicker
                     .labelsHidden()
+                    .frame(width: macOSSortPickerWidth)
             }
         }
     #endif
@@ -532,6 +697,7 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrentlist_filter_picker")
         .pickerStyle(.segmented)
+        .foregroundStyle(.primary)
         #if os(macOS)
             .controlSize(.large)
         #endif
@@ -550,6 +716,7 @@ extension TorrentListView {
                     Text(store.sortOrder.title)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
+                        .foregroundStyle(.primary)
                     Spacer(minLength: 6)
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.caption.weight(.semibold))
@@ -558,7 +725,7 @@ extension TorrentListView {
                 .padding(.horizontal, 12)
                 .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
                 .contentShape(Rectangle())
-                .appPillSurface()
+                .appToolbarPillSurface()
             }
             .accessibilityIdentifier("torrentlist_sort_picker")
             .buttonStyle(.plain)
@@ -579,22 +746,47 @@ extension TorrentListView {
         #endif
     }
 
-    private var refreshButton: some View {
-        Button {
-            store.send(.refreshRequested)
-        } label: {
-            Label(L10n.tr("torrentList.refresh.label"), systemImage: "arrow.clockwise")
-        }
-        .accessibilityIdentifier("torrentlist_refresh_button")
-    }
-
-    private var addButton: some View {
-        Button {
-            store.send(.addTorrentButtonTapped)
-        } label: {
-            Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
-        }
-        .accessibilityIdentifier("torrentlist_add_button")
+    private var categoryPicker: some View {
+        #if os(macOS)
+            Menu {
+                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
+                    Button(category.title) {
+                        store.send(.categoryChanged(category))
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(store.selectedCategory.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 6)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .frame(width: macOSCategoryPickerWidth, height: macOSToolbarPillHeight)
+                .contentShape(Rectangle())
+                .appToolbarPillSurface()
+            }
+            .accessibilityIdentifier("torrentlist_category_picker")
+            .buttonStyle(.plain)
+        #else
+            Picker(
+                L10n.tr("torrentList.category.title"),
+                selection: Binding(
+                    get: { store.selectedCategory },
+                    set: { store.send(.categoryChanged($0)) }
+                )
+            ) {
+                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
+                    Text(category.title).tag(category)
+                }
+            }
+            .accessibilityIdentifier("torrentlist_category_picker")
+            .pickerStyle(.menu)
+        #endif
     }
 
     private var refreshIndicator: some View {
@@ -613,6 +805,7 @@ private struct TorrentRowView: View {
     var openRequested: (() -> Void)?
     var actions: RowActions?
     var longestStatusTitle: String
+    var isLocked: Bool
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -627,6 +820,7 @@ private struct TorrentRowView: View {
                                 .lineLimit(2)
                         }
                         .buttonStyle(.plain)
+                        .disabled(isLocked)
                         .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
                     } else {
                         Text(item.torrent.name)
@@ -640,14 +834,22 @@ private struct TorrentRowView: View {
                 Spacer(minLength: 12)
 
                 HStack(spacing: 6) {
-                    if let actions {
-                        actionsPill(actions)
-                    }
+                    #if os(macOS)
+                        if let actions {
+                            actionsPill(actions)
+                        }
+                    #endif
                     statusBadge
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .frame(maxWidth: .infinity)
+
+            #if os(iOS)
+                if item.torrent.tags.isEmpty == false {
+                    tagsRow
+                }
+            #endif
 
             ProgressView(value: item.metrics.progressFraction)
                 .tint(progressColor)
@@ -655,34 +857,64 @@ private struct TorrentRowView: View {
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
                 .accessibilityValue(item.metrics.progressText)
 
-            HStack(spacing: 12) {
-                Label(item.metrics.progressText, systemImage: "circle.dashed")
+            #if os(iOS)
+                HStack(alignment: .center, spacing: 12) {
+                    Label(
+                        peersText,
+                        systemImage: "person.2"
+                    )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
+                    .foregroundStyle(.primary)
 
-                if let etaText = item.metrics.etaText {
-                    Label(etaText, systemImage: "clock")
+                    Spacer(minLength: 6)
+
+                    Label(item.metrics.speedSummary, systemImage: "speedometer")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                        .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
                 }
+            #else
+                HStack(spacing: 12) {
+                    Label(item.metrics.progressText, systemImage: "circle.dashed")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier(
+                            "torrent_row_progress_\(item.torrent.id.rawValue)")
 
-                Label(
-                    peersText,
-                    systemImage: "person.2"
-                )
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                    if let etaText = item.metrics.etaText {
+                        Label(etaText, systemImage: "clock")
+                            .font(.caption)
+                            .foregroundStyle(.primary)
+                    }
 
-                Spacer(minLength: 6)
-
-                Label(item.metrics.speedSummary, systemImage: "speedometer")
+                    Label(
+                        peersText,
+                        systemImage: "person.2"
+                    )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
-            }
+                    .foregroundStyle(.primary)
+
+                    if item.torrent.tags.isEmpty == false {
+                        tagsInlineRow
+                            .layoutPriority(0)
+                    }
+
+                    Spacer(minLength: 6)
+
+                    Label(item.metrics.speedSummary, systemImage: "speedometer")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                        .accessibilityIdentifier(
+                            "torrent_row_speed_\(item.torrent.id.rawValue)")
+                }
+            #endif
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
@@ -703,6 +935,7 @@ private struct TorrentRowView: View {
 
     struct RowActions {
         var isActive: Bool
+        var isLocked: Bool
         var onStartPause: () -> Void
         var onVerify: () -> Void
         var onRemove: () -> Void
@@ -716,6 +949,7 @@ private struct TorrentRowView: View {
                     ? L10n.tr("torrentDetail.actions.pause")
                     : L10n.tr("torrentDetail.actions.start"),
                 tint: actions.isActive ? .orange : .green,
+                isLocked: actions.isLocked,
                 action: actions.onStartPause
             )
 
@@ -726,6 +960,7 @@ private struct TorrentRowView: View {
                 systemImage: "checkmark.shield.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.verify"),
                 tint: .blue,
+                isLocked: actions.isLocked,
                 action: actions.onVerify
             )
 
@@ -736,6 +971,7 @@ private struct TorrentRowView: View {
                 systemImage: "trash.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.remove"),
                 tint: .red,
+                isLocked: actions.isLocked,
                 action: actions.onRemove
             )
         }
@@ -752,6 +988,7 @@ private struct TorrentRowView: View {
         systemImage: String,
         accessibilityLabel: String,
         tint: Color,
+        isLocked: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -761,41 +998,104 @@ private struct TorrentRowView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
+        .disabled(isLocked)
         .accessibilityLabel(accessibilityLabel)
         #if os(macOS)
             .help(accessibilityLabel)
         #endif
     }
 
+    private var tagsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 6) {
+                ForEach(item.torrent.tags, id: \.self) { tag in
+                    Text(tag)
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .frame(height: 20)
+                        .background(
+                            Capsule()
+                                .fill(Color.primary.opacity(0.08))
+                        )
+                        .foregroundStyle(.primary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("torrent_row_tags_\(item.torrent.id.rawValue)")
+    }
+
+    private var tagsInlineRow: some View {
+        let maxInlineTags = 3
+        let tags = Array(item.torrent.tags.prefix(maxInlineTags))
+        let remaining = item.torrent.tags.count - tags.count
+
+        return HStack(spacing: 6) {
+            ForEach(tags, id: \.self) { tag in
+                pillLabel(tag)
+            }
+            if remaining > 0 {
+                pillLabel("+\(remaining)")
+            }
+        }
+        .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
+    }
+
+    private func pillLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 8)
+            .frame(height: 20)
+            .background(
+                Capsule()
+                    .fill(Color.primary.opacity(0.08))
+            )
+            .foregroundStyle(.primary)
+    }
+
     private var peersText: String {
-        "\(item.torrent.summary.peers.connected) peers"
+        String(
+            format: L10n.tr("torrentList.peers"),
+            Int64(item.torrent.summary.peers.connected)
+        )
     }
 
     private var statusBadge: some View {
         ZStack {
-            Text(longestStatusTitle)
+            Text(statusAbbreviation)
                 .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-                .hidden()
-
-            Text(statusTitle)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, 10)
-        .frame(height: 34)
+        .frame(width: 28, height: 28)
         .background(
-            Capsule(style: .continuous)
+            Circle()
                 .fill(statusColor.opacity(0.15))
         )
         .overlay(
-            Capsule(style: .continuous)
+            Circle()
                 .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
         )
         .foregroundStyle(statusColor)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
+        .accessibilityLabel(statusTitle)
+    }
+
+    private var statusAbbreviation: String {
+        switch item.torrent.status {
+        case .stopped:
+            return L10n.tr("torrentList.status.abbrev.paused")
+        case .checkWaiting, .checking:
+            return L10n.tr("torrentList.status.abbrev.checking")
+        case .downloadWaiting, .seedWaiting:
+            return L10n.tr("torrentList.status.abbrev.waiting")
+        case .downloading:
+            return L10n.tr("torrentList.status.abbrev.downloading")
+        case .seeding:
+            return L10n.tr("torrentList.status.abbrev.seeding")
+        case .isolated:
+            return L10n.tr("torrentList.status.abbrev.error")
+        }
     }
 
     private var statusTitle: String {
@@ -815,7 +1115,7 @@ private struct TorrentRowView: View {
         switch item.torrent.status {
         case .downloading: return .blue
         case .seeding: return .green
-        case .stopped: return .gray
+        case .stopped: return .primary
         case .checking, .checkWaiting: return .orange
         case .downloadWaiting, .seedWaiting: return .purple
         case .isolated: return .red
@@ -824,6 +1124,24 @@ private struct TorrentRowView: View {
 
     private var progressColor: Color {
         statusColor
+    }
+}
+
+private struct TorrentRowBackgroundView: View {
+    let isIsolated: Bool
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let fillColor: Color =
+            isIsolated
+            ? Color.red.opacity(0.08)
+            : Color.primary.opacity(colorScheme == .dark ? 0.16 : 0.06)
+        return RoundedRectangle(cornerRadius: 10, style: .continuous)
+            .fill(fillColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
     }
 }
 
@@ -985,6 +1303,10 @@ extension TorrentListReducer.State {
                     return TorrentListItem.State(torrent: torrent)
                 }()
             ]
+        )
+        state.storageSummary = StorageSummary(
+            totalBytes: 12_000_000_000,
+            freeBytes: 4_000_000_000
         )
         return state
     }

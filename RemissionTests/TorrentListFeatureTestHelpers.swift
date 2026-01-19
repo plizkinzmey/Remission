@@ -87,12 +87,13 @@ final class TorrentListRecordingClock: Clock, @unchecked Sendable {
 extension UserPreferencesRepository {
     static func testValue(preferences: UserPreferences) -> UserPreferencesRepository {
         UserPreferencesRepository(
-            load: { preferences },
-            updatePollingInterval: { _ in preferences },
-            setAutoRefreshEnabled: { _ in preferences },
-            setTelemetryEnabled: { _ in preferences },
-            updateDefaultSpeedLimits: { _ in preferences },
-            observe: {
+            load: { _ in preferences },
+            updatePollingInterval: { _, _ in preferences },
+            setAutoRefreshEnabled: { _, _ in preferences },
+            setTelemetryEnabled: { _, _ in preferences },
+            updateDefaultSpeedLimits: { _, _ in preferences },
+            updateRecentDownloadDirectories: { _, _ in preferences },
+            observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }
@@ -102,28 +103,33 @@ extension UserPreferencesRepository {
 
     static func failingLoad(error: any Error) -> UserPreferencesRepository {
         UserPreferencesRepository(
-            load: { throw error },
-            updatePollingInterval: { interval in
+            load: { _ in throw error },
+            updatePollingInterval: { _, interval in
                 var prefs = DomainFixtures.userPreferences
                 prefs.pollingInterval = interval
                 return prefs
             },
-            setAutoRefreshEnabled: { isEnabled in
+            setAutoRefreshEnabled: { _, isEnabled in
                 var prefs = DomainFixtures.userPreferences
                 prefs.isAutoRefreshEnabled = isEnabled
                 return prefs
             },
-            setTelemetryEnabled: { isEnabled in
+            setTelemetryEnabled: { _, isEnabled in
                 var prefs = DomainFixtures.userPreferences
                 prefs.isTelemetryEnabled = isEnabled
                 return prefs
             },
-            updateDefaultSpeedLimits: { limits in
+            updateDefaultSpeedLimits: { _, limits in
                 var prefs = DomainFixtures.userPreferences
                 prefs.defaultSpeedLimits = limits
                 return prefs
             },
-            observe: {
+            updateRecentDownloadDirectories: { _, directories in
+                var prefs = DomainFixtures.userPreferences
+                prefs.recentDownloadDirectories = directories
+                return prefs
+            },
+            observe: { _ in
                 AsyncStream { continuation in
                     continuation.finish()
                 }

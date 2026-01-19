@@ -31,6 +31,9 @@ func assign(
 ) {
     state.name = torrent.name
     state.status = torrent.status.rawValue
+    state.tags = torrent.tags
+    state.lastSyncedTags = torrent.tags
+    state.category = TorrentCategory.category(from: torrent.tags)
     state.percentDone = torrent.summary.progress.percentDone
     state.totalSize = torrent.summary.progress.totalSize
     state.downloadedEver = torrent.summary.progress.downloadedEver

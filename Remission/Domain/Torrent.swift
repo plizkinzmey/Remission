@@ -19,6 +19,8 @@ public struct Torrent: Equatable, Sendable, Identifiable, Codable {
     public var id: Identifier
     public var name: String
     public var status: Status
+    /// Список тегов (`torrent-get` → `labels`).
+    public var tags: [String]
     public var summary: Summary
     public var details: Details?
 
@@ -26,12 +28,14 @@ public struct Torrent: Equatable, Sendable, Identifiable, Codable {
         id: Identifier,
         name: String,
         status: Status,
+        tags: [String] = [],
         summary: Summary,
         details: Details? = nil
     ) {
         self.id = id
         self.name = name
         self.status = status
+        self.tags = tags
         self.summary = summary
         self.details = details
     }
@@ -356,6 +360,7 @@ extension Torrent {
             id: Identifier(rawValue: 1),
             name: "Ubuntu 24.04 Desktop",
             status: .downloading,
+            tags: ["linux", "lts"],
             summary: summary,
             details: details
         )
@@ -391,6 +396,7 @@ extension Torrent {
             id: Identifier(rawValue: 2),
             name: "The Expanse Season 6",
             status: .seeding,
+            tags: ["series"],
             summary: summary,
             details: nil
         )

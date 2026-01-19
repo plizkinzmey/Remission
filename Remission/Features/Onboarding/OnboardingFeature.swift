@@ -15,7 +15,6 @@ struct OnboardingReducer {
         var form: ServerConnectionFormState = .init()
         var validationError: String?
         var isSubmitting: Bool = false
-        var pendingWarningFingerprint: String?
         var connectionStatus: ConnectionStatus = .idle
         var pendingSubmission: SubmissionContext?
         var verifiedSubmission: SubmissionContext?
@@ -42,8 +41,6 @@ struct OnboardingReducer {
     }
 
     enum AlertAction: Equatable {
-        case insecureTransportConfirmed
-        case insecureTransportCancelled
         case errorDismissed
     }
 
@@ -67,36 +64,11 @@ struct OnboardingReducer {
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
     @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
-    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
-
     var body: some Reducer<State, Action> {
         BindingReducer()
 
         Reduce { state, action in
             switch action {
-            case .binding(\.form.transport):
-                state.validationError = nil
-                let resetEffect = resetConnectionState(state: &state)
-                if state.form.transport == .https {
-                    state.form.suppressInsecureWarning = false
-                    state.pendingWarningFingerprint = nil
-                    return resetEffect
-                }
-                return .merge(
-                    resetEffect,
-                    presentInsecureTransportWarning(state: &state)
-                )
-
-            case .binding(\.form.suppressInsecureWarning):
-                let resetEffect = resetConnectionState(state: &state)
-                if let fingerprint = state.form.insecureFingerprint {
-                    httpWarningPreferencesStore.setSuppressed(
-                        fingerprint,
-                        state.form.suppressInsecureWarning
-                    )
-                }
-                return resetEffect
-
             case .binding:
                 state.validationError = nil
                 return resetConnectionState(state: &state)
@@ -104,10 +76,7 @@ struct OnboardingReducer {
             case .checkConnectionButtonTapped:
                 guard state.connectionStatus != .testing else { return .none }
                 guard
-                    let context = prepareSubmission(
-                        state: &state,
-                        forceAllowInsecureTransport: false
-                    )
+                    let context = prepareSubmission(state: &state)
                 else {
                     return .none
                 }
@@ -115,10 +84,7 @@ struct OnboardingReducer {
 
             case .uiTestBypassConnection:
                 guard
-                    let context = prepareSubmission(
-                        state: &state,
-                        forceAllowInsecureTransport: true
-                    )
+                    let context = prepareSubmission(state: &state)
                 else {
                     return .none
                 }
@@ -159,23 +125,6 @@ struct OnboardingReducer {
                 } message: {
                     TextState(error.message)
                 }
-                return .none
-
-            case .alert(.presented(.insecureTransportConfirmed)):
-                state.alert = nil
-                if let context = prepareSubmission(
-                    state: &state,
-                    forceAllowInsecureTransport: true
-                ) {
-                    state.pendingWarningFingerprint = nil
-                    return startConnectionProbe(state: &state, context: context)
-                }
-                return .none
-
-            case .alert(.presented(.insecureTransportCancelled)):
-                state.alert = nil
-                state.pendingWarningFingerprint = nil
-                state.form.transport = .https
                 return .none
 
             case .alert(.presented(.errorDismissed)):
@@ -325,8 +274,7 @@ extension OnboardingReducer {
     }
 
     fileprivate func prepareSubmission(
-        state: inout State,
-        forceAllowInsecureTransport: Bool
+        state: inout State
     ) -> SubmissionContext? {
         guard state.form.isFormValid, state.form.portValue != nil else {
             state.validationError = L10n.tr("onboarding.error.validation.hostPort")
@@ -335,26 +283,7 @@ extension OnboardingReducer {
 
         let context = makeSubmissionContext(state: state)
 
-        if context.server.usesInsecureTransport {
-            let fingerprint = context.insecureFingerprint ?? ""
-            if state.form.suppressInsecureWarning {
-                httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-            }
-
-            if forceAllowInsecureTransport {
-                httpWarningPreferencesStore.setSuppressed(fingerprint, true)
-            } else {
-                let isSuppressed = httpWarningPreferencesStore.isSuppressed(fingerprint)
-                if isSuppressed == false {
-                    state.pendingWarningFingerprint = fingerprint
-                    state.alert = makeInsecureTransportAlert()
-                    return nil
-                }
-            }
-        }
-
         state.validationError = nil
-        state.pendingWarningFingerprint = nil
         return context
     }
 
@@ -366,47 +295,9 @@ extension OnboardingReducer {
         let server = state.form.makeServerConfig(id: id, createdAt: date)
 
         let password = state.form.password.isEmpty ? nil : state.form.password
-        let fingerprint: String? =
-            server.usesInsecureTransport
-            ? ServerConfig.makeFingerprint(
-                host: server.connection.host,
-                port: server.connection.port,
-                username: state.form.username
-            )
-            : nil
 
         return SubmissionContext(
-            server: server, password: password, insecureFingerprint: fingerprint)
-    }
-
-    private func presentInsecureTransportWarning(
-        state: inout State
-    ) -> Effect<Action> {
-        guard state.form.transport == .http else { return .none }
-        guard let fingerprint = state.form.insecureFingerprint else { return .none }
-        if httpWarningPreferencesStore.isSuppressed(fingerprint) {
-            return .none
-        }
-        state.pendingWarningFingerprint = fingerprint
-        state.alert = makeInsecureTransportAlert()
-        return .none
-    }
-
-    private func makeInsecureTransportAlert() -> AlertState<AlertAction> {
-        AlertState {
-            TextState(L10n.tr("onboarding.alert.insecureConnection.title"))
-        } actions: {
-            ButtonState(role: .destructive, action: .insecureTransportConfirmed) {
-                TextState(L10n.tr("onboarding.alert.insecureConnection.proceed"))
-            }
-            ButtonState(role: .cancel, action: .insecureTransportCancelled) {
-                TextState(L10n.tr("common.cancel"))
-            }
-        } message: {
-            TextState(
-                L10n.tr("onboarding.alert.insecureConnection.message")
-            )
-        }
+            server: server, password: password)
     }
 
     fileprivate func describe(_ error: Error) -> String {
@@ -433,7 +324,6 @@ extension OnboardingReducer {
 struct OnboardingSubmissionContext: Equatable, Sendable {
     var server: ServerConfig
     var password: String?
-    var insecureFingerprint: String?
 }
 
 extension TransmissionHandshakeResult {

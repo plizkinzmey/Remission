@@ -13,6 +13,7 @@ actor InMemoryTorrentRepositoryStore {
         case remove
         case verify
         case updateTransferSettings
+        case updateLabels
         case updateFileSelection
     }
 
@@ -76,6 +77,8 @@ enum InMemoryTorrentRepositoryError: Error, LocalizedError, Sendable {
 
 private typealias TorrentTransferUpdateHandler =
     @Sendable (TorrentRepository.TransferSettings, [Torrent.Identifier]) async throws -> Void
+private typealias TorrentLabelsUpdateHandler =
+    @Sendable ([String], [Torrent.Identifier]) async throws -> Void
 private typealias TorrentFileSelectionHandler =
     @Sendable ([TorrentRepository.FileSelectionUpdate], Torrent.Identifier) async throws -> Void
 
@@ -93,6 +96,7 @@ extension TorrentRepository {
             remove: makeRemove(store: store),
             verify: makeVerify(store: store),
             updateTransferSettings: makeUpdateTransferSettings(store: store),
+            updateLabels: makeUpdateLabels(store: store),
             updateFileSelection: makeUpdateFileSelection(store: store)
         )
     }
@@ -127,7 +131,7 @@ extension TorrentRepository {
         -> @Sendable (PendingTorrentInput, String, Bool, [String]?) async throws ->
         TorrentRepository.AddResult
     {
-        { input, destination, startPaused, _ in
+        { input, destination, startPaused, labels in
             try await store.withTorrents(.add) { torrents in
                 let nextIDValue: Int = (torrents.map(\.id.rawValue).max() ?? 0) + 1
                 let addedID = Torrent.Identifier(rawValue: nextIDValue)
@@ -146,6 +150,7 @@ extension TorrentRepository {
                 newTorrent.details?.trackers = []
                 newTorrent.details?.trackerStats = []
                 newTorrent.details?.files = []
+                newTorrent.tags = labels ?? []
 
                 if startPaused {
                     newTorrent.status = .stopped
@@ -228,6 +233,18 @@ extension TorrentRepository {
                             kilobytesPerSecond: uploadLimit.kilobytesPerSecond
                         )
                     }
+                }
+            }
+        }
+    }
+
+    private static func makeUpdateLabels(
+        store: InMemoryTorrentRepositoryStore
+    ) -> TorrentLabelsUpdateHandler {
+        { labels, ids in
+            try await store.withTorrents(.updateLabels) { torrents in
+                for index in torrents.indices where ids.contains(torrents[index].id) {
+                    torrents[index].tags = labels
                 }
             }
         }

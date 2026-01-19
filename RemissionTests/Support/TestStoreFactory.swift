@@ -53,11 +53,13 @@ enum TestStoreFactory {
 
     /// Специализированная фабрика для SettingsReducer с управляемым сторам преференсов.
     static func makeSettingsTestStore(
-        initialState: @autoclosure () -> SettingsReducer.State = .init(),
+        initialState: @autoclosure () -> SettingsReducer.State,
         preferencesStore: InMemoryUserPreferencesRepositoryStore =
             DomainFixtures.makeUserPreferencesStore(),
+        serverID: UUID,
         configure: @Sendable (inout DependencyValues) -> Void = { _ in }
     ) -> TestStoreOf<SettingsReducer> {
+        _ = serverID
         make(
             initialState: initialState(),
             reducer: { SettingsReducer() },

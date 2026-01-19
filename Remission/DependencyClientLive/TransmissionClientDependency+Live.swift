@@ -3,29 +3,23 @@
     import Dependencies
 
     extension TransmissionClientDependency: DependencyKey {
-        /// Возвращает рабочую live-реализацию, собранную через TransmissionClientBootstrap.
-        /// При недоступной конфигурации откатывается к безопасному placeholder.
+        /// Возвращает безопасный placeholder и требует явной настройки через
+        /// ServerConnectionEnvironmentFactory или overrides в тестах/превью.
         static var liveValue: Self {
-            TransmissionClientBootstrap.makeLiveDependency(
-                dependencies: DependencyValues.appDefault()
-            )
+            .placeholder
         }
     }
 
     extension TransmissionClientDependency {
         static func live(client: TransmissionClientProtocol) -> Self {
             Self(
-                sessionGet: {
-                    try await client.sessionGet()
-                },
+                sessionGet: { try await client.sessionGet() },
                 sessionSet: { arguments in
                     try await client.sessionSet(arguments: arguments)
                 },
-                sessionStats: {
-                    try await client.sessionStats()
-                },
-                torrentGet: { ids, fields in
-                    try await client.torrentGet(ids: ids, fields: fields)
+                sessionStats: { try await client.sessionStats() },
+                freeSpace: { path in try await client.freeSpace(path: path) },
+                torrentGet: { ids, fields in try await client.torrentGet(ids: ids, fields: fields)
                 },
                 torrentAdd: { filename, metainfo, downloadDir, paused, labels in
                     try await client.torrentAdd(
@@ -37,9 +31,7 @@
                     )
                 },
                 torrentStart: { ids in try await client.torrentStart(ids: ids) },
-                torrentStop: { ids in
-                    try await client.torrentStop(ids: ids)
-                },
+                torrentStop: { ids in try await client.torrentStop(ids: ids) },
                 torrentRemove: { ids, deleteLocalData in
                     try await client.torrentRemove(
                         ids: ids,
@@ -49,15 +41,9 @@
                 torrentSet: { ids, arguments in
                     try await client.torrentSet(ids: ids, arguments: arguments)
                 },
-                torrentVerify: { ids in
-                    try await client.torrentVerify(ids: ids)
-                },
-                checkServerVersion: {
-                    try await client.checkServerVersion()
-                },
-                performHandshake: {
-                    try await client.performHandshake()
-                },
+                torrentVerify: { ids in try await client.torrentVerify(ids: ids) },
+                checkServerVersion: { try await client.checkServerVersion() },
+                performHandshake: { try await client.performHandshake() },
                 setTrustDecisionHandler: { handler in
                     client.setTrustDecisionHandler(handler)
                 }

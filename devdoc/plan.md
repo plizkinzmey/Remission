@@ -221,7 +221,7 @@ func serverConnectionSuccess() async {
 ### Модульность и декомпозиция TCA
 - **Разделение слоёв**: UI (`Views`), бизнес-логика (`Features`/редьюсеры), модели (`Models`) и инфраструктура (`DependencyClients`) оформляются отдельными таргетами/файлами. Ссылайтесь на [SwiftUI+TCA Template](https://github.com/ethanhuang13/swiftui-tca-template) как эталон.
 - **Структура зависимостей**: определения `@DependencyClient` и тестовых значений живут в `Remission/DependencyClients`, live-реализации и фабрики — в `Remission/DependencyClientLive`. Любые новые клиенты повторяют эту схему, чтобы тесты и прод-код использовали единый источник.
-- **Бутстрап TransmissionClient**: корневой `Store` создаётся в `RemissionApp` и при инициализации подставляет `TransmissionClientDependency.live(client:)` через вспомогательную фабрику. Пока onboarding/Keychain не готов, фабрика возвращает временную конфигурацию `http://localhost:9091/transmission/rpc` (см. `TransmissionClientBootstrap`), а превью/тесты переопределяют зависимость на `.testValue`.
+- **TransmissionClient dependency**: `TransmissionClientDependency.liveValue` — безопасный placeholder. Реальный клиент создаётся только через `ServerConnectionEnvironmentFactory` при открытии конкретного сервера; превью/тесты подменяют зависимость явно.
 - **Компоновка редьюсеров**: долгие/многофункциональные редьюсеры делятся с помощью `Scope`, `.ifLet`, `Reducer.forEach`. Навигация оформляется через отдельные `Destination`/`Path` редьюсеры (см. [TCA TreeBasedNavigation](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/TreeBasedNavigation.md)).
 - **Dismiss для @Presents**: если `.ifLet` обрабатывает `PresentationAction`, добавляйте явное действие закрытия (например, `settingsDismissed`) и отправляйте его из дочернего редьюсера/делегата перед обнулением `state`. Это предотвращает предупреждения TCA о приходящих действиях при `nil` state.
 - **Парсинг и инфраструктура**: вспомогательные парсеры и клиенты не размещаем в редьюсере. Выносите в отдельные структуры/сервисы (`TransmissionClient`, `TorrentDetailParser`) и инжектируйте через зависимости.
@@ -1156,9 +1156,9 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - Пароли хранятся отдельно в Keychain под ключом `transmission-credentials-{host}:{port}:{username}`.
 
 ### Bootstrap и восстановление
-- `AppBootstrap.makeInitialState(arguments:storageFileURL:)` синхронно читает snapshot через `ServerConfigStoragePaths.loadSnapshot`, мапит записи через `TransmissionDomainMapper` и заполняет `ServerListReducer.State` до запуска TCA окружения.
-- При удачном восстановлении `serverList.shouldLoadServersFromRepository` переводится в `false`, чтобы избежать повторной загрузки тех же данных.
-- `TransmissionClientBootstrap.makeConfig` использует тот же snapshot + Keychain для построения `TransmissionClientConfig` до показа UI.
+- `AppBootstrap.makeInitialState(...)` больше не читает snapshot напрямую; начальное состояние создаётся без IO.
+- Загрузка серверов выполняется через `ServerListReducer.Action.task` и `ServerConfigRepository.load()` внутри эффекта редьюсера.
+- `TransmissionClientDependency.liveValue` остаётся placeholder: реальные клиенты создаются только per-server через `ServerConnectionEnvironmentFactory` после выбора сервера.
 
 ### Keychain lifecycle
 - Добавление сервера (онбординг или UI) → `CredentialsRepository.save` вызывается до `serverConfigRepository.upsert`.
@@ -1182,7 +1182,7 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
   - in-memory CRUD happy-path.
   - file-based happy-path (upsert → snapshot → delete).
   - failure-path (ошибка записи в недоступный файл → `ServerConfigRepositoryError.failedToPersist`).
-- `AppBootstrapTests.loadsPersistedServersFromStorage` — создаёт временный `servers.json`, запускает `AppBootstrap.makeInitialState` и проверяет, что серверы подхватываются и `shouldLoadServersFromRepository` обнуляется.
+- `AppBootstrapTests.bootstrapDoesNotLoadServersFromStorage` — проверяет, что bootstrap не читает `servers.json`, а загрузка происходит через репозиторий в `ServerListReducer`.
 - `ServerListFeatureTests.deleteRequiresConfirmationBeforeRemoving` проверяет, что swipe-delete показывает подтверждение, чистит Keychain и вызывает `serverConfigRepository.delete`.
 - `ServerDetailFeatureTests` покрывают редактирование (delegate `.serverUpdated`) и оба сценария удаления (подтверждение/отмена + очистку секретов).
 
@@ -1199,7 +1199,7 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - Проверка: модульные тесты базовых редьюсеров с использованием Swift Testing @Test и TestStore с mock зависимостями.
 
 ### Инфраструктура зависимостей и времени (RTC-57)
-- **Цель**: выстроить единый слой зависимостей для TCA, чтобы все фичи получали Clock, UUID, логгеры и сетевые клиенты через `@Dependency`. Текущая реализация (`TransmissionClockDependency`, `TransmissionClientBootstrap`) фокусируется на Transmission и не покрывает остальные сервисы.
+- **Цель**: выстроить единый слой зависимостей для TCA, чтобы все фичи получали Clock, UUID, логгеры и сетевые клиенты через `@Dependency`. Глобальный bootstrap TransmissionClient отсутствует, клиенты создаются per-server через factory.
 - **Работы**:
   - Вынести `TransmissionClockDependency` в нейтральный `AppClockDependency` (поддержка `ContinuousClock`/`TestClock`), обновить клиентов Transmission и будущих polling-задач.
   - Добавить DependencyClients для `UUIDGenerator`, `DateProvider`, `MainQueue` (используем `swift-clocks` и `DispatchQueue.main` через `clock.sleep`), чтобы исключить прямые вызовы `UUID()`/`Date()` из редьюсеров.
@@ -1212,9 +1212,9 @@ if let statusData = verifyResponse.arguments?.object?["status"] {
 - `DependencyClients/AppClockDependency.swift` — универсальный `AppClockDependency` c `ContinuousClock()` по умолчанию и helper `test(clock:)` для инъекции `TestClock` в Reducer тестах.
 - `DependencyClients/UUIDGeneratorDependency.swift`, `DateProviderDependency.swift`, `MainQueueDependency.swift` — клиенты для генерации UUID, получения `Date` и выполнения операций на MainActor. Live реализации используют `UUID()`, `Date()` и `Task.sleep(for:)`/`MainActor.run`, тест/preview варианты возвращают плейсхолдеры без обращения к глобальному состоянию.
 - `AppDependencies.swift`:
-  - `AppDependencies.makeLive()` формирует полный `DependencyValues` набор для `RemissionApp`, включая вызов `TransmissionClientBootstrap` (получает `appClock` вместо старого `TransmissionClockDependency`).
+  - `AppDependencies.makeLive()` формирует `DependencyValues` набор для `RemissionApp`, устанавливая placeholder для `TransmissionClientDependency`.
   - `DependencyValues.appDefault()/appPreview()/appTest()` и `useAppDefaults()` обеспечивают единое заполнение clock/UUID/Date/MainQueue зависимостей для рабочих, превью и тестовых окружений.
-- `RemissionApp` теперь инициализирует Store через `AppDependencies.makeLive()`, а `TransmissionClientBootstrap` использует `dependencies.appClock.clock()` при создании `TransmissionClient`.
+- `RemissionApp` инициализирует Store через `AppDependencies.makeLive()`, а реальные Transmission клиенты создаются per-server через `ServerConnectionEnvironmentFactory`.
 - `TorrentDetailReducer` обновлён на `@Dependency(\.dateProvider)`; тесты `TorrentDetailFeatureTests` переключены на `dateProvider.now = { timestamp }`.
 
 ### Версионирование корневого состояния и навигации (RTC-58)

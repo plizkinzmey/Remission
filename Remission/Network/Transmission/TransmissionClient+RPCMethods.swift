@@ -52,6 +52,11 @@ extension TransmissionClient {
         try await sendRequest(method: "session-stats")
     }
 
+    public func freeSpace(path: String) async throws -> TransmissionResponse {
+        let arguments: [String: AnyCodable] = ["path": .string(path)]
+        return try await sendRequest(method: "free-space", arguments: anyCodable(from: arguments))
+    }
+
     public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
         let handshake: TransmissionHandshakeResult = try await performHandshake()
         return (handshake.isCompatible, handshake.rpcVersion)
