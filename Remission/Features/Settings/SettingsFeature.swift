@@ -282,13 +282,15 @@ struct SettingsReducer {
                         guard environment != nil else {
                             throw SettingsError.missingConnection
                         }
-                        let sessionUpdate = SessionRepository.SessionUpdate(seedRatioLimit: seedRatio)
+                        let sessionUpdate = SessionRepository.SessionUpdate(
+                            seedRatioLimit: seedRatio)
                         let session = try await withDependencies {
                             if let environment {
                                 environment.apply(to: &$0)
                             }
                         } operation: {
-                            @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
+                            @Dependency(\.sessionRepository) var sessionRepository:
+                                SessionRepository
                             return try await sessionRepository.updateState(sessionUpdate)
                         }
                         return SaveResult(
@@ -362,7 +364,8 @@ struct SettingsReducer {
                                 environment.apply(to: &$0)
                             }
                         } operation: {
-                            @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
+                            @Dependency(\.sessionRepository) var sessionRepository:
+                                SessionRepository
                             return try await sessionRepository.fetchState()
                         }
                     }

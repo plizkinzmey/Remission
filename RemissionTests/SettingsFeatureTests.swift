@@ -60,7 +60,8 @@ struct SettingsFeatureTests {
         await testStore.receive(.sessionResponse(.success(session))) {
             $0.persistedSession = session
             $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
-            $0.seedRatioLimitValue = session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
         }
     }
 
@@ -165,7 +166,8 @@ struct SettingsFeatureTests {
             $0.isTelemetryEnabled = expected.isTelemetryEnabled
             $0.defaultSpeedLimits = expected.defaultSpeedLimits
             $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
-            $0.seedRatioLimitValue = session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
         }
 
         await testStore.receive(.delegate(.closeRequested))
@@ -216,7 +218,8 @@ struct SettingsFeatureTests {
             $0.isTelemetryEnabled = preferences.isTelemetryEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
             $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
-            $0.seedRatioLimitValue = session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
             $0.hasPendingChanges = false
         }
 

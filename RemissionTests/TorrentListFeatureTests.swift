@@ -837,7 +837,8 @@ extension TorrentListFeatureTests {
 
         await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
             $0.phase = .loaded
-            $0.items = IdentifiedArray(uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) })
+            $0.items = IdentifiedArray(
+                uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) })
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
