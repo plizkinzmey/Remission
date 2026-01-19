@@ -23,10 +23,8 @@ extension ServerListView {
 
     var serverRows: some View {
         ForEach(store.servers) { server in
-            serverRow(server)
-                .task {
-                    await store.send(.connectionProbeRequested(server.id)).finish()
-                }
+            let status = store.connectionStatuses[server.id] ?? .init()
+            serverRow(server, status: status)
                 .accessibilityLabel(server.name)
                 #if os(iOS)
                     .listRowBackground(Color.clear)

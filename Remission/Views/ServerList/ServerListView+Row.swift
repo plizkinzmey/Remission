@@ -3,11 +3,14 @@ import SwiftUI
 
 extension ServerListView {
     @ViewBuilder
-    func serverRow(_ server: ServerConfig) -> some View {
+    func serverRow(
+        _ server: ServerConfig,
+        status: ServerListReducer.ConnectionStatus
+    ) -> some View {
         #if os(iOS)
             serverRowIOS(server)
         #else
-            serverRowMac(server)
+            serverRowMac(server, status: status)
         #endif
     }
 
@@ -42,7 +45,10 @@ extension ServerListView {
         .appCardSurface(cornerRadius: 14)
     }
 
-    private func serverRowMac(_ server: ServerConfig) -> some View {
+    private func serverRowMac(
+        _ server: ServerConfig,
+        status: ServerListReducer.ConnectionStatus
+    ) -> some View {
         VStack(spacing: 12) {
             HStack(alignment: .center, spacing: 16) {
                 Button {
@@ -61,7 +67,7 @@ extension ServerListView {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.9)
                         }
-                        versionSummary(for: server)
+                        versionSummary(for: server, status: status)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
@@ -71,8 +77,8 @@ extension ServerListView {
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
                 HStack(spacing: 10) {
-                    storageSummaryChip(for: server)
-                    connectionStatusChip(for: server)
+                    storageSummaryChip(for: server, status: status)
+                    connectionStatusChip(status: status)
                     securityBadge(for: server)
                     editButton(for: server)
                     deleteButton(for: server)
@@ -147,8 +153,9 @@ extension ServerListView {
     }
 
     @ViewBuilder
-    private func connectionStatusChip(for server: ServerConfig) -> some View {
-        let status = store.connectionStatuses[server.id] ?? .init()
+    private func connectionStatusChip(
+        status: ServerListReducer.ConnectionStatus
+    ) -> some View {
         let descriptor = ConnectionStatusChipDescriptor(phase: status.phase)
 
         Label(descriptor.label, systemImage: descriptor.systemImage)
@@ -160,8 +167,11 @@ extension ServerListView {
     }
 
     @ViewBuilder
-    private func storageSummaryChip(for server: ServerConfig) -> some View {
-        let summary = store.connectionStatuses[server.id]?.storageSummary
+    private func storageSummaryChip(
+        for server: ServerConfig,
+        status: ServerListReducer.ConnectionStatus
+    ) -> some View {
+        let summary = status.storageSummary
         if let summary {
             let total = StorageFormatters.bytes(summary.totalBytes)
             let free = StorageFormatters.bytes(summary.freeBytes)
@@ -183,8 +193,10 @@ extension ServerListView {
     }
 
     @ViewBuilder
-    private func versionSummary(for server: ServerConfig) -> some View {
-        let status = store.connectionStatuses[server.id] ?? .init()
+    private func versionSummary(
+        for server: ServerConfig,
+        status: ServerListReducer.ConnectionStatus
+    ) -> some View {
         switch status.phase {
         case .connected(let handshake):
             let description = handshake.serverVersionDescription ?? ""
