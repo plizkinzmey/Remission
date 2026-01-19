@@ -132,12 +132,22 @@ extension TorrentDetailView {
         guard store.hasLoadedMetadata else {
             return L10n.tr("torrentDetail.progress.none")
         }
-        let percent = max(0, min(100, Int((store.percentDone * 100).rounded())))
+        let percent = max(0, min(100, Int((effectiveProgress * 100).rounded())))
         return "\(percent)%"
     }
 
     var clampedProgress: Double {
-        max(0, min(store.percentDone, 1))
+        max(0, min(effectiveProgress, 1))
+    }
+
+    var effectiveProgress: Double {
+        switch store.status {
+        case Torrent.Status.checkWaiting.rawValue,
+            Torrent.Status.checking.rawValue:
+            return store.recheckProgress
+        default:
+            return store.percentDone
+        }
     }
 
     var loadingOverlay: some View {
@@ -161,7 +171,7 @@ extension TorrentDetailView {
                 TorrentDetailLabelValueRow(
                     label: L10n.tr("torrentDetail.mainInfo.progress"),
                     value: store.hasLoadedMetadata
-                        ? TorrentDetailFormatters.progress(store.percentDone)
+                        ? TorrentDetailFormatters.progress(effectiveProgress)
                         : L10n.tr("torrentDetail.mainInfo.unavailable")
                 )
                 Divider()

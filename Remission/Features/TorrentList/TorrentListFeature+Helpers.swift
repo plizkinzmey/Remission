@@ -183,6 +183,7 @@ extension TorrentListReducer {
         let summary = Torrent.Summary(
             progress: .init(
                 percentDone: 0,
+                recheckProgress: 0.0,
                 totalSize: 0,
                 downloadedEver: 0,
                 uploadedEver: 0,

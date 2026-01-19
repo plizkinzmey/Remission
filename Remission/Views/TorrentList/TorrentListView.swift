@@ -1291,6 +1291,7 @@ extension TorrentListReducer.State {
                     torrent.summary = .init(
                         progress: .init(
                             percentDone: 1,
+                            recheckProgress: 0.0,
                             totalSize: 8_000_000_000,
                             downloadedEver: 8_000_000_000,
                             uploadedEver: 4_200_000_000,

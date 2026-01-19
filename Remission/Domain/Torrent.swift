@@ -75,9 +75,11 @@ extension Torrent {
         }
     }
 
-    /// Прогресс по размеру и времени (`torrent-get` → `percentDone`, `totalSize`, `downloadedEver`, `uploadedEver`, `eta`).
+    /// Прогресс по размеру и времени (`torrent-get` → `percentDone`, `recheckProgress`, `totalSize`, `downloadedEver`, `uploadedEver`, `eta`).
     public struct Progress: Equatable, Sendable, Codable {
         public var percentDone: Double
+        /// Прогресс проверки (`torrent-get` → `recheckProgress`), 0...1.
+        public var recheckProgress: Double
         public var totalSize: Int
         public var downloadedEver: Int
         public var uploadedEver: Int
@@ -88,6 +90,7 @@ extension Torrent {
 
         public init(
             percentDone: Double,
+            recheckProgress: Double,
             totalSize: Int,
             downloadedEver: Int,
             uploadedEver: Int,
@@ -95,6 +98,7 @@ extension Torrent {
             etaSeconds: Int
         ) {
             self.percentDone = percentDone
+            self.recheckProgress = recheckProgress
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
             self.uploadedEver = uploadedEver
@@ -291,6 +295,7 @@ extension Torrent {
         let summary = Summary(
             progress: Progress(
                 percentDone: 0.42,
+                recheckProgress: 0.0,
                 totalSize: 15_728_640_000,
                 downloadedEver: 6_500_000_000,
                 uploadedEver: 1_200_000_000,
@@ -371,6 +376,7 @@ extension Torrent {
         let summary = Summary(
             progress: Progress(
                 percentDone: 1.0,
+                recheckProgress: 0.0,
                 totalSize: 42_949_672_960,
                 downloadedEver: 42_949_672_960,
                 uploadedEver: 84_000_000_000,

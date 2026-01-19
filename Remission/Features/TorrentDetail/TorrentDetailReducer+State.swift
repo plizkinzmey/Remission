@@ -34,6 +34,7 @@ extension TorrentDetailReducer {
         var category: TorrentCategory = .other
         var lastSyncedTags: [String] = []
         var percentDone: Double = 0.0
+        var recheckProgress: Double = 0.0
         var totalSize: Int = 0
         var downloadedEver: Int = 0
         var uploadedEver: Int = 0
@@ -71,6 +72,7 @@ extension TorrentDetailReducer {
             category: TorrentCategory = .other,
             lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
+            recheckProgress: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
             uploadedEver: Int = 0,
@@ -105,6 +107,7 @@ extension TorrentDetailReducer {
             self.category = category
             self.lastSyncedTags = lastSyncedTags
             self.percentDone = percentDone
+            self.recheckProgress = recheckProgress
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
             self.uploadedEver = uploadedEver
@@ -162,6 +165,7 @@ extension TorrentDetailReducer {
             category: TorrentCategory = .other,
             lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
+            recheckProgress: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
             uploadedEver: Int = 0,
@@ -197,6 +201,7 @@ extension TorrentDetailReducer {
                 category: category,
                 lastSyncedTags: lastSyncedTags,
                 percentDone: percentDone,
+                recheckProgress: recheckProgress,
                 totalSize: totalSize,
                 downloadedEver: downloadedEver,
                 uploadedEver: uploadedEver,
@@ -243,6 +248,7 @@ extension TorrentDetailReducer.State {
         lastSyncedTags = torrent.tags
         category = TorrentCategory.category(from: torrent.tags)
         percentDone = torrent.summary.progress.percentDone
+        recheckProgress = torrent.summary.progress.recheckProgress
         totalSize = torrent.summary.progress.totalSize
         downloadedEver = torrent.summary.progress.downloadedEver
         uploadedEver = torrent.summary.progress.uploadedEver
