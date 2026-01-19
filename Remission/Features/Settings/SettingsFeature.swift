@@ -8,12 +8,16 @@ struct SettingsReducer {
     struct State: Equatable {
         var serverID: UUID
         var serverName: String
+        var connectionEnvironment: ServerConnectionEnvironment?
         var isLoading: Bool = true
         var isSaving: Bool = false
         var pollingIntervalSeconds: Double = 5
         var isAutoRefreshEnabled: Bool = true
         var isTelemetryEnabled: Bool = false
+        var isSeedRatioLimitEnabled: Bool = false
+        var seedRatioLimitValue: Double = 0
         var persistedPreferences: UserPreferences?
+        var persistedSession: SessionState?
         var hasPendingChanges: Bool = false
         var defaultSpeedLimits: UserPreferences.DefaultSpeedLimits = .init(
             downloadKilobytesPerSecond: nil,
@@ -24,10 +28,12 @@ struct SettingsReducer {
         init(
             serverID: UUID,
             serverName: String,
+            connectionEnvironment: ServerConnectionEnvironment? = nil,
             isLoading: Bool = true
         ) {
             self.serverID = serverID
             self.serverName = serverName
+            self.connectionEnvironment = connectionEnvironment
             self.isLoading = isLoading
         }
     }
@@ -38,12 +44,14 @@ struct SettingsReducer {
         case pollingIntervalChanged(Double)
         case autoRefreshToggled(Bool)
         case telemetryToggled(Bool)
+        case seedRatioLimitChanged(String)
         case downloadLimitChanged(String)
         case uploadLimitChanged(String)
         case preferencesResponse(TaskResult<UserPreferences>)
+        case sessionResponse(TaskResult<SessionState>)
         case saveButtonTapped
         case cancelButtonTapped
-        case saveResponse(TaskResult<UserPreferences>)
+        case saveResponse(TaskResult<SaveResult>)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }
@@ -70,12 +78,16 @@ struct SettingsReducer {
                 state.alert = nil
                 if state.persistedPreferences != nil {
                     state.isLoading = false
-                    return observePreferences(serverID: state.serverID)
+                    return .merge(
+                        observePreferences(serverID: state.serverID),
+                        loadSession(environment: state.connectionEnvironment)
+                    )
                 }
                 state.isLoading = true
                 return .merge(
                     loadPreferences(serverID: state.serverID),
-                    observePreferences(serverID: state.serverID)
+                    observePreferences(serverID: state.serverID),
+                    loadSession(environment: state.connectionEnvironment)
                 )
 
             case .teardown:
@@ -100,6 +112,18 @@ struct SettingsReducer {
                 state.hasPendingChanges = true
                 return .none
 
+            case .seedRatioLimitChanged(let value):
+                guard let parsed = parseRatio(limit: value) else { return .none }
+                if parsed > 0 {
+                    state.isSeedRatioLimitEnabled = true
+                    state.seedRatioLimitValue = parsed
+                } else {
+                    state.isSeedRatioLimitEnabled = false
+                    state.seedRatioLimitValue = 0
+                }
+                state.hasPendingChanges = true
+                return .none
+
             case .downloadLimitChanged(let value):
                 state.defaultSpeedLimits.downloadKilobytesPerSecond = parse(limit: value)
                 state.hasPendingChanges = true
@@ -117,6 +141,25 @@ struct SettingsReducer {
                     apply(preferences: preferences, to: &state)
                 }
                 state.alert = nil
+                return .none
+
+            case .sessionResponse(.success(let session)):
+                state.persistedSession = session
+                if state.hasPendingChanges == false {
+                    apply(session: session, to: &state)
+                }
+                return .none
+
+            case .sessionResponse(.failure(let error)):
+                state.alert = AlertState {
+                    TextState(L10n.tr("settings.alert.sessionFailed.title"))
+                } actions: {
+                    ButtonState(role: .cancel, action: .dismiss) {
+                        TextState(L10n.tr("settings.alert.close"))
+                    }
+                } message: {
+                    TextState(describe(error))
+                }
                 return .none
 
             case .preferencesResponse(.failure(let error)):
@@ -141,14 +184,19 @@ struct SettingsReducer {
                 if let persisted = state.persistedPreferences {
                     apply(preferences: persisted, to: &state)
                 }
+                if let persistedSession = state.persistedSession {
+                    apply(session: persistedSession, to: &state)
+                }
                 state.hasPendingChanges = false
                 return .send(.delegate(.closeRequested))
 
-            case .saveResponse(.success(let preferences)):
+            case .saveResponse(.success(let result)):
                 state.isSaving = false
                 state.hasPendingChanges = false
-                state.persistedPreferences = preferences
-                apply(preferences: preferences, to: &state)
+                state.persistedPreferences = result.preferences
+                state.persistedSession = result.session
+                apply(preferences: result.preferences, to: &state)
+                apply(session: result.session, to: &state)
                 return .send(.delegate(.closeRequested))
 
             case .saveResponse(.failure(let error)):
@@ -206,6 +254,11 @@ struct SettingsReducer {
         let isAutoRefreshEnabled = state.isAutoRefreshEnabled
         let isTelemetryEnabled = state.isTelemetryEnabled
         let limits = state.defaultSpeedLimits
+        let seedRatio = SessionState.SeedRatioLimit(
+            isEnabled: state.isSeedRatioLimitEnabled,
+            value: state.seedRatioLimitValue
+        )
+        let environment = state.connectionEnvironment
         return .run { send in
             await send(
                 .saveResponse(
@@ -226,7 +279,24 @@ struct SettingsReducer {
                             serverID: serverID,
                             isTelemetryEnabled
                         )
-                        return try await userPreferencesRepository.load(serverID: serverID)
+                        guard environment != nil else {
+                            throw SettingsError.missingConnection
+                        }
+                        let sessionUpdate = SessionRepository.SessionUpdate(seedRatioLimit: seedRatio)
+                        let session = try await withDependencies {
+                            if let environment {
+                                environment.apply(to: &$0)
+                            }
+                        } operation: {
+                            @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
+                            return try await sessionRepository.updateState(sessionUpdate)
+                        }
+                        return SaveResult(
+                            preferences: try await userPreferencesRepository.load(
+                                serverID: serverID
+                            ),
+                            session: session
+                        )
                     }
                 )
             )
@@ -244,6 +314,17 @@ struct SettingsReducer {
         state.defaultSpeedLimits = preferences.defaultSpeedLimits
     }
 
+    private func apply(
+        session: SessionState,
+        to state: inout State
+    ) {
+        state.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
+        state.seedRatioLimitValue =
+            session.seedRatioLimit.isEnabled
+            ? session.seedRatioLimit.value
+            : 0
+    }
+
     private func describe(_ error: Error) -> String {
         guard let localized = error as? LocalizedError,
             let message = localized.errorDescription,
@@ -259,5 +340,52 @@ struct SettingsReducer {
         guard trimmed.isEmpty == false else { return nil }
         guard let value = Int(trimmed), value >= 0 else { return nil }
         return value
+    }
+
+    private func parseRatio(limit: String) -> Double? {
+        let trimmed = limit.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalized), value >= 0 else { return nil }
+        return value
+    }
+
+    private func loadSession(
+        environment: ServerConnectionEnvironment?
+    ) -> Effect<Action> {
+        .run { send in
+            await send(
+                .sessionResponse(
+                    TaskResult {
+                        try await withDependencies {
+                            if let environment {
+                                environment.apply(to: &$0)
+                            }
+                        } operation: {
+                            @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
+                            return try await sessionRepository.fetchState()
+                        }
+                    }
+                )
+            )
+        }
+    }
+}
+
+extension SettingsReducer {
+    struct SaveResult: Equatable {
+        var preferences: UserPreferences
+        var session: SessionState
+    }
+
+    enum SettingsError: LocalizedError, Sendable {
+        case missingConnection
+
+        var errorDescription: String? {
+            switch self {
+            case .missingConnection:
+                return L10n.tr("settings.error.connection")
+            }
+        }
     }
 }

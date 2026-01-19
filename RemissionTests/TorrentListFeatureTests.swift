@@ -745,6 +745,112 @@ extension TorrentListFeatureTests {
         #expect(await callCounter.value == 2)
     }
 
+    @Test("seed ratio лимит управляет стартом и стопом раздачи")
+    func seedRatioPolicyStartsAndStopsSeeding() async {
+        let clock = TestClock<Duration>()
+        let started = LockedValue<[Torrent.Identifier]>([])
+        let stopped = LockedValue<[Torrent.Identifier]>([])
+
+        var seeding = Torrent.previewCompleted
+        seeding.id = .init(rawValue: 1)
+        seeding.status = .seeding
+        seeding.summary.progress.uploadRatio = 2.0
+        seeding.summary.progress.percentDone = 1
+
+        var stoppedTorrent = Torrent.previewCompleted
+        stoppedTorrent.id = .init(rawValue: 2)
+        stoppedTorrent.status = .stopped
+        stoppedTorrent.summary.progress.uploadRatio = 0.5
+        stoppedTorrent.summary.progress.percentDone = 1
+
+        var waiting = Torrent.previewCompleted
+        waiting.id = .init(rawValue: 3)
+        waiting.status = .seedWaiting
+        waiting.summary.progress.uploadRatio = 0.2
+        waiting.summary.progress.percentDone = 1
+
+        var downloading = Torrent.previewDownloading
+        downloading.id = .init(rawValue: 4)
+        downloading.status = .downloading
+        downloading.summary.progress.uploadRatio = 0.1
+        downloading.summary.progress.percentDone = 0.5
+
+        let torrents = [seeding, stoppedTorrent, waiting, downloading]
+
+        let repository = TorrentRepository.test(
+            fetchList: { torrents },
+            start: { ids in
+                started.withValue { $0.append(contentsOf: ids) }
+            },
+            stop: { ids in
+                stopped.withValue { $0.append(contentsOf: ids) }
+            }
+        )
+
+        var session = SessionState.previewActive
+        session.seedRatioLimit = .init(isEnabled: true, value: 1.0)
+        let sessionRepository = SessionRepository(
+            performHandshake: { DomainFixtures.sessionHandshake },
+            fetchState: { session },
+            updateState: { _ in session },
+            checkCompatibility: { DomainFixtures.sessionCompatibility }
+        )
+
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: .previewLocalHTTP,
+            torrentRepository: repository,
+            sessionRepository: sessionRepository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                state.serverID = environment.serverID
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.appClock = .test(clock: clock)
+                dependencies.userPreferencesRepository = .testValue(
+                    preferences: DomainFixtures.userPreferences
+                )
+                dependencies.offlineCacheRepository = .inMemory()
+            }
+        )
+
+        await store.send(.refreshRequested) {
+            $0.isRefreshing = true
+        }
+
+        let expectedSummary = StorageSummary(
+            totalBytes: torrents.reduce(Int64(0)) { total, torrent in
+                total + Int64(torrent.summary.progress.totalSize)
+            } + session.storage.freeBytes,
+            freeBytes: session.storage.freeBytes,
+            updatedAt: nil
+        )
+
+        await store.receive(.storageUpdated(.some(expectedSummary))) {
+            $0.storageSummary = expectedSummary
+        }
+
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess(torrents)))) {
+            $0.phase = .loaded
+            $0.items = IdentifiedArray(uniqueElements: torrents.map { TorrentListItem.State(torrent: $0) })
+            $0.failedAttempts = 0
+            $0.isRefreshing = false
+        }
+
+        let startedIDs = await started.value
+        let stoppedIDs = await stopped.value
+
+        #expect(startedIDs.contains(stoppedTorrent.id))
+        #expect(startedIDs.contains(waiting.id))
+        #expect(stoppedIDs.contains(seeding.id))
+        #expect(startedIDs.contains(downloading.id) == false)
+    }
+
     // Проверяем, что ошибка загрузки preferences показывает alert и всё равно запускает fetch.
     @Test("preferences failure показывает alert и запускает начальный fetch")
     func preferencesErrorShowsAlertAndFetches() async {
@@ -804,6 +910,27 @@ extension TorrentListFeatureTests {
             $0.failedAttempts = 0
             $0.isRefreshing = false
         }
+    }
+}
+
+private final class LockedValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: Value
+
+    init(_ value: Value) {
+        storage = value
+    }
+
+    var value: Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func withValue(_ mutation: (inout Value) -> Void) {
+        lock.lock()
+        defer { lock.unlock() }
+        mutation(&storage)
     }
 }
 

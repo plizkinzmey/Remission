@@ -112,6 +112,8 @@ struct TransmissionDomainMapperTests {
         #expect(state.speedLimits.download.isEnabled)
         #expect(state.speedLimits.download.kilobytesPerSecond == 8192)
         #expect(state.queue.downloadLimit.count == 5)
+        #expect(state.seedRatioLimit.isEnabled)
+        #expect(state.seedRatioLimit.value == 1.75)
         #expect(state.throughput.totalTorrentCount == 10)
         #expect(state.storage.freeBytes == 500_000_000_000)
         #expect(state.cumulativeStats.filesAdded == 120)
@@ -239,7 +241,9 @@ extension TransmissionDomainMapperTests {
                 "seed-queue-enabled": .bool(true),
                 "seed-queue-size": .int(3),
                 "queue-stalled-enabled": .bool(true),
-                "queue-stalled-minutes": .int(30)
+                "queue-stalled-minutes": .int(30),
+                "seedRatioLimited": .bool(true),
+                "seedRatioLimit": .double(1.75)
             ])
         )
     }

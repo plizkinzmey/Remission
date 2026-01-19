@@ -146,6 +146,13 @@ extension TorrentListReducer {
                         return try await sessionRepository.fetchState()
                     })
                     : nil
+                if let session {
+                    await applySeedRatioPolicy(
+                        torrents: torrents,
+                        session: session,
+                        environment: environment
+                    )
+                }
                 let snapshot = (try? await environment.snapshot.load()) ?? nil
                 let updatedAt = snapshot?.torrents?.updatedAt
                 if shouldFetchStorage {
@@ -195,6 +202,43 @@ extension TorrentListReducer {
             }
         }
         .cancellable(id: CancelID.fetch, cancelInFlight: true)
+    }
+
+    private func applySeedRatioPolicy(
+        torrents: [Torrent],
+        session: SessionState,
+        environment: ServerConnectionEnvironment
+    ) async {
+        guard session.seedRatioLimit.isEnabled else { return }
+        let limit = session.seedRatioLimit.value
+        let stopIDs = torrents.compactMap { torrent -> Torrent.Identifier? in
+            guard torrent.status == .seeding else { return nil }
+            return torrent.summary.progress.uploadRatio > limit ? torrent.id : nil
+        }
+        let startIDs = torrents.compactMap { torrent -> Torrent.Identifier? in
+            guard torrent.summary.progress.percentDone >= 1 else { return nil }
+            guard torrent.summary.progress.uploadRatio < limit else { return nil }
+            guard torrent.status == .stopped || torrent.status == .seedWaiting else {
+                return nil
+            }
+            return torrent.id
+        }
+        guard stopIDs.isEmpty == false || startIDs.isEmpty == false else { return }
+        do {
+            try await withDependencies {
+                environment.apply(to: &$0)
+            } operation: {
+                @Dependency(\.torrentRepository) var repository: TorrentRepository
+                if stopIDs.isEmpty == false {
+                    try await repository.stop(stopIDs)
+                }
+                if startIDs.isEmpty == false {
+                    try await repository.start(startIDs)
+                }
+            }
+        } catch {
+            return
+        }
     }
 
     private func makeStorageSummary(

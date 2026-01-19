@@ -157,7 +157,8 @@ struct ServerDetailReducer {
             case .settingsButtonTapped:
                 state.settings = SettingsReducer.State(
                     serverID: state.server.id,
-                    serverName: state.server.name
+                    serverName: state.server.name,
+                    connectionEnvironment: state.connectionEnvironment
                 )
                 return .none
 

@@ -2267,6 +2267,86 @@
         }
       }
     },
+    "settings.seedRatio.limit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seed ratio limit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит рейтинга"
+          }
+        }
+      }
+    },
+    "settings.seedRatio.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set to 0 to disable the limit."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Укажите 0, чтобы отключить лимит."
+          }
+        }
+      }
+    },
+    "settings.seedRatio.section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seed ratio"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Рейтинг раздачи"
+          }
+        }
+      }
+    },
+    "settings.alert.sessionFailed.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load server settings"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить настройки сервера"
+          }
+        }
+      }
+    },
+    "settings.error.connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server connection is unavailable."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение к серверу недоступно."
+          }
+        }
+      }
+    },
     "settings.telemetry.note": {
       "localizations": {
         "en": {

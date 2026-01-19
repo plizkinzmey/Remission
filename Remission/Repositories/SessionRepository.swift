@@ -92,15 +92,22 @@ struct SessionRepository: Sendable, SessionRepositoryProtocol {
         var speedLimits: SpeedLimitsUpdate?
         /// Обновления очередей. `nil` — оставить без изменений.
         var queue: QueueUpdate?
+        /// Обновление лимита рейтинга раздачи. `nil` — оставить без изменений.
+        var seedRatioLimit: SessionState.SeedRatioLimit?
 
-        public init(speedLimits: SpeedLimitsUpdate? = nil, queue: QueueUpdate? = nil) {
+        public init(
+            speedLimits: SpeedLimitsUpdate? = nil,
+            queue: QueueUpdate? = nil,
+            seedRatioLimit: SessionState.SeedRatioLimit? = nil
+        ) {
             self.speedLimits = speedLimits
             self.queue = queue
+            self.seedRatioLimit = seedRatioLimit
         }
 
         /// `true`, если обновление не содержит ни одного изменения.
         var isEmpty: Bool {
-            speedLimits == nil && queue == nil
+            speedLimits == nil && queue == nil && seedRatioLimit == nil
         }
     }
 
@@ -322,6 +329,13 @@ private func makeSessionSetArguments(
         }
         if let stalledMinutes = queue.stalledMinutes {
             dict["queue-stalled-minutes"] = .int(stalledMinutes)
+        }
+    }
+
+    if let seedRatioLimit = update.seedRatioLimit {
+        dict["seedRatioLimited"] = .bool(seedRatioLimit.isEnabled)
+        if seedRatioLimit.isEnabled {
+            dict["seedRatioLimit"] = .double(seedRatioLimit.value)
         }
     }
 
