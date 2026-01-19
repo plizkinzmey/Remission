@@ -3,11 +3,15 @@ import SwiftUI
 struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
     @State private var isPasswordVisible: Bool = false
+    @State private var labelWidth: CGFloat = 0
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             connectionSection
             credentialsSection
+        }
+        .onPreferenceChange(FormLabelWidthPreferenceKey.self) { value in
+            labelWidth = max(labelWidth, value)
         }
     }
 
@@ -220,6 +224,17 @@ struct ServerConnectionFormFields: View {
                 .font(.subheadline)
                 .foregroundStyle(.primary)
                 .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear
+                            .preference(
+                                key: FormLabelWidthPreferenceKey.self,
+                                value: proxy.size.width
+                            )
+                    }
+                )
+                .frame(minWidth: labelWidth, alignment: .leading)
 
             field()
                 .textFieldStyle(.plain)
@@ -251,6 +266,14 @@ struct ServerConnectionFormFields: View {
                 .filter { $0.isASCII && allowed.contains($0) }
                 .map(Character.init)
         )
+    }
+}
+
+private enum FormLabelWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
