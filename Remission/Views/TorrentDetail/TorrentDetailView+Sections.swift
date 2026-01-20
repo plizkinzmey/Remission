@@ -97,6 +97,13 @@ extension TorrentDetailView {
                 title: L10n.tr("torrentDetail.metric.peers"),
                 value: "\(store.peersConnected)"
             )
+            #if os(macOS)
+                SummaryMetricRow(
+                    icon: "gauge.with.dots.needle.100percent",
+                    title: L10n.tr("torrentDetail.metric.ratio"),
+                    value: String(format: "%.2f", store.uploadRatio)
+                )
+            #endif
         }
     }
 
@@ -117,6 +124,13 @@ extension TorrentDetailView {
                 title: L10n.tr("torrentDetail.metric.peers"),
                 value: "\(store.peersConnected)"
             )
+            #if os(macOS)
+                SummaryMetricCompactRow(
+                    icon: "gauge.with.dots.needle.100percent",
+                    title: L10n.tr("torrentDetail.metric.ratio"),
+                    value: String(format: "%.2f", store.uploadRatio)
+                )
+            #endif
         }
         .frame(minWidth: 180, alignment: .leading)
     }
