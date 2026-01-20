@@ -5473,6 +5473,40 @@
           }
         }
       }
+    },
+    "torrentList.ratio": {
+      "comment": "Label for torrent ratio in the list. Argument: ratio value.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ratio %.2f"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Коэффициент %.2f"
+          }
+        }
+      }
+    },
+    "torrentList.ratio.short": {
+      "comment": "Short label for torrent ratio in the list. Argument: ratio value.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R %.2f"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R %.2f"
+          }
+        }
+      }
     }
   },
   "version": "1.1"

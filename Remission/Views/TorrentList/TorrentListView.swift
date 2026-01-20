@@ -872,6 +872,12 @@ private struct TorrentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.primary)
 
+                    Text(ratioTextShort)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier(
+                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
+
                     Spacer(minLength: 6)
 
                     Label(item.metrics.speedSummary, systemImage: "speedometer")
@@ -901,6 +907,12 @@ private struct TorrentRowView: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.primary)
+
+                    Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier(
+                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
 
                     if item.torrent.tags.isEmpty == false {
                         tagsInlineRow
@@ -1069,6 +1081,22 @@ private struct TorrentRowView: View {
         String(
             format: L10n.tr("torrentList.peers"),
             Int64(item.torrent.summary.peers.connected)
+        )
+    }
+
+    private var ratioText: String {
+        String(
+            format: L10n.tr("torrentList.ratio"),
+            locale: Locale.current,
+            item.torrent.summary.progress.uploadRatio
+        )
+    }
+
+    private var ratioTextShort: String {
+        String(
+            format: L10n.tr("torrentList.ratio.short"),
+            locale: Locale.current,
+            item.torrent.summary.progress.uploadRatio
         )
     }
 
