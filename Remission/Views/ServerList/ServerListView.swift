@@ -8,6 +8,15 @@ import SwiftUI
 
 struct ServerListView: View {
     @Bindable var store: StoreOf<ServerListReducer>
+    let showsLoadingState: Bool
+
+    init(
+        store: StoreOf<ServerListReducer>,
+        showsLoadingState: Bool = true
+    ) {
+        self.store = store
+        self.showsLoadingState = showsLoadingState
+    }
 
     var body: some View {
         Group {
@@ -16,7 +25,12 @@ struct ServerListView: View {
                     Group {
                         if store.servers.isEmpty {
                             if store.isLoading {
-                                loadingState
+                                if showsLoadingState {
+                                    loadingState
+                                } else {
+                                    Color.clear
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
                             } else {
                                 emptyState
                             }
@@ -45,7 +59,12 @@ struct ServerListView: View {
                 Group {
                     if store.servers.isEmpty {
                         if store.isLoading {
-                            loadingState
+                            if showsLoadingState {
+                                loadingState
+                            } else {
+                                Color.clear
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
                         } else {
                             emptyState
                         }

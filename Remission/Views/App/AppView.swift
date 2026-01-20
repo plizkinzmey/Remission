@@ -83,7 +83,8 @@ struct AppView: View {
         #else
             if shouldShowServerList {
                 ServerListView(
-                    store: store.scope(state: \.serverList, action: \.serverList)
+                    store: store.scope(state: \.serverList, action: \.serverList),
+                    showsLoadingState: store.path.isEmpty
                 )
             } else {
                 initialLoadingView
@@ -92,11 +93,8 @@ struct AppView: View {
     }
 
     private var initialLoadingView: some View {
-        VStack(spacing: 10) {
-            ProgressView()
-                .controlSize(.large)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Color.clear
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var addServerButton: some View {
