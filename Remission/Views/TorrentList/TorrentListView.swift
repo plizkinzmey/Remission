@@ -1015,7 +1015,7 @@ private struct TorrentRowView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 6) {
                 ForEach(item.torrent.tags, id: \.self) { tag in
-                    Text(tag)
+                    Text(displayTagLabel(tag))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8)
                         .frame(height: 20)
@@ -1038,13 +1038,17 @@ private struct TorrentRowView: View {
 
         return HStack(spacing: 6) {
             ForEach(tags, id: \.self) { tag in
-                pillLabel(tag)
+                pillLabel(displayTagLabel(tag))
             }
             if remaining > 0 {
                 pillLabel("+\(remaining)")
             }
         }
         .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
+    }
+
+    private func displayTagLabel(_ tag: String) -> String {
+        TorrentCategory.localizedTitle(for: tag) ?? tag
     }
 
     private func pillLabel(_ text: String) -> some View {
