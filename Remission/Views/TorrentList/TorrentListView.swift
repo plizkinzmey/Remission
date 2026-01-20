@@ -68,9 +68,11 @@ struct TorrentListView: View {
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
-        .confirmationDialog(
-            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
-        )
+        #if os(macOS)
+            .confirmationDialog(
+                $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+            )
+        #endif
     }
 }
 
@@ -556,17 +558,29 @@ extension TorrentListView {
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
             let actions = rowActions(for: item)
-            TorrentRowView(
+            let row = TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
                 actions: actions,
                 longestStatusTitle: longestStatusTitle,
                 isLocked: item.isRemoving
             )
-            .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-            .opacity(item.isRemoving ? 0.6 : 1)
-            .disabled(item.isRemoving)
             #if os(iOS)
+                Group {
+                    if store.pendingRemoveTorrentID == item.id {
+                        row.confirmationDialog(
+                            $store.scope(
+                                state: \.removeConfirmation,
+                                action: \.removeConfirmation
+                            )
+                        )
+                    } else {
+                        row
+                    }
+                }
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .opacity(item.isRemoving ? 0.6 : 1)
+                .disabled(item.isRemoving)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
                 .appCardSurface(cornerRadius: 14)
@@ -574,11 +588,6 @@ extension TorrentListView {
                     .contextMenuPreview,
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                 )
-            #else
-                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-                .listRowBackground(rowBackground(for: item))
-            #endif
-            #if os(iOS)
                 .contextMenu {
                     if let actions, actions.isLocked == false {
                         Button(
@@ -596,6 +605,13 @@ extension TorrentListView {
                         }
                     }
                 }
+            #else
+                row
+                    .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                    .opacity(item.isRemoving ? 0.6 : 1)
+                    .disabled(item.isRemoving)
+                    .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                    .listRowBackground(rowBackground(for: item))
             #endif
         }
     }
