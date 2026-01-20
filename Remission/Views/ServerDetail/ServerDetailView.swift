@@ -13,7 +13,7 @@ struct ServerDetailView: View {
                         connectionCard
                             .padding(.horizontal, AppFooterMetrics.layoutInset)
                     }
-                    if store.connectionEnvironment != nil {
+                    if shouldShowTorrentList {
                         torrentsSection
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
@@ -26,7 +26,7 @@ struct ServerDetailView: View {
                     if shouldShowConnectionSection {
                         connectionCard
                     }
-                    if store.connectionEnvironment != nil {
+                    if shouldShowTorrentList {
                         torrentsSection
                     }
                 }
@@ -35,10 +35,10 @@ struct ServerDetailView: View {
         }
         .overlay {
             if case .connecting = store.connectionState.phase {
-                ZStack {
+                VStack {
                     connectionPill
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
             }
         }
@@ -156,6 +156,16 @@ struct ServerDetailView: View {
         default:
             return true
         }
+    }
+
+    private var shouldShowTorrentList: Bool {
+        if store.connectionEnvironment != nil {
+            return true
+        }
+        if case .connecting = store.connectionState.phase {
+            return true
+        }
+        return false
     }
 
     #if os(iOS) || os(visionOS)

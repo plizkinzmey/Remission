@@ -508,6 +508,9 @@ struct ServerDetailReducer {
             state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
             state.connectionRetryAttempts = 0
+            if state.torrentList.items.isEmpty {
+                state.torrentList.phase = .loading
+            }
             return .merge(
                 .cancel(id: ConnectionCancellationID.connectionRetry),
                 connect(server: state.server)

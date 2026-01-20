@@ -283,7 +283,10 @@ extension TorrentListView {
     #if os(macOS)
         @ViewBuilder
         private var macOSScrollableContent: some View {
-            if store.connectionEnvironment == nil && store.items.isEmpty {
+            if store.connectionEnvironment == nil,
+                store.items.isEmpty,
+                case .idle = store.phase
+            {
                 disconnectedView
             } else {
                 switch store.phase {
@@ -331,7 +334,10 @@ extension TorrentListView {
 
     @ViewBuilder
     private var content: some View {
-        if store.connectionEnvironment == nil && store.items.isEmpty {
+        if store.connectionEnvironment == nil,
+            store.items.isEmpty,
+            case .idle = store.phase
+        {
             disconnectedView
         } else {
             if let banner = store.errorPresenter.banner {
