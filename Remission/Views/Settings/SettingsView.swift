@@ -278,27 +278,45 @@ struct SettingsView: View {
     private var seedRatioSection: some View {
         AppSectionCard(L10n.tr("settings.seedRatio.section")) {
             fieldRow(label: L10n.tr("settings.seedRatio.limit")) {
-                TextField(
-                    "",
-                    text: Binding(
-                        get: {
-                            ratioText(
-                                isEnabled: store.isSeedRatioLimitEnabled,
-                                value: store.seedRatioLimitValue
-                            )
-                        },
-                        set: { store.send(.seedRatioLimitChanged($0)) }
-                    )
-                )
-                .accessibilityIdentifier("settings_seed_ratio_field")
-                .multilineTextAlignment(.trailing)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .frame(maxWidth: 160, alignment: .trailing)
-                .appPillSurface()
                 #if os(iOS)
-                    .keyboardType(.decimalPad)
+                    LeadingCursorTextField(
+                        text: Binding(
+                            get: {
+                                ratioText(
+                                    isEnabled: store.isSeedRatioLimitEnabled,
+                                    value: store.seedRatioLimitValue
+                                )
+                            },
+                            set: { store.send(.seedRatioLimitChanged($0)) }
+                        ),
+                        keyboardType: .decimalPad,
+                        textAlignment: .right
+                    )
+                    .accessibilityIdentifier("settings_seed_ratio_field")
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .frame(maxWidth: 160, alignment: .trailing)
+                    .appPillSurface()
+                #else
+                    TextField(
+                        "",
+                        text: Binding(
+                            get: {
+                                ratioText(
+                                    isEnabled: store.isSeedRatioLimitEnabled,
+                                    value: store.seedRatioLimitValue
+                                )
+                            },
+                            set: { store.send(.seedRatioLimitChanged($0)) }
+                        )
+                    )
+                    .accessibilityIdentifier("settings_seed_ratio_field")
+                    .multilineTextAlignment(.trailing)
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 10)
+                    .frame(height: 32)
+                    .frame(maxWidth: 160, alignment: .trailing)
+                    .appPillSurface()
                 #endif
             }
 
