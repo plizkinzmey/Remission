@@ -33,23 +33,27 @@ struct SettingsView: View {
                     }
                     .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
                 #else
-                    windowContent
-                        .navigationTitle(L10n.tr("settings.title"))
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(L10n.tr("common.cancel")) {
-                                    store.send(.cancelButtonTapped)
-                                }
-                                .accessibilityIdentifier("settings_cancel_button")
+                    ScrollView {
+                        windowContent
+                    }
+                    .scrollDismissesKeyboard(.interactively)
+                    .appDismissKeyboardOnTap()
+                    .navigationTitle(L10n.tr("settings.title"))
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(L10n.tr("common.cancel")) {
+                                store.send(.cancelButtonTapped)
                             }
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button(L10n.tr("common.save")) {
-                                    store.send(.saveButtonTapped)
-                                }
-                                .accessibilityIdentifier("settings_save_button")
-                                .disabled(isSaveDisabled)
-                            }
+                            .accessibilityIdentifier("settings_cancel_button")
                         }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(L10n.tr("common.save")) {
+                                store.send(.saveButtonTapped)
+                            }
+                            .accessibilityIdentifier("settings_save_button")
+                            .disabled(isSaveDisabled)
+                        }
+                    }
                 #endif
             }
             .task { await store.send(.task).finish() }

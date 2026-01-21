@@ -96,6 +96,10 @@ struct ServerEditorView: View {
                     #endif
                 }
             }
+            #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+                .appDismissKeyboardOnTap()
+            #endif
         }
         .padding(12)
         .appCardSurface(cornerRadius: 16)

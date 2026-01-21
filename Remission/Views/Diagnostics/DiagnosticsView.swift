@@ -74,6 +74,9 @@ extension DiagnosticsView {
             .padding(.horizontal, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #if os(iOS)
+            .appDismissKeyboardOnTap()
+        #endif
     }
 
     private var filterSection: some View {
@@ -150,6 +153,9 @@ extension DiagnosticsView {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        #if os(iOS)
+            .scrollDismissesKeyboard(.interactively)
+        #endif
     }
 
     private func logRow(_ entry: DiagnosticsLogEntry) -> some View {

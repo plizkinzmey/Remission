@@ -98,6 +98,10 @@ struct TorrentDetailView: View {
             }
             .padding(12)
         }
+        #if os(iOS)
+            .scrollDismissesKeyboard(.interactively)
+            .appDismissKeyboardOnTap()
+        #endif
     }
 
     #if os(macOS)

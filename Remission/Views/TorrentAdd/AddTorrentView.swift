@@ -112,6 +112,8 @@ extension AddTorrentView {
                 ScrollView {
                     windowFormContent
                 }
+                .scrollDismissesKeyboard(.interactively)
+                .appDismissKeyboardOnTap()
             #endif
         }
     }
