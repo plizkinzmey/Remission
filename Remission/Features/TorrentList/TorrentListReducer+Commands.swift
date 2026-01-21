@@ -27,6 +27,12 @@ extension TorrentListReducer {
             )
         }
 
+        let initialStatus = state.items[id: torrentID]?.torrent.status ?? .stopped
+        state.inFlightCommands[torrentID] = .init(
+            command: command,
+            initialStatus: initialStatus
+        )
+
         return .run { send in
             do {
                 try await withDependencies {

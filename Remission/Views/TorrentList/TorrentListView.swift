@@ -597,12 +597,15 @@ extension TorrentListView {
                         ) {
                             actions.onStartPause()
                         }
+                        .disabled(actions.isStartPauseBusy)
                         Button(L10n.tr("torrentDetail.actions.verify")) {
                             actions.onVerify()
                         }
+                        .disabled(actions.isVerifyBusy)
                         Button(L10n.tr("torrentDetail.actions.remove"), role: .destructive) {
                             actions.onRemove()
                         }
+                        .disabled(actions.isRemoveBusy)
                     }
                 }
             #else
@@ -646,10 +649,18 @@ extension TorrentListView {
     ) -> TorrentRowView.RowActions? {
         guard store.connectionEnvironment != nil else { return nil }
         let isActive = item.torrent.status == .downloading || item.torrent.status == .seeding
+        let inFlightCommand = store.inFlightCommands[item.id]?.command
+        let isChecking = item.torrent.status == .checking || item.torrent.status == .checkWaiting
+        let isStartPauseBusy = inFlightCommand == (isActive ? .pause : .start)
+        let isVerifyBusy = inFlightCommand == .verify || isChecking
+        let isRemoveBusy = item.isRemoving || isRemoveCommand(inFlightCommand)
 
         return TorrentRowView.RowActions(
             isActive: isActive,
             isLocked: item.isRemoving,
+            isStartPauseBusy: isStartPauseBusy,
+            isVerifyBusy: isVerifyBusy,
+            isRemoveBusy: isRemoveBusy,
             onStartPause: {
                 store.send(isActive ? .pauseTapped(item.id) : .startTapped(item.id))
             },
@@ -660,6 +671,14 @@ extension TorrentListView {
                 store.send(.removeTapped(item.id))
             }
         )
+    }
+
+    private func isRemoveCommand(_ command: TorrentListReducer.TorrentCommand?) -> Bool {
+        guard let command else { return false }
+        if case .remove = command {
+            return true
+        }
+        return false
     }
 
     private var controls: some View {
@@ -970,9 +989,16 @@ private struct TorrentRowView: View {
     struct RowActions {
         var isActive: Bool
         var isLocked: Bool
+        var isStartPauseBusy: Bool
+        var isVerifyBusy: Bool
+        var isRemoveBusy: Bool
         var onStartPause: () -> Void
         var onVerify: () -> Void
         var onRemove: () -> Void
+
+        var isAnyBusy: Bool {
+            isStartPauseBusy || isVerifyBusy || isRemoveBusy
+        }
     }
 
     private func actionsPill(_ actions: RowActions) -> some View {
@@ -983,6 +1009,7 @@ private struct TorrentRowView: View {
                     ? L10n.tr("torrentDetail.actions.pause")
                     : L10n.tr("torrentDetail.actions.start"),
                 tint: actions.isActive ? .orange : .green,
+                isBusy: actions.isStartPauseBusy,
                 isLocked: actions.isLocked,
                 action: actions.onStartPause
             )
@@ -994,6 +1021,7 @@ private struct TorrentRowView: View {
                 systemImage: "checkmark.shield.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.verify"),
                 tint: .blue,
+                isBusy: actions.isVerifyBusy,
                 isLocked: actions.isLocked,
                 action: actions.onVerify
             )
@@ -1005,6 +1033,7 @@ private struct TorrentRowView: View {
                 systemImage: "trash.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.remove"),
                 tint: .red,
+                isBusy: actions.isRemoveBusy,
                 isLocked: actions.isLocked,
                 action: actions.onRemove
             )
@@ -1022,18 +1051,29 @@ private struct TorrentRowView: View {
         systemImage: String,
         accessibilityLabel: String,
         tint: Color,
+        isBusy: Bool,
         isLocked: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .frame(width: 24, height: 24)
+            ZStack {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .opacity(isBusy ? 0 : 1)
+
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(tint)
+                }
+            }
+            .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
-        .disabled(isLocked)
+        .disabled(isLocked || isBusy)
         .accessibilityLabel(accessibilityLabel)
+        .animation(.easeInOut(duration: 0.2), value: isBusy)
         #if os(macOS)
             .help(accessibilityLabel)
         #endif

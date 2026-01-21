@@ -26,6 +26,11 @@ struct TorrentDetailSpeedHistory: Equatable {
 extension TorrentDetailReducer {
     @ObservableState
     struct State: Equatable {
+        struct PendingStatusChange: Equatable {
+            var command: TorrentDetailReducer.CommandKind
+            var initialStatus: Int
+        }
+
         var torrentID: Torrent.Identifier
         var connectionEnvironment: ServerConnectionEnvironment?
         var name: String = ""
@@ -57,6 +62,7 @@ extension TorrentDetailReducer {
         var hasLoadedMetadata: Bool = false
         var activeCommand: TorrentDetailReducer.CommandKind?
         var pendingCommands: [TorrentDetailReducer.CommandKind] = []
+        var pendingStatusChange: PendingStatusChange?
         var isLoading: Bool = false
         var errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init()
         var pendingListSync: Bool = false
@@ -95,6 +101,7 @@ extension TorrentDetailReducer {
             hasLoadedMetadata: Bool = false,
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
+            pendingStatusChange: PendingStatusChange? = nil,
             isLoading: Bool = false,
             errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
@@ -130,6 +137,7 @@ extension TorrentDetailReducer {
             self.hasLoadedMetadata = hasLoadedMetadata
             self.activeCommand = activeCommand
             self.pendingCommands = pendingCommands
+            self.pendingStatusChange = pendingStatusChange
             self.isLoading = isLoading
             self.errorPresenter = errorPresenter
             self.pendingListSync = pendingListSync
@@ -152,6 +160,7 @@ extension TorrentDetailReducer {
             // чтобы не выполнять их без активного подключения.
             pendingCommands.removeAll()
             activeCommand = nil
+            pendingStatusChange = nil
             pendingListSync = false
         }
 
@@ -188,6 +197,7 @@ extension TorrentDetailReducer {
             hasLoadedMetadata: Bool = false,
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
+            pendingStatusChange: PendingStatusChange? = nil,
             isLoading: Bool = false,
             errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
@@ -224,6 +234,7 @@ extension TorrentDetailReducer {
                 hasLoadedMetadata: hasLoadedMetadata,
                 activeCommand: activeCommand,
                 pendingCommands: pendingCommands,
+                pendingStatusChange: pendingStatusChange,
                 isLoading: isLoading,
                 errorPresenter: errorPresenter,
                 pendingListSync: pendingListSync
@@ -232,6 +243,15 @@ extension TorrentDetailReducer {
 
         func isCommandCategoryLocked(_ category: TorrentDetailReducer.CommandCategory) -> Bool {
             if let activeCommand, activeCommand.category == category {
+                return true
+            }
+            if let pendingStatusChange, pendingStatusChange.command.category == category {
+                return true
+            }
+            if category == .verify,
+                status == Torrent.Status.checkWaiting.rawValue
+                    || status == Torrent.Status.checking.rawValue
+            {
                 return true
             }
             return pendingCommands.contains(where: { $0.category == category })
@@ -283,6 +303,10 @@ extension TorrentDetailReducer.State {
             files = []
             trackers = []
             trackerStats = []
+        }
+
+        if let pendingStatusChange, pendingStatusChange.initialStatus != status {
+            self.pendingStatusChange = nil
         }
     }
 }

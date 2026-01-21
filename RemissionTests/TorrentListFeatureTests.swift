@@ -914,6 +914,112 @@ extension TorrentListFeatureTests {
     }
 }
 
+extension TorrentListFeatureTests {
+    @Test("команда старт блокируется и снимается после ответа")
+    func startCommandInFlight() async {
+        var torrent = DomainFixtures.torrentDownloading
+        torrent.status = .stopped
+        let server = ServerConfig.previewLocalHTTP
+        let repository = TorrentRepository.test(
+            fetchList: { [] },
+            start: { _ in }
+        )
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: repository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                state.serverID = server.id
+                state.items = IdentifiedArray(
+                    uniqueElements: [TorrentListItem.State(torrent: torrent)]
+                )
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.offlineCacheRepository = .inMemory()
+            }
+        )
+
+        await store.send(.startTapped(torrent.id)) {
+            $0.inFlightCommands[torrent.id] = .init(
+                command: .start,
+                initialStatus: .stopped
+            )
+        }
+
+        await store.receive(.commandResponse(torrent.id, .success(true)))
+
+        var updated = torrent
+        updated.status = .downloading
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess([updated])))) {
+            $0.items = IdentifiedArray(uniqueElements: [TorrentListItem.State(torrent: updated)])
+            $0.inFlightCommands.removeValue(forKey: torrent.id)
+        }
+    }
+
+    @Test("команда удаления отмечается как in-flight после подтверждения")
+    func removeCommandInFlight() async {
+        let torrent = DomainFixtures.torrentDownloading
+        let server = ServerConfig.previewLocalHTTP
+        let repository = TorrentRepository.test(
+            fetchList: { [] },
+            remove: { _, _ in }
+        )
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: repository
+        )
+
+        let store = TestStoreFactory.make(
+            initialState: {
+                var state = TorrentListReducer.State()
+                state.connectionEnvironment = environment
+                state.serverID = server.id
+                state.items = IdentifiedArray(
+                    uniqueElements: [TorrentListItem.State(torrent: torrent)]
+                )
+                return state
+            }(),
+            reducer: { TorrentListReducer() },
+            configure: { dependencies in
+                dependencies.offlineCacheRepository = .inMemory()
+            }
+        )
+
+        await store.send(.removeTapped(torrent.id)) {
+            $0.pendingRemoveTorrentID = torrent.id
+            $0.removeConfirmation = .removeTorrent(name: torrent.name)
+        }
+
+        await store.send(.removeConfirmation(.presented(.deleteTorrentOnly))) {
+            $0.removeConfirmation = nil
+            $0.pendingRemoveTorrentID = nil
+            $0.removingTorrentIDs.insert(torrent.id)
+            if var item = $0.items[id: torrent.id] {
+                item.isRemoving = true
+                $0.items[id: torrent.id] = item
+            }
+            $0.inFlightCommands[torrent.id] = .init(
+                command: .remove(deleteData: false),
+                initialStatus: torrent.status
+            )
+        }
+
+        await store.receive(.commandResponse(torrent.id, .success(true)))
+
+        await store.receive(.torrentsResponse(.success(makeFetchSuccess([])))) {
+            $0.items = []
+            $0.inFlightCommands.removeValue(forKey: torrent.id)
+            $0.removingTorrentIDs.removeAll()
+        }
+    }
+}
+
 private final class LockedValue<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var storage: Value

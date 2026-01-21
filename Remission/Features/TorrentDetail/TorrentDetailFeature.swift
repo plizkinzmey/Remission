@@ -121,6 +121,7 @@ struct TorrentDetailReducer {
                 state.isLoading = false
                 state.pendingCommands.removeAll()
                 state.activeCommand = nil
+                state.pendingStatusChange = nil
                 state.pendingListSync = false
                 return .merge(
                     .cancel(id: CancelID.loadTorrentDetails),
@@ -166,6 +167,7 @@ struct TorrentDetailReducer {
 
             case .commandResponse(.failure(_, let message)):
                 state.activeCommand = nil
+                state.pendingStatusChange = nil
                 state.pendingListSync = false
                 let next = startNextCommand(state: &state)
                 return .merge(.send(.commandFailed(message)), next)

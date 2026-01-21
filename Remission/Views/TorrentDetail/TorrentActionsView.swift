@@ -71,19 +71,32 @@ struct TorrentActionsView: View {
         lockCategory: TorrentDetailReducer.CommandCategory? = nil,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .frame(width: 24, height: 24)
+        let isBusy = lockCategory.map(isLocked(for:)) ?? false
+        let button = Button(action: action) {
+            ZStack {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .opacity(isBusy ? 0 : 1)
+
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(tint)
+                }
+            }
+            .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
-        .disabled(lockCategory.map(isLocked(for:)) ?? false)
+        .disabled(isBusy)
         .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityLabel(title)
         .accessibilityHint(L10n.tr("torrentDetail.actions.hint"))
+        .animation(.easeInOut(duration: 0.2), value: isBusy)
         #if os(macOS)
-            .help(title)
+            return button.help(title)
+        #else
+            return button
         #endif
     }
 
