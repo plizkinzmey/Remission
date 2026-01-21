@@ -60,7 +60,7 @@ enum TestStoreFactory {
         configure: @Sendable (inout DependencyValues) -> Void = { _ in }
     ) -> TestStoreOf<SettingsReducer> {
         _ = serverID
-        make(
+        return make(
             initialState: initialState(),
             reducer: { SettingsReducer() },
             configure: { dependencies in

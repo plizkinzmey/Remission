@@ -1,43 +1,68 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🔍 Searching for generated Info.plist..."
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PBXPROJ="${ROOT_DIR}/Remission.xcodeproj/project.pbxproj"
 
-DERIVED_DATA=$(xcodebuild -scheme Remission -destination 'platform=macOS,arch=arm64' -showBuildSettings 2>/dev/null | grep -E "DERIVED_DATA_PATH" | head -1 | awk -F= '{print $2}' | xargs)
-
-if [ -z "$DERIVED_DATA" ]; then
-  DERIVED_DATA=$(xcodebuild -scheme Remission -destination 'platform=macOS,arch=arm64' -showBuildSettings 2>/dev/null | grep -E "BUILD_DIR" | head -1 | awk -F= '{print $2}' | xargs)
-fi
-
-if [ -z "$DERIVED_DATA" ]; then
-  echo "❌ Не удалось определить путь DerivedData. Возможно, проект ещё не собирался."
-  echo "👉 Выполни: xcodebuild -scheme Remission -configuration Debug build"
+if [[ ! -f "$PBXPROJ" ]]; then
+  echo "❌ Не найден project.pbxproj: $PBXPROJ"
   exit 1
 fi
 
-echo "📂 DerivedData path: $DERIVED_DATA"
+BUMP="${1:-patch}"
+case "$BUMP" in
+  major|minor|patch) ;;
+  *) echo "❌ Некорректный bump: $BUMP (ожидаю major|minor|patch)"; exit 1 ;;
+esac
 
-# ищем Info.plist во всех возможных вариантах
-INFO_PLIST=$(find "$DERIVED_DATA" -type f -path "*/Remission.app/Contents/Info.plist" | grep "Debug" | head -1)
+VERSION_BUMP="$BUMP" PBXPROJ="$PBXPROJ" python3 - <<'PY'
+from pathlib import Path
+import os
+import re
 
-if [ -z "$INFO_PLIST" ]; then
-  INFO_PLIST=$(find "$DERIVED_DATA" -type f -path "*/Remission.app/Info.plist" | grep "Debug" | head -1)
-fi
+path = Path(os.environ["PBXPROJ"])
+bump = os.environ["VERSION_BUMP"]
+text = path.read_text()
 
-if [ -z "$INFO_PLIST" ]; then
-  echo "❌ Не найден Info.plist. Собери проект хотя бы один раз (Debug)."
-  echo "👉 Команда: xcodebuild -scheme Remission -configuration Debug build"
-  exit 1
-fi
+version_match = re.search(r"MARKETING_VERSION\s*=\s*([^;]+);", text)
+build_match = re.search(r"CURRENT_PROJECT_VERSION\s*=\s*([^;]+);", text)
 
-echo "✅ Найден Info.plist: $INFO_PLIST"
+if not version_match or not build_match:
+    raise SystemExit("❌ Не удалось найти MARKETING_VERSION/CURRENT_PROJECT_VERSION в project.pbxproj")
 
-CURRENT_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$INFO_PLIST" 2>/dev/null || echo "1.0.0")
-CURRENT_BUILD=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "$INFO_PLIST" 2>/dev/null || echo "0")
-NEW_BUILD=$((CURRENT_BUILD + 1))
-NEW_VERSION="$CURRENT_VERSION"
+version = version_match.group(1).strip()
+parts = version.split(".")
+if len(parts) != 3 or not all(p.isdigit() for p in parts):
+    raise SystemExit(f"❌ Некорректная версия MARKETING_VERSION: {version} (ожидаю X.Y.Z)")
 
-/usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $NEW_VERSION" "$INFO_PLIST" || /usr/libexec/PlistBuddy -c "Add :CFBundleShortVersionString string $NEW_VERSION" "$INFO_PLIST"
-/usr/libexec/PlistBuddy -c "Set :CFBundleVersion $NEW_BUILD" "$INFO_PLIST" || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $NEW_BUILD" "$INFO_PLIST"
+major, minor, patch = (int(p) for p in parts)
+if bump == "major":
+    major += 1
+    minor = 0
+    patch = 0
+elif bump == "minor":
+    minor += 1
+    patch = 0
+else:
+    patch += 1
 
-echo "✅ Версия обновлена: $NEW_VERSION ($NEW_BUILD)"
+new_version = f"{major}.{minor}.{patch}"
+
+build = int(build_match.group(1).strip())
+new_build = build + 1
+
+text = re.sub(
+    r"(MARKETING_VERSION\s*=\s*)([^;]+);",
+    rf"\g<1>{new_version};",
+    text,
+)
+text = re.sub(
+    r"(CURRENT_PROJECT_VERSION\s*=\s*)([^;]+);",
+    rf"\g<1>{new_build};",
+    text,
+)
+
+path.write_text(text)
+
+print(f"✅ Версия обновлена: {new_version} ({new_build})")
+PY

@@ -128,6 +128,7 @@ extension TransmissionDomainMapper {
         Torrent.Summary(
             progress: .init(
                 percentDone: percentDoneValue(in: dict),
+                recheckProgress: recheckProgressValue(in: dict),
                 totalSize: intValue("totalSize", in: dict) ?? 0,
                 downloadedEver: intValue("downloadedEver", in: dict) ?? 0,
                 uploadedEver: intValue("uploadedEver", in: dict) ?? 0,
@@ -211,6 +212,22 @@ extension TransmissionDomainMapper {
             return value
         }
         if let int = dict["percentDone"]?.intValue {
+            if int > 1 {
+                return Double(int) / 100.0
+            } else {
+                return Double(int)
+            }
+        }
+        return 0.0
+    }
+
+    func recheckProgressValue(
+        in dict: [String: AnyCodable]
+    ) -> Double {
+        if let value = dict["recheckProgress"]?.doubleValue {
+            return value
+        }
+        if let int = dict["recheckProgress"]?.intValue {
             if int > 1 {
                 return Double(int) / 100.0
             } else {

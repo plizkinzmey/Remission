@@ -26,6 +26,11 @@ struct TorrentDetailSpeedHistory: Equatable {
 extension TorrentDetailReducer {
     @ObservableState
     struct State: Equatable {
+        struct PendingStatusChange: Equatable {
+            var command: TorrentDetailReducer.CommandKind
+            var initialStatus: Int
+        }
+
         var torrentID: Torrent.Identifier
         var connectionEnvironment: ServerConnectionEnvironment?
         var name: String = ""
@@ -34,6 +39,7 @@ extension TorrentDetailReducer {
         var category: TorrentCategory = .other
         var lastSyncedTags: [String] = []
         var percentDone: Double = 0.0
+        var recheckProgress: Double = 0.0
         var totalSize: Int = 0
         var downloadedEver: Int = 0
         var uploadedEver: Int = 0
@@ -56,6 +62,7 @@ extension TorrentDetailReducer {
         var hasLoadedMetadata: Bool = false
         var activeCommand: TorrentDetailReducer.CommandKind?
         var pendingCommands: [TorrentDetailReducer.CommandKind] = []
+        var pendingStatusChange: PendingStatusChange?
         var isLoading: Bool = false
         var errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init()
         var pendingListSync: Bool = false
@@ -71,6 +78,7 @@ extension TorrentDetailReducer {
             category: TorrentCategory = .other,
             lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
+            recheckProgress: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
             uploadedEver: Int = 0,
@@ -93,6 +101,7 @@ extension TorrentDetailReducer {
             hasLoadedMetadata: Bool = false,
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
+            pendingStatusChange: PendingStatusChange? = nil,
             isLoading: Bool = false,
             errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
@@ -105,6 +114,7 @@ extension TorrentDetailReducer {
             self.category = category
             self.lastSyncedTags = lastSyncedTags
             self.percentDone = percentDone
+            self.recheckProgress = recheckProgress
             self.totalSize = totalSize
             self.downloadedEver = downloadedEver
             self.uploadedEver = uploadedEver
@@ -127,6 +137,7 @@ extension TorrentDetailReducer {
             self.hasLoadedMetadata = hasLoadedMetadata
             self.activeCommand = activeCommand
             self.pendingCommands = pendingCommands
+            self.pendingStatusChange = pendingStatusChange
             self.isLoading = isLoading
             self.errorPresenter = errorPresenter
             self.pendingListSync = pendingListSync
@@ -149,6 +160,7 @@ extension TorrentDetailReducer {
             // чтобы не выполнять их без активного подключения.
             pendingCommands.removeAll()
             activeCommand = nil
+            pendingStatusChange = nil
             pendingListSync = false
         }
 
@@ -162,6 +174,7 @@ extension TorrentDetailReducer {
             category: TorrentCategory = .other,
             lastSyncedTags: [String] = [],
             percentDone: Double = 0.0,
+            recheckProgress: Double = 0.0,
             totalSize: Int = 0,
             downloadedEver: Int = 0,
             uploadedEver: Int = 0,
@@ -184,6 +197,7 @@ extension TorrentDetailReducer {
             hasLoadedMetadata: Bool = false,
             activeCommand: TorrentDetailReducer.CommandKind? = nil,
             pendingCommands: [TorrentDetailReducer.CommandKind] = [],
+            pendingStatusChange: PendingStatusChange? = nil,
             isLoading: Bool = false,
             errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init(),
             pendingListSync: Bool = false
@@ -197,6 +211,7 @@ extension TorrentDetailReducer {
                 category: category,
                 lastSyncedTags: lastSyncedTags,
                 percentDone: percentDone,
+                recheckProgress: recheckProgress,
                 totalSize: totalSize,
                 downloadedEver: downloadedEver,
                 uploadedEver: uploadedEver,
@@ -219,6 +234,7 @@ extension TorrentDetailReducer {
                 hasLoadedMetadata: hasLoadedMetadata,
                 activeCommand: activeCommand,
                 pendingCommands: pendingCommands,
+                pendingStatusChange: pendingStatusChange,
                 isLoading: isLoading,
                 errorPresenter: errorPresenter,
                 pendingListSync: pendingListSync
@@ -227,6 +243,15 @@ extension TorrentDetailReducer {
 
         func isCommandCategoryLocked(_ category: TorrentDetailReducer.CommandCategory) -> Bool {
             if let activeCommand, activeCommand.category == category {
+                return true
+            }
+            if let pendingStatusChange, pendingStatusChange.command.category == category {
+                return true
+            }
+            if category == .verify,
+                status == Torrent.Status.checkWaiting.rawValue
+                    || status == Torrent.Status.checking.rawValue
+            {
                 return true
             }
             return pendingCommands.contains(where: { $0.category == category })
@@ -243,6 +268,7 @@ extension TorrentDetailReducer.State {
         lastSyncedTags = torrent.tags
         category = TorrentCategory.category(from: torrent.tags)
         percentDone = torrent.summary.progress.percentDone
+        recheckProgress = torrent.summary.progress.recheckProgress
         totalSize = torrent.summary.progress.totalSize
         downloadedEver = torrent.summary.progress.downloadedEver
         uploadedEver = torrent.summary.progress.uploadedEver
@@ -277,6 +303,10 @@ extension TorrentDetailReducer.State {
             files = []
             trackers = []
             trackerStats = []
+        }
+
+        if let pendingStatusChange, pendingStatusChange.initialStatus != status {
+            self.pendingStatusChange = nil
         }
     }
 }

@@ -1414,6 +1414,7 @@
       }
     },
     "serverDetail.section.connection": {
+      "extractionState": "stale",
       "localizations": {
         "en": {
           "stringUnit": {
@@ -2039,6 +2040,22 @@
         }
       }
     },
+    "settings.alert.sessionFailed.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load server settings"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не удалось загрузить настройки сервера"
+          }
+        }
+      }
+    },
     "settings.autoRefresh.note": {
       "localizations": {
         "en": {
@@ -2083,6 +2100,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "Обновлять список автоматически"
+          }
+        }
+      }
+    },
+    "settings.error.connection": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Server connection is unavailable."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключение к серверу недоступно."
           }
         }
       }
@@ -2199,6 +2232,54 @@
           "stringUnit": {
             "state": "translated",
             "value": "Повторить"
+          }
+        }
+      }
+    },
+    "settings.seedRatio.limit": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seed ratio limit"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Лимит рейтинга"
+          }
+        }
+      }
+    },
+    "settings.seedRatio.note": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set to 0 to disable the limit."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Укажите 0, чтобы отключить лимит."
+          }
+        }
+      }
+    },
+    "settings.seedRatio.section": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Seed ratio"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Рейтинг раздачи"
           }
         }
       }
@@ -4816,6 +4897,38 @@
         }
       }
     },
+    "torrentList.category.all": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Все"
+          }
+        }
+      }
+    },
+    "torrentList.category.title": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Category"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Категория"
+          }
+        }
+      }
+    },
     "torrentList.empty.title": {
       "localizations": {
         "en": {
@@ -5345,34 +5458,52 @@
         }
       }
     },
-    "torrentList.category.all": {
+    "torrentDetail.metric.ratio": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "All"
+            "value": "Ratio"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Все"
+            "value": "Коэффициент"
           }
         }
       }
     },
-    "torrentList.category.title": {
+    "torrentList.ratio": {
+      "comment": "Label for torrent ratio in the list. Argument: ratio value.",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Category"
+            "value": "Ratio %.2f"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Категория"
+            "value": "Коэффициент %.2f"
+          }
+        }
+      }
+    },
+    "torrentList.ratio.short": {
+      "comment": "Short label for torrent ratio in the list. Argument: ratio value.",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R %.2f"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "R %.2f"
           }
         }
       }

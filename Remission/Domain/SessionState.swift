@@ -94,6 +94,18 @@ public struct SessionState: Equatable, Sendable, Codable {
         }
     }
 
+    public struct SeedRatioLimit: Equatable, Sendable, Codable {
+        /// Флаг использования лимита (`session-get` → `seedRatioLimited`).
+        public var isEnabled: Bool
+        /// Значение лимита (`session-get` → `seedRatioLimit`).
+        public var value: Double
+
+        public init(isEnabled: Bool, value: Double) {
+            self.isEnabled = isEnabled
+            self.value = value
+        }
+    }
+
     public struct Throughput: Equatable, Sendable, Codable {
         /// Текущее количество активных торрентов (`session-stats` → `activeTorrentCount`).
         public var activeTorrentCount: Int
@@ -168,6 +180,8 @@ public struct SessionState: Equatable, Sendable, Codable {
     public var downloadDirectory: String
     public var speedLimits: SpeedLimits
     public var queue: Queue
+    /// Глобальный лимит рейтинга раздачи (`session-get` → `seedRatioLimit`, `seedRatioLimited`).
+    public var seedRatioLimit: SeedRatioLimit
     public var throughput: Throughput
     public var storage: Storage
     /// Кумулятивная статистика (`session-stats` → `cumulative-stats`).
@@ -180,6 +194,7 @@ public struct SessionState: Equatable, Sendable, Codable {
         downloadDirectory: String,
         speedLimits: SpeedLimits,
         queue: Queue,
+        seedRatioLimit: SeedRatioLimit,
         throughput: Throughput,
         storage: Storage,
         cumulativeStats: LifetimeStats,
@@ -189,6 +204,7 @@ public struct SessionState: Equatable, Sendable, Codable {
         self.downloadDirectory = downloadDirectory
         self.speedLimits = speedLimits
         self.queue = queue
+        self.seedRatioLimit = seedRatioLimit
         self.throughput = throughput
         self.storage = storage
         self.cumulativeStats = cumulativeStats
@@ -219,6 +235,7 @@ extension SessionState {
                 considerStalled: true,
                 stalledMinutes: 30
             ),
+            seedRatioLimit: .init(isEnabled: true, value: 1.5),
             throughput: .init(
                 activeTorrentCount: 6,
                 pausedTorrentCount: 12,
@@ -264,6 +281,7 @@ extension SessionState {
                 considerStalled: false,
                 stalledMinutes: 0
             ),
+            seedRatioLimit: .init(isEnabled: false, value: 0),
             throughput: .init(
                 activeTorrentCount: 0,
                 pausedTorrentCount: 8,

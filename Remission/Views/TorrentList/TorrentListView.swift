@@ -68,9 +68,11 @@ struct TorrentListView: View {
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
-        .confirmationDialog(
-            $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
-        )
+        #if os(macOS)
+            .confirmationDialog(
+                $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+            )
+        #endif
     }
 }
 
@@ -283,7 +285,10 @@ extension TorrentListView {
     #if os(macOS)
         @ViewBuilder
         private var macOSScrollableContent: some View {
-            if store.connectionEnvironment == nil && store.items.isEmpty {
+            if store.connectionEnvironment == nil,
+                store.items.isEmpty,
+                case .idle = store.phase
+            {
                 disconnectedView
             } else {
                 switch store.phase {
@@ -331,7 +336,10 @@ extension TorrentListView {
 
     @ViewBuilder
     private var content: some View {
-        if store.connectionEnvironment == nil && store.items.isEmpty {
+        if store.connectionEnvironment == nil,
+            store.items.isEmpty,
+            case .idle = store.phase
+        {
             disconnectedView
         } else {
             if let banner = store.errorPresenter.banner {
@@ -550,17 +558,29 @@ extension TorrentListView {
     private var torrentRows: some View {
         ForEach(store.visibleItems) { item in
             let actions = rowActions(for: item)
-            TorrentRowView(
+            let row = TorrentRowView(
                 item: item,
                 openRequested: { store.send(.rowTapped(item.id)) },
                 actions: actions,
                 longestStatusTitle: longestStatusTitle,
                 isLocked: item.isRemoving
             )
-            .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-            .opacity(item.isRemoving ? 0.6 : 1)
-            .disabled(item.isRemoving)
             #if os(iOS)
+                Group {
+                    if store.pendingRemoveTorrentID == item.id {
+                        row.confirmationDialog(
+                            $store.scope(
+                                state: \.removeConfirmation,
+                                action: \.removeConfirmation
+                            )
+                        )
+                    } else {
+                        row
+                    }
+                }
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .opacity(item.isRemoving ? 0.6 : 1)
+                .disabled(item.isRemoving)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
                 .appCardSurface(cornerRadius: 14)
@@ -568,11 +588,6 @@ extension TorrentListView {
                     .contextMenuPreview,
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                 )
-            #else
-                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-                .listRowBackground(rowBackground(for: item))
-            #endif
-            #if os(iOS)
                 .contextMenu {
                     if let actions, actions.isLocked == false {
                         Button(
@@ -582,14 +597,24 @@ extension TorrentListView {
                         ) {
                             actions.onStartPause()
                         }
+                        .disabled(actions.isStartPauseBusy)
                         Button(L10n.tr("torrentDetail.actions.verify")) {
                             actions.onVerify()
                         }
+                        .disabled(actions.isVerifyBusy)
                         Button(L10n.tr("torrentDetail.actions.remove"), role: .destructive) {
                             actions.onRemove()
                         }
+                        .disabled(actions.isRemoveBusy)
                     }
                 }
+            #else
+                row
+                    .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                    .opacity(item.isRemoving ? 0.6 : 1)
+                    .disabled(item.isRemoving)
+                    .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                    .listRowBackground(rowBackground(for: item))
             #endif
         }
     }
@@ -624,10 +649,18 @@ extension TorrentListView {
     ) -> TorrentRowView.RowActions? {
         guard store.connectionEnvironment != nil else { return nil }
         let isActive = item.torrent.status == .downloading || item.torrent.status == .seeding
+        let inFlightCommand = store.inFlightCommands[item.id]?.command
+        let isChecking = item.torrent.status == .checking || item.torrent.status == .checkWaiting
+        let isStartPauseBusy = inFlightCommand == (isActive ? .pause : .start)
+        let isVerifyBusy = inFlightCommand == .verify || isChecking
+        let isRemoveBusy = item.isRemoving || isRemoveCommand(inFlightCommand)
 
         return TorrentRowView.RowActions(
             isActive: isActive,
             isLocked: item.isRemoving,
+            isStartPauseBusy: isStartPauseBusy,
+            isVerifyBusy: isVerifyBusy,
+            isRemoveBusy: isRemoveBusy,
             onStartPause: {
                 store.send(isActive ? .pauseTapped(item.id) : .startTapped(item.id))
             },
@@ -638,6 +671,14 @@ extension TorrentListView {
                 store.send(.removeTapped(item.id))
             }
         )
+    }
+
+    private func isRemoveCommand(_ command: TorrentListReducer.TorrentCommand?) -> Bool {
+        guard let command else { return false }
+        if case .remove = command {
+            return true
+        }
+        return false
     }
 
     private var controls: some View {
@@ -866,6 +907,12 @@ private struct TorrentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.primary)
 
+                    Text(ratioTextShort)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier(
+                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
+
                     Spacer(minLength: 6)
 
                     Label(item.metrics.speedSummary, systemImage: "speedometer")
@@ -895,6 +942,12 @@ private struct TorrentRowView: View {
                     )
                     .font(.caption)
                     .foregroundStyle(.primary)
+
+                    Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .accessibilityIdentifier(
+                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
 
                     if item.torrent.tags.isEmpty == false {
                         tagsInlineRow
@@ -936,9 +989,16 @@ private struct TorrentRowView: View {
     struct RowActions {
         var isActive: Bool
         var isLocked: Bool
+        var isStartPauseBusy: Bool
+        var isVerifyBusy: Bool
+        var isRemoveBusy: Bool
         var onStartPause: () -> Void
         var onVerify: () -> Void
         var onRemove: () -> Void
+
+        var isAnyBusy: Bool {
+            isStartPauseBusy || isVerifyBusy || isRemoveBusy
+        }
     }
 
     private func actionsPill(_ actions: RowActions) -> some View {
@@ -949,6 +1009,7 @@ private struct TorrentRowView: View {
                     ? L10n.tr("torrentDetail.actions.pause")
                     : L10n.tr("torrentDetail.actions.start"),
                 tint: actions.isActive ? .orange : .green,
+                isBusy: actions.isStartPauseBusy,
                 isLocked: actions.isLocked,
                 action: actions.onStartPause
             )
@@ -960,6 +1021,7 @@ private struct TorrentRowView: View {
                 systemImage: "checkmark.shield.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.verify"),
                 tint: .blue,
+                isBusy: actions.isVerifyBusy,
                 isLocked: actions.isLocked,
                 action: actions.onVerify
             )
@@ -971,6 +1033,7 @@ private struct TorrentRowView: View {
                 systemImage: "trash.fill",
                 accessibilityLabel: L10n.tr("torrentDetail.actions.remove"),
                 tint: .red,
+                isBusy: actions.isRemoveBusy,
                 isLocked: actions.isLocked,
                 action: actions.onRemove
             )
@@ -988,18 +1051,29 @@ private struct TorrentRowView: View {
         systemImage: String,
         accessibilityLabel: String,
         tint: Color,
+        isBusy: Bool,
         isLocked: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Image(systemName: systemImage)
-                .font(.subheadline.weight(.semibold))
-                .frame(width: 24, height: 24)
+            ZStack {
+                Image(systemName: systemImage)
+                    .font(.subheadline.weight(.semibold))
+                    .opacity(isBusy ? 0 : 1)
+
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(tint)
+                }
+            }
+            .frame(width: 24, height: 24)
         }
         .buttonStyle(.plain)
         .foregroundStyle(tint)
-        .disabled(isLocked)
+        .disabled(isLocked || isBusy)
         .accessibilityLabel(accessibilityLabel)
+        .animation(.easeInOut(duration: 0.2), value: isBusy)
         #if os(macOS)
             .help(accessibilityLabel)
         #endif
@@ -1009,7 +1083,7 @@ private struct TorrentRowView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 6) {
                 ForEach(item.torrent.tags, id: \.self) { tag in
-                    Text(tag)
+                    Text(displayTagLabel(tag))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8)
                         .frame(height: 20)
@@ -1032,13 +1106,17 @@ private struct TorrentRowView: View {
 
         return HStack(spacing: 6) {
             ForEach(tags, id: \.self) { tag in
-                pillLabel(tag)
+                pillLabel(displayTagLabel(tag))
             }
             if remaining > 0 {
                 pillLabel("+\(remaining)")
             }
         }
         .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
+    }
+
+    private func displayTagLabel(_ tag: String) -> String {
+        TorrentCategory.localizedTitle(for: tag) ?? tag
     }
 
     private func pillLabel(_ text: String) -> some View {
@@ -1059,6 +1137,22 @@ private struct TorrentRowView: View {
         String(
             format: L10n.tr("torrentList.peers"),
             Int64(item.torrent.summary.peers.connected)
+        )
+    }
+
+    private var ratioText: String {
+        String(
+            format: L10n.tr("torrentList.ratio"),
+            locale: Locale.current,
+            item.torrent.summary.progress.uploadRatio
+        )
+    }
+
+    private var ratioTextShort: String {
+        String(
+            format: L10n.tr("torrentList.ratio.short"),
+            locale: Locale.current,
+            item.torrent.summary.progress.uploadRatio
         )
     }
 
@@ -1291,6 +1385,7 @@ extension TorrentListReducer.State {
                     torrent.summary = .init(
                         progress: .init(
                             percentDone: 1,
+                            recheckProgress: 0.0,
                             totalSize: 8_000_000_000,
                             downloadedEver: 8_000_000_000,
                             uploadedEver: 4_200_000_000,

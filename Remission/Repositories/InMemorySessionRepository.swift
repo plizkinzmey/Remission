@@ -142,6 +142,13 @@ extension InMemorySessionRepositoryStore {
             }
         }
 
+        if let seedRatioLimit = update.seedRatioLimit {
+            newState.seedRatioLimit = .init(
+                isEnabled: seedRatioLimit.isEnabled,
+                value: seedRatioLimit.value
+            )
+        }
+
         return newState
     }
 }

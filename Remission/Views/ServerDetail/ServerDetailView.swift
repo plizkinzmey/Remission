@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ServerDetailView: View {
     @Bindable var store: StoreOf<ServerDetailReducer>
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Group {
@@ -12,7 +13,7 @@ struct ServerDetailView: View {
                         connectionCard
                             .padding(.horizontal, AppFooterMetrics.layoutInset)
                     }
-                    if store.connectionEnvironment != nil {
+                    if shouldShowTorrentList {
                         torrentsSection
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
@@ -25,12 +26,21 @@ struct ServerDetailView: View {
                     if shouldShowConnectionSection {
                         connectionCard
                     }
-                    if store.connectionEnvironment != nil {
+                    if shouldShowTorrentList {
                         torrentsSection
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             #endif
+        }
+        .overlay {
+            if case .connecting = store.connectionState.phase {
+                VStack {
+                    connectionPill
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .allowsHitTesting(false)
+            }
         }
         .navigationTitle(store.server.name)
         #if !os(macOS)
@@ -141,20 +151,28 @@ struct ServerDetailView: View {
 
     private var shouldShowConnectionSection: Bool {
         switch store.connectionState.phase {
-        case .ready:
+        case .ready, .connecting:
             return false
         default:
             return true
         }
     }
 
+    private var shouldShowTorrentList: Bool {
+        if store.connectionEnvironment != nil {
+            return true
+        }
+        if case .connecting = store.connectionState.phase {
+            return true
+        }
+        return false
+    }
+
     #if os(iOS) || os(visionOS)
         private var connectionCard: some View {
-            AppSectionCard(L10n.tr("serverDetail.section.connection")) {
-                connectionContent
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            connectionContent
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
         }
     #endif
 
@@ -201,13 +219,7 @@ struct ServerDetailView: View {
         private var macOSToolbarPillHeight: CGFloat { 34 }
 
         private var connectionCard: some View {
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L10n.tr("serverDetail.section.connection"))
-                    .font(.headline)
-                connectionContent
-            }
-            .padding(12)
-            .appCardSurface(cornerRadius: 14)
+            connectionContent
         }
     #endif
 
@@ -230,11 +242,11 @@ struct ServerDetailView: View {
                 .accessibilityIdentifier("server_detail_status_idle")
 
         case .connecting:
-            HStack(spacing: 12) {
-                ProgressView()
-                Text(L10n.tr("serverDetail.status.connecting"))
+            HStack {
+                Spacer(minLength: 0)
+                connectionPill
+                Spacer(minLength: 0)
             }
-            .accessibilityIdentifier("server_detail_status_connecting")
 
         case .ready:
             EmptyView()
@@ -267,6 +279,57 @@ struct ServerDetailView: View {
             .accessibilityIdentifier("server_detail_status_failed")
             .accessibilityHint(L10n.tr("serverDetail.action.retry"))
         }
+    }
+
+    private var connectionPill: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            ProgressView()
+                .controlSize(.regular)
+                .alignmentGuide(.firstTextBaseline) { dimensions in
+                    dimensions[VerticalAlignment.center]
+                }
+            Text(L10n.tr("serverDetail.status.connecting"))
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .layoutPriority(1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .fixedSize(horizontal: true, vertical: false)
+        .background(connectionPillBackground)
+        .overlay(
+            Capsule(style: .continuous)
+                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+        )
+        .accessibilityIdentifier("server_detail_status_connecting")
+    }
+
+    private var connectionPillBackground: some View {
+        Capsule(style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [
+                        AppTheme.Glass.tint(colorScheme)
+                            .opacity(colorScheme == .dark ? 0.60 : 0.35),
+                        AppTheme.Background.glowColor(colorScheme)
+                            .opacity(colorScheme == .dark ? 0.35 : 0.18)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .fill(Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05))
+                    .blendMode(.multiply)
+            )
+            .shadow(
+                color: AppTheme.Shadow.card(colorScheme),
+                radius: 8,
+                x: 0,
+                y: 4
+            )
     }
 
     private var torrentsSection: some View {

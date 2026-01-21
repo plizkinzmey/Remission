@@ -10,6 +10,10 @@ import Foundation
 struct TorrentListReducer {
     @ObservableState
     struct State: Equatable {
+        struct InFlightCommand: Equatable {
+            var command: TorrentCommand
+            var initialStatus: Torrent.Status
+        }
         enum Phase: Equatable {
             case idle
             case loading
@@ -52,6 +56,7 @@ struct TorrentListReducer {
         var errorPresenter: ErrorPresenter<Retry>.State = .init()
         var pendingRemoveTorrentID: Torrent.Identifier?
         var removingTorrentIDs: Set<Torrent.Identifier> = []
+        var inFlightCommands: [Torrent.Identifier: InFlightCommand] = [:]
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
         var storageSummary: StorageSummary?
         var handshake: TransmissionHandshakeResult?
@@ -300,6 +305,7 @@ struct TorrentListReducer {
                 state.errorPresenter.banner = nil
                 state.pendingRemoveTorrentID = nil
                 state.removingTorrentIDs.removeAll()
+                state.inFlightCommands.removeAll()
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -384,6 +390,7 @@ struct TorrentListReducer {
                 return .send(.commandRefreshRequested)
 
             case .commandResponse(let id, .failure(let error)):
+                state.inFlightCommands.removeValue(forKey: id)
                 state.removingTorrentIDs.remove(id)
                 if var item = state.items[id: id] {
                     item.isRemoving = false
@@ -473,6 +480,11 @@ struct TorrentListReducer {
                 )
                 let currentIDs = Set(state.items.map(\.id))
                 state.removingTorrentIDs.formIntersection(currentIDs)
+                state.inFlightCommands = state.inFlightCommands.filter { id, inFlight in
+                    guard let item = state.items[id: id] else { return false }
+                    if case .remove = inFlight.command { return true }
+                    return item.torrent.status == inFlight.initialStatus
+                }
                 if payload.isFromCache == false {
                     state.failedAttempts = 0
                     state.offlineState = nil

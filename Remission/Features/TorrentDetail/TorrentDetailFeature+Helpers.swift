@@ -69,6 +69,12 @@ extension TorrentDetailReducer {
 
         state.pendingCommands.removeFirst()
         state.activeCommand = next
+        if shouldWaitForStatusChange(next) {
+            state.pendingStatusChange = .init(
+                command: next,
+                initialStatus: state.status
+            )
+        }
         return execute(command: next, state: &state)
     }
 
@@ -253,6 +259,15 @@ extension TorrentDetailReducer {
         case .start, .pause, .verify, .priority:
             return true
         case .remove:
+            return false
+        }
+    }
+
+    private func shouldWaitForStatusChange(_ command: CommandKind) -> Bool {
+        switch command {
+        case .start, .pause, .verify:
+            return true
+        case .remove, .priority:
             return false
         }
     }

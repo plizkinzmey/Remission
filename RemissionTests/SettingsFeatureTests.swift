@@ -10,21 +10,39 @@ struct SettingsFeatureTests {
     @Test("task загружает настройки и показывает значения")
     func taskLoadsPreferences() async {
         let preferences = DomainFixtures.userPreferences
-        let serverID = UUID()
+        let server = ServerConfig.previewLocalHTTP
+        let serverID = server.id
         let store = InMemoryUserPreferencesRepositoryStore(
             preferences: preferences,
             serverID: serverID
+        )
+        let sessionStore = DomainFixtures.makeSessionStore()
+        let session = await sessionStore.state
+        let sessionRepository = SessionRepository(
+            performHandshake: { DomainFixtures.sessionHandshake },
+            fetchState: {
+                await Task.yield()
+                return session
+            },
+            updateState: { _ in session },
+            checkCompatibility: { DomainFixtures.sessionCompatibility }
+        )
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            sessionRepository: sessionRepository
         )
 
         let testStore = TestStore(
             initialState: SettingsReducer.State(
                 serverID: serverID,
-                serverName: "Server"
+                serverName: "Server",
+                connectionEnvironment: environment
             )
         ) {
             SettingsReducer()
         } withDependencies: {
             $0.userPreferencesRepository = .inMemory(store: store)
+            $0.sessionRepository = sessionRepository
         }
 
         await testStore.send(.task)
@@ -38,23 +56,43 @@ struct SettingsFeatureTests {
             $0.persistedPreferences = preferences
             $0.hasPendingChanges = false
         }
+
+        await testStore.receive(.sessionResponse(.success(session))) {
+            $0.persistedSession = session
+            $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
+        }
     }
 
     @Test("изменения остаются локальными до сохранения")
     func changesStayLocalUntilSave() async {
         let preferences = DomainFixtures.userPreferences
-        let serverID = UUID()
+        let server = ServerConfig.previewLocalHTTP
+        let serverID = server.id
         let store = InMemoryUserPreferencesRepositoryStore(
             preferences: preferences,
             serverID: serverID
         )
+        let sessionStore = DomainFixtures.makeSessionStore()
+        let sessionRepository = SessionRepository.inMemory(store: sessionStore)
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            sessionRepository: sessionRepository
+        )
 
         let testStore = TestStore(
-            initialState: loadedState(from: preferences, serverID: serverID)
+            initialState: loadedState(
+                from: preferences,
+                session: await sessionStore.state,
+                serverID: serverID,
+                environment: environment
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
             $0.userPreferencesRepository = .inMemory(store: store)
+            $0.sessionRepository = sessionRepository
         }
 
         await testStore.send(.pollingIntervalChanged(12)) {
@@ -69,18 +107,32 @@ struct SettingsFeatureTests {
     @Test("сохранение применяет изменения и закрывает экран")
     func savePersistsPreferences() async {
         let preferences = DomainFixtures.userPreferences
-        let serverID = UUID()
+        let server = ServerConfig.previewLocalHTTP
+        let serverID = server.id
         let store = InMemoryUserPreferencesRepositoryStore(
             preferences: preferences,
             serverID: serverID
         )
+        let sessionStore = DomainFixtures.makeSessionStore()
+        let sessionRepository = SessionRepository.inMemory(store: sessionStore)
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            sessionRepository: sessionRepository
+        )
+        let session = await sessionStore.state
 
         let testStore = TestStore(
-            initialState: loadedState(from: preferences, serverID: serverID)
+            initialState: loadedState(
+                from: preferences,
+                session: session,
+                serverID: serverID,
+                environment: environment
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
             $0.userPreferencesRepository = .inMemory(store: store)
+            $0.sessionRepository = sessionRepository
         }
 
         await testStore.send(.downloadLimitChanged("4096")) {
@@ -99,14 +151,23 @@ struct SettingsFeatureTests {
             uploadKilobytesPerSecond: preferences.defaultSpeedLimits.uploadKilobytesPerSecond
         )
 
-        await testStore.receive(.saveResponse(.success(expected))) {
+        let expectedResult = SettingsReducer.SaveResult(
+            preferences: expected,
+            session: session
+        )
+
+        await testStore.receive(.saveResponse(.success(expectedResult))) {
             $0.isSaving = false
             $0.hasPendingChanges = false
             $0.persistedPreferences = expected
+            $0.persistedSession = session
             $0.pollingIntervalSeconds = expected.pollingInterval
             $0.isAutoRefreshEnabled = expected.isAutoRefreshEnabled
             $0.isTelemetryEnabled = expected.isTelemetryEnabled
             $0.defaultSpeedLimits = expected.defaultSpeedLimits
+            $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
         }
 
         await testStore.receive(.delegate(.closeRequested))
@@ -118,18 +179,32 @@ struct SettingsFeatureTests {
     @Test("отмена сбрасывает правки и закрывает экран")
     func cancelRevertsChanges() async {
         let preferences = DomainFixtures.userPreferences
-        let serverID = UUID()
+        let server = ServerConfig.previewLocalHTTP
+        let serverID = server.id
         let store = InMemoryUserPreferencesRepositoryStore(
             preferences: preferences,
             serverID: serverID
         )
+        let sessionStore = DomainFixtures.makeSessionStore()
+        let sessionRepository = SessionRepository.inMemory(store: sessionStore)
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            sessionRepository: sessionRepository
+        )
+        let session = await sessionStore.state
 
         let testStore = TestStore(
-            initialState: loadedState(from: preferences, serverID: serverID)
+            initialState: loadedState(
+                from: preferences,
+                session: session,
+                serverID: serverID,
+                environment: environment
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
             $0.userPreferencesRepository = .inMemory(store: store)
+            $0.sessionRepository = sessionRepository
         }
 
         await testStore.send(.pollingIntervalChanged(15)) {
@@ -142,6 +217,9 @@ struct SettingsFeatureTests {
             $0.isAutoRefreshEnabled = preferences.isAutoRefreshEnabled
             $0.isTelemetryEnabled = preferences.isTelemetryEnabled
             $0.defaultSpeedLimits = preferences.defaultSpeedLimits
+            $0.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
+            $0.seedRatioLimitValue =
+                session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
             $0.hasPendingChanges = false
         }
 
@@ -151,19 +229,32 @@ struct SettingsFeatureTests {
     @Test("ошибка сохранения показывает alert")
     func saveFailureShowsAlert() async {
         let preferences = DomainFixtures.userPreferences
-        let serverID = UUID()
+        let server = ServerConfig.previewLocalHTTP
+        let serverID = server.id
         let store = InMemoryUserPreferencesRepositoryStore(
             preferences: preferences,
             serverID: serverID
         )
         await store.markFailure(.updatePollingInterval)
+        let sessionStore = DomainFixtures.makeSessionStore()
+        let sessionRepository = SessionRepository.inMemory(store: sessionStore)
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            sessionRepository: sessionRepository
+        )
 
         let testStore = TestStore(
-            initialState: loadedState(from: preferences, serverID: serverID)
+            initialState: loadedState(
+                from: preferences,
+                session: await sessionStore.state,
+                serverID: serverID,
+                environment: environment
+            )
         ) {
             SettingsReducer()
         } withDependencies: {
             $0.userPreferencesRepository = .inMemory(store: store)
+            $0.sessionRepository = sessionRepository
         }
 
         await testStore.send(.pollingIntervalChanged(22)) {
@@ -197,11 +288,14 @@ struct SettingsFeatureTests {
 
 private func loadedState(
     from preferences: UserPreferences,
-    serverID: UUID
+    session: SessionState,
+    serverID: UUID,
+    environment: ServerConnectionEnvironment
 ) -> SettingsReducer.State {
     var state = SettingsReducer.State(
         serverID: serverID,
         serverName: "Server",
+        connectionEnvironment: environment,
         isLoading: false
     )
     state.pollingIntervalSeconds = preferences.pollingInterval
@@ -209,6 +303,9 @@ private func loadedState(
     state.isTelemetryEnabled = preferences.isTelemetryEnabled
     state.defaultSpeedLimits = preferences.defaultSpeedLimits
     state.persistedPreferences = preferences
+    state.persistedSession = session
+    state.isSeedRatioLimitEnabled = session.seedRatioLimit.isEnabled
+    state.seedRatioLimitValue = session.seedRatioLimit.isEnabled ? session.seedRatioLimit.value : 0
     state.hasPendingChanges = false
     return state
 }

@@ -34,7 +34,8 @@ extension TorrentListItem {
         var etaText: String?
 
         init(torrent: Torrent) {
-            let clampedProgress = min(max(torrent.summary.progress.percentDone, 0), 1)
+            let rawProgress = Self.progressValue(for: torrent)
+            let clampedProgress = min(max(rawProgress, 0), 1)
             self.progressFraction = clampedProgress
             self.progressText = String(format: "%.1f%%", clampedProgress * 100)
             self.downloadRateText = Metrics.format(
@@ -44,6 +45,15 @@ extension TorrentListItem {
             self.speedSummary = "↓ \(downloadRateText)/с · ↑ \(uploadRateText)/с"
             self.etaSeconds = torrent.summary.progress.etaSeconds
             self.etaText = Metrics.formatETA(seconds: torrent.summary.progress.etaSeconds)
+        }
+
+        private static func progressValue(for torrent: Torrent) -> Double {
+            switch torrent.status {
+            case .checking, .checkWaiting:
+                return torrent.summary.progress.recheckProgress
+            default:
+                return torrent.summary.progress.percentDone
+            }
         }
 
         private static func format(bytesPerSecond: Int) -> String {

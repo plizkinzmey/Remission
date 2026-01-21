@@ -99,6 +99,7 @@ struct SettingsView: View {
                 }
                 pollingSection
                 speedLimitsSection
+                seedRatioSection
             }
             .padding(12)
             .appCardSurface(cornerRadius: 16)
@@ -121,6 +122,16 @@ struct SettingsView: View {
     private func limitText(_ value: Int?) -> String {
         guard let value else { return "" }
         return "\(value)"
+    }
+
+    private func ratioText(isEnabled: Bool, value: Double) -> String {
+        guard isEnabled else { return "0" }
+        let formatter = NumberFormatter()
+        formatter.locale = Locale.current
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 2
+        formatter.decimalSeparator = Locale.current.decimalSeparator
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 
     private var autoRefreshSection: some View {
@@ -260,6 +271,39 @@ struct SettingsView: View {
         }
     }
 
+    private var seedRatioSection: some View {
+        AppSectionCard(L10n.tr("settings.seedRatio.section")) {
+            fieldRow(label: L10n.tr("settings.seedRatio.limit")) {
+                TextField(
+                    "",
+                    text: Binding(
+                        get: {
+                            ratioText(
+                                isEnabled: store.isSeedRatioLimitEnabled,
+                                value: store.seedRatioLimitValue
+                            )
+                        },
+                        set: { store.send(.seedRatioLimitChanged($0)) }
+                    )
+                )
+                .accessibilityIdentifier("settings_seed_ratio_field")
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 10)
+                .frame(height: 32)
+                .frame(maxWidth: 160, alignment: .trailing)
+                .appPillSurface()
+                #if os(iOS)
+                    .keyboardType(.decimalPad)
+                #endif
+            }
+
+            Text(L10n.tr("settings.seedRatio.note"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var loadingSection: some View {
         Group {
             if store.isLoading {
@@ -311,6 +355,8 @@ struct SettingsView: View {
             downloadKilobytesPerSecond: 2_048,
             uploadKilobytesPerSecond: 1_024
         )
+        state.isSeedRatioLimitEnabled = true
+        state.seedRatioLimitValue = 1.5
         return state
     }()
 

@@ -48,4 +48,12 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     static func tags(for category: TorrentCategory) -> [String] {
         [category.tagKey]
     }
+
+    static func localizedTitle(for tag: String) -> String? {
+        let normalized = tag.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        for category in TorrentCategory.ordered where category.tagKey == normalized {
+            return category.title
+        }
+        return nil
+    }
 }

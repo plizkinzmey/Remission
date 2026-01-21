@@ -24,6 +24,9 @@ extension TransmissionDomainMapper {
 
         let speedLimits: SessionState.SpeedLimits = makeSpeedLimits(from: sessionArguments)
         let queue: SessionState.Queue = makeQueue(from: sessionArguments)
+        let seedRatioLimit: SessionState.SeedRatioLimit = makeSeedRatioLimit(
+            from: sessionArguments
+        )
         let throughput: SessionState.Throughput = makeThroughput(from: statsArguments)
         let storage = SessionState.Storage(freeBytes: freeSpaceBytes)
 
@@ -43,6 +46,7 @@ extension TransmissionDomainMapper {
             downloadDirectory: downloadDirectory,
             speedLimits: speedLimits,
             queue: queue,
+            seedRatioLimit: seedRatioLimit,
             throughput: throughput,
             storage: storage,
             cumulativeStats: cumulativeStats,
@@ -146,6 +150,14 @@ extension TransmissionDomainMapper {
                 in: dict
             ) ?? 0
         )
+    }
+
+    func makeSeedRatioLimit(
+        from dict: [String: AnyCodable]
+    ) -> SessionState.SeedRatioLimit {
+        let isEnabled = boolValue("seedRatioLimited", in: dict) ?? false
+        let value = doubleValue("seedRatioLimit", in: dict) ?? 0.0
+        return SessionState.SeedRatioLimit(isEnabled: isEnabled, value: value)
     }
 
     func makeRPCInfo(

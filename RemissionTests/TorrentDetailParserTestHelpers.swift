@@ -42,6 +42,7 @@ enum TorrentDetailTestHelpers {
         Torrent.Summary(
             progress: .init(
                 percentDone: 0.75,
+                recheckProgress: 0,
                 totalSize: 1_024,
                 downloadedEver: 768,
                 uploadedEver: 256,
