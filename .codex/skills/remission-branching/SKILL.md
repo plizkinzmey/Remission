@@ -45,5 +45,6 @@ Confirm the branch name with the user if not provided.
 
 - Never branch from `master` or `main`.
 - Never merge feature/bugfix branches into `master` or `main`. Merge only into `develop`.
+- Only `develop` is allowed to be merged into `main`.
 - Always branch from `develop` after syncing with `origin/develop`.
 - Never use destructive commands (`git reset --hard`, forced checkouts) unless explicitly requested.
