@@ -691,7 +691,9 @@ extension TorrentListView {
             VStack(alignment: .leading, spacing: 12) {
                 filterSegmentedControl
                 HStack(spacing: 12) {
-                    categoryPicker
+                    if store.visibleItems.isEmpty == false {
+                        categoryPicker
+                    }
                     Spacer(minLength: 0)
                     if store.visibleItems.isEmpty == false {
                         sortPicker
