@@ -2,7 +2,7 @@ import ComposableArchitecture
 import SwiftUI
 
 struct TransmissionTrustPromptView: View {
-    @Bindable var store: StoreOf<OnboardingReducer.TrustPromptReducer>
+    @Bindable var store: StoreOf<ServerTrustPromptReducer>
 
     private var challenge: TransmissionTrustChallenge {
         store.prompt.challenge

@@ -14,10 +14,11 @@ struct ServerEditorView: View {
                 .safeAreaInset(edge: .bottom) {
                     AppWindowFooterBar(contentPadding: 6) {
                         Button(checkConnectionButtonTitle) {
-                            store.send(.checkConnectionButtonTapped)
+                            store.send(.serverConfig(.checkConnectionButtonTapped))
                         }
                         .disabled(
-                            store.connectionStatus == .testing || store.form.isFormValid == false
+                            store.serverConfig.connectionStatus == .testing
+                                || store.serverConfig.form.isFormValid == false
                         )
                         .accessibilityIdentifier("server_editor_connection_check_button")
                         .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
@@ -68,15 +69,15 @@ struct ServerEditorView: View {
         VStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ServerConnectionFormFields(form: $store.form)
+                    ServerConnectionFormFields(form: $store.serverConfig.form)
 
-                    if let validationError = store.validationError {
+                    if let validationError = store.serverConfig.validationError {
                         Text(validationError)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
 
-                    if case .failed(let message) = store.connectionStatus {
+                    if case .failed(let message) = store.serverConfig.connectionStatus {
                         Text(message)
                             .font(.footnote)
                             .foregroundStyle(.red)
@@ -84,11 +85,11 @@ struct ServerEditorView: View {
 
                     #if os(iOS)
                         Button(checkConnectionButtonTitle) {
-                            store.send(.checkConnectionButtonTapped)
+                            store.send(.serverConfig(.checkConnectionButtonTapped))
                         }
                         .disabled(
-                            store.connectionStatus == .testing
-                                || store.form.isFormValid == false
+                            store.serverConfig.connectionStatus == .testing
+                                || store.serverConfig.form.isFormValid == false
                         )
                         .accessibilityIdentifier("server_editor_connection_check_button")
                         .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
@@ -124,7 +125,7 @@ struct ServerEditorView: View {
     }
 
     private var checkConnectionButtonTitle: String {
-        switch store.connectionStatus {
+        switch store.serverConfig.connectionStatus {
         case .idle:
             return L10n.tr("onboarding.action.checkConnection")
         case .testing:
@@ -137,7 +138,7 @@ struct ServerEditorView: View {
     }
 
     private var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
-        switch store.connectionStatus {
+        switch store.serverConfig.connectionStatus {
         case .success:
             return .success
         case .failed:

@@ -41,20 +41,20 @@ extension TransmissionClient {
     // MARK: - Session Methods
 
     public func sessionGet() async throws -> TransmissionResponse {
-        try await sendRequest(method: "session-get")
+        try await sendRequest(method: .sessionGet)
     }
 
     public func sessionSet(arguments: AnyCodable) async throws -> TransmissionResponse {
-        try await sendRequest(method: "session-set", arguments: arguments)
+        try await sendRequest(method: .sessionSet, arguments: arguments)
     }
 
     public func sessionStats() async throws -> TransmissionResponse {
-        try await sendRequest(method: "session-stats")
+        try await sendRequest(method: .sessionStats)
     }
 
     public func freeSpace(path: String) async throws -> TransmissionResponse {
         let arguments: [String: AnyCodable] = ["path": .string(path)]
-        return try await sendRequest(method: "free-space", arguments: anyCodable(from: arguments))
+        return try await sendRequest(method: .freeSpace, arguments: anyCodable(from: arguments))
     }
 
     public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
@@ -71,10 +71,10 @@ extension TransmissionClient {
                 "Server RPC version: \(handshake.rpcVersion), compatible: \(handshake.isCompatible) (minimum: \(handshake.minimumSupportedRpcVersion))"
             let logMessage: Data = Data(message.utf8)
             config.logger.logResponse(
-                method: "session-get",
+                method: RPCMethod.sessionGet.rawValue,
                 statusCode: 200,
                 responseBody: logMessage,
-                context: makeLogContext(method: "session-get", statusCode: 200)
+                context: makeLogContext(method: RPCMethod.sessionGet.rawValue, statusCode: 200)
             )
         }
 
@@ -96,17 +96,11 @@ extension TransmissionClient {
 
     public func torrentGet(ids: [Int]?, fields: [String]?) async throws -> TransmissionResponse {
         var arguments: [String: AnyCodable] = [:]
-
-        if let ids = ids {
-            arguments["ids"] = .array(ids.map { .int($0) })
-        }
-
-        if let fields = fields {
-            arguments["fields"] = .array(fields.map { .string($0) })
-        }
+        arguments.set("ids", ids)
+        arguments.set("fields", fields)
 
         let args: AnyCodable? = arguments.isEmpty ? nil : anyCodable(from: arguments)
-        return try await sendRequest(method: "torrent-get", arguments: args)
+        return try await sendRequest(method: .torrentGet, arguments: args)
     }
 
     public func torrentAdd(
@@ -123,38 +117,27 @@ extension TransmissionClient {
             arguments["metainfo"] = .string(base64Payload)
         }
 
-        if let filename {
-            arguments["filename"] = .string(filename)
-        }
+        arguments.set("filename", filename)
+        arguments.set("download-dir", downloadDir)
+        arguments.set("paused", paused)
+        arguments.set("labels", labels)
 
         guard arguments["metainfo"] != nil || arguments["filename"] != nil else {
             throw APIError.unknown(details: "torrent-add requires filename or metainfo")
         }
 
-        if let downloadDir = downloadDir {
-            arguments["download-dir"] = .string(downloadDir)
-        }
-
-        if let paused = paused {
-            arguments["paused"] = .bool(paused)
-        }
-
-        if let labels = labels {
-            arguments["labels"] = .array(labels.map { .string($0) })
-        }
-
-        return try await sendRequest(method: "torrent-add", arguments: anyCodable(from: arguments))
+        return try await sendRequest(method: .torrentAdd, arguments: anyCodable(from: arguments))
     }
 
     public func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
         let arguments: [String: AnyCodable] = ["ids": .array(ids.map { .int($0) })]
         return try await sendRequest(
-            method: "torrent-start", arguments: anyCodable(from: arguments))
+            method: .torrentStart, arguments: anyCodable(from: arguments))
     }
 
     public func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
         let arguments: [String: AnyCodable] = ["ids": .array(ids.map { .int($0) })]
-        return try await sendRequest(method: "torrent-stop", arguments: anyCodable(from: arguments))
+        return try await sendRequest(method: .torrentStop, arguments: anyCodable(from: arguments))
     }
 
     public func torrentRemove(
@@ -162,13 +145,10 @@ extension TransmissionClient {
         deleteLocalData: Bool?
     ) async throws -> TransmissionResponse {
         var arguments: [String: AnyCodable] = ["ids": .array(ids.map { .int($0) })]
-
-        if let deleteLocalData = deleteLocalData {
-            arguments["delete-local-data"] = .bool(deleteLocalData)
-        }
+        arguments.set("delete-local-data", deleteLocalData)
 
         return try await sendRequest(
-            method: "torrent-remove", arguments: anyCodable(from: arguments))
+            method: .torrentRemove, arguments: anyCodable(from: arguments))
     }
 
     public func torrentSet(ids: [Int], arguments: AnyCodable) async throws -> TransmissionResponse {
@@ -182,13 +162,35 @@ extension TransmissionClient {
         }
 
         return try await sendRequest(
-            method: "torrent-set", arguments: anyCodable(from: allArguments))
+            method: .torrentSet, arguments: anyCodable(from: allArguments))
     }
 
     public func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
         let arguments: [String: AnyCodable] = ["ids": .array(ids.map { .int($0) })]
         return try await sendRequest(
-            method: "torrent-verify", arguments: anyCodable(from: arguments))
+            method: .torrentVerify, arguments: anyCodable(from: arguments))
+    }
+}
+
+extension Dictionary where Key == String, Value == AnyCodable {
+    fileprivate mutating func set(_ key: String, _ value: String?) {
+        if let value { self[key] = .string(value) }
+    }
+
+    fileprivate mutating func set(_ key: String, _ value: Int?) {
+        if let value { self[key] = .int(value) }
+    }
+
+    fileprivate mutating func set(_ key: String, _ value: Bool?) {
+        if let value { self[key] = .bool(value) }
+    }
+
+    fileprivate mutating func set(_ key: String, _ value: [String]?) {
+        if let value { self[key] = .array(value.map { .string($0) }) }
+    }
+
+    fileprivate mutating func set(_ key: String, _ value: [Int]?) {
+        if let value { self[key] = .array(value.map { .int($0) }) }
     }
 }
 

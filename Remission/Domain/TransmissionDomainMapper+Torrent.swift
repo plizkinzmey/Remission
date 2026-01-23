@@ -43,15 +43,6 @@ extension TransmissionDomainMapper {
 
     // MARK: - Private Mapping Helpers
 
-    private func decode<T: Decodable>(_ type: T.Type, from arguments: AnyCodable?) throws -> T {
-        guard let arguments = arguments else {
-            throw DomainMappingError.missingArguments(context: String(describing: T.self))
-        }
-        // Round-trip through JSON to leverage Decodable
-        let data = try JSONEncoder().encode(arguments)
-        return try JSONDecoder().decode(T.self, from: data)
-    }
-
     private func map(_ dto: TorrentObject, includeDetails: Bool) throws -> Torrent {
         guard let status = Torrent.Status(rawValue: dto.status) else {
             throw DomainMappingError.unsupportedStatus(rawValue: dto.status)
@@ -76,13 +67,6 @@ extension TransmissionDomainMapper {
     }
 
     private func mapProgress(_ dto: TorrentObject) -> Torrent.Progress {
-        // Transmission sometimes sends ints > 1 (like 100 for 100%) or double 0.0-1.0
-        // The DTO tries to decode as Double first if possible, but let's handle the logic here.
-        // Actually, AnyCodable + JSONDecoder might be strict.
-        // If the JSON has 100 (int), and we ask for Double, JSONDecoder handles it.
-        // We just need to normalize to 0.0-1.0 range if needed, or trust the value.
-        // Existing logic checked for > 1.
-
         let rawPercent = dto.percentDone ?? 0.0
         let percentDone = rawPercent > 1.0 ? rawPercent / 100.0 : rawPercent
 
@@ -116,28 +100,17 @@ extension TransmissionDomainMapper {
     }
 
     private func mapPeers(_ dto: TorrentObject) -> Torrent.Peers {
-
         let sources =
             dto.peersFrom?.compactMap { name, count -> Torrent.PeerSource? in
-
-                // Only keep positive counts if desired, or all? Existing logic kept all valid ints.
-
                 guard count > 0 else { return nil }
-
                 return Torrent.PeerSource(name: name, count: count)
-
             }
-
-            .sorted(by: { $0.count > .count }) ?? []
+            .sorted(by: { $0.count > $1.count }) ?? []
 
         return Torrent.Peers(
-
             connected: dto.peersConnected ?? 0,
-
             sources: sources
-
         )
-
     }
 
     private func mapDetails(_ dto: TorrentObject) -> Torrent.Details {
@@ -150,7 +123,7 @@ extension TransmissionDomainMapper {
             files: mapFiles(dto),
             trackers: mapTrackers(dto),
             trackerStats: mapTrackerStats(dto),
-            speedSamples: []  // Not provided by RPC directly in this call usually
+            speedSamples: []
         )
     }
 
@@ -192,4 +165,91 @@ extension TransmissionDomainMapper {
             )
         } ?? []
     }
+}
+
+// MARK: - RPC DTO Models
+
+struct TorrentGetArguments: Decodable {
+    let torrents: [TorrentObject]
+}
+
+struct TorrentAddArguments: Decodable {
+    let torrentAdded: TorrentAddObject?
+    let torrentDuplicate: TorrentAddObject?
+
+    enum CodingKeys: String, CodingKey {
+        case torrentAdded = "torrent-added"
+        case torrentDuplicate = "torrent-duplicate"
+    }
+}
+
+struct TorrentAddObject: Decodable {
+    let id: Int
+    let name: String
+    let hashString: String
+}
+
+struct TorrentObject: Decodable {
+    let id: Int
+    let name: String
+    let status: Int
+    let labels: [String]?
+
+    // Progress
+    let percentDone: Double?
+    let recheckProgress: Double?
+    let totalSize: Int?
+    let downloadedEver: Int?
+    let uploadedEver: Int?
+    let uploadRatio: Double?
+    let eta: Int?
+
+    // Transfer
+    let rateDownload: Int?
+    let rateUpload: Int?
+    let downloadLimited: Bool?
+    let downloadLimit: Int?
+    let uploadLimited: Bool?
+    let uploadLimit: Int?
+
+    // Peers
+    let peersConnected: Int?
+    let peersFrom: [String: Int]?
+
+    // Details
+    let downloadDir: String?
+    let addedDate: Int?
+    let dateAdded: Int?
+
+    let files: [FileObject]?
+    let fileStats: [FileStatObject]?
+    let trackers: [TrackerObject]?
+    let trackerStats: [TrackerStatObject]?
+}
+
+struct FileObject: Decodable {
+    let name: String
+    let length: Int
+    let bytesCompleted: Int
+}
+
+struct FileStatObject: Decodable {
+    let priority: Int
+    let wanted: Bool
+}
+
+struct TrackerObject: Decodable {
+    let id: Int?
+    let trackerId: Int?
+    let announce: String
+    let tier: Int
+}
+
+struct TrackerStatObject: Decodable {
+    let id: Int?
+    let trackerId: Int?
+    let lastAnnounceResult: String
+    let downloadCount: Int
+    let leecherCount: Int
+    let seederCount: Int
 }

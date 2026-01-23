@@ -235,17 +235,4 @@ extension TransmissionDomainMapper {
             secondsActive: intValue("secondsActive", in: statsDict) ?? 0
         )
     }
-
-    func int64Value(
-        _ field: String,
-        in dict: [String: AnyCodable]
-    ) -> Int64 {
-        if let int = dict[field]?.intValue {
-            return Int64(int)
-        }
-        if let double = dict[field]?.doubleValue {
-            return Int64(double)
-        }
-        return 0
-    }
 }

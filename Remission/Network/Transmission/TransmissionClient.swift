@@ -116,7 +116,32 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         AnyCodable.object(dictionary)
     }
 
+    // MARK: - RPC Method Enum
+
+    public enum RPCMethod: String {
+        case sessionGet = "session-get"
+        case sessionSet = "session-set"
+        case sessionStats = "session-stats"
+        case freeSpace = "free-space"
+        case torrentGet = "torrent-get"
+        case torrentSet = "torrent-set"
+        case torrentAdd = "torrent-add"
+        case torrentRemove = "torrent-remove"
+        case torrentStart = "torrent-start"
+        case torrentStop = "torrent-stop"
+        case torrentVerify = "torrent-verify"
+    }
+
     // MARK: - Private Helpers
+
+    /// Отправить RPC запрос к серверу (Type-safe overload).
+    func sendRequest(
+        method: RPCMethod,
+        arguments: AnyCodable? = nil,
+        tag: TransmissionTag? = nil
+    ) async throws -> TransmissionResponse {
+        try await sendRequest(method: method.rawValue, arguments: arguments, tag: tag)
+    }
 
     /// Отправить RPC запрос к серверу.
     /// Обрабатывает HTTP 409 handshake для получения session ID при необходимости.

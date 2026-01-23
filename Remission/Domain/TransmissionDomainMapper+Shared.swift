@@ -83,6 +83,19 @@ extension TransmissionDomainMapper {
         return nil
     }
 
+    func int64Value(
+        _ field: String,
+        in dict: [String: AnyCodable]
+    ) -> Int64 {
+        if let int = dict[field]?.intValue {
+            return Int64(int)
+        }
+        if let double = dict[field]?.doubleValue {
+            return Int64(double)
+        }
+        return 0
+    }
+
     func doubleValue(
         _ field: String,
         in dict: [String: AnyCodable]
@@ -101,5 +114,14 @@ extension TransmissionDomainMapper {
         in dict: [String: AnyCodable]
     ) -> Bool? {
         dict[field]?.boolValue
+    }
+
+    func decode<T: Decodable>(_ type: T.Type, from arguments: AnyCodable?) throws -> T {
+        guard let arguments = arguments else {
+            throw DomainMappingError.missingArguments(context: String(describing: T.self))
+        }
+        // Round-trip through JSON to leverage Decodable
+        let data = try JSONEncoder().encode(arguments)
+        return try JSONDecoder().decode(T.self, from: data)
     }
 }

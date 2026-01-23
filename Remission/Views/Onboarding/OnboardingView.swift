@@ -17,13 +17,14 @@ struct OnboardingView: View {
                     AppWindowFooterBar(contentPadding: 6) {
                         Button(checkConnectionButtonTitle) {
                             if OnboardingViewEnvironment.isOnboardingUITest {
-                                store.send(.uiTestBypassConnection)
+                                store.send(.serverConfig(.uiTestBypassConnection))
                             } else {
-                                store.send(.checkConnectionButtonTapped)
+                                store.send(.serverConfig(.checkConnectionButtonTapped))
                             }
                         }
                         .disabled(
-                            store.connectionStatus == .testing || store.form.isFormValid == false
+                            store.serverConfig.connectionStatus == .testing
+                                || store.serverConfig.form.isFormValid == false
                         )
                         .accessibilityIdentifier("onboarding_connection_check_button")
                         .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
@@ -66,7 +67,8 @@ struct OnboardingView: View {
             $store.scope(state: \.alert, action: \.alert)
         )
         .sheet(
-            store: store.scope(state: \.$trustPrompt, action: \.trustPrompt)
+            store: store.scope(
+                state: \.serverConfig.$trustPrompt, action: \.serverConfig.trustPrompt)
         ) { promptStore in
             TransmissionTrustPromptView(store: promptStore)
         }
@@ -76,15 +78,15 @@ struct OnboardingView: View {
         VStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    ServerConnectionFormFields(form: $store.form)
+                    ServerConnectionFormFields(form: $store.serverConfig.form)
 
-                    if let validationError = store.validationError {
+                    if let validationError = store.serverConfig.validationError {
                         Text(validationError)
                             .font(.footnote)
                             .foregroundStyle(.red)
                     }
 
-                    if case .failed(let message) = store.connectionStatus {
+                    if case .failed(let message) = store.serverConfig.connectionStatus {
                         Text(message)
                             .font(.footnote)
                             .foregroundStyle(.red)
@@ -93,14 +95,14 @@ struct OnboardingView: View {
                     #if os(iOS)
                         Button(checkConnectionButtonTitle) {
                             if OnboardingViewEnvironment.isOnboardingUITest {
-                                store.send(.uiTestBypassConnection)
+                                store.send(.serverConfig(.uiTestBypassConnection))
                             } else {
-                                store.send(.checkConnectionButtonTapped)
+                                store.send(.serverConfig(.checkConnectionButtonTapped))
                             }
                         }
                         .disabled(
-                            store.connectionStatus == .testing
-                                || store.form.isFormValid == false
+                            store.serverConfig.connectionStatus == .testing
+                                || store.serverConfig.form.isFormValid == false
                         )
                         .accessibilityIdentifier("onboarding_connection_check_button")
                         .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
@@ -121,7 +123,7 @@ struct OnboardingView: View {
     }
 
     private var checkConnectionButtonTitle: String {
-        switch store.connectionStatus {
+        switch store.serverConfig.connectionStatus {
         case .idle:
             return L10n.tr("onboarding.action.checkConnection")
         case .testing:
@@ -134,7 +136,7 @@ struct OnboardingView: View {
     }
 
     private var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
-        switch store.connectionStatus {
+        switch store.serverConfig.connectionStatus {
         case .success:
             return .success
         case .failed:
