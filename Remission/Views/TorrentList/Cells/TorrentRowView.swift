@@ -168,12 +168,8 @@ struct TorrentRowView: View {
 
     private func actionsPill(_ actions: RowActions) -> some View {
         HStack(spacing: 10) {
-            pillIconButton(
-                systemImage: actions.isActive ? "pause.fill" : "play.fill",
-                accessibilityLabel: actions.isActive
-                    ? L10n.tr("torrentDetail.actions.pause")
-                    : L10n.tr("torrentDetail.actions.start"),
-                tint: actions.isActive ? .orange : .green,
+            AppTorrentActionButton(
+                type: actions.isActive ? .pause : .start,
                 isBusy: actions.isStartPauseBusy,
                 isLocked: actions.isLocked,
                 action: actions.onStartPause
@@ -182,10 +178,8 @@ struct TorrentRowView: View {
             Divider()
                 .frame(height: 18)
 
-            pillIconButton(
-                systemImage: "checkmark.shield.fill",
-                accessibilityLabel: L10n.tr("torrentDetail.actions.verify"),
-                tint: .blue,
+            AppTorrentActionButton(
+                type: .verify,
                 isBusy: actions.isVerifyBusy,
                 isLocked: actions.isLocked,
                 action: actions.onVerify
@@ -194,10 +188,8 @@ struct TorrentRowView: View {
             Divider()
                 .frame(height: 18)
 
-            pillIconButton(
-                systemImage: "trash.fill",
-                accessibilityLabel: L10n.tr("torrentDetail.actions.remove"),
-                tint: .red,
+            AppTorrentActionButton(
+                type: .remove,
                 isBusy: actions.isRemoveBusy,
                 isLocked: actions.isLocked,
                 action: actions.onRemove
@@ -210,38 +202,6 @@ struct TorrentRowView: View {
             .appGlassEffectTransition(.materialize)
         #endif
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
-    }
-
-    private func pillIconButton(
-        systemImage: String,
-        accessibilityLabel: String,
-        tint: Color,
-        isBusy: Bool,
-        isLocked: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            ZStack {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .opacity(isBusy ? 0 : 1)
-
-                if isBusy {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(tint)
-                }
-            }
-            .frame(width: 24, height: 24)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(tint)
-        .disabled(isLocked || isBusy)
-        .accessibilityLabel(accessibilityLabel)
-        .animation(.easeInOut(duration: 0.2), value: isBusy)
-        #if os(macOS)
-            .help(accessibilityLabel)
-        #endif
     }
 
     private var tagsRow: some View {
