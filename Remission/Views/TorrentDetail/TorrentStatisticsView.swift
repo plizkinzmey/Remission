@@ -6,17 +6,7 @@ struct TorrentStatisticsView: View {
     var showsContainer: Bool = true
 
     var body: some View {
-        if showsContainer {
-            GroupBox {
-                content
-            } label: {
-                Text(L10n.tr("torrentDetail.stats.title"))
-                    .font(.headline)
-            }
-            .accessibilityIdentifier("torrent-statistics-section")
-        } else {
-            content
-        }
+        content
     }
 
     private var content: some View {
@@ -83,8 +73,8 @@ private struct TorrentLimitControl: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(title)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .appCaption()
+                    .foregroundStyle(.primary)
                 Spacer()
                 Toggle("", isOn: isEnabled)
                     .labelsHidden()
@@ -105,7 +95,7 @@ private struct TorrentLimitControl: View {
                     .frame(height: 32)
                     .frame(maxWidth: 180)
                     .appPillSurface()
-                    .minimumScaleFactor(0.9)
+                    .appMonospacedDigit()
                     .accessibilityIdentifier("torrent_limit_value_\(identifierSuffix)")
                     #if os(macOS)
                         .controlSize(.small)

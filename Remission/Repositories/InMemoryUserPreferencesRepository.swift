@@ -13,7 +13,7 @@ actor InMemoryUserPreferencesRepositoryStore {
     }
 
     private var preferencesByServer: [UUID: UserPreferences]
-    private var failedOperations: Set<Operation> = []
+    private let failureTracker = InMemoryFailureTracker<Operation>()
     private var observers: [UUID: [UUID: AsyncStream<UserPreferences>.Continuation]] = [:]
     private let defaultPreferences: UserPreferences
 
@@ -26,16 +26,16 @@ actor InMemoryUserPreferencesRepositoryStore {
         }
     }
 
-    func markFailure(_ operation: Operation) {
-        failedOperations.insert(operation)
+    func markFailure(_ operation: Operation) async {
+        await failureTracker.markFailure(operation)
     }
 
-    func clearFailure(_ operation: Operation) {
-        failedOperations.remove(operation)
+    func clearFailure(_ operation: Operation) async {
+        await failureTracker.clearFailure(operation)
     }
 
-    func shouldFail(_ operation: Operation) -> Bool {
-        failedOperations.contains(operation)
+    func shouldFail(_ operation: Operation) async -> Bool {
+        await failureTracker.shouldFail(operation)
     }
 
     func addObserver(

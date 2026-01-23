@@ -6,22 +6,7 @@ struct TorrentTrackersView: View {
     var showsContainer: Bool = true
 
     var body: some View {
-        if showsContainer {
-            GroupBox {
-                content
-            } label: {
-                Text(
-                    String(
-                        format: L10n.tr("torrentDetail.trackers.title"),
-                        Int64(store.trackers.count)
-                    )
-                )
-                .font(.headline)
-            }
-            .accessibilityIdentifier("torrent-trackers-section")
-        } else {
-            content
-        }
+        content
     }
 
     private var content: some View {

@@ -6,24 +6,8 @@ struct TorrentFilesView: View {
     var showsContainer: Bool = true
 
     var body: some View {
-        if showsContainer {
-            GroupBox {
-                content
-            } label: {
-                Text(
-                    String(
-                        format: L10n.tr("torrentDetail.files.title"),
-                        Int64(store.files.count)
-                    )
-                )
-                .font(.headline)
-            }
-            .accessibilityIdentifier("torrent-files-section")
+        content
             .disabled(isPriorityLocked)
-        } else {
-            content
-                .disabled(isPriorityLocked)
-        }
     }
 
     private var content: some View {
@@ -50,12 +34,12 @@ private struct TorrentFileRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(file.name)
-                    .font(.caption)
+                    .appCaption()
                     .lineLimit(1)
                 Spacer()
                 Text(TorrentDetailFormatters.bytes(file.length))
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .appCaption()
+                    .appMonospacedDigit()
             }
 
             HStack {
@@ -64,7 +48,8 @@ private struct TorrentFileRow: View {
                     .accessibilityLabel(L10n.tr("torrentDetail.files.progress.accessibility"))
                     .accessibilityValue(progressText)
                 Text("\(Int(file.progress * 100))%")
-                    .font(.caption2.monospacedDigit())
+                    .font(.caption2)
+                    .appMonospacedDigit()
                     .foregroundStyle(.secondary)
                     .frame(width: 40, alignment: .trailing)
 

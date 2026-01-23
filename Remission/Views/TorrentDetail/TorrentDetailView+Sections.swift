@@ -315,120 +315,53 @@ extension TorrentDetailView {
 
     var advancedSections: some View {
         AppSectionCard("") {
-            DisclosureGroup(isExpanded: $isFilesExpanded) {
-                if isFilesExpanded {
-                    filesContent
-                        .padding(.top, 8)
-                }
-            } label: {
-                disclosureHeader(
-                    String(
-                        format: L10n.tr("torrentDetail.files.title"),
-                        Int64(store.files.count)
-                    ),
-                    isExpanded: $isFilesExpanded
-                )
+            TorrentDetailSection(
+                title: String(format: L10n.tr("torrentDetail.files.title"), Int64(store.files.count)),
+                isExpanded: $isFilesExpanded,
+                hasMetadata: store.hasLoadedMetadata,
+                isEmpty: store.files.isEmpty,
+                emptyIcon: "doc.text.magnifyingglass",
+                emptyTitleLoaded: L10n.tr("torrentDetail.files.empty.title.loaded"),
+                emptyTitleLoading: L10n.tr("torrentDetail.files.empty.title.loading"),
+                emptyMessageLoaded: L10n.tr("torrentDetail.files.empty.message.loaded"),
+                emptyMessageLoading: L10n.tr("torrentDetail.files.empty.message.loading"),
+                accessibilityIdentifier: "torrent-files-section"
+            ) {
+                TorrentFilesView(store: store, showsContainer: false)
             }
-            .accessibilityIdentifier("torrent-files-section")
 
-            DisclosureGroup(isExpanded: $isTrackersExpanded) {
-                if isTrackersExpanded {
-                    trackersContent
-                        .padding(.top, 8)
-                }
-            } label: {
-                disclosureHeader(
-                    String(
-                        format: L10n.tr("torrentDetail.trackers.title"),
-                        Int64(store.trackers.count)
-                    ),
-                    isExpanded: $isTrackersExpanded
-                )
+            TorrentDetailSection(
+                title: String(
+                    format: L10n.tr("torrentDetail.trackers.title"),
+                    Int64(store.trackers.count)
+                ),
+                isExpanded: $isTrackersExpanded,
+                hasMetadata: store.hasLoadedMetadata,
+                isEmpty: store.trackers.isEmpty,
+                emptyIcon: "dot.radiowaves.left.and.right",
+                emptyTitleLoaded: L10n.tr("torrentDetail.trackers.empty.title.loaded"),
+                emptyTitleLoading: L10n.tr("torrentDetail.trackers.empty.title.loading"),
+                emptyMessageLoaded: L10n.tr("torrentDetail.trackers.empty.message.loaded"),
+                emptyMessageLoading: L10n.tr("torrentDetail.trackers.empty.message.loading"),
+                accessibilityIdentifier: "torrent-trackers-section"
+            ) {
+                TorrentTrackersView(store: store, showsContainer: false)
             }
-            .accessibilityIdentifier("torrent-trackers-section")
 
-            DisclosureGroup(isExpanded: $isPeersExpanded) {
-                if isPeersExpanded {
-                    peersContent
-                        .padding(.top, 8)
-                }
-            } label: {
-                disclosureHeader(
-                    L10n.tr("torrentDetail.peers.title"),
-                    isExpanded: $isPeersExpanded
-                )
+            TorrentDetailSection(
+                title: L10n.tr("torrentDetail.peers.title"),
+                isExpanded: $isPeersExpanded,
+                hasMetadata: store.hasLoadedMetadata,
+                isEmpty: store.peers.isEmpty,
+                emptyIcon: "person.2.wave.2.fill",
+                emptyTitleLoaded: L10n.tr("torrentDetail.peers.empty.title.loaded"),
+                emptyTitleLoading: L10n.tr("torrentDetail.peers.empty.title.loading"),
+                emptyMessageLoaded: L10n.tr("torrentDetail.peers.empty.message.loaded"),
+                emptyMessageLoading: L10n.tr("torrentDetail.peers.empty.message.loading"),
+                accessibilityIdentifier: "torrent-peers-section"
+            ) {
+                TorrentPeersView(peers: store.peers, showsContainer: false)
             }
-            .accessibilityIdentifier("torrent-peers-section")
         }
-    }
-
-    @ViewBuilder
-    var filesContent: some View {
-        if store.files.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "doc.text.magnifyingglass",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.files.empty.title.loaded")
-                    : L10n.tr("torrentDetail.files.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.files.empty.message.loaded")
-                    : L10n.tr("torrentDetail.files.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-files-empty")
-        } else {
-            TorrentFilesView(store: store, showsContainer: false)
-        }
-    }
-
-    @ViewBuilder
-    var trackersContent: some View {
-        if store.trackers.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "dot.radiowaves.left.and.right",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.trackers.empty.title.loaded")
-                    : L10n.tr("torrentDetail.trackers.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.trackers.empty.message.loaded")
-                    : L10n.tr("torrentDetail.trackers.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-trackers-empty")
-        } else {
-            TorrentTrackersView(store: store, showsContainer: false)
-        }
-    }
-
-    @ViewBuilder
-    var peersContent: some View {
-        if store.peers.isEmpty {
-            EmptyPlaceholderView(
-                systemImage: "person.2.wave.2.fill",
-                title: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.peers.empty.title.loaded")
-                    : L10n.tr("torrentDetail.peers.empty.title.loading"),
-                message: store.hasLoadedMetadata
-                    ? L10n.tr("torrentDetail.peers.empty.message.loaded")
-                    : L10n.tr("torrentDetail.peers.empty.message.loading")
-            )
-            .accessibilityIdentifier("torrent-peers-empty")
-        } else {
-            TorrentPeersView(peers: store.peers, showsContainer: false)
-        }
-    }
-
-    private func disclosureHeader(
-        _ title: String,
-        isExpanded: Binding<Bool>
-    ) -> some View {
-        Button {
-            isExpanded.wrappedValue.toggle()
-        } label: {
-            HStack {
-                Text(title)
-                Spacer(minLength: 0)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }

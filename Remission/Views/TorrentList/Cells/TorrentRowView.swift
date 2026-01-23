@@ -63,20 +63,22 @@ struct TorrentRowView: View {
                         peersText,
                         systemImage: "person.2"
                     )
-                    .font(.caption)
+                    .appCaption()
                     .foregroundStyle(.primary)
 
                     Text(ratioTextShort)
-                        .font(.caption)
+                        .appCaption()
                         .foregroundStyle(.primary)
+                        .appMonospacedDigit()
                         .accessibilityIdentifier(
                             "torrent_row_ratio_\(item.torrent.id.rawValue)")
 
                     Spacer(minLength: 6)
 
                     Label(item.metrics.speedSummary, systemImage: "speedometer")
-                        .font(.caption)
+                        .appCaption()
                         .foregroundStyle(.primary)
+                        .appMonospacedDigit()
                         .lineLimit(1)
                         .layoutPriority(1)
                         .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
@@ -84,27 +86,30 @@ struct TorrentRowView: View {
             #else
                 HStack(spacing: 12) {
                     Label(item.metrics.progressText, systemImage: "circle.dashed")
-                        .font(.caption)
+                        .appCaption()
                         .foregroundStyle(.primary)
+                        .appMonospacedDigit()
                         .accessibilityIdentifier(
                             "torrent_row_progress_\(item.torrent.id.rawValue)")
 
                     if let etaText = item.metrics.etaText {
                         Label(etaText, systemImage: "clock")
-                            .font(.caption)
+                            .appCaption()
                             .foregroundStyle(.primary)
+                            .appMonospacedDigit()
                     }
 
                     Label(
                         peersText,
                         systemImage: "person.2"
                     )
-                    .font(.caption)
+                    .appCaption()
                     .foregroundStyle(.primary)
 
                     Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
-                        .font(.caption)
+                        .appCaption()
                         .foregroundStyle(.primary)
+                        .appMonospacedDigit()
                         .accessibilityIdentifier(
                             "torrent_row_ratio_\(item.torrent.id.rawValue)")
 
@@ -116,8 +121,9 @@ struct TorrentRowView: View {
                     Spacer(minLength: 6)
 
                     Label(item.metrics.speedSummary, systemImage: "speedometer")
-                        .font(.caption)
+                        .appCaption()
                         .foregroundStyle(.primary)
+                        .appMonospacedDigit()
                         .lineLimit(1)
                         .layoutPriority(1)
                         .accessibilityIdentifier(

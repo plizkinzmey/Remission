@@ -191,54 +191,14 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         if let headers: [String: String] = masked.allHTTPHeaderFields {
             var maskedHeaders: [String: String] = headers
             if let auth: String = maskedHeaders["Authorization"] {
-                maskedHeaders["Authorization"] = maskAuthHeader(auth)
+                maskedHeaders["Authorization"] = DataMasker.maskAuthHeader(auth)
             }
             if let sessionId: String = maskedHeaders["X-Transmission-Session-Id"] {
-                maskedHeaders["X-Transmission-Session-Id"] = maskSessionID(sessionId)
+                maskedHeaders["X-Transmission-Session-Id"] = DataMasker.maskSessionID(sessionId)
             }
             masked.allHTTPHeaderFields = maskedHeaders
         }
         return masked
-    }
-
-    /// Маскировать Authorization header (Basic Auth).
-    /// Входящий формат: "Basic <base64(username:password)>"
-    /// Выходящий формат: "Basic <first-3-chars>..."
-    private func maskAuthHeader(_ authHeader: String) -> String {
-        let lower: String = authHeader.lowercased()
-        guard lower.hasPrefix("basic ") else {
-            let visiblePrefix: String = String(authHeader.prefix(6))
-            let visibleSuffix: String = String(authHeader.suffix(2))
-            return "\(visiblePrefix)...\(visibleSuffix)"
-        }
-
-        let components: [Substring] = authHeader.split(
-            separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
-        guard components.count == 2 else {
-            return "Basic ..."
-        }
-
-        let scheme: String = String(components[0])  // "Basic"
-        let credentials: String = String(components[1])
-
-        if credentials.count <= 8 {
-            return "\(scheme) ..."
-        }
-
-        let first: String = String(credentials.prefix(4))
-        let last: String = String(credentials.suffix(4))
-        return "\(scheme) \(first)...\(last)"
-    }
-
-    /// Маскировать Session ID.
-    /// Показать только первые 4 и последние 4 символа.
-    private func maskSessionID(_ sessionID: String) -> String {
-        guard sessionID.count > 8 else {
-            return "****"
-        }
-        let first: String = String(sessionID.prefix(4))
-        let last: String = String(sessionID.suffix(4))
-        return "\(first)...\(last)"
     }
 
     /// Форматировать заголовки для логирования.

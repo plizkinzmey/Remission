@@ -13,7 +13,7 @@ actor InMemorySessionRepositoryStore {
     private(set) var handshake: SessionRepository.Handshake
     private(set) var state: SessionState
     private(set) var compatibility: SessionRepository.Compatibility
-    private var failedOperations: Set<Operation> = []
+    private let failureTracker = InMemoryFailureTracker<Operation>()
 
     init(
         handshake: SessionRepository.Handshake,
@@ -37,16 +37,16 @@ actor InMemorySessionRepositoryStore {
         self.compatibility = compatibility
     }
 
-    func markFailure(_ operation: Operation) {
-        failedOperations.insert(operation)
+    func markFailure(_ operation: Operation) async {
+        await failureTracker.markFailure(operation)
     }
 
-    func clearFailure(_ operation: Operation) {
-        failedOperations.remove(operation)
+    func clearFailure(_ operation: Operation) async {
+        await failureTracker.clearFailure(operation)
     }
 
-    func shouldFail(_ operation: Operation) -> Bool {
-        failedOperations.contains(operation)
+    func shouldFail(_ operation: Operation) async -> Bool {
+        await failureTracker.shouldFail(operation)
     }
 }
 

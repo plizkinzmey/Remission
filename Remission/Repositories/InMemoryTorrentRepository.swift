@@ -18,7 +18,7 @@ actor InMemoryTorrentRepositoryStore {
     }
 
     private(set) var torrents: [Torrent]
-    private var failedOperations: Set<Operation> = []
+    private let failureTracker = InMemoryFailureTracker<Operation>()
 
     init(torrents: [Torrent] = []) {
         self.torrents = torrents
@@ -28,20 +28,20 @@ actor InMemoryTorrentRepositoryStore {
         self.torrents = torrents
     }
 
-    func markFailure(_ operation: Operation) {
-        failedOperations.insert(operation)
+    func markFailure(_ operation: Operation) async {
+        await failureTracker.markFailure(operation)
     }
 
-    func clearFailure(_ operation: Operation) {
-        failedOperations.remove(operation)
+    func clearFailure(_ operation: Operation) async {
+        await failureTracker.clearFailure(operation)
     }
 
-    func resetFailures() {
-        failedOperations.removeAll()
+    func resetFailures() async {
+        await failureTracker.resetFailures()
     }
 
-    func shouldFail(_ operation: Operation) -> Bool {
-        failedOperations.contains(operation)
+    func shouldFail(_ operation: Operation) async -> Bool {
+        await failureTracker.shouldFail(operation)
     }
 }
 
@@ -54,7 +54,7 @@ extension InMemoryTorrentRepositoryStore {
         _ operation: Operation,
         _ action: (inout [Torrent]) throws -> Result
     ) async throws -> Result {
-        if shouldFail(operation) {
+        if await shouldFail(operation) {
             throw InMemoryTorrentRepositoryError.operationFailed(operation)
         }
         return try action(&torrents)

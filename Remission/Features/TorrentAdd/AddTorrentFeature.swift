@@ -214,7 +214,11 @@ struct AddTorrentReducer {
             case .submitResponse(.success(let result)):
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = true
-                state.alert = successAlert(for: result.addResult)
+                state.alert = AlertFactory.torrentAdded(
+                    name: result.addResult.name,
+                    isDuplicate: result.addResult.status == .duplicate,
+                    action: .dismiss
+                )
                 return .merge(
                     .send(.delegate(.addCompleted(result.addResult))),
                     persistRecentDownloadDirectories(state: &state)
@@ -223,15 +227,10 @@ struct AddTorrentReducer {
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false
                 state.closeOnAlertDismiss = false
-                state.alert = AlertState {
-                    TextState(L10n.tr("torrentAdd.alert.addFailed.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("common.ok"))
-                    }
-                } message: {
-                    TextState(error.message)
-                }
+                state.alert = AlertFactory.torrentAddFailed(
+                    message: error.message,
+                    action: .dismiss
+                )
                 return .none
 
             case .defaultDownloadDirectoryResponse(.success(let directory)):

@@ -64,6 +64,65 @@ enum AlertFactory {
         }
     }
 
+    /// Создает алерт об успешном добавлении торрента.
+    static func torrentAdded<Action>(
+        name: String,
+        isDuplicate: Bool,
+        action: Action
+    ) -> AlertState<Action> {
+        AlertState {
+            TextState(
+                isDuplicate
+                    ? L10n.tr("torrentAdd.alert.duplicate.title")
+                    : L10n.tr("torrentAdd.alert.added.title")
+            )
+        } actions: {
+            ButtonState(role: .cancel, action: action) {
+                TextState(L10n.tr("common.ok"))
+            }
+        } message: {
+            TextState(
+                isDuplicate
+                    ? String(format: L10n.tr("torrentAdd.alert.duplicate.message"), name)
+                    : String(format: L10n.tr("torrentAdd.alert.added.message"), name)
+            )
+        }
+    }
+
+    /// Создает алерт об ошибке добавления торрента.
+    static func torrentAddFailed<Action>(
+        message: String,
+        action: Action
+    ) -> AlertState<Action> {
+        simpleAlert(
+            title: L10n.tr("torrentAdd.alert.addFailed.title"),
+            message: message,
+            action: action
+        )
+    }
+
+    /// Создает алерт об отсутствии каталога загрузки.
+    static func destinationRequired<Action>(
+        action: Action
+    ) -> AlertState<Action> {
+        simpleAlert(
+            title: L10n.tr("torrentAdd.alert.destinationRequired.title"),
+            message: L10n.tr("torrentAdd.alert.destinationRequired.message"),
+            action: action
+        )
+    }
+
+    /// Создает алерт об отсутствии соединения при добавлении торрента.
+    static func noConnection<Action>(
+        action: Action
+    ) -> AlertState<Action> {
+        simpleAlert(
+            title: L10n.tr("torrentAdd.alert.noConnection.title"),
+            message: L10n.tr("torrentAdd.alert.noConnection.message"),
+            action: action
+        )
+    }
+
     /// Создает диалог подтверждения действия (Action Sheet).
     static func confirmationDialog<Action>(
         title: String,

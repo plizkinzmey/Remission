@@ -63,15 +63,7 @@ extension AddTorrentReducer {
             in: .whitespacesAndNewlines
         )
         guard destinationRaw.isEmpty == false else {
-            state.alert = AlertState {
-                TextState(L10n.tr("torrentAdd.alert.destinationRequired.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(L10n.tr("torrentAdd.alert.destinationRequired.message"))
-            }
+            state.alert = AlertFactory.destinationRequired(action: .dismiss)
             state.closeOnAlertDismiss = false
             return .none
         }
@@ -85,15 +77,7 @@ extension AddTorrentReducer {
         }
 
         guard let environment = state.connectionEnvironment else {
-            state.alert = AlertState {
-                TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(L10n.tr("torrentAdd.alert.noConnection.message"))
-            }
+            state.alert = AlertFactory.noConnection(action: .dismiss)
             state.closeOnAlertDismiss = false
             return .none
         }
@@ -127,40 +111,6 @@ extension AddTorrentReducer {
         .cancellable(id: AddTorrentCancelID.submit, cancelInFlight: true)
     }
     // swiftlint:enable function_body_length
-
-    func successAlert(
-        for result: TorrentRepository.AddResult
-    ) -> AlertState<AlertAction> {
-        let isDuplicate: Bool = result.status == .duplicate
-        let title: TextState =
-            isDuplicate
-            ? TextState(L10n.tr("torrentAdd.alert.duplicate.title"))
-            : TextState(L10n.tr("torrentAdd.alert.added.title"))
-        let message: TextState =
-            isDuplicate
-            ? TextState(
-                String(
-                    format: L10n.tr("torrentAdd.alert.duplicate.message"),
-                    result.name
-                )
-            )
-            : TextState(
-                String(
-                    format: L10n.tr("torrentAdd.alert.added.message"),
-                    result.name
-                )
-            )
-
-        return AlertState {
-            title
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState(L10n.tr("common.ok"))
-            }
-        } message: {
-            message
-        }
-    }
 
     func mapSubmitError(_ error: Error) -> SubmitError {
         if let apiError = error as? APIError {

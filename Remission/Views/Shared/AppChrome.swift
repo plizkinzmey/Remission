@@ -17,6 +17,17 @@ extension View {
     func appToolbarPillSurface() -> some View {
         modifier(AppToolbarPillSurfaceModifier())
     }
+
+    /// Применяет стандартный стиль для подписей и второстепенного текста.
+    func appCaption() -> some View {
+        self.font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    /// Применяет моноширинное начертание для цифр (полезно для счетчиков и скоростей).
+    func appMonospacedDigit() -> some View {
+        self.monospacedDigit()
+    }
 }
 
 #if os(macOS)

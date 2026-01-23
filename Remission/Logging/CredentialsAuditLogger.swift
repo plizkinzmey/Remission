@@ -23,13 +23,7 @@ struct CredentialsServerDescriptor: Equatable, Sendable {
 
     /// Маскированный username (показывает первые и последние символы).
     var maskedUsername: String {
-        guard username.isEmpty == false else { return "<empty>" }
-        if username.count <= 2 {
-            return "\(username.prefix(1))…"
-        }
-        let first: String = String(username.prefix(1))
-        let last: String = String(username.suffix(1))
-        return "\(first)•••\(last)"
+        DataMasker.mask(username)
     }
 
     var endpointDescription: String {
