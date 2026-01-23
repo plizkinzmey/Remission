@@ -140,7 +140,7 @@ struct SettingsView: View {
 
     private var autoRefreshSection: some View {
         AppSectionCard(L10n.tr("settings.autoRefresh.section")) {
-            fieldRow(label: L10n.tr("settings.autoRefresh.toggle")) {
+            AppFormField(L10n.tr("settings.autoRefresh.toggle")) {
                 Toggle(
                     "",
                     isOn: Binding(
@@ -229,7 +229,7 @@ struct SettingsView: View {
 
     private var speedLimitsSection: some View {
         AppSectionCard(L10n.tr("settings.speed.section")) {
-            fieldRow(label: L10n.tr("settings.speed.download")) {
+            AppFormField(L10n.tr("settings.speed.download")) {
                 #if os(iOS)
                     LeadingCursorTextField(
                         text: Binding(
@@ -258,17 +258,14 @@ struct SettingsView: View {
                     )
                     .accessibilityIdentifier("settings_download_limit_field")
                     .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
+                    .textFieldStyle(.appFormField)
                     .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
                 #endif
             }
 
             Divider()
 
-            fieldRow(label: L10n.tr("settings.speed.upload")) {
+            AppFormField(L10n.tr("settings.speed.upload")) {
                 #if os(iOS)
                     LeadingCursorTextField(
                         text: Binding(
@@ -297,11 +294,8 @@ struct SettingsView: View {
                     )
                     .accessibilityIdentifier("settings_upload_limit_field")
                     .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
+                    .textFieldStyle(.appFormField)
                     .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
                 #endif
             }
 
@@ -313,7 +307,7 @@ struct SettingsView: View {
 
     private var seedRatioSection: some View {
         AppSectionCard(L10n.tr("settings.seedRatio.section")) {
-            fieldRow(label: L10n.tr("settings.seedRatio.limit")) {
+            AppFormField(L10n.tr("settings.seedRatio.limit")) {
                 #if os(iOS)
                     LeadingCursorTextField(
                         text: Binding(
@@ -348,11 +342,8 @@ struct SettingsView: View {
                     )
                     .accessibilityIdentifier("settings_seed_ratio_field")
                     .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
+                    .textFieldStyle(.appFormField)
                     .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
                 #endif
             }
 
@@ -379,22 +370,6 @@ struct SettingsView: View {
 
     private var isSaveDisabled: Bool {
         store.isLoading || store.isSaving || store.hasPendingChanges == false
-    }
-
-    private func fieldRow<Content: View>(
-        label: String,
-        @ViewBuilder field: () -> Content
-    ) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-
-            Spacer(minLength: 12)
-
-            field()
-                .frame(maxWidth: 260, alignment: .trailing)
-        }
     }
 }
 

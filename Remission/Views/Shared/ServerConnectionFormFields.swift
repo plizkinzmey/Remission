@@ -3,15 +3,12 @@ import SwiftUI
 struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
     @State private var isPasswordVisible: Bool = false
-    @State private var labelWidth: CGFloat = 0
+    @State private var labelWidth: CGFloat = 80 // Фиксированная ширина для выравнивания
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             connectionSection
             credentialsSection
-        }
-        .onPreferenceChange(FormLabelWidthPreferenceKey.self) { value in
-            labelWidth = max(labelWidth, value)
         }
     }
 
@@ -32,105 +29,59 @@ struct ServerConnectionFormFields: View {
 
                 Divider()
 
-                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
-                    fieldRow(label: L10n.tr("serverForm.placeholder.name")) {
+                VStack(spacing: 12) {
+                    AppFormField(L10n.tr("serverForm.placeholder.name"), labelWidth: labelWidth) {
                         TextField(
-                            "",
-                            text: filteredBinding(
-                                $form.name,
-                                allowed: .alphanumerics
-                            ),
-                            prompt: Text(L10n.tr("serverForm.placeholder.name"))
+                            L10n.tr("serverForm.placeholder.name"),
+                            text: $form.name.filtered(allowed: .alphanumerics)
                         )
+                        .textFieldStyle(.appFormField)
                         .accessibilityIdentifier("server_form_name_field")
                     }
 
                     Divider()
-                        .gridCellColumns(2)
 
-                    fieldRow(label: L10n.tr("serverForm.placeholder.host")) {
+                    AppFormField(L10n.tr("serverForm.placeholder.host"), labelWidth: labelWidth) {
+                        TextField(
+                            L10n.tr("serverForm.placeholder.host"),
+                            text: $form.host.filteredASCII(allowed: .hostCharacters)
+                        )
+                        .textFieldStyle(.appFormField)
+                        .textContentType(.URL)
                         #if os(iOS)
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.host,
-                                    allowed: .hostCharacters
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.host"))
-                            )
-                            .textContentType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .accessibilityIdentifier("server_form_host_field")
-                        #else
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.host,
-                                    allowed: .hostCharacters
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.host"))
-                            )
-                            .textContentType(.URL)
-                            .accessibilityIdentifier("server_form_host_field")
                         #endif
+                        .accessibilityIdentifier("server_form_host_field")
                     }
 
                     Divider()
-                        .gridCellColumns(2)
 
-                    fieldRow(label: L10n.tr("serverForm.placeholder.port")) {
+                    AppFormField(L10n.tr("serverForm.placeholder.port"), labelWidth: labelWidth) {
+                        TextField(
+                            L10n.tr("serverForm.placeholder.port"),
+                            text: $form.port.filtered(allowed: .decimalDigits)
+                        )
+                        .textFieldStyle(.appFormField)
                         #if os(iOS)
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.port,
-                                    allowed: .decimalDigits
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.port"))
-                            )
                             .keyboardType(.numberPad)
-                            .accessibilityIdentifier("server_form_port_field")
-                        #else
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.port,
-                                    allowed: .decimalDigits
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.port"))
-                            )
-                            .accessibilityIdentifier("server_form_port_field")
                         #endif
+                        .accessibilityIdentifier("server_form_port_field")
                     }
 
                     Divider()
-                        .gridCellColumns(2)
 
-                    fieldRow(label: L10n.tr("serverForm.placeholder.path")) {
+                    AppFormField(L10n.tr("serverForm.placeholder.path"), labelWidth: labelWidth) {
+                        TextField(
+                            L10n.tr("serverForm.placeholder.path"),
+                            text: $form.path.filteredASCII(allowed: .pathCharacters)
+                        )
+                        .textFieldStyle(.appFormField)
                         #if os(iOS)
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.path,
-                                    allowed: .pathCharacters
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.path"))
-                            )
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .accessibilityIdentifier("server_form_path_field")
-                        #else
-                            TextField(
-                                "",
-                                text: filteredBinding(
-                                    $form.path,
-                                    allowed: .pathCharacters
-                                ),
-                                prompt: Text(L10n.tr("serverForm.placeholder.path"))
-                            )
-                            .accessibilityIdentifier("server_form_path_field")
                         #endif
+                        .accessibilityIdentifier("server_form_path_field")
                     }
                 }
             }
@@ -139,59 +90,38 @@ struct ServerConnectionFormFields: View {
 
     private var credentialsSection: some View {
         AppSectionCard(L10n.tr("serverForm.section.credentials")) {
-            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 12) {
-                fieldRow(label: L10n.tr("serverForm.placeholder.username")) {
+            VStack(spacing: 12) {
+                AppFormField(L10n.tr("serverForm.placeholder.username"), labelWidth: labelWidth) {
+                    TextField(
+                        L10n.tr("serverForm.placeholder.username"),
+                        text: $form.username.filtered(allowed: .alphanumerics)
+                    )
+                    .textFieldStyle(.appFormField)
                     #if os(iOS)
-                        TextField(
-                            "",
-                            text: filteredBinding(
-                                $form.username,
-                                allowed: .alphanumerics
-                            ),
-                            prompt: Text(L10n.tr("serverForm.placeholder.username"))
-                        )
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                        .accessibilityIdentifier("server_form_username_field")
-                    #else
-                        TextField(
-                            "",
-                            text: filteredBinding(
-                                $form.username,
-                                allowed: .alphanumerics
-                            ),
-                            prompt: Text(L10n.tr("serverForm.placeholder.username"))
-                        )
-                        .accessibilityIdentifier("server_form_username_field")
                     #endif
+                    .accessibilityIdentifier("server_form_username_field")
                 }
 
                 Divider()
-                    .gridCellColumns(2)
 
-                fieldRow(label: L10n.tr("serverForm.placeholder.password")) {
+                AppFormField(L10n.tr("serverForm.placeholder.password"), labelWidth: labelWidth) {
                     HStack(spacing: 6) {
                         Group {
                             if isPasswordVisible {
                                 TextField(
-                                    "",
-                                    text: filteredBinding(
-                                        $form.password,
-                                        allowed: .alphanumerics
-                                    ),
-                                    prompt: Text(L10n.tr("serverForm.placeholder.password"))
+                                    L10n.tr("serverForm.placeholder.password"),
+                                    text: $form.password.filteredASCII(allowed: .alphanumerics)
                                 )
                             } else {
                                 SecureField(
-                                    "",
-                                    text: filteredBinding(
-                                        $form.password,
-                                        allowed: .alphanumerics
-                                    ),
-                                    prompt: Text(L10n.tr("serverForm.placeholder.password"))
+                                    L10n.tr("serverForm.placeholder.password"),
+                                    text: $form.password.filteredASCII(allowed: .alphanumerics)
                                 )
                             }
                         }
+                        .textFieldStyle(.appFormField)
                         .accessibilityIdentifier("server_form_password_field")
 
                         Button {
@@ -214,79 +144,4 @@ struct ServerConnectionFormFields: View {
             }
         }
     }
-
-    private func fieldRow<Content: View>(
-        label: String,
-        @ViewBuilder field: () -> Content
-    ) -> some View {
-        GridRow {
-            Text(label)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear
-                            .preference(
-                                key: FormLabelWidthPreferenceKey.self,
-                                value: proxy.size.width
-                            )
-                    }
-                )
-                .frame(minWidth: labelWidth, alignment: .leading)
-
-            field()
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 10)
-                .frame(height: 32)
-                .frame(maxWidth: 260)
-                .appPillSurface()
-        }
-    }
-
-    private func filteredBinding(
-        _ text: Binding<String>,
-        allowed: CharacterSet
-    ) -> Binding<String> {
-        Binding(
-            get: { text.wrappedValue },
-            set: { newValue in
-                text.wrappedValue = filterASCII(newValue, allowed: allowed)
-            }
-        )
-    }
-
-    private func filterASCII(
-        _ value: String,
-        allowed: CharacterSet
-    ) -> String {
-        String(
-            value.unicodeScalars
-                .filter { $0.isASCII && allowed.contains($0) }
-                .map(Character.init)
-        )
-    }
-}
-
-private enum FormLabelWidthPreferenceKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-extension CharacterSet {
-    fileprivate static let hostCharacters: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: ".-")
-        return set
-    }()
-
-    fileprivate static let pathCharacters: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: "/-_")
-        return set
-    }()
 }
