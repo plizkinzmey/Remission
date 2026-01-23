@@ -104,7 +104,7 @@ extension TorrentListReducer {
                 guard let cached = snapshot.torrents else { return }
 
                 if shouldFetchStorage {
-                    let summary = makeStorageSummary(
+                    let summary = StorageSummary.calculate(
                         torrents: cached.value,
                         session: snapshot.session?.value,
                         updatedAt: snapshot.latestUpdatedAt
@@ -153,7 +153,7 @@ extension TorrentListReducer {
                 let snapshot = (try? await environment.snapshot.load()) ?? nil
                 let updatedAt = snapshot?.torrents?.updatedAt
                 if shouldFetchStorage {
-                    let summary = makeStorageSummary(
+                    let summary = StorageSummary.calculate(
                         torrents: torrents,
                         session: session,
                         updatedAt: updatedAt
@@ -175,7 +175,7 @@ extension TorrentListReducer {
                 if let snapshot = try? await environment.snapshot.load() {
                     if let cached = snapshot.torrents {
                         if shouldFetchStorage {
-                            let summary = makeStorageSummary(
+                            let summary = StorageSummary.calculate(
                                 torrents: cached.value,
                                 session: snapshot.session?.value,
                                 updatedAt: snapshot.latestUpdatedAt
@@ -236,21 +236,5 @@ extension TorrentListReducer {
         }
     }
 
-    private func makeStorageSummary(
-        torrents: [Torrent],
-        session: SessionState?,
-        updatedAt: Date?
-    ) -> StorageSummary? {
-        guard let session else { return nil }
-        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
-            total + Int64(torrent.summary.progress.totalSize)
-        }
-        let totalBytes = usedBytes + session.storage.freeBytes
-        return StorageSummary(
-            totalBytes: totalBytes,
-            freeBytes: session.storage.freeBytes,
-            updatedAt: updatedAt
-        )
-    }
     // swiftlint:enable cyclomatic_complexity function_body_length
 }

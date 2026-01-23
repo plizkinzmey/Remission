@@ -124,9 +124,7 @@ struct AppReducer {
                 return .none
 
             case .path(.element(id: _, action: .delegate(.serverUpdated(let server)))):
-                if let index = state.serverList.servers.index(id: server.id) {
-                    state.serverList.servers[index] = server
-                }
+                state.serverList.servers[id: server.id] = server
                 return .none
 
             case .path(.element(id: let id, action: .delegate(.serverDeleted(let serverID)))):

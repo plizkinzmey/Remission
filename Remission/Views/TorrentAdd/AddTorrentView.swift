@@ -19,7 +19,7 @@ struct AddTorrentView: View {
                 .safeAreaInset(edge: .bottom) {
                     AppWindowFooterBar(contentPadding: 6) {
                         Spacer(minLength: 0)
-                        Button(L10n.tr("torrentAdd.action.cancel")) {
+                        Button(L10n.tr("common.cancel")) {
                             store.send(.closeButtonTapped)
                         }
                         .accessibilityIdentifier("torrent_add_cancel_button")
@@ -50,7 +50,7 @@ struct AddTorrentView: View {
         #if !os(macOS)
             .toolbar {
                 ToolbarItemGroup(placement: .cancellationAction) {
-                    Button(L10n.tr("torrentAdd.action.cancel")) {
+                    Button(L10n.tr("common.cancel")) {
                         store.send(.closeButtonTapped)
                     }
                     .accessibilityIdentifier("torrent_add_cancel_button")

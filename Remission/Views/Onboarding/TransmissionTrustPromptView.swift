@@ -29,13 +29,12 @@ struct TransmissionTrustPromptView: View {
                 Spacer()
 
                 VStack(spacing: 12) {
-                    Button(role: .destructive) {
+                    Button {
                         store.send(.cancelled)
                     } label: {
-                        Text(L10n.tr("onboarding.trustPrompt.cancel"))
+                        Text(L10n.tr("common.cancel"))
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
 
                     Button {
                         store.send(.trustConfirmed)

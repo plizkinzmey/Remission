@@ -158,9 +158,7 @@ struct ServerListReducer {
                 return .none
 
             case .editor(.presented(.delegate(.didUpdate(let server)))):
-                if let index = state.servers.index(id: server.id) {
-                    state.servers[index] = server
-                }
+                state.servers[id: server.id] = server
                 state.editor = nil
                 return .send(.connectionProbeRequested(server.id))
 
@@ -293,12 +291,13 @@ struct ServerListReducer {
                             return try await torrentRepository.fetchList()
                         }
                         let snapshot = try? await environment.snapshot.load()
-                        let summary = makeStorageSummary(
+                        if let summary = StorageSummary.calculate(
                             torrents: torrents,
                             session: session,
                             updatedAt: snapshot?.latestUpdatedAt
-                        )
-                        await send(.storageResponse(id, .success(summary)))
+                        ) {
+                            await send(.storageResponse(id, .success(summary)))
+                        }
                     } catch {
                         await send(.storageResponse(id, .failure(error)))
                     }
@@ -374,22 +373,6 @@ extension ServerListReducer {
 
     private func describe(_ error: Error) -> String {
         error.userFacingMessage
-    }
-
-    private func makeStorageSummary(
-        torrents: [Torrent],
-        session: SessionState,
-        updatedAt: Date?
-    ) -> StorageSummary {
-        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
-            total + Int64(torrent.summary.progress.totalSize)
-        }
-        let totalBytes = usedBytes + session.storage.freeBytes
-        return StorageSummary(
-            totalBytes: totalBytes,
-            freeBytes: session.storage.freeBytes,
-            updatedAt: updatedAt
-        )
     }
 }
 

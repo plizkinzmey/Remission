@@ -49,7 +49,7 @@ where Action == TorrentDetailReducer.RemoveConfirmationAction {
                 TextState(L10n.tr("torrentDetail.actions.removeWithData"))
             }
             ButtonState(role: .cancel, action: .cancel) {
-                TextState(L10n.tr("torrentDetail.actions.cancel"))
+                TextState(L10n.tr("common.cancel"))
             }
         }
     }

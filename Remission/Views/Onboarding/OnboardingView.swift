@@ -29,7 +29,7 @@ struct OnboardingView: View {
                         .accessibilityIdentifier("onboarding_connection_check_button")
                         .buttonStyle(AppFooterButtonStyle(variant: checkConnectionButtonVariant))
                         Spacer(minLength: 0)
-                        Button(L10n.tr("onboarding.action.cancel")) {
+                        Button(L10n.tr("common.cancel")) {
                             store.send(.cancelButtonTapped)
                         }
                         .accessibilityIdentifier("onboarding_cancel_button")
@@ -48,7 +48,7 @@ struct OnboardingView: View {
                     .navigationTitle(L10n.tr("onboarding.title"))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(L10n.tr("onboarding.action.cancel")) {
+                            Button(L10n.tr("common.cancel")) {
                                 store.send(.cancelButtonTapped)
                             }
                             .accessibilityIdentifier("onboarding_cancel_button")
