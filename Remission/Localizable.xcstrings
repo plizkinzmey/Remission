@@ -4525,6 +4525,7 @@
       }
     },
     "torrentDetail.stats.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
