@@ -2,91 +2,36 @@ import Foundation
 
 extension TransmissionDomainMapper {
     func mapTorrentList(from response: TransmissionResponse) throws -> [Torrent] {
-        let arguments: [String: AnyCodable] = try arguments(
-            from: response,
-            context: "torrent-get"
-        )
-        let torrentsValue: AnyCodable = try requireField(
-            "torrents",
-            in: arguments,
-            context: "torrent-get"
-        )
-
-        guard case .array(let items) = torrentsValue else {
-            throw DomainMappingError.invalidType(
-                field: "torrents",
-                expected: "array",
-                context: "torrent-get"
-            )
-        }
-
-        guard items.isEmpty == false else {
-            return []
-        }
-
-        return try items.enumerated().map { index, item in
-            guard case .object(let dict) = item else {
-                throw DomainMappingError.invalidType(
-                    field: "torrents[\(index)]",
-                    expected: "object",
-                    context: "torrent-get"
-                )
-            }
-            return try mapTorrentObject(dict, includeDetails: false)
-        }
+        let args = try decode(TorrentGetArguments.self, from: response.arguments)
+        return try args.torrents.map { try map($0, includeDetails: false) }
     }
 
     func mapTorrentDetails(from response: TransmissionResponse) throws -> Torrent {
-        let arguments: [String: AnyCodable] = try arguments(
-            from: response,
-            context: "torrent-get"
-        )
-        let torrentsValue: AnyCodable = try requireField(
-            "torrents",
-            in: arguments,
-            context: "torrent-get"
-        )
-
-        guard case .array(let items) = torrentsValue else {
-            throw DomainMappingError.invalidType(
-                field: "torrents",
-                expected: "array",
-                context: "torrent-get"
-            )
-        }
-
-        guard let first = items.first else {
+        let args = try decode(TorrentGetArguments.self, from: response.arguments)
+        guard let first = args.torrents.first else {
             throw DomainMappingError.emptyCollection(context: "torrent-get")
         }
-
-        guard case .object(let dict) = first else {
-            throw DomainMappingError.invalidType(
-                field: "torrents[0]",
-                expected: "object",
-                context: "torrent-get"
-            )
-        }
-
-        return try mapTorrentObject(dict, includeDetails: true)
+        return try map(first, includeDetails: true)
     }
 
     func mapTorrentAdd(from response: TransmissionResponse) throws -> TorrentRepository.AddResult {
-        let arguments: [String: AnyCodable] = try arguments(
-            from: response,
-            context: "torrent-add"
-        )
+        let args = try decode(TorrentAddArguments.self, from: response.arguments)
 
-        if let addedValue = arguments["torrent-added"] {
-            return try makeAddResult(
-                from: addedValue,
-                status: .added
+        if let added = args.torrentAdded {
+            return TorrentRepository.AddResult(
+                status: .added,
+                id: .init(rawValue: added.id),
+                name: added.name,
+                hashString: added.hashString
             )
         }
 
-        if let duplicateValue = arguments["torrent-duplicate"] {
-            return try makeAddResult(
-                from: duplicateValue,
-                status: .duplicate
+        if let duplicate = args.torrentDuplicate {
+            return TorrentRepository.AddResult(
+                status: .duplicate,
+                id: .init(rawValue: duplicate.id),
+                name: duplicate.name,
+                hashString: duplicate.hashString
             )
         }
 
@@ -96,279 +41,155 @@ extension TransmissionDomainMapper {
         )
     }
 
-    func mapTorrentObject(
-        _ dict: [String: AnyCodable],
-        includeDetails: Bool
-    ) throws -> Torrent {
-        let id: Int = try requireInt("id", in: dict, context: "torrent")
-        let name: String = try requireString("name", in: dict, context: "torrent")
-        let statusRaw: Int = try requireInt("status", in: dict, context: "torrent")
+    // MARK: - Private Mapping Helpers
 
-        guard let status: Torrent.Status = Torrent.Status(rawValue: statusRaw) else {
-            throw DomainMappingError.unsupportedStatus(rawValue: statusRaw)
+    private func decode<T: Decodable>(_ type: T.Type, from arguments: AnyCodable?) throws -> T {
+        guard let arguments = arguments else {
+            throw DomainMappingError.missingArguments(context: String(describing: T.self))
+        }
+        // Round-trip through JSON to leverage Decodable
+        let data = try JSONEncoder().encode(arguments)
+        return try JSONDecoder().decode(T.self, from: data)
+    }
+
+    private func map(_ dto: TorrentObject, includeDetails: Bool) throws -> Torrent {
+        guard let status = Torrent.Status(rawValue: dto.status) else {
+            throw DomainMappingError.unsupportedStatus(rawValue: dto.status)
         }
 
-        let tags = torrentTags(in: dict)
-        let summary: Torrent.Summary = makeSummary(from: dict)
-        let details: Torrent.Details? = includeDetails ? makeDetails(from: dict) : nil
+        let summary = Torrent.Summary(
+            progress: mapProgress(dto),
+            transfer: mapTransfer(dto),
+            peers: mapPeers(dto)
+        )
+
+        let details: Torrent.Details? = includeDetails ? mapDetails(dto) : nil
 
         return Torrent(
-            id: Torrent.Identifier(rawValue: id),
-            name: name,
+            id: Torrent.Identifier(rawValue: dto.id),
+            name: dto.name,
             status: status,
-            tags: tags,
+            tags: dto.labels?.filter { !$0.isEmpty } ?? [],
             summary: summary,
             details: details
         )
     }
 
-    func makeSummary(
-        from dict: [String: AnyCodable]
-    ) -> Torrent.Summary {
-        Torrent.Summary(
-            progress: .init(
-                percentDone: percentDoneValue(in: dict),
-                recheckProgress: recheckProgressValue(in: dict),
-                totalSize: intValue("totalSize", in: dict) ?? 0,
-                downloadedEver: intValue("downloadedEver", in: dict) ?? 0,
-                uploadedEver: intValue("uploadedEver", in: dict) ?? 0,
-                uploadRatio: doubleValue("uploadRatio", in: dict) ?? 0.0,
-                etaSeconds: intValue("eta", in: dict) ?? -1
+    private func mapProgress(_ dto: TorrentObject) -> Torrent.Progress {
+        // Transmission sometimes sends ints > 1 (like 100 for 100%) or double 0.0-1.0
+        // The DTO tries to decode as Double first if possible, but let's handle the logic here.
+        // Actually, AnyCodable + JSONDecoder might be strict.
+        // If the JSON has 100 (int), and we ask for Double, JSONDecoder handles it.
+        // We just need to normalize to 0.0-1.0 range if needed, or trust the value.
+        // Existing logic checked for > 1.
+
+        let rawPercent = dto.percentDone ?? 0.0
+        let percentDone = rawPercent > 1.0 ? rawPercent / 100.0 : rawPercent
+
+        let rawRecheck = dto.recheckProgress ?? 0.0
+        let recheckProgress = rawRecheck > 1.0 ? rawRecheck / 100.0 : rawRecheck
+
+        return Torrent.Progress(
+            percentDone: percentDone,
+            recheckProgress: recheckProgress,
+            totalSize: dto.totalSize ?? 0,
+            downloadedEver: dto.downloadedEver ?? 0,
+            uploadedEver: dto.uploadedEver ?? 0,
+            uploadRatio: dto.uploadRatio ?? 0.0,
+            etaSeconds: dto.eta ?? -1
+        )
+    }
+
+    private func mapTransfer(_ dto: TorrentObject) -> Torrent.Transfer {
+        Torrent.Transfer(
+            downloadRate: dto.rateDownload ?? 0,
+            uploadRate: dto.rateUpload ?? 0,
+            downloadLimit: .init(
+                isEnabled: dto.downloadLimited ?? false,
+                kilobytesPerSecond: dto.downloadLimit ?? 0
             ),
-            transfer: .init(
-                downloadRate: intValue("rateDownload", in: dict) ?? 0,
-                uploadRate: intValue("rateUpload", in: dict) ?? 0,
-                downloadLimit: .init(
-                    isEnabled: boolValue("downloadLimited", in: dict) ?? false,
-                    kilobytesPerSecond: intValue("downloadLimit", in: dict) ?? 0
-                ),
-                uploadLimit: .init(
-                    isEnabled: boolValue("uploadLimited", in: dict) ?? false,
-                    kilobytesPerSecond: intValue("uploadLimit", in: dict) ?? 0
-                )
-            ),
-            peers: .init(
-                connected: intValue("peersConnected", in: dict) ?? 0,
-                sources: peerSources(in: dict)
+            uploadLimit: .init(
+                isEnabled: dto.uploadLimited ?? false,
+                kilobytesPerSecond: dto.uploadLimit ?? 0
             )
         )
     }
 
-    func makeDetails(
-        from dict: [String: AnyCodable]
-    ) -> Torrent.Details {
-        let addedDate =
-            dateValue("addedDate", in: dict)
-            ?? dateValue("dateAdded", in: dict)
+    private func mapPeers(_ dto: TorrentObject) -> Torrent.Peers {
+
+        let sources =
+            dto.peersFrom?.compactMap { name, count -> Torrent.PeerSource? in
+
+                // Only keep positive counts if desired, or all? Existing logic kept all valid ints.
+
+                guard count > 0 else { return nil }
+
+                return Torrent.PeerSource(name: name, count: count)
+
+            }
+
+            .sorted(by: { $0.count > .count }) ?? []
+
+        return Torrent.Peers(
+
+            connected: dto.peersConnected ?? 0,
+
+            sources: sources
+
+        )
+
+    }
+
+    private func mapDetails(_ dto: TorrentObject) -> Torrent.Details {
+        let addedTimestamp = dto.addedDate ?? dto.dateAdded
+        let addedDate = addedTimestamp.map { Date(timeIntervalSince1970: TimeInterval($0)) }
+
         return Torrent.Details(
-            downloadDirectory: stringValue("downloadDir", in: dict) ?? "",
+            downloadDirectory: dto.downloadDir ?? "",
             addedDate: addedDate,
-            files: torrentFiles(in: dict),
-            trackers: torrentTrackers(in: dict),
-            trackerStats: torrentTrackerStats(in: dict),
-            speedSamples: []
+            files: mapFiles(dto),
+            trackers: mapTrackers(dto),
+            trackerStats: mapTrackerStats(dto),
+            speedSamples: []  // Not provided by RPC directly in this call usually
         )
     }
 
-    func torrentTags(
-        in dict: [String: AnyCodable]
-    ) -> [String] {
-        guard let labelsAny = dict["labels"],
-            case .array(let array) = labelsAny
-        else {
-            return []
-        }
-        return array.compactMap { $0.stringValue }.filter { $0.isEmpty == false }
-    }
+    private func mapFiles(_ dto: TorrentObject) -> [Torrent.File] {
+        guard let files = dto.files else { return [] }
+        let stats = dto.fileStats ?? []
 
-    private func makeAddResult(
-        from value: AnyCodable,
-        status: TorrentRepository.AddStatus
-    ) throws -> TorrentRepository.AddResult {
-        guard case .object(let addObject) = value else {
-            throw DomainMappingError.invalidType(
-                field: status == .added ? "torrent-added" : "torrent-duplicate",
-                expected: "object",
-                context: "torrent-add"
-            )
-        }
-
-        let id: Int = try requireInt("id", in: addObject, context: "torrent-add")
-        let name: String = try requireString("name", in: addObject, context: "torrent-add")
-        let hash: String = try requireString("hashString", in: addObject, context: "torrent-add")
-
-        return TorrentRepository.AddResult(
-            status: status,
-            id: .init(rawValue: id),
-            name: name,
-            hashString: hash
-        )
-    }
-
-    func percentDoneValue(
-        in dict: [String: AnyCodable]
-    ) -> Double {
-        if let value = dict["percentDone"]?.doubleValue {
-            return value
-        }
-        if let int = dict["percentDone"]?.intValue {
-            if int > 1 {
-                return Double(int) / 100.0
-            } else {
-                return Double(int)
-            }
-        }
-        return 0.0
-    }
-
-    func recheckProgressValue(
-        in dict: [String: AnyCodable]
-    ) -> Double {
-        if let value = dict["recheckProgress"]?.doubleValue {
-            return value
-        }
-        if let int = dict["recheckProgress"]?.intValue {
-            if int > 1 {
-                return Double(int) / 100.0
-            } else {
-                return Double(int)
-            }
-        }
-        return 0.0
-    }
-
-    func peerSources(
-        in dict: [String: AnyCodable]
-    ) -> [Torrent.PeerSource] {
-        guard let peersAny = dict["peersFrom"],
-            case .object(let peersDict) = peersAny
-        else {
-            return []
-        }
-
-        return peersDict.compactMap { name, value in
-            guard let count = value.intValue else { return nil }
-            return Torrent.PeerSource(name: name, count: count)
-        }
-        .sorted(by: { $0.count > $1.count })
-    }
-
-    func torrentFiles(
-        in dict: [String: AnyCodable]
-    ) -> [Torrent.File] {
-        guard let filesAny = dict["files"],
-            case .array(let array) = filesAny
-        else {
-            return []
-        }
-
-        let stats: [[String: AnyCodable]] = {
-            guard let statsAny = dict["fileStats"],
-                case .array(let array) = statsAny
-            else {
-                return []
-            }
-            return array.compactMap { value in
-                guard case .object(let dict) = value else { return nil }
-                return dict
-            }
-        }()
-
-        return array.enumerated().compactMap { index, value in
-            guard case .object(let file) = value,
-                let name = stringValue("name", in: file),
-                let length = intValue("length", in: file),
-                let bytesCompleted = intValue("bytesCompleted", in: file)
-            else {
-                return nil
-            }
-
-            let stat: [String: AnyCodable]? = stats.indices.contains(index) ? stats[index] : nil
-            let priority: Int = stat.flatMap { intValue("priority", in: $0) } ?? 0
-            let wanted: Bool = stat.flatMap { boolValue("wanted", in: $0) } ?? true
-
+        return files.enumerated().map { index, file in
+            let stat = stats.indices.contains(index) ? stats[index] : nil
             return Torrent.File(
                 index: index,
-                name: name,
-                length: length,
-                bytesCompleted: bytesCompleted,
-                priority: priority,
-                wanted: wanted
+                name: file.name,
+                length: file.length,
+                bytesCompleted: file.bytesCompleted,
+                priority: stat?.priority ?? 0,
+                wanted: stat?.wanted ?? true
             )
         }
     }
 
-    func torrentTrackers(
-        in dict: [String: AnyCodable]
-    ) -> [Torrent.Tracker] {
-        guard let trackersAny = dict["trackers"],
-            case .array(let array) = trackersAny
-        else {
-            return []
-        }
-
-        return array.compactMap { value in
-            guard case .object(let tracker) = value,
-                let announce = stringValue("announce", in: tracker)
-            else {
-                return nil
-            }
-
-            let tier: Int = intValue("tier", in: tracker) ?? 0
-            let trackerId: Int =
-                intValue("id", in: tracker)
-                ?? intValue("trackerId", in: tracker)
-                ?? tier
-
-            return Torrent.Tracker(id: trackerId, announce: announce, tier: tier)
-        }
-    }
-
-    func torrentTrackerStats(
-        in dict: [String: AnyCodable]
-    ) -> [Torrent.TrackerStat] {
-        guard let statsAny = dict["trackerStats"],
-            case .array(let array) = statsAny
-        else {
-            return []
-        }
-
-        return array.compactMap { value in
-            guard case .object(let stat) = value else {
-                return nil
-            }
-
-            let trackerId: Int =
-                intValue("id", in: stat)
-                ?? intValue("trackerId", in: stat)
-                ?? 0
-
-            let announceResult: String =
-                stringValue(
-                    "lastAnnounceResult",
-                    in: stat
-                ) ?? ""
-            let downloadCount: Int = intValue("downloadCount", in: stat) ?? 0
-            let leecherCount: Int = intValue("leecherCount", in: stat) ?? 0
-            let seederCount: Int = intValue("seederCount", in: stat) ?? 0
-
-            return Torrent.TrackerStat(
-                trackerId: trackerId,
-                lastAnnounceResult: announceResult,
-                downloadCount: downloadCount,
-                leecherCount: leecherCount,
-                seederCount: seederCount
+    private func mapTrackers(_ dto: TorrentObject) -> [Torrent.Tracker] {
+        dto.trackers?.map { tracker in
+            Torrent.Tracker(
+                id: tracker.id ?? tracker.trackerId ?? tracker.tier,
+                announce: tracker.announce,
+                tier: tracker.tier
             )
-        }
+        } ?? []
     }
 
-    func dateValue(
-        _ field: String,
-        in dict: [String: AnyCodable]
-    ) -> Date? {
-        guard let seconds = intValue(field, in: dict) else {
-            return nil
-        }
-        return Date(timeIntervalSince1970: TimeInterval(seconds))
+    private func mapTrackerStats(_ dto: TorrentObject) -> [Torrent.TrackerStat] {
+        dto.trackerStats?.map { stat in
+            Torrent.TrackerStat(
+                trackerId: stat.id ?? stat.trackerId ?? 0,
+                lastAnnounceResult: stat.lastAnnounceResult,
+                downloadCount: stat.downloadCount,
+                leecherCount: stat.leecherCount,
+                seederCount: stat.seederCount
+            )
+        } ?? []
     }
 }
