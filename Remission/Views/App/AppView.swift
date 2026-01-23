@@ -154,12 +154,15 @@ struct AppView: View {
         if store.path.isEmpty == false {
             return true
         }
-        guard store.hasLoadedServersOnce else {
+        // Если серверы уже есть (например, из кэша или фикстуры)
+        if store.serverList.servers.isEmpty == false {
+            return true
+        }
+        // Если загрузка еще идет и список пуст, не показываем список (показываем сплэш или пустоту)
+        if store.serverList.isLoading {
             return false
         }
-        if store.serverList.isLoading, store.serverList.servers.isEmpty {
-            return false
-        }
+        // Если загрузка завершена, показываем список (он может быть пустым, тогда сработает логика Onboarding)
         return true
     }
 

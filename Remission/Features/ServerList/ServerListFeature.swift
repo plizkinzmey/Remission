@@ -13,8 +13,8 @@ struct ServerListReducer {
         @Presents var onboarding: OnboardingReducer.State?
         @Presents var editor: ServerEditorReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
-        var shouldLoadServersFromRepository: Bool = true
         var hasAutoSelectedSingleServer: Bool = false
+        var isPreloaded: Bool = false
         var pendingDeletion: ServerConfig?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
@@ -64,8 +64,7 @@ struct ServerListReducer {
         Reduce { state, action in
             switch action {
             case .task:
-                if state.shouldLoadServersFromRepository == false {
-                    state.shouldLoadServersFromRepository = true
+                if state.isPreloaded {
                     state.isLoading = false
                     return .none
                 }

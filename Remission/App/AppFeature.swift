@@ -9,7 +9,6 @@ struct AppReducer {
         var serverList: ServerListReducer.State
         var path: StackState<ServerDetailReducer.State>
         var pendingTorrentFileURL: URL?
-        var hasLoadedServersOnce: Bool = false
         #if os(iOS)
             var startup: StartupState = .init()
         #endif
@@ -101,7 +100,6 @@ struct AppReducer {
                 return openServerDetail(server, state: &state)
 
             case .serverList(.serverRepositoryResponse(.success(let servers))):
-                state.hasLoadedServersOnce = true
                 guard let pendingURL = state.pendingTorrentFileURL else { return .none }
                 guard let targetServer = preferredServer(from: servers, in: state) else {
                     return .none
@@ -110,12 +108,10 @@ struct AppReducer {
                 return openTorrentFile(pendingURL, in: targetServer, state: &state)
 
             case .serverList(.serverRepositoryResponse(.failure)):
-                state.hasLoadedServersOnce = true
                 return .none
 
             case .serverList(.task):
-                guard state.serverList.shouldLoadServersFromRepository == false,
-                    state.pendingTorrentFileURL == nil,
+                guard state.pendingTorrentFileURL == nil,
                     state.path.isEmpty,
                     state.serverList.servers.count == 1,
                     let server = state.serverList.servers.first

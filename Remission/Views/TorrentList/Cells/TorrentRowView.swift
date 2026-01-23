@@ -248,15 +248,7 @@ struct TorrentRowView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 6) {
                 ForEach(item.torrent.tags, id: \.self) { tag in
-                    Text(displayTagLabel(tag))
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
-                        .frame(height: 20)
-                        .background(
-                            Capsule()
-                                .fill(Color.primary.opacity(0.08))
-                        )
-                        .foregroundStyle(.primary)
+                    AppTagView(text: displayTagLabel(tag))
                 }
             }
         }
@@ -271,10 +263,10 @@ struct TorrentRowView: View {
 
         return HStack(spacing: 6) {
             ForEach(tags, id: \.self) { tag in
-                pillLabel(displayTagLabel(tag))
+                AppTagView(text: displayTagLabel(tag))
             }
             if remaining > 0 {
-                pillLabel("+\(remaining)")
+                AppTagView(text: "+\(remaining)")
             }
         }
         .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
@@ -282,20 +274,6 @@ struct TorrentRowView: View {
 
     private func displayTagLabel(_ tag: String) -> String {
         TorrentCategory.localizedTitle(for: tag) ?? tag
-    }
-
-    private func pillLabel(_ text: String) -> some View {
-        Text(text)
-            .font(.caption.weight(.semibold))
-            .lineLimit(1)
-            .truncationMode(.tail)
-            .padding(.horizontal, 8)
-            .frame(height: 20)
-            .background(
-                Capsule()
-                    .fill(Color.primary.opacity(0.08))
-            )
-            .foregroundStyle(.primary)
     }
 
     private var peersText: String {

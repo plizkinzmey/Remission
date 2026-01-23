@@ -80,4 +80,24 @@ enum AppTheme {
             }
         }
     }
+
+    enum Radius {
+        /// Стандартное скругление для карточек и элементов списка.
+        static let card: CGFloat = 14
+        /// Скругление для модальных окон и крупных контейнеров.
+        static let modal: CGFloat = 16
+        /// Полное скругление для плашек и кнопок.
+        static let pill: CGFloat = 100
+    }
+
+    enum Spacing {
+        /// Минимальный отступ (8pt).
+        static let small: CGFloat = 8
+        /// Стандартный отступ для контента (12pt).
+        static let standard: CGFloat = 12
+        /// Увеличенный отступ для разделов (16pt).
+        static let large: CGFloat = 16
+        /// Отступ между крупными блоками интерфейса (20-24pt).
+        static let section: CGFloat = 24
+    }
 }

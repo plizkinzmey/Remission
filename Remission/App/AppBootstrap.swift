@@ -75,7 +75,6 @@ enum AppBootstrap {
         var state = existingState ?? AppReducer.State()
         performMigration(&state, to: targetVersion)
         applyTestingConfiguration(&state, from: arguments, environment: environment)
-        markServersAsLoaded(&state, if: existingState == nil)
         return state
     }
 
@@ -103,20 +102,6 @@ enum AppBootstrap {
         if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
             applyFixture(fixture, to: &state)
         }
-    }
-
-    /// Отмечает, что серверы были загружены один раз при инициализации.
-    /// Используется для предотвращения повторной загрузки серверов из репозитория.
-    /// - Parameters:
-    ///   - state: Мутируемое состояние приложения
-    ///   - condition: Условие для проверки (обычно `existingState == nil`)
-    private static func markServersAsLoaded(
-        _ state: inout AppReducer.State,
-        if condition: Bool
-    ) {
-        guard condition else { return }
-        guard state.serverList.shouldLoadServersFromRepository == false else { return }
-        state.hasLoadedServersOnce = true
     }
 
     static func parseUITestFixture(
@@ -186,7 +171,7 @@ enum AppBootstrap {
         switch fixture {
         case .serverListSample:
             state.serverList.servers = IdentifiedArrayOf(uniqueElements: serverListSampleServers())
-            state.serverList.shouldLoadServersFromRepository = false
+            state.serverList.isPreloaded = true
             #if os(macOS)
                 let isRunningUITests =
                     ProcessInfo.processInfo.environment[xcTestConfigurationKey] != nil
@@ -202,7 +187,7 @@ enum AppBootstrap {
             state.serverList.servers = IdentifiedArrayOf(
                 uniqueElements: [torrentListSampleServer()]
             )
-            state.serverList.shouldLoadServersFromRepository = false
+            state.serverList.isPreloaded = true
         @unknown default:
             assertionFailure("Unhandled UITestingFixture case: \(fixture)")
         }

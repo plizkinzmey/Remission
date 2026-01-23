@@ -6,7 +6,7 @@ extension View {
         modifier(AppRootChromeModifier())
     }
 
-    func appCardSurface(cornerRadius: CGFloat = 14) -> some View {
+    func appCardSurface(cornerRadius: CGFloat = AppTheme.Radius.card) -> some View {
         modifier(AppCardSurfaceModifier(cornerRadius: cornerRadius))
     }
 
