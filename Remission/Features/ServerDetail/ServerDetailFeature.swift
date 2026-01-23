@@ -167,7 +167,12 @@ struct ServerDetailReducer {
                 return .none
 
             case .deleteButtonTapped:
-                state.alert = makeDeleteAlert()
+                state.alert = AlertFactory.deleteConfirmation(
+                    title: L10n.tr("serverDetail.alert.delete.title"),
+                    message: L10n.tr("serverDetail.alert.delete.message"),
+                    confirmAction: .confirmDeletion,
+                    cancelAction: .cancelDeletion
+                )
                 return .none
 
             case .deleteCompleted(.success):
@@ -179,67 +184,48 @@ struct ServerDetailReducer {
 
             case .deleteCompleted(.failure(let error)):
                 state.isDeleting = false
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverDetail.alert.delete.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("common.ok"))
-                    }
-                } message: {
-                    TextState(error.message)
-                }
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("serverDetail.alert.delete.title"),
+                    message: error.message,
+                    action: .dismiss
+                )
                 return .none
 
             case .httpWarningResetButtonTapped:
                 httpWarningPreferencesStore.reset(state.server.httpWarningFingerprint)
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverDetail.alert.httpWarningsReset.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("serverDetail.alert.httpWarningsReset.button"))
-                    }
-                } message: {
-                    TextState(L10n.tr("serverDetail.alert.httpWarningsReset.message"))
-                }
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("serverDetail.alert.httpWarningsReset.title"),
+                    message: L10n.tr("serverDetail.alert.httpWarningsReset.message"),
+                    buttonText: L10n.tr("serverDetail.alert.httpWarningsReset.button"),
+                    action: .dismiss
+                )
                 return .none
 
             case .resetTrustButtonTapped:
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverDetail.alert.trustReset.title"))
-                } actions: {
-                    ButtonState(role: .destructive, action: .confirmReset) {
-                        TextState(L10n.tr("serverDetail.alert.trustReset.confirm"))
-                    }
-                    ButtonState(role: .cancel, action: .cancelReset) {
-                        TextState(L10n.tr("serverDetail.alert.trustReset.cancel"))
-                    }
-                } message: {
-                    TextState(L10n.tr("serverDetail.alert.trustReset.message"))
-                }
+                state.alert = AlertFactory.confirmation(
+                    title: L10n.tr("serverDetail.alert.trustReset.title"),
+                    message: L10n.tr("serverDetail.alert.trustReset.message"),
+                    confirmText: L10n.tr("serverDetail.alert.trustReset.confirm"),
+                    confirmAction: .confirmReset,
+                    cancelAction: .cancelReset
+                )
                 return .none
 
             case .resetTrustSucceeded:
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverDetail.alert.trustResetDone.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("serverDetail.alert.trustResetDone.button"))
-                    }
-                } message: {
-                    TextState(L10n.tr("serverDetail.alert.trustResetDone.message"))
-                }
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("serverDetail.alert.trustResetDone.title"),
+                    message: L10n.tr("serverDetail.alert.trustResetDone.message"),
+                    buttonText: L10n.tr("serverDetail.alert.trustResetDone.button"),
+                    action: .dismiss
+                )
                 return .none
 
             case .resetTrustFailed(let message):
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverDetail.alert.trustResetFailed.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("common.ok"))
-                    }
-                } message: {
-                    TextState(message)
-                }
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("serverDetail.alert.trustResetFailed.title"),
+                    message: message,
+                    action: .dismiss
+                )
                 return .none
 
             case .alert(.presented(.confirmReset)):
@@ -705,21 +691,6 @@ struct ServerDetailReducer {
     }
 
     private var maxConnectionRetryAttempts: Int { 5 }
-
-    private func makeDeleteAlert() -> AlertState<AlertAction> {
-        AlertState {
-            TextState(L10n.tr("serverDetail.alert.delete.title"))
-        } actions: {
-            ButtonState(role: .destructive, action: .confirmDeletion) {
-                TextState(L10n.tr("serverDetail.alert.delete.confirm"))
-            }
-            ButtonState(role: .cancel, action: .cancelDeletion) {
-                TextState(L10n.tr("serverDetail.alert.delete.cancel"))
-            }
-        } message: {
-            TextState(L10n.tr("serverDetail.alert.delete.message"))
-        }
-    }
 
 }
 

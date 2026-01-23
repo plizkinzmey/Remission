@@ -99,10 +99,15 @@ struct ServerListReducer {
                 state.editor = ServerEditorReducer.State(server: server)
                 return .none
 
-            case .deleteButtonTapped(let id):
+            case .deleteButtonTapped:
                 guard let server = state.servers[id: id] else { return .none }
                 state.pendingDeletion = server
-                state.deleteConfirmation = makeDeleteConfirmation(for: server)
+                state.deleteConfirmation = AlertFactory.confirmationDialog(
+                    title: String(format: L10n.tr("serverList.alert.delete.title"), server.name),
+                    message: L10n.tr("serverList.alert.delete.message"),
+                    confirmAction: .confirm,
+                    cancelAction: .cancel
+                )
                 return .none
 
             case .alert(.presented(.dismiss)):
@@ -210,15 +215,11 @@ struct ServerListReducer {
 
             case .serverRepositoryResponse(.failure(let error)):
                 state.isLoading = false
-                state.alert = AlertState {
-                    TextState(L10n.tr("serverList.alert.refreshFailed.title"))
-                } actions: {
-                    ButtonState(role: .cancel, action: .dismiss) {
-                        TextState(L10n.tr("common.ok"))
-                    }
-                } message: {
-                    TextState(error.localizedDescription)
-                }
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("serverList.alert.refreshFailed.title"),
+                    message: error.localizedDescription,
+                    action: .dismiss
+                )
                 return .none
 
             case .connectionProbeRequested(let id):
@@ -377,28 +378,6 @@ extension ServerListReducer {
             return probeError.displayMessage
         }
         return (error as NSError).localizedDescription
-    }
-
-    private func makeDeleteConfirmation(for server: ServerConfig) -> ConfirmationDialogState<
-        DeleteConfirmationAction
-    > {
-        ConfirmationDialogState {
-            TextState(
-                String(
-                    format: L10n.tr("serverList.alert.delete.title"),
-                    server.name
-                )
-            )
-        } actions: {
-            ButtonState(role: .destructive, action: .confirm) {
-                TextState(L10n.tr("serverList.alert.delete.confirm"))
-            }
-            ButtonState(role: .cancel, action: .cancel) {
-                TextState(L10n.tr("serverList.alert.delete.cancel"))
-            }
-        } message: {
-            TextState(L10n.tr("serverList.alert.delete.message"))
-        }
     }
 
     private func makeStorageSummary(

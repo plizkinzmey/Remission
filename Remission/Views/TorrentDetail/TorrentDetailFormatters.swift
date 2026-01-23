@@ -16,22 +16,15 @@ enum TorrentDetailFormatters {
     }
 
     static func progress(_ value: Double) -> String {
-        let clamped = max(0, min(value, 1))
-        return String(format: "%.1f%%", clamped * 100)
+        TorrentDataFormatter.progress(value)
     }
 
     static func bytes(_ bytes: Int) -> String {
-        let formatter: ByteCountFormatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        return formatter.string(fromByteCount: Int64(bytes))
+        TorrentDataFormatter.bytes(Int64(bytes))
     }
 
     static func speed(_ bytesPerSecond: Int) -> String {
-        guard bytesPerSecond > 0 else { return L10n.tr("torrentDetail.speed.zero") }
-        let formatter: ByteCountFormatter = ByteCountFormatter()
-        formatter.countStyle = .binary
-        let value = formatter.string(fromByteCount: Int64(bytesPerSecond))
-        return String(format: L10n.tr("torrentDetail.speed.format"), value)
+        TorrentDataFormatter.speed(bytesPerSecond)
     }
 
     static func date(from timestamp: Int) -> String {
@@ -43,21 +36,7 @@ enum TorrentDetailFormatters {
     }
 
     static func eta(_ seconds: Int) -> String {
-        if seconds < 0 { return L10n.tr("torrentDetail.eta.placeholder") }
-        let hours: Int = seconds / 3600
-        let minutes: Int = (seconds % 3600) / 60
-        if hours > 0 {
-            return String(
-                format: L10n.tr("torrentDetail.eta.hoursMinutes"),
-                Int64(hours),
-                Int64(minutes)
-            )
-        } else {
-            return String(
-                format: L10n.tr("torrentDetail.eta.minutes"),
-                Int64(minutes)
-            )
-        }
+        TorrentDataFormatter.eta(seconds)
     }
 
     static func priorityText(_ priority: Int) -> String {

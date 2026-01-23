@@ -37,14 +37,13 @@ extension TorrentListItem {
             let rawProgress = Self.progressValue(for: torrent)
             let clampedProgress = min(max(rawProgress, 0), 1)
             self.progressFraction = clampedProgress
-            self.progressText = String(format: "%.1f%%", clampedProgress * 100)
-            self.downloadRateText = Metrics.format(
-                bytesPerSecond: torrent.summary.transfer.downloadRate)
-            self.uploadRateText = Metrics.format(
-                bytesPerSecond: torrent.summary.transfer.uploadRate)
-            self.speedSummary = "↓ \(downloadRateText)/с · ↑ \(uploadRateText)/с"
+            self.progressText = TorrentDataFormatter.progress(clampedProgress)
+            self.downloadRateText = TorrentDataFormatter.speed(torrent.summary.transfer.downloadRate)
+            self.uploadRateText = TorrentDataFormatter.speed(torrent.summary.transfer.uploadRate)
+            self.speedSummary = "↓ \(downloadRateText) · ↑ \(uploadRateText)"
             self.etaSeconds = torrent.summary.progress.etaSeconds
-            self.etaText = Metrics.formatETA(seconds: torrent.summary.progress.etaSeconds)
+            let eta = TorrentDataFormatter.eta(torrent.summary.progress.etaSeconds)
+            self.etaText = torrent.summary.progress.etaSeconds > 0 ? "ETA \(eta)" : nil
         }
 
         private static func progressValue(for torrent: Torrent) -> Double {
@@ -54,29 +53,6 @@ extension TorrentListItem {
             default:
                 return torrent.summary.progress.percentDone
             }
-        }
-
-        private static func format(bytesPerSecond: Int) -> String {
-            guard bytesPerSecond > 0 else {
-                return "0 Б"
-            }
-            let formatter = ByteCountFormatter()
-            formatter.countStyle = .binary
-            formatter.allowedUnits = .useAll
-            formatter.includesUnit = true
-            return formatter.string(fromByteCount: Int64(bytesPerSecond))
-        }
-
-        private static func formatETA(seconds: Int) -> String? {
-            guard seconds > 0 else { return nil }
-            let formatter = DateComponentsFormatter()
-            formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute, .second]
-            formatter.unitsStyle = .abbreviated
-            formatter.maximumUnitCount = 2
-            if let formatted = formatter.string(from: TimeInterval(seconds)) {
-                return "ETA \(formatted)"
-            }
-            return nil
         }
     }
 }
