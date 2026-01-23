@@ -96,26 +96,18 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
             let snapshotClient = offlineCacheRepository.client(cacheKey)
             let mapper = TransmissionDomainMapper()
 
-            let loggerContext = TransmissionLogContext(
-                serverID: server.id,
-                host: server.connection.host,
-                path: server.connection.path
-            )
-            let safeLogger = DefaultTransmissionLogger(
-                appLogger: appLogger.withCategory("transmission"),
-                baseContext: loggerContext
-            )
             let config = server.makeTransmissionClientConfig(
                 password: password,
-                network: .default,
-                logger: safeLogger
+                network: .default
             )
-            let client = TransmissionClient(
+            
+            let client = TransmissionClient.live(
                 config: config,
                 clock: appClock.clock(),
-                appLogger: appLogger.withCategory("transmission"),
-                baseLogContext: loggerContext
+                appLogger: appLogger,
+                category: "transmission"
             )
+            
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
 
             let dependency = TransmissionClientDependency.live(client: client)

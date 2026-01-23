@@ -68,7 +68,7 @@ extension AddTorrentReducer {
             return .none
         }
 
-        let destination = normalizeDestination(
+        let destination = TransmissionPathNormalization.normalize(
             destinationRaw,
             defaultDownloadDirectory: state.serverDownloadDirectory
         )
@@ -131,27 +131,6 @@ extension AddTorrentReducer {
         }
 
         return .failed(error.localizedDescription)
-    }
-
-    func normalizeDestination(
-        _ destination: String,
-        defaultDownloadDirectory: String
-    ) -> String {
-        let base = defaultDownloadDirectory.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard base.isEmpty == false else { return destination }
-
-        let hasNestedPath = destination.hasPrefix("/") && destination.dropFirst().contains("/")
-        if hasNestedPath {
-            return destination
-        }
-
-        let trimmedComponent = destination.trimmingCharacters(
-            in: CharacterSet(charactersIn: "/")
-        )
-        guard trimmedComponent.isEmpty == false else { return destination }
-
-        let normalizedBase = base.hasSuffix("/") ? String(base.dropLast()) : base
-        return normalizedBase + "/" + trimmedComponent
     }
 
     func normalizedRecentDirectories(

@@ -1128,6 +1128,7 @@
       }
     },
     "serverDetail.addTorrent.invalidMagnet.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

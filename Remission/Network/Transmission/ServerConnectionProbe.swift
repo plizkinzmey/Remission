@@ -65,30 +65,23 @@ extension ServerConnectionProbe {
         initialDelay: Duration = .seconds(1)
     ) -> ServerConnectionProbe {
         ServerConnectionProbe { request, trustHandler in
-            let context = TransmissionLogContext(
-                serverID: request.server.id,
-                host: request.server.connection.host,
-                path: request.server.connection.path
+            let config = request.server.makeTransmissionClientConfig(
+                password: request.password,
+                network: .init(
+                    requestTimeout: 10,
+                    maxRetries: 0,
+                    retryDelay: 0.5,
+                    enableLogging: false
+                )
             )
-            let logger = DefaultTransmissionLogger(
-                appLogger: appLogger.withCategory("connection.probe"),
-                baseContext: context
-            )
-            let client = TransmissionClient(
-                config: request.server.makeTransmissionClientConfig(
-                    password: request.password,
-                    network: .init(
-                        requestTimeout: 10,
-                        maxRetries: 0,
-                        retryDelay: 0.5,
-                        enableLogging: false
-                    ),
-                    logger: logger
-                ),
+            
+            let client = TransmissionClient.live(
+                config: config,
                 clock: clock,
-                appLogger: appLogger.withCategory("connection.probe"),
-                baseLogContext: context
+                appLogger: appLogger,
+                category: "connection.probe"
             )
+            
             if let trustHandler {
                 client.setTrustDecisionHandler(trustHandler)
             }
@@ -102,12 +95,6 @@ extension ServerConnectionProbe {
                     return Result(handshake: handshake)
                 } catch {
                     attempt += 1
-                    logger.logError(
-                        method: "session-get",
-                        error: error,
-                        context: context.merging(.init(method: "session-get"))
-                    )
-
                     guard attempt < maxAttempts else {
                         throw ProbeError.handshakeFailed(error.localizedDescription)
                     }

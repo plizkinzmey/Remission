@@ -2,7 +2,7 @@ import ComposableArchitecture
 import SwiftUI
 
 struct AddTorrentSourceView: View {
-    @Bindable var store: StoreOf<AddTorrentSourceReducer>
+    @Bindable var store: StoreOf<AddTorrentReducer>
 
     var body: some View {
         Group {
@@ -20,7 +20,7 @@ struct AddTorrentSourceView: View {
                         .accessibilityIdentifier("torrent_add_source_close_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.source.continue")) {
-                            store.send(.continueTapped)
+                            store.send(.closeButtonTapped) // Close source picker and show submission form
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")
@@ -45,7 +45,7 @@ struct AddTorrentSourceView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.tr("torrentAdd.source.continue")) {
-                        store.send(.continueTapped)
+                        store.send(.closeButtonTapped)
                     }
                     .disabled(continueDisabled)
                     .accessibilityIdentifier("torrent_add_source_continue_button")
@@ -60,7 +60,7 @@ struct AddTorrentSourceView: View {
         case .torrentFile:
             return store.selectedFileName == nil
         case .magnetLink:
-            return store.magnetText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            return store.pendingInput == nil
         }
     }
 
@@ -90,9 +90,9 @@ extension AddTorrentSourceView {
                         )
                     ) {
                         Text(L10n.tr("torrentAdd.source.option.file"))
-                            .tag(AddTorrentSourceReducer.Source.torrentFile)
+                            .tag(AddTorrentReducer.Source.torrentFile)
                         Text(L10n.tr("torrentAdd.source.option.magnet"))
-                            .tag(AddTorrentSourceReducer.Source.magnetLink)
+                            .tag(AddTorrentReducer.Source.magnetLink)
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
@@ -125,22 +125,42 @@ extension AddTorrentSourceView {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     case .magnetLink:
-                        TextField(
-                            L10n.tr("torrentAdd.source.magnet.placeholder"),
-                            text: Binding(
-                                get: { store.magnetText },
-                                set: { store.send(.magnetTextChanged($0)) }
-                            )
-                        )
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .appPillSurface()
-                        #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        #endif
-                        .accessibilityIdentifier("torrent_add_magnet_field")
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                TextField(
+                                    L10n.tr("torrentAdd.source.magnet.placeholder"),
+                                    text: Binding(
+                                        get: { store.magnetText },
+                                        set: { store.send(.magnetTextChanged($0)) }
+                                    )
+                                )
+                                .textFieldStyle(.plain)
+                                .padding(.horizontal, 12)
+                                .frame(height: 34)
+                                .appPillSurface()
+                                #if os(iOS)
+                                    .textInputAutocapitalization(.never)
+                                    .autocorrectionDisabled()
+                                #endif
+                                .accessibilityIdentifier("torrent_add_magnet_field")
+                                
+                                Button {
+                                    store.send(.pasteFromClipboardTapped)
+                                } label: {
+                                    Image(systemName: "doc.on.clipboard")
+                                        .frame(width: 34, height: 34)
+                                        .appPillSurface()
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityIdentifier("torrent_add_paste_button")
+                            }
+                            
+                            if store.magnetText.isEmpty == false && store.pendingInput == nil {
+                                Text(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
+                                    .font(.caption2)
+                                    .foregroundStyle(.red)
+                            }
+                        }
                     }
                 }
                 .padding(.bottom, -4)

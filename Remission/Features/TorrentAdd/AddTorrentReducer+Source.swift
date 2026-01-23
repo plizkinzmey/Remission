@@ -18,15 +18,11 @@ extension AddTorrentReducer {
 
     func handleFileImport(url: URL, state: inout State) -> Effect<Action> {
         guard url.pathExtension.lowercased() == "torrent" else {
-            state.alert = AlertState {
-                TextState(L10n.tr("serverDetail.addTorrent.invalidFile.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(L10n.tr("serverDetail.addTorrent.invalidFile.message"))
-            }
+            state.alert = AlertFactory.simpleAlert(
+                title: L10n.tr("serverDetail.addTorrent.invalidFile.title"),
+                message: L10n.tr("serverDetail.addTorrent.invalidFile.message"),
+                action: .dismiss
+            )
             return .none
         }
         return .run { send in
@@ -51,15 +47,11 @@ extension AddTorrentReducer {
         message: String,
         state: inout State
     ) -> Effect<Action> {
-        state.alert = AlertState {
-            TextState(L10n.tr("serverDetail.addTorrent.readFileFailed.title"))
-        } actions: {
-            ButtonState(role: .cancel, action: .dismiss) {
-                TextState(L10n.tr("common.ok"))
-            }
-        } message: {
-            TextState(message)
-        }
+        state.alert = AlertFactory.simpleAlert(
+            title: L10n.tr("serverDetail.addTorrent.readFileFailed.title"),
+            message: message,
+            action: .dismiss
+        )
         return .none
     }
 
@@ -77,15 +69,11 @@ extension AddTorrentReducer {
         case .failure(let error):
             state.pendingInput = nil
             state.selectedFileName = nil
-            state.alert = AlertState {
-                TextState(L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"))
-            } actions: {
-                ButtonState(role: .cancel, action: .dismiss) {
-                    TextState(L10n.tr("common.ok"))
-                }
-            } message: {
-                TextState(error.message)
-            }
+            state.alert = AlertFactory.simpleAlert(
+                title: L10n.tr("serverDetail.addTorrent.readFileLoadedFailed.title"),
+                message: error.message,
+                action: .dismiss
+            )
             return .none
         }
     }

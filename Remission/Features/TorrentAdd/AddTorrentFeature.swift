@@ -67,6 +67,8 @@ struct AddTorrentReducer {
         case sourceChanged(Source)
         case magnetTextChanged(String)
         case chooseFileTapped
+        case pasteFromClipboardTapped
+        case pasteResponse(TaskResult<String?>)
         case fileImporterPresented(Bool)
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
@@ -124,6 +126,7 @@ struct AddTorrentReducer {
     @Dependency(\.sessionRepository) var sessionRepository
     @Dependency(\.torrentFileLoader) var torrentFileLoader
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
+    @Dependency(\.magnetLinkClient) var magnetLinkClient
 
     enum AddTorrentCancelID {
         case submit
@@ -165,6 +168,39 @@ struct AddTorrentReducer {
 
             case .chooseFileTapped:
                 state.isFileImporterPresented = true
+                return .none
+
+            case .pasteFromClipboardTapped:
+                return .run { send in
+                    await send(
+                        .pasteResponse(
+                            TaskResult {
+                                try await magnetLinkClient.consumePendingMagnet()
+                            }
+                        )
+                    )
+                }
+
+            case .pasteResponse(.success(let magnet)):
+                guard let magnet else {
+                    state.alert = AlertFactory.simpleAlert(
+                        title: L10n.tr("torrentAdd.source.noMagnet.title"),
+                        message: L10n.tr("torrentAdd.source.noMagnet.message"),
+                        action: .dismiss
+                    )
+                    return .none
+                }
+                state.magnetText = magnet
+                state.source = .magnetLink
+                state.pendingInput = pendingInput(fromMagnet: magnet)
+                return .none
+
+            case .pasteResponse(.failure):
+                state.alert = AlertFactory.simpleAlert(
+                    title: L10n.tr("torrentAdd.source.noMagnet.title"),
+                    message: L10n.tr("torrentAdd.source.noMagnet.message"),
+                    action: .dismiss
+                )
                 return .none
 
             case .fileImporterPresented(let isPresented):

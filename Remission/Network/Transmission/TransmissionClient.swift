@@ -48,6 +48,43 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// Базовый контекст для логирования RPC.
     private let baseLogContext: TransmissionLogContext
 
+    /// Создает \"живой\" инстанс TransmissionClient с настроенными зависимостями.
+    ///
+    /// - Parameters:
+    ///   - config: Конфигурация клиента.
+    ///   - clock: Clock для retry-логики.
+    ///   - appLogger: Системный логгер.
+    ///   - category: Категория для логгера (например, \"transmission\" или \"probe\").
+    /// - Returns: Настроенный инстанс TransmissionClient.
+    public static func live(
+        config: TransmissionClientConfig,
+        clock: any Clock<Duration>,
+        appLogger: AppLogger,
+        category: String
+    ) -> TransmissionClient {
+        let context = TransmissionLogContext(
+            serverID: config.serverID,
+            host: config.baseURL.host,
+            path: config.baseURL.path
+        )
+        
+        let logger = DefaultTransmissionLogger(
+            appLogger: appLogger.withCategory(category),
+            baseContext: context
+        )
+        
+        // Пересоздаем конфиг с внедренным логгером
+        var finalConfig = config
+        finalConfig.logger = logger
+        
+        return TransmissionClient(
+            config: finalConfig,
+            clock: clock,
+            appLogger: appLogger.withCategory(category),
+            baseLogContext: context
+        )
+    }
+
     /// Инициализация TransmissionClient с конфигурацией.
     ///
     /// - Parameters:
