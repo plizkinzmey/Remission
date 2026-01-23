@@ -374,10 +374,7 @@ extension ServerListReducer {
     }
 
     private func describe(_ error: Error) -> String {
-        if let probeError = error as? ServerConnectionProbe.ProbeError {
-            return probeError.displayMessage
-        }
-        return (error as NSError).localizedDescription
+        error.userFacingMessage
     }
 
     private func makeStorageSummary(

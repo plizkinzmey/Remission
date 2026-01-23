@@ -111,3 +111,19 @@ struct ErrorPresenter<Retry: Equatable & Sendable>: Sendable {
         }
     }
 }
+
+extension Error {
+    /// Возвращает понятное пользователю описание ошибки.
+    var userFacingMessage: String {
+        if let localized = self as? LocalizedError,
+           let description = localized.errorDescription,
+           description.isEmpty == false {
+            return description
+        }
+        
+        let nsError = self as NSError
+        return nsError.localizedDescription.isEmpty 
+            ? String(describing: self) 
+            : nsError.localizedDescription
+    }
+}

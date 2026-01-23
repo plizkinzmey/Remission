@@ -207,17 +207,7 @@ extension TorrentListReducer {
     }
 
     func backoffDelay(for failures: Int) -> Duration {
-        guard failures > 0 else { return .seconds(1) }
-        let values: [Duration] = [
-            .seconds(1),
-            .seconds(2),
-            .seconds(4),
-            .seconds(8),
-            .seconds(16),
-            .seconds(30)
-        ]
-        let index = min(failures - 1, values.count - 1)
-        return values[index]
+        BackoffStrategy.delay(for: failures)
     }
 
     var maxRetryAttempts: Int { 5 }
@@ -227,11 +217,6 @@ extension TorrentListReducer {
     }
 
     func describe(_ error: Error) -> String {
-        if let localized = error as? LocalizedError {
-            if let description = localized.errorDescription, description.isEmpty == false {
-                return description
-            }
-        }
-        return String(describing: error)
+        error.userFacingMessage
     }
 }

@@ -286,9 +286,3 @@ extension ServerConnectionEnvironment {
         )
     }
 }
-
-extension ServerConfig {
-    var connectionFingerprint: String {
-        httpWarningFingerprint
-    }
-}

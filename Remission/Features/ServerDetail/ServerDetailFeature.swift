@@ -677,17 +677,7 @@ struct ServerDetailReducer {
     }
 
     private func backoffDelay(for failures: Int) -> Duration {
-        guard failures > 0 else { return .seconds(1) }
-        let values: [Duration] = [
-            .seconds(1),
-            .seconds(2),
-            .seconds(4),
-            .seconds(8),
-            .seconds(16),
-            .seconds(30)
-        ]
-        let index = min(failures - 1, values.count - 1)
-        return values[index]
+        BackoffStrategy.delay(for: failures)
     }
 
     private var maxConnectionRetryAttempts: Int { 5 }
@@ -695,17 +685,7 @@ struct ServerDetailReducer {
 }
 
 private func describe(_ error: Error) -> String {
-    if let localized = error as? LocalizedError {
-        if let description = localized.errorDescription {
-            if description.isEmpty == false {
-                return description
-            }
-        }
-    }
-
-    let nsError = error as NSError
-    let description = nsError.localizedDescription
-    return description.isEmpty ? String(describing: error) : description
+    error.userFacingMessage
 }
 
 extension AlertState where Action == ServerDetailReducer.AlertAction {

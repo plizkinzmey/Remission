@@ -113,6 +113,12 @@ extension ServerConfig {
         isSecure == false
     }
 
+    /// Уникальный отпечаток параметров соединения.
+    /// Используется для отслеживания изменений, требующих переподключения.
+    var connectionFingerprint: String {
+        "\(connection.host):\(connection.port):\(connection.path):\(isSecure):\(authentication?.username ?? "")"
+    }
+
     /// Собирает `TransmissionClientConfig`, инкапсулируя знание о сетевых настройках.
     /// - Parameters:
     ///   - password: Пароль из Keychain (если настроен Basic Auth).
