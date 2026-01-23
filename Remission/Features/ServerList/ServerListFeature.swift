@@ -99,7 +99,7 @@ struct ServerListReducer {
                 state.editor = ServerEditorReducer.State(server: server)
                 return .none
 
-            case .deleteButtonTapped:
+            case .deleteButtonTapped(let id):
                 guard let server = state.servers[id: id] else { return .none }
                 state.pendingDeletion = server
                 state.deleteConfirmation = AlertFactory.confirmationDialog(
