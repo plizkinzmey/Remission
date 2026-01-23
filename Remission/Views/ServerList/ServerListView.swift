@@ -95,17 +95,8 @@ struct ServerListView: View {
         .confirmationDialog(
             $store.scope(state: \.deleteConfirmation, action: \.deleteConfirmation)
         )
-        .sheet(
-            store: store.scope(state: \.$onboarding, action: \.onboarding)
-        ) { onboardingStore in
-            OnboardingView(store: onboardingStore)
-                .appRootChrome()
-        }
-        .sheet(
-            store: store.scope(state: \.$editor, action: \.editor)
-        ) { editorStore in
-            ServerEditorView(store: editorStore)
-                .appRootChrome()
+        .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
+            ServerFormView(store: formStore)
         }
         #if os(iOS)
             .background(AppBackgroundView())

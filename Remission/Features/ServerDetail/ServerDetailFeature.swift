@@ -13,7 +13,7 @@ struct ServerDetailReducer {
         var server: ServerConfig
         @Presents var alert: AlertState<AlertAction>?
         var errorPresenter: ErrorPresenter<ErrorRetry>.State = .init()
-        @Presents var editor: ServerEditorReducer.State?
+        @Presents var editor: ServerFormReducer.State?
         @Presents var settings: SettingsReducer.State?
         @Presents var diagnostics: DiagnosticsReducer.State?
         @Presents var torrentDetail: TorrentDetailReducer.State?
@@ -30,7 +30,7 @@ struct ServerDetailReducer {
             self.server = server
             self.torrentList.serverID = server.id
             if startEditing {
-                self.editor = ServerEditorReducer.State(server: server)
+                self.editor = ServerFormReducer.State(mode: .edit(server))
             }
         }
     }
@@ -52,7 +52,7 @@ struct ServerDetailReducer {
         case connectionResponse(TaskResult<ConnectionResponse>)
         case userPreferencesResponse(TaskResult<UserPreferences>)
         case torrentList(TorrentListReducer.Action)
-        case editor(PresentationAction<ServerEditorReducer.Action>)
+        case editor(PresentationAction<ServerFormReducer.Action>)
         case settings(PresentationAction<SettingsReducer.Action>)
         case diagnostics(PresentationAction<DiagnosticsReducer.Action>)
         case torrentDetail(PresentationAction<TorrentDetailReducer.Action>)
@@ -96,9 +96,10 @@ struct ServerDetailReducer {
             .ifLet(\.$alert, action: \.alert) {
                 EmptyReducer()
             }
-            .ifLet(\.$editor, action: \.editor) {
-                ServerEditorReducer()
-            }
+                    .ifLet(\.$editor, action: \.editor) {
+                        ServerFormReducer()
+                    }
+            
             .ifLet(\.$settings, action: \.settings) {
                 SettingsReducer()
             }
@@ -151,7 +152,7 @@ struct ServerDetailReducer {
                 )
 
             case .editButtonTapped:
-                state.editor = ServerEditorReducer.State(server: state.server)
+                state.editor = ServerFormReducer.State(mode: .edit(state.server))
                 return .none
 
             case .settingsButtonTapped:

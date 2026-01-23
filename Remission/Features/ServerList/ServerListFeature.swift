@@ -10,8 +10,7 @@ struct ServerListReducer {
         var isLoading: Bool = false
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
-        @Presents var onboarding: OnboardingReducer.State?
-        @Presents var editor: ServerEditorReducer.State?
+        @Presents var serverForm: ServerFormReducer.State?
         var hasPresentedInitialOnboarding: Bool = false
         var hasAutoSelectedSingleServer: Bool = false
         var isPreloaded: Bool = false
@@ -27,8 +26,7 @@ struct ServerListReducer {
         case deleteButtonTapped(UUID)
         case deleteConfirmation(PresentationAction<DeleteConfirmationAction>)
         case alert(PresentationAction<Alert>)
-        case onboarding(PresentationAction<OnboardingReducer.Action>)
-        case editor(PresentationAction<ServerEditorReducer.Action>)
+        case serverForm(PresentationAction<ServerFormReducer.Action>)
         case serverRepositoryResponse(TaskResult<[ServerConfig]>)
         case connectionProbeRequested(UUID)
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
@@ -60,7 +58,7 @@ struct ServerListReducer {
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
     @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
 
-    var body: some Reducer<State, Action> {
+    var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case .task:
@@ -82,7 +80,7 @@ struct ServerListReducer {
 
             case .addButtonTapped:
                 state.hasPresentedInitialOnboarding = true
-                state.onboarding = OnboardingReducer.State()
+                state.serverForm = ServerFormReducer.State(mode: .add)
                 return .none
 
             case .serverTapped(let id):
@@ -95,7 +93,7 @@ struct ServerListReducer {
                 guard let server = state.servers[id: id] else {
                     return .none
                 }
-                state.editor = ServerEditorReducer.State(server: server)
+                state.serverForm = ServerFormReducer.State(mode: .edit(server))
                 return .none
 
             case .deleteButtonTapped(let id):
@@ -133,44 +131,28 @@ struct ServerListReducer {
             case .deleteConfirmation:
                 return .none
 
-            case .onboarding(.presented(.delegate(.didCreate(let server)))):
+            case .serverForm(.presented(.delegate(.didCreate(let server)))):
                 state.servers.append(server)
-                state.onboarding = nil
+                state.serverForm = nil
                 return .merge(
                     .send(.delegate(.serverCreated(server))),
-                    .send(.connectionProbeRequested(server.id)),
-                    .run { send in
-                        await send(
-                            .serverRepositoryResponse(
-                                TaskResult {
-                                    try await serverConfigRepository.upsert(server)
-                                }
-                            )
-                        )
-                    }
+                    .send(.connectionProbeRequested(server.id))
                 )
 
-            case .onboarding(.presented(.delegate(.cancelled))):
-                state.onboarding = nil
-                return .none
-
-            case .onboarding:
-                return .none
-
-            case .editor(.presented(.delegate(.didUpdate(let server)))):
+            case .serverForm(.presented(.delegate(.didUpdate(let server)))):
                 state.servers[id: server.id] = server
-                state.editor = nil
+                state.serverForm = nil
                 return .send(.connectionProbeRequested(server.id))
 
-            case .editor(.presented(.delegate(.cancelled))):
-                state.editor = nil
+            case .serverForm(.presented(.delegate(.cancelled))):
+                state.serverForm = nil
                 return .none
 
-            case .editor(.dismiss):
-                state.editor = nil
+            case .serverForm(.dismiss):
+                state.serverForm = nil
                 return .none
 
-            case .editor:
+            case .serverForm:
                 return .none
 
             case .serverRepositoryResponse(.success(let servers)):
@@ -188,7 +170,7 @@ struct ServerListReducer {
                             state.hasPresentedInitialOnboarding == false
                             && onboardingProgressRepository.hasCompletedOnboarding() == false
                         if shouldShowOnboarding {
-                            state.onboarding = OnboardingReducer.State()
+                            state.serverForm = ServerFormReducer.State(mode: .add)
                             state.hasPresentedInitialOnboarding = true
                         }
                     #endif
@@ -196,8 +178,7 @@ struct ServerListReducer {
                 let shouldAutoSelect =
                     servers.count == 1
                     && state.hasAutoSelectedSingleServer == false
-                    && state.onboarding == nil
-                    && state.editor == nil
+                    && state.serverForm == nil
                 if shouldAutoSelect {
                     state.hasAutoSelectedSingleServer = true
                 }
@@ -276,16 +257,12 @@ struct ServerListReducer {
                 return .run { [server] send in
                     do {
                         let environment = try await serverConnectionEnvironmentFactory(server)
-                        let session = try await withDependencies {
-                            environment.apply(to: &$0)
-                        } operation: {
+                        let session = try await environment.withDependencies {
                             @Dependency(\.sessionRepository) var sessionRepository:
                                 SessionRepository
                             return try await sessionRepository.fetchState()
                         }
-                        let torrents = try await withDependencies {
-                            environment.apply(to: &$0)
-                        } operation: {
+                        let torrents = try await environment.withDependencies {
                             @Dependency(\.torrentRepository) var torrentRepository:
                                 TorrentRepository
                             return try await torrentRepository.fetchList()
@@ -319,14 +296,10 @@ struct ServerListReducer {
         }
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$deleteConfirmation, action: \.deleteConfirmation)
-        .ifLet(\.$onboarding, action: \.onboarding) {
-            OnboardingReducer()
-        }
-        .ifLet(\.$editor, action: \.editor) {
-            ServerEditorReducer()
+        .ifLet(\.$serverForm, action: \.serverForm) {
+            ServerFormReducer()
         }
     }
-
 }
 
 extension ServerListReducer {
@@ -347,26 +320,6 @@ extension ServerListReducer {
                 await send(.serverRepositoryResponse(.success(updated)))
             } catch {
                 await send(.serverRepositoryResponse(.failure(error)))
-            }
-        }
-    }
-
-    private func resetTrust(for server: ServerConfig) -> Effect<Action> {
-        .run { send in
-            let identity = TransmissionServerTrustIdentity(
-                host: server.connection.host,
-                port: server.connection.port,
-                isSecure: server.isSecure
-            )
-            do {
-                try transmissionTrustStoreClient.deleteFingerprint(identity)
-            } catch {
-                // If trust reset fails, surface an alert and continue.
-                await send(
-                    .serverRepositoryResponse(
-                        .failure(error)
-                    )
-                )
             }
         }
     }

@@ -160,7 +160,7 @@ struct ServerConfigurationReducer {
                 } catch {
                     await send(
                         .connectionTestFinished(
-                            .failure(ServerConnectionErrorHelper.describe(error))))
+                            .failure(error.userFacingMessage)))
                 }
             }
             .cancellable(id: CancellationID.connectionProbe, cancelInFlight: true),
@@ -178,6 +178,32 @@ struct ServerConfigurationReducer {
     }
 }
 
+extension ServerConfigurationReducer.State {
+    var checkConnectionButtonTitle: String {
+        switch connectionStatus {
+        case .idle:
+            return L10n.tr("onboarding.action.checkConnection")
+        case .testing:
+            return L10n.tr("onboarding.status.testing")
+        case .success:
+            return L10n.tr("onboarding.status.success")
+        case .failed:
+            return L10n.tr("onboarding.status.error")
+        }
+    }
+
+    var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
+        switch connectionStatus {
+        case .success:
+            return .success
+        case .failed:
+            return .error
+        case .idle, .testing:
+            return .neutral
+        }
+    }
+}
+
 @Reducer
 struct ServerTrustPromptReducer {
     @ObservableState
@@ -191,28 +217,16 @@ struct ServerTrustPromptReducer {
     }
 
     var body: some ReducerOf<Self> {
-
         EmptyReducer()
-
     }
-
 }
 
 extension TransmissionHandshakeResult {
-
     static let uiTestPlaceholder: TransmissionHandshakeResult = .init(
-
         sessionID: "uitest-placeholder",
-
         rpcVersion: 22,
-
         minimumSupportedRpcVersion: 14,
-
         serverVersionDescription: "Transmission 4.0 (UI Tests)",
-
         isCompatible: true
-
     )
-
 }
-

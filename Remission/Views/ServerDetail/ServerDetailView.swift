@@ -48,11 +48,8 @@ struct ServerDetailView: View {
         #endif
         .task { await store.send(.task).finish() }
         .alert($store.scope(state: \.alert, action: \.alert))
-        .sheet(
-            store: store.scope(state: \.$editor, action: \.editor)
-        ) { editorStore in
-            ServerEditorView(store: editorStore)
-                .appRootChrome()
+        .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
+            ServerFormView(store: editorStore)
         }
         .sheet(
             store: store.scope(state: \.$torrentDetail, action: \.torrentDetail)

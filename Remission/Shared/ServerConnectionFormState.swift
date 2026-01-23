@@ -24,6 +24,24 @@ struct ServerConnectionFormState: Equatable, Sendable {
     var username: String = ""
     var password: String = ""
 
+    init() {}
+
+    init(server: ServerConfig) {
+        self.name = server.name
+        self.host = server.connection.host
+        self.port = "\(server.connection.port)"
+        self.path = server.connection.path
+        switch server.security {
+        case .http:
+            self.transport = .http
+            self.allowUntrustedCertificates = false
+        case .https(let allowUntrusted):
+            self.transport = .https
+            self.allowUntrustedCertificates = allowUntrusted
+        }
+        self.username = server.authentication?.username ?? ""
+    }
+
     var trimmedHost: String {
         host.trimmingCharacters(in: .whitespacesAndNewlines)
     }
