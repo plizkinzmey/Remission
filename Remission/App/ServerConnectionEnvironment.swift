@@ -27,6 +27,17 @@ struct ServerConnectionEnvironment: Sendable {
         values.sessionRepository = dependencies.sessionRepository
     }
 
+    /// Выполняет операцию в контексте зависимостей данного окружения.
+    func withDependencies<R>(
+        _ operation: @Sendable () async throws -> R
+    ) async throws -> R {
+        try await ComposableArchitecture.withDependencies {
+            self.apply(to: &$0)
+        } operation: {
+            try await operation()
+        }
+    }
+
     func updatingRPCVersion(_ rpcVersion: Int?) -> ServerConnectionEnvironment {
         var copy = self
         copy.cacheKey = cacheKey.withRPCVersion(rpcVersion)
@@ -84,16 +95,13 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                 server: server,
                 credentialsRepository: credentialsRepository
             )
-            let credentialsFingerprint = OfflineCacheKey.credentialsFingerprint(
-                credentialsKey: server.credentialsKey,
-                password: password
-            )
-            let cacheKey = OfflineCacheKey.make(
+            
+            let cache = ServerConnectionEnvironment.makeCacheComponents(
                 server: server,
-                credentialsFingerprint: credentialsFingerprint,
-                rpcVersion: nil
+                password: password,
+                offlineCacheRepository: offlineCacheRepository
             )
-            let snapshotClient = offlineCacheRepository.client(cacheKey)
+            
             let mapper = TransmissionDomainMapper()
 
             let config = server.makeTransmissionClientConfig(
@@ -114,12 +122,12 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
             let torrentRepository = TorrentRepository.live(
                 transmissionClient: dependency,
                 mapper: mapper,
-                snapshot: snapshotClient
+                snapshot: cache.client
             )
             let sessionRepository = SessionRepository.live(
                 transmissionClient: dependency,
                 mapper: mapper,
-                snapshot: snapshotClient
+                snapshot: cache.client
             )
             return ServerConnectionEnvironment(
                 serverID: server.id,
@@ -129,9 +137,9 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                     torrentRepository: torrentRepository,
                     sessionRepository: sessionRepository
                 ),
-                cacheKey: cacheKey,
-                snapshot: snapshotClient,
-                makeSnapshotClient: offlineCacheRepository.client,
+                cacheKey: cache.key,
+                snapshot: cache.client,
+                makeSnapshotClient: cache.makeClient,
                 rebuildRepositoriesOnVersionUpdate: true
             )
         }
@@ -208,15 +216,9 @@ extension ServerConnectionEnvironment {
                 isCompatible: true
             )
         }
-        let offlineCache = OfflineCacheRepository.inMemory()
-        let cacheKey = OfflineCacheKey.make(
-            server: server,
-            credentialsFingerprint: OfflineCacheKey.credentialsFingerprint(
-                credentialsKey: server.credentialsKey,
-                password: nil
-            ),
-            rpcVersion: nil
-        )
+        
+        let cache = makeCacheComponents(server: server, password: nil, offlineCacheRepository: .inMemory())
+        
         return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,
@@ -225,9 +227,9 @@ extension ServerConnectionEnvironment {
                 torrentRepository: .previewValue,
                 sessionRepository: .placeholder
             ),
-            cacheKey: cacheKey,
-            snapshot: offlineCache.client(cacheKey),
-            makeSnapshotClient: offlineCache.client
+            cacheKey: cache.key,
+            snapshot: cache.client,
+            makeSnapshotClient: cache.makeClient
         )
     }
 
@@ -237,15 +239,8 @@ extension ServerConnectionEnvironment {
         torrentRepository: TorrentRepository = .testValue,
         sessionRepository: SessionRepository = .placeholder
     ) -> ServerConnectionEnvironment {
-        let offlineCache = OfflineCacheRepository.inMemory()
-        let cacheKey = OfflineCacheKey.make(
-            server: server,
-            credentialsFingerprint: OfflineCacheKey.credentialsFingerprint(
-                credentialsKey: server.credentialsKey,
-                password: nil
-            ),
-            rpcVersion: nil
-        )
+        let cache = makeCacheComponents(server: server, password: nil, offlineCacheRepository: .inMemory())
+        
         return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,
@@ -254,9 +249,9 @@ extension ServerConnectionEnvironment {
                 torrentRepository: torrentRepository,
                 sessionRepository: sessionRepository
             ),
-            cacheKey: cacheKey,
-            snapshot: offlineCache.client(cacheKey),
-            makeSnapshotClient: offlineCache.client
+            cacheKey: cache.key,
+            snapshot: cache.client,
+            makeSnapshotClient: cache.makeClient
         )
     }
 
@@ -275,6 +270,35 @@ extension ServerConnectionEnvironment {
             transmissionClient: client,
             torrentRepository: torrentRepository,
             sessionRepository: sessionRepository
+        )
+    }
+
+    // MARK: - Private Cache Helpers
+
+    fileprivate struct CacheComponents {
+        let key: OfflineCacheKey
+        let client: OfflineCacheClient
+        let makeClient: @Sendable (OfflineCacheKey) -> OfflineCacheClient
+    }
+
+    fileprivate static func makeCacheComponents(
+        server: ServerConfig,
+        password: String?,
+        offlineCacheRepository: OfflineCacheRepository
+    ) -> CacheComponents {
+        let credentialsFingerprint = OfflineCacheKey.credentialsFingerprint(
+            credentialsKey: server.credentialsKey,
+            password: password
+        )
+        let cacheKey = OfflineCacheKey.make(
+            server: server,
+            credentialsFingerprint: credentialsFingerprint,
+            rpcVersion: nil
+        )
+        return CacheComponents(
+            key: cacheKey,
+            client: offlineCacheRepository.client(cacheKey),
+            makeClient: offlineCacheRepository.client
         )
     }
 }

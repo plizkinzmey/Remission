@@ -89,10 +89,9 @@ extension AddTorrentReducer {
 
         return .run { send in
             let result = await Result {
-                try await withDependencies {
-                    environment.apply(to: &$0)
-                } operation: {
-                    try await torrentRepository.add(
+                try await environment.withDependencies {
+                    @Dependency(\.torrentRepository) var repository: TorrentRepository
+                    return try await repository.add(
                         input,
                         destinationPath: destination,
                         startPaused: startPaused,

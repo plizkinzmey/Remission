@@ -514,8 +514,10 @@ struct ServerDetailReducer {
                     TaskResult {
                         let environment = try await serverConnectionEnvironmentFactory.make(server)
                         await send(.cacheKeyPrepared(environment.cacheKey))
-                        let handshake = try await environment.dependencies.transmissionClient
-                            .performHandshake()
+                        let handshake = try await environment.withDependencies {
+                            @Dependency(\.transmissionClient) var client: TransmissionClientDependency
+                            return try await client.performHandshake()
+                        }
                         return ConnectionResponse(environment: environment, handshake: handshake)
                     }
                 )
@@ -629,9 +631,7 @@ struct ServerDetailReducer {
         environment: ServerConnectionEnvironment
     ) -> Effect<Action> {
         .run { _ in
-            try await withDependencies {
-                environment.apply(to: &$0)
-            } operation: {
+            try await environment.withDependencies {
                 @Dependency(\.sessionRepository) var sessionRepository
                 let download = SessionState.SpeedLimits.Limit(
                     isEnabled: limits.downloadKilobytesPerSecond != nil,

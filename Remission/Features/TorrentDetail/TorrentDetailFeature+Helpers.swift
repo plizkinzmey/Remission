@@ -246,7 +246,7 @@ extension TorrentDetailReducer {
 
     static func describe(_ error: Error) -> String {
         if let apiError = error as? APIError {
-            return apiError.userFriendlyMessage
+            return apiError.userFacingMessage
         }
         if let parserError = error as? TorrentDetailParserError {
             return parserError.localizedDescription

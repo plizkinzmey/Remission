@@ -35,9 +35,7 @@ extension TorrentListReducer {
 
         return .run { send in
             do {
-                try await withDependencies {
-                    environment.apply(to: &$0)
-                } operation: {
+                try await environment.withDependencies {
                     @Dependency(\.torrentRepository) var repository: TorrentRepository
                     switch command {
                     case .start:
@@ -55,10 +53,7 @@ extension TorrentListReducer {
                 }
                 await send(.commandResponse(torrentID, .success(true)))
             } catch {
-                let message =
-                    (error as? APIError)?.userFriendlyMessage
-                    ?? describe(error)
-                await send(.commandResponse(torrentID, .failure(.init(message: message))))
+                await send(.commandResponse(torrentID, .failure(.init(message: error.userFacingMessage))))
             }
         }
         .cancellable(id: CancelID.command(torrentID), cancelInFlight: true)
@@ -137,17 +132,13 @@ extension TorrentListReducer {
 
         return .run { send in
             do {
-                let torrents = try await withDependencies {
-                    environment.apply(to: &$0)
-                } operation: {
+                let torrents = try await environment.withDependencies {
                     @Dependency(\.torrentRepository) var repository: TorrentRepository
                     return try await repository.fetchList()
                 }
                 let session =
                     shouldFetchStorage
-                    ? (try? await withDependencies {
-                        environment.apply(to: &$0)
-                    } operation: {
+                    ? (try? await environment.withDependencies {
                         @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
                         return try await sessionRepository.fetchState()
                     })
@@ -231,9 +222,7 @@ extension TorrentListReducer {
         }
         guard stopIDs.isEmpty == false || startIDs.isEmpty == false else { return }
         do {
-            try await withDependencies {
-                environment.apply(to: &$0)
-            } operation: {
+            try await environment.withDependencies {
                 @Dependency(\.torrentRepository) var repository: TorrentRepository
                 if stopIDs.isEmpty == false {
                     try await repository.stop(stopIDs)

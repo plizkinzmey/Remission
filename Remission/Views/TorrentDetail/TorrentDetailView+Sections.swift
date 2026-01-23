@@ -193,21 +193,24 @@ extension TorrentDetailView {
                     label: L10n.tr("torrentDetail.mainInfo.size"),
                     value: store.hasLoadedMetadata && store.totalSize > 0
                         ? TorrentDetailFormatters.bytes(store.totalSize)
-                        : L10n.tr("torrentDetail.mainInfo.unknown")
+                        : L10n.tr("torrentDetail.mainInfo.unknown"),
+                    monospacedValue: true
                 )
                 Divider()
                 TorrentDetailLabelValueRow(
                     label: L10n.tr("torrentDetail.mainInfo.downloaded"),
                     value: store.hasLoadedMetadata
                         ? TorrentDetailFormatters.bytes(store.downloadedEver)
-                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                        : L10n.tr("torrentDetail.mainInfo.unavailable"),
+                    monospacedValue: true
                 )
                 Divider()
                 TorrentDetailLabelValueRow(
                     label: L10n.tr("torrentDetail.mainInfo.uploaded"),
                     value: store.hasLoadedMetadata
                         ? TorrentDetailFormatters.bytes(store.uploadedEver)
-                        : L10n.tr("torrentDetail.mainInfo.unavailable")
+                        : L10n.tr("torrentDetail.mainInfo.unavailable"),
+                    monospacedValue: true
                 )
                 Divider()
                 TorrentDetailLabelValueRow(
@@ -229,7 +232,8 @@ extension TorrentDetailView {
                     Divider()
                     TorrentDetailLabelValueRow(
                         label: L10n.tr("torrentDetail.mainInfo.eta"),
-                        value: etaDescription
+                        value: etaDescription,
+                        monospacedValue: true
                     )
                 }
             }
@@ -265,8 +269,8 @@ extension TorrentDetailView {
     var categoryRow: some View {
         HStack(alignment: .center, spacing: 12) {
             Text(L10n.tr("torrentDetail.mainInfo.category"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+                .appCaption()
+                .foregroundStyle(.primary)
             Spacer(minLength: 0)
             #if os(macOS)
                 Menu {

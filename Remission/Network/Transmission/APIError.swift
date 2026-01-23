@@ -48,6 +48,38 @@ public enum APIError: Error, Equatable {
     case unknown(details: String)
 }
 
+extension APIError: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .networkUnavailable:
+            return L10n.tr("torrentDetail.api.networkUnavailable")
+        case .unauthorized:
+            return L10n.tr("torrentDetail.api.unauthorized")
+        case .sessionConflict:
+            return L10n.tr("torrentDetail.api.sessionConflict")
+        case .tlsTrustDeclined:
+            return L10n.tr("torrentDetail.api.tlsDeclined")
+        case .tlsEvaluationFailed(let details):
+            return String(
+                format: L10n.tr("torrentDetail.api.tlsFailed"),
+                details
+            )
+        case .versionUnsupported(let version):
+            return String(
+                format: L10n.tr("torrentDetail.api.versionUnsupported"),
+                version
+            )
+        case .decodingFailed:
+            return L10n.tr("torrentDetail.api.decodingFailed")
+        case .unknown(let details):
+            return String(
+                format: L10n.tr("torrentDetail.api.unknown"),
+                details
+            )
+        }
+    }
+}
+
 // MARK: - Error Mapping Helpers
 
 // MARK: - Mapping Helpers
