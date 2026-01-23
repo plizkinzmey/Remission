@@ -41,3 +41,4 @@ Confirm the branch name with the user if not provided.
 - Only `develop` is allowed to be merged into `main`.
 - Always branch from `develop` after syncing with `origin/develop`.
 - Never use destructive commands (`git reset --hard`, forced checkouts) unless explicitly requested.
+- **Commit messages MUST be in Russian.**
