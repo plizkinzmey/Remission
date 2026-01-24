@@ -6,7 +6,7 @@ struct ServerConnectionFormFields: View {
     @State private var labelWidth: CGFloat = 80  // Фиксированная ширина для выравнивания
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             connectionSection
             credentialsSection
         }
@@ -14,7 +14,7 @@ struct ServerConnectionFormFields: View {
 
     private var connectionSection: some View {
         AppSectionCard(L10n.tr("serverForm.section.connection")) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
                     ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                         Text(transport.title).tag(transport)
@@ -29,7 +29,7 @@ struct ServerConnectionFormFields: View {
 
                 Divider()
 
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     AppFormField(L10n.tr("serverForm.placeholder.name"), labelWidth: labelWidth) {
                         TextField(
                             L10n.tr("serverForm.placeholder.name"),
@@ -90,7 +90,7 @@ struct ServerConnectionFormFields: View {
 
     private var credentialsSection: some View {
         AppSectionCard(L10n.tr("serverForm.section.credentials")) {
-            VStack(spacing: 12) {
+            VStack(spacing: 10) {
                 AppFormField(L10n.tr("serverForm.placeholder.username"), labelWidth: labelWidth) {
                     TextField(
                         L10n.tr("serverForm.placeholder.username"),

@@ -8,7 +8,7 @@ struct ServerConfigurationView: View {
     var submissionLabel: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             ServerConnectionFormFields(form: $store.form)
 
             if let validationError = store.validationError {

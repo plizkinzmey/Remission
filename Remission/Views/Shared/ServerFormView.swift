@@ -44,22 +44,32 @@ struct ServerFormView: View {
         }
     }
 
+    private var formContent: some View {
+        ServerConfigurationView(
+            store: store.scope(state: \.serverConfig, action: \.serverConfig),
+            isSubmitting: store.isSaving,
+            submissionLabel: store.mode.isEdit
+                ? L10n.tr("serverEditor.saving")
+                : L10n.tr("onboarding.status.connecting")
+        )
+    }
+
     private var windowContent: some View {
         VStack {
-            ScrollView {
-                ServerConfigurationView(
-                    store: store.scope(state: \.serverConfig, action: \.serverConfig),
-                    isSubmitting: store.isSaving,
-                    submissionLabel: store.mode.isEdit
-                        ? L10n.tr("serverEditor.saving")
-                        : L10n.tr("onboarding.status.connecting")
-                )
+            ViewThatFits(in: .vertical) {
+                formContent
+
+                ScrollView {
+                    formContent
+                }
+                #if os(iOS)
+                    .scrollDismissesKeyboard(.interactively)
+                #endif
             }
-            #if os(iOS)
-                .scrollDismissesKeyboard(.interactively)
-                .appDismissKeyboardOnTap()
-            #endif
         }
+        #if os(iOS)
+            .appDismissKeyboardOnTap()
+        #endif
         .padding(12)
         .appCardSurface(cornerRadius: AppTheme.Radius.modal)
         .padding(.horizontal, 12)
