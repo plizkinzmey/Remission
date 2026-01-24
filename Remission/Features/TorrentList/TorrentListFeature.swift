@@ -130,7 +130,6 @@ struct TorrentListReducer {
             case .task:
                 if let environment = state.connectionEnvironment {
                     state.cacheKey = environment.cacheKey
-                    state.isAwaitingConnection = false
                 }
                 if state.items.isEmpty {
                     state.phase = .loading
@@ -343,6 +342,7 @@ struct TorrentListReducer {
 
             case .torrentsResponse(.success(let payload)):
                 state.isRefreshing = false
+                state.isAwaitingConnection = false
                 state.errorPresenter.banner = nil
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
                 state.items = merge(
@@ -384,6 +384,7 @@ struct TorrentListReducer {
                 }
                 let message = describe(error)
                 state.isRefreshing = false
+                state.isAwaitingConnection = false
                 state.failedAttempts += 1
                 let offline = State.OfflineState(
                     message: message,

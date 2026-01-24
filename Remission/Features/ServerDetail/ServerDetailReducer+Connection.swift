@@ -39,7 +39,6 @@ extension ServerDetailReducer {
             )
             state.torrentList.connectionEnvironment = environment
             state.torrentList.cacheKey = environment.cacheKey
-            state.torrentList.isAwaitingConnection = false
             state.torrentList.handshake = response.handshake
             let effects: Effect<Action> = .concatenate(
                 .send(.torrentList(.task)),

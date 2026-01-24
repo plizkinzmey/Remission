@@ -125,7 +125,7 @@ struct ServerDetailView: View {
     }
 
     private var isConnecting: Bool {
-        store.connectionState.isBlockingInteractions
+        store.connectionState.isBlockingInteractions || store.torrentList.isAwaitingConnection
     }
 
     private var mainContent: some View {
@@ -168,6 +168,7 @@ struct ServerDetailView: View {
     }
 
     private var shouldShowTorrentList: Bool {
+        guard isConnecting == false else { return false }
         if store.connectionEnvironment != nil {
             return true
         }
