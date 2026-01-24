@@ -47,27 +47,6 @@ extension TorrentListReducer {
         .cancellable(id: CancelID.preferencesUpdates, cancelInFlight: true)
     }
 
-    func loadCachedSnapshot(cacheKey: OfflineCacheKey) -> Effect<Action> {
-        .run { send in
-            let client = offlineCacheRepository.client(cacheKey)
-            guard let snapshot = try await client.load(),
-                let cached = snapshot.torrents
-            else { return }
-            await send(
-                .torrentsResponse(
-                    .success(
-                        State.FetchSuccess(
-                            torrents: cached.value,
-                            isFromCache: true,
-                            snapshotDate: cached.updatedAt
-                        )
-                    )
-                )
-            )
-        }
-        .cancellable(id: CancelID.cache, cancelInFlight: true)
-    }
-
     func restartPolling(state: inout State) -> Effect<Action> {
         .merge(
             .cancel(id: CancelID.polling),

@@ -20,9 +20,8 @@ extension ServerDetailReducer {
             return startConnection(state: &state, force: true)
 
         case .cacheKeyPrepared(let key):
-            let changed = state.torrentList.cacheKey != key
             state.torrentList.cacheKey = key
-            return changed ? .send(.torrentList(.restoreCachedSnapshot)) : .none
+            return .none
 
         case .connectionResponse(.success(let response)):
             let environment = response.environment.updatingRPCVersion(

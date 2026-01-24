@@ -87,7 +87,6 @@ struct TorrentListReducer {
         case errorPresenter(ErrorPresenter<State.Retry>.Action)
         case pollingTick
         case userPreferencesResponse(TaskResult<UserPreferences>)
-        case restoreCachedSnapshot
         case torrentsResponse(TaskResult<State.FetchSuccess>)
         case storageUpdated(StorageSummary?)
         case goOffline(message: String)
@@ -137,12 +136,11 @@ struct TorrentListReducer {
                     state.phase = .loading
                 }
                 guard let serverID = state.serverID else {
-                    return .send(.restoreCachedSnapshot)
+                    return .none
                 }
                 return .merge(
                     loadPreferences(serverID: serverID),
-                    observePreferences(serverID: serverID),
-                    state.isAwaitingConnection ? .none : .send(.restoreCachedSnapshot)
+                    observePreferences(serverID: serverID)
                 )
 
             case .teardown:
@@ -321,12 +319,6 @@ struct TorrentListReducer {
                     )
                 )
                 return .merge(effect, alert)
-
-            case .restoreCachedSnapshot:
-                guard let cacheKey = state.cacheKey else {
-                    return .none
-                }
-                return loadCachedSnapshot(cacheKey: cacheKey)
 
             case .goOffline(let message):
                 let offline = State.OfflineState(
