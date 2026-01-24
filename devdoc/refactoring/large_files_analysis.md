@@ -16,7 +16,7 @@
 | `Remission/App/AppDependencies.swift` | 45 (было 449) | ✅ Выполнено | Разбит на: `+UITesting.swift`, `+Fixtures.swift`, `DependencyValues+App.swift`. |
 | `Remission/Views/Diagnostics/DiagnosticsView.swift` | 150 (было 436) | ✅ Выполнено | Вынесены `FilterSection`, `LogList`, `LogRow`, `Badges` в отдельные файлы в `Components/`. |
 | `Remission/Features/ServerDetail/ServerDetailFeature.swift` | 130 (было 421) | ✅ Выполнено | `coreReducer` разделен на: `+Connection`, `+Management`, `+Navigation`, `+Import`. |
-| `Remission/Views/TorrentAdd/AddTorrentView.swift` | 414 | 🟠 Высокий приоритет | Разделить на `MagnetInputView`, `FilePickerView` и `OptionsSection`. |
+| `Remission/Views/TorrentAdd/AddTorrentView.swift` | 150 (было 414) | ✅ Выполнено | Разделен на компоненты: `SourceSection`, `DestinationSection`, `OptionsSection`. |
 | `Remission/Views/Settings/SettingsView.swift` | 405 | 🟠 Высокий приоритет | Вынести секции настроек (Server, Interface, Network) в отдельные View. |
 | `Remission/Repositories/SessionRepository.swift` | 405 | 🟠 Высокий приоритет | Выделить маппинг и валидацию в отдельные сущности. |
 | `Remission/Features/Settings/SettingsFeature.swift` | 391 | 🟡 Средний приоритет | Проверить возможность выноса логики валидации и сохранения. |
@@ -41,4 +41,4 @@
 
 ## Следующий шаг
 
-Приступить к рефакторингу `Remission/Views/TorrentAdd/AddTorrentView.swift`.
+Приступить к рефакторингу `Remission/Views/Settings/SettingsView.swift`.
