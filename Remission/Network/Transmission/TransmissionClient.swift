@@ -401,10 +401,6 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             retryAttempt: retryAttempt
         )
         config.logger.logError(method: method, error: error, context: context)
-
-        var metadata = context.metadata()
-        metadata["error"] = String(String(describing: error).prefix(200))
-        appLogger.error("Transmission RPC error", metadata: metadata)
     }
 
     private func requireHTTPResponse(_ response: URLResponse) throws -> HTTPURLResponse {
