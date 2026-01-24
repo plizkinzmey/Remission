@@ -48,13 +48,13 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// Базовый контекст для логирования RPC.
     private let baseLogContext: TransmissionLogContext
 
-    /// Создает \"живой\" инстанс TransmissionClient с настроенными зависимостями.
+    /// Создает "живой" инстанс TransmissionClient с настроенными зависимостями.
     ///
     /// - Parameters:
     ///   - config: Конфигурация клиента.
     ///   - clock: Clock для retry-логики.
     ///   - appLogger: Системный логгер.
-    ///   - category: Категория для логгера (например, \"transmission\" или \"probe\").
+    ///   - category: Категория для логгера (например, "transmission" или "probe").
     /// - Returns: Настроенный инстанс TransmissionClient.
     public static func live(
         config: TransmissionClientConfig,

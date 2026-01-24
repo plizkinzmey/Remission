@@ -230,7 +230,6 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
     }
 
     extension TorrentRepository {
-        // swiftlint:disable function_body_length
         static func live(
             transmissionClient: TransmissionClientDependency,
             mapper: TransmissionDomainMapper = TransmissionDomainMapper(),
@@ -238,249 +237,38 @@ struct TorrentRepository: Sendable, TorrentRepositoryProtocol {
             detailFields: [String] = TorrentListFields.details,
             snapshot: OfflineCacheClient? = nil
         ) -> TorrentRepository {
-            let cacheList: @Sendable ([Torrent]) async throws -> Void = { torrents in
-                guard let snapshot else { return }
-                do {
-                    _ = try await snapshot.updateTorrents(torrents)
-                } catch OfflineCacheError.exceedsSizeLimit {
-                    try await snapshot.clear()
-                }
-            }
-
-            let loadCachedList: @Sendable () async throws -> CachedSnapshot<[Torrent]>? = {
-                guard let snapshot else { return nil }
-                return try await snapshot.load()?.torrents
-            }
-
-            let fetchList: @Sendable () async throws -> [Torrent] = {
-                let response = try await transmissionClient.torrentGet(nil, fields)
-                let torrents = try mapper.mapTorrentList(from: response)
-                try await cacheList(torrents)
-                return torrents
-            }
-
-            let fetchDetails: @Sendable (Torrent.Identifier) async throws -> Torrent =
-                { identifier in
-                    let response = try await transmissionClient.torrentGet(
-                        [identifier.rawValue],
-                        detailFields
-                    )
-                    return try mapper.mapTorrentDetails(from: response)
-                }
-
-            let add:
-                @Sendable (PendingTorrentInput, String, Bool, [String]?) async throws
-                    -> AddResult =
-                    { input, destination, startPaused, labels in
-                        let response = try await transmissionClient.torrentAdd(
-                            filename: input.filenameArgument,
-                            metainfo: input.metainfoArgument,
-                            downloadDir: destination,
-                            paused: startPaused,
-                            labels: labels
-                        )
-                        return try mapper.mapTorrentAdd(from: response)
-                    }
-
-            let start: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
-                context: "torrent-start",
-                rpc: transmissionClient.torrentStart
-            )
-
-            let stop: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
-                context: "torrent-stop",
-                rpc: transmissionClient.torrentStop
-            )
-
-            let remove: @Sendable ([Torrent.Identifier], Bool?) async throws -> Void =
-                { ids, deleteData in
-                    let response = try await transmissionClient.torrentRemove(
-                        ids.map(\.rawValue),
-                        deleteData
-                    )
-                    try ensureSuccess(response, context: "torrent-remove")
-                }
-
-            let verify: @Sendable ([Torrent.Identifier]) async throws -> Void = makeCommandClosure(
-                context: "torrent-verify",
-                rpc: transmissionClient.torrentVerify
-            )
-
-            let updateTransferSettings:
-                @Sendable (TransferSettings, [Torrent.Identifier]) async throws
-                    -> Void = { settings, ids in
-                        let arguments = makeTransferSettingsArguments(from: settings)
-                        guard arguments.isEmpty == false else {
-                            return
-                        }
-                        let response = try await transmissionClient.torrentSet(
-                            ids.map(\.rawValue),
-                            .object(arguments)
-                        )
-                        try ensureSuccess(response, context: "torrent-set")
-                    }
-
-            let updateLabels: @Sendable ([String], [Torrent.Identifier]) async throws -> Void =
-                { labels, ids in
-                    guard labels.isEmpty == false else { return }
-                    let arguments: [String: AnyCodable] = [
-                        "labels": .array(labels.map { .string($0) })
-                    ]
-                    let response = try await transmissionClient.torrentSet(
-                        ids.map(\.rawValue),
-                        .object(arguments)
-                    )
-                    try ensureSuccess(response, context: "torrent-set")
-                }
-
-            let updateFileSelection:
-                @Sendable ([FileSelectionUpdate], Torrent.Identifier) async throws
-                    -> Void = { updates, torrentID in
-                        let arguments = makeFileSelectionArguments(from: updates)
-                        guard arguments.isEmpty == false else {
-                            return
-                        }
-                        let response = try await transmissionClient.torrentSet(
-                            [torrentID.rawValue],
-                            .object(arguments)
-                        )
-                        try ensureSuccess(response, context: "torrent-set")
-                    }
+            let cacheList = makeCacheListClosure(snapshot: snapshot)
 
             return TorrentRepository(
-                fetchList: fetchList,
-                fetchDetails: fetchDetails,
-                add: add,
-                start: start,
-                stop: stop,
-                remove: remove,
-                verify: verify,
-                updateTransferSettings: updateTransferSettings,
-                updateLabels: updateLabels,
-                updateFileSelection: updateFileSelection,
+                fetchList: makeFetchListClosure(
+                    client: transmissionClient,
+                    mapper: mapper,
+                    fields: fields,
+                    cache: cacheList
+                ),
+                fetchDetails: makeFetchDetailsClosure(
+                    client: transmissionClient,
+                    mapper: mapper,
+                    fields: detailFields
+                ),
+                add: makeAddClosure(
+                    client: transmissionClient,
+                    mapper: mapper
+                ),
+                start: makeStartClosure(client: transmissionClient),
+                stop: makeStopClosure(client: transmissionClient),
+                remove: makeRemoveClosure(client: transmissionClient),
+                verify: makeVerifyClosure(client: transmissionClient),
+                updateTransferSettings: makeUpdateTransferSettingsClosure(
+                    client: transmissionClient),
+                updateLabels: makeUpdateLabelsClosure(client: transmissionClient),
+                updateFileSelection: makeUpdateFileSelectionClosure(client: transmissionClient),
                 cacheList: cacheList,
-                loadCachedList: loadCachedList
+                loadCachedList: makeLoadCachedListClosure(snapshot: snapshot)
             )
-        }
-        // swiftlint:enable function_body_length
-
-        private static func makeCommandClosure(
-            context: String,
-            rpc: @escaping @Sendable ([Int]) async throws -> TransmissionResponse
-        ) -> @Sendable ([Torrent.Identifier]) async throws -> Void {
-            { ids in
-                let response = try await rpc(ids.map(\.rawValue))
-                try ensureSuccess(response, context: context)
-            }
-        }
-
-        private static func ensureSuccess(
-            _ response: TransmissionResponse,
-            context: String
-        ) throws {
-            guard response.isSuccess else {
-                throw DomainMappingError.rpcError(result: response.result, context: context)
-            }
-        }
-
-        private static func makeTransferSettingsArguments(
-            from settings: TransferSettings
-        ) -> [String: AnyCodable] {
-            var arguments: [String: AnyCodable] = [:]
-
-            if let downloadLimit = settings.downloadLimit {
-                arguments["downloadLimit"] = .int(downloadLimit.kilobytesPerSecond)
-                arguments["downloadLimited"] = .bool(downloadLimit.isEnabled)
-            }
-
-            if let uploadLimit = settings.uploadLimit {
-                arguments["uploadLimit"] = .int(uploadLimit.kilobytesPerSecond)
-                arguments["uploadLimited"] = .bool(uploadLimit.isEnabled)
-            }
-
-            return arguments
-        }
-
-        private static func makeFileSelectionArguments(
-            from updates: [FileSelectionUpdate]
-        ) -> [String: AnyCodable] {
-            var filesWanted: Set<Int> = []
-            var filesUnwanted: Set<Int> = []
-            var priorityBuckets: [FilePriority: Set<Int>] = [
-                .high: [],
-                .normal: [],
-                .low: []
-            ]
-
-            for update in updates {
-                if let isWanted = update.isWanted {
-                    var target = isWanted ? filesWanted : filesUnwanted
-                    target.insert(update.fileIndex)
-                    if isWanted {
-                        filesWanted = target
-                    } else {
-                        filesUnwanted = target
-                    }
-                }
-
-                if let priority = update.priority {
-                    priorityBuckets[priority, default: []].insert(update.fileIndex)
-                }
-            }
-
-            var arguments: [String: AnyCodable] = [:]
-            appendArrayArgument(from: filesWanted, forKey: "files-wanted", into: &arguments)
-            appendArrayArgument(from: filesUnwanted, forKey: "files-unwanted", into: &arguments)
-            appendArrayArgument(
-                from: priorityBuckets[.high] ?? [], forKey: "priority-high", into: &arguments)
-            appendArrayArgument(
-                from: priorityBuckets[.normal] ?? [],
-                forKey: "priority-normal",
-                into: &arguments
-            )
-            appendArrayArgument(
-                from: priorityBuckets[.low] ?? [], forKey: "priority-low", into: &arguments)
-            return arguments
-        }
-
-        private static func arrayArgument(from indices: Set<Int>) -> AnyCodable? {
-            guard indices.isEmpty == false else {
-                return nil
-            }
-            let values = indices.sorted().map { AnyCodable.int($0) }
-            return .array(values)
-        }
-
-        private static func appendArrayArgument(
-            from indices: Set<Int>,
-            forKey key: String,
-            into arguments: inout [String: AnyCodable]
-        ) {
-            guard let value = arrayArgument(from: indices) else { return }
-            arguments[key] = value
         }
     }
 #endif
-
-extension PendingTorrentInput {
-    fileprivate var filenameArgument: String? {
-        switch payload {
-        case .magnetLink(_, let rawValue):
-            return rawValue
-        case .torrentFile:
-            return nil
-        }
-    }
-
-    fileprivate var metainfoArgument: Data? {
-        switch payload {
-        case .torrentFile(let data, _):
-            return data
-        case .magnetLink:
-            return nil
-        }
-    }
-}
 
 extension TorrentRepository {
     static let placeholder: TorrentRepository = TorrentRepository(

@@ -4,20 +4,19 @@ struct TorrentListHeaderView: View {
     let title: String
 
     var body: some View {
-        #if os(macOS)
-            HStack(alignment: .center) {
-                Spacer(minLength: 0)
-                Text(title)
-                    .font(.title3.weight(.semibold))
-                    .accessibilityIdentifier("torrent_list_header")
-                Spacer(minLength: 0)
-            }
-        #else
+        HStack(alignment: .center) {
+            Spacer(minLength: 0)
             Text(title)
-                .font(.headline.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .center)
+                #if os(macOS)
+                    .font(.title3.weight(.semibold))
+                #else
+                    .font(.headline.weight(.semibold))
+                #endif
                 .accessibilityIdentifier("torrent_list_header")
-                .allowsHitTesting(false)
-        #endif
+                #if os(iOS)
+                    .allowsHitTesting(false)
+                #endif
+            Spacer(minLength: 0)
+        }
     }
 }

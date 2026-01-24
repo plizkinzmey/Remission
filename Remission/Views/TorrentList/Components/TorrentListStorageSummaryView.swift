@@ -1,8 +1,8 @@
-import ComposableArchitecture
 import SwiftUI
 
 struct TorrentListStorageSummaryView: View {
     let summary: StorageSummary?
+
     #if os(macOS)
         private var macOSToolbarPillHeight: CGFloat { 34 }
     #endif
