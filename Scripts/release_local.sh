@@ -62,10 +62,12 @@ update_project_versions() {
 
   local flag
   flag="$(git ls-files -v "$pbxproj" | awk '{print $1}')"
-  if [[ "$flag" == "H" ]]; then
+  
+  # S/s = skip-worktree, h = assume-unchanged
+  if [[ "$flag" == "S" || "$flag" == "s" ]]; then
     SKIP_WORKTREE_RESTORE="true"
     git update-index --no-skip-worktree "$pbxproj"
-  elif [[ "$flag" == "S" ]]; then
+  elif [[ "$flag" == "h" ]]; then
     ASSUME_UNCHANGED_RESTORE="true"
     git update-index --no-assume-unchanged "$pbxproj"
   fi
