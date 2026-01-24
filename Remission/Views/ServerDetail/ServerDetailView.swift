@@ -36,7 +36,7 @@ struct ServerDetailView: View {
         .overlay {
             if case .connecting = store.connectionState.phase {
                 VStack {
-                    connectionPill
+                    ServerDetailConnectionPill()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .allowsHitTesting(false)
@@ -220,113 +220,14 @@ struct ServerDetailView: View {
         }
     #endif
 
-    @ViewBuilder
     private var connectionContent: some View {
-        if let banner = store.errorPresenter.banner {
-            ErrorBannerView(
-                message: banner.message,
-                onRetry: banner.retry == nil
-                    ? nil
-                    : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-            )
-        }
-        switch store.connectionState.phase {
-        case .idle:
-            Text(L10n.tr("serverDetail.status.waiting"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier("server_detail_status_idle")
-
-        case .connecting:
-            HStack {
-                Spacer(minLength: 0)
-                connectionPill
-                Spacer(minLength: 0)
-            }
-
-        case .ready:
-            EmptyView()
-
-        case .offline(let offline):
-            Label(
-                L10n.tr("serverDetail.status.error"),
-                systemImage: "wifi.slash"
-            )
-            .foregroundStyle(.orange)
-            Text(offline.message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Button(L10n.tr("common.retry")) {
-                store.send(.retryConnectionButtonTapped)
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("server_detail_status_offline")
-
-        case .failed(let failure):
-            Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
-                .foregroundStyle(.red)
-            Text(failure.message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Button(L10n.tr("serverDetail.action.retry")) {
-                store.send(.retryConnectionButtonTapped)
-            }
-            .buttonStyle(.borderedProminent)
-            .accessibilityIdentifier("server_detail_status_failed")
-            .accessibilityHint(L10n.tr("serverDetail.action.retry"))
-        }
-    }
-
-    private var connectionPill: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            ProgressView()
-                .controlSize(.regular)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[VerticalAlignment.center]
-                }
-            Text(L10n.tr("serverDetail.status.connecting"))
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .layoutPriority(1)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .fixedSize(horizontal: true, vertical: false)
-        .background(connectionPillBackground)
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+        ServerDetailConnectionCard(
+            connectionState: store.connectionState,
+            errorPresenter: store.errorPresenter,
+            onRetry: { store.send(.retryConnectionButtonTapped) },
+            onDismissError: { store.send(.errorPresenter(.bannerDismissed)) },
+            onRetryError: { store.send(.errorPresenter(.retryRequested($0))) }
         )
-        .accessibilityIdentifier("server_detail_status_connecting")
-    }
-
-    private var connectionPillBackground: some View {
-        Capsule(style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        AppTheme.Glass.tint(colorScheme)
-                            .opacity(colorScheme == .dark ? 0.60 : 0.35),
-                        AppTheme.Background.glowColor(colorScheme)
-                            .opacity(colorScheme == .dark ? 0.35 : 0.18)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05))
-                    .blendMode(.multiply)
-            )
-            .shadow(
-                color: AppTheme.Shadow.card(colorScheme),
-                radius: 8,
-                x: 0,
-                y: 4
-            )
     }
 
     private var torrentsSection: some View {
