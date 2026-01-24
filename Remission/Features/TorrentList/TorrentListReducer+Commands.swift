@@ -97,41 +97,7 @@ extension TorrentListReducer {
 
         guard let environment = state.connectionEnvironment else {
             state.isRefreshing = false
-            if state.isAwaitingConnection {
-                return .none
-            }
-            guard let cacheKey = state.cacheKey else { return .none }
-
-            return .run { send in
-                let client = offlineCacheRepository.client(cacheKey)
-                guard let snapshot = try await client.load() else { return }
-                guard let cached = snapshot.torrents else { return }
-
-                if shouldFetchStorage {
-                    let summary = StorageSummary.calculate(
-                        torrents: cached.value,
-                        session: snapshot.session?.value,
-                        updatedAt: snapshot.latestUpdatedAt
-                    )
-                    await send(.storageUpdated(summary))
-                }
-
-                await send(
-                    .torrentsResponse(
-                        .success(
-                            State.FetchSuccess(
-                                torrents: cached.value,
-                                isFromCache: true,
-                                snapshotDate: cached.updatedAt
-                            )
-                        )
-                    )
-                )
-                await send(
-                    .torrentsResponse(.failure(TorrentListOfflineError.connectionUnavailable))
-                )
-            }
-            .cancellable(id: CancelID.fetch, cancelInFlight: true)
+            return .none
         }
 
         return .run { send in
@@ -176,29 +142,6 @@ extension TorrentListReducer {
                     )
                 )
             } catch {
-                if let snapshot = try? await environment.snapshot.load() {
-                    if let cached = snapshot.torrents {
-                        if shouldFetchStorage {
-                            let summary = StorageSummary.calculate(
-                                torrents: cached.value,
-                                session: snapshot.session?.value,
-                                updatedAt: snapshot.latestUpdatedAt
-                            )
-                            await send(.storageUpdated(summary))
-                        }
-                        await send(
-                            .torrentsResponse(
-                                .success(
-                                    State.FetchSuccess(
-                                        torrents: cached.value,
-                                        isFromCache: true,
-                                        snapshotDate: cached.updatedAt
-                                    )
-                                )
-                            )
-                        )
-                    }
-                }
                 await send(.torrentsResponse(.failure(error)))
             }
         }

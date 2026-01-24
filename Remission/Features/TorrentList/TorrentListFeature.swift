@@ -337,6 +337,8 @@ struct TorrentListReducer {
                 state.phase = .offline(offline)
                 state.isRefreshing = false
                 state.isAwaitingConnection = false
+                state.items.removeAll()
+                state.storageSummary = nil
                 let banner = Effect<Action>.send(
                     .errorPresenter(
                         .showBanner(
@@ -345,7 +347,7 @@ struct TorrentListReducer {
                         )
                     )
                 )
-                return .merge(.send(.restoreCachedSnapshot), banner)
+                return banner
 
             case .torrentsResponse(.success(let payload)):
                 state.isRefreshing = false

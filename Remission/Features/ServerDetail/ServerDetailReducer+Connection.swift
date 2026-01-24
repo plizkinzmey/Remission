@@ -78,10 +78,7 @@ extension ServerDetailReducer {
             let offlineEffect: Effect<Action> = .send(
                 .torrentList(.goOffline(message: message))
             )
-            let cacheClear: Effect<Action> =
-                isIncompatibleVersion(error)
-                ? clearOfflineCache(serverID: state.server.id)
-                : .none
+            let cacheClear: Effect<Action> = clearOfflineCache(serverID: state.server.id)
             return .merge(
                 teardown,
                 reset,
