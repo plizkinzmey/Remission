@@ -2,6 +2,20 @@ import ComposableArchitecture
 import Foundation
 
 extension ServerDetailReducer {
+    func resetTorrentListOnReconnectIfNeeded(
+        state: inout State
+    ) -> Effect<Action> {
+        guard state.torrentList.items.isEmpty == false else { return .none }
+        switch state.connectionState.phase {
+        case .ready:
+            return .none
+        case .idle, .connecting, .offline, .failed:
+            state.torrentList.items.removeAll()
+            state.torrentList.storageSummary = nil
+            return .send(.torrentList(.resetForReconnect))
+        }
+    }
+
     func startConnectionIfNeeded(
         state: inout State
     ) -> Effect<Action> {

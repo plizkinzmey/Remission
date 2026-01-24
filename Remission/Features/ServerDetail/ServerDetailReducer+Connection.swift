@@ -7,8 +7,10 @@ extension ServerDetailReducer {
         switch action {
         case .task:
             let serverID = state.server.id
+            let resetEffect = resetTorrentListOnReconnectIfNeeded(state: &state)
             return .merge(
                 startConnectionIfNeeded(state: &state),
+                resetEffect,
                 loadPreferences(serverID: serverID),
                 observePreferences(serverID: serverID)
             )
@@ -56,6 +58,8 @@ extension ServerDetailReducer {
             state.addTorrent?.connectionEnvironment = nil
             state.torrentList.connectionEnvironment = nil
             state.torrentList.handshake = nil
+            state.torrentList.items.removeAll()
+            state.torrentList.storageSummary = nil
             let message = error.userFacingMessage
             state.connectionRetryAttempts += 1
             state.connectionState.phase = .offline(
@@ -69,6 +73,7 @@ extension ServerDetailReducer {
                 retry: .reconnect
             )
             let teardown: Effect<Action> = .send(.torrentList(.teardown))
+            let reset: Effect<Action> = .send(.torrentList(.resetForReconnect))
             let offlineEffect: Effect<Action> = .send(
                 .torrentList(.goOffline(message: message))
             )
@@ -78,6 +83,7 @@ extension ServerDetailReducer {
                 : .none
             return .merge(
                 teardown,
+                reset,
                 offlineEffect,
                 cacheClear,
                 scheduleConnectionRetry(state: &state)

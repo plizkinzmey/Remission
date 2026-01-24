@@ -245,7 +245,7 @@ struct AddTorrentReducer {
                 return .none
 
             case .submitButtonTapped:
-                return handleSubmit(state: &state)
+                return submit(state: &state)
 
             case .submitResponse(.success(let result)):
                 state.isSubmitting = false

@@ -10,15 +10,27 @@ extension ServerDetailReducer {
         guard case .connecting = state.connectionState.phase,
             force == false
         else {
+            let shouldResetList =
+                state.torrentList.items.isEmpty == false
+                || state.torrentList.phase != .idle
             state.connectionEnvironment = nil
             state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
             state.connectionRetryAttempts = 0
+            if shouldResetList {
+                state.torrentList.items.removeAll()
+                state.torrentList.storageSummary = nil
+            }
             if state.torrentList.items.isEmpty {
                 state.torrentList.phase = .loading
             }
+            let resetEffect: Effect<Action> =
+                shouldResetList
+                ? .send(.torrentList(.resetForReconnect))
+                : .none
             return .merge(
                 .cancel(id: ConnectionCancellationID.connectionRetry),
+                resetEffect,
                 connect(server: state.server)
             )
         }

@@ -66,6 +66,7 @@ struct TorrentListReducer {
     enum Action: Equatable {
         case task
         case teardown
+        case resetForReconnect
         case refreshRequested
         case commandRefreshRequested
         case searchQueryChanged(String)
@@ -156,6 +157,22 @@ struct TorrentListReducer {
                     .cancel(id: CancelID.preferences),
                     .cancel(id: CancelID.preferencesUpdates),
                     .cancel(id: CancelID.cache)
+                )
+
+            case .resetForReconnect:
+                state.isRefreshing = false
+                state.phase = .loading
+                state.items.removeAll()
+                state.storageSummary = nil
+                state.offlineState = nil
+                state.errorPresenter.banner = nil
+                state.pendingRemoveTorrentID = nil
+                state.removingTorrentIDs.removeAll()
+                state.inFlightCommands.removeAll()
+                state.lastSnapshotAt = nil
+                return .merge(
+                    .cancel(id: CancelID.fetch),
+                    .cancel(id: CancelID.polling)
                 )
 
             case .refreshRequested:

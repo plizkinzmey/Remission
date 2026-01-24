@@ -6,6 +6,129 @@ struct ServerDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        mainContent
+            .overlay {
+                if isConnecting {
+                    VStack {
+                        ServerDetailConnectionPill()
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .allowsHitTesting(false)
+                }
+            }
+            .allowsHitTesting(isConnecting == false)
+            .navigationTitle(store.server.name)
+            #if !os(macOS)
+                .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .task { await store.send(.task).finish() }
+            .alert($store.scope(state: \.alert, action: \.alert))
+            .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
+                ServerFormView(store: editorStore)
+            }
+            .sheet(
+                store: store.scope(state: \.$torrentDetail, action: \.torrentDetail)
+            ) { detailStore in
+                NavigationStack {
+                    TorrentDetailView(store: detailStore)
+                        #if os(macOS)
+                            .frame(
+                                minWidth: 520,
+                                idealWidth: 640,
+                                maxWidth: 760,
+                                minHeight: 520,
+                                idealHeight: 560,
+                                maxHeight: 600
+                            )
+                        #endif
+                        #if !os(macOS)
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button(L10n.tr("serverDetail.button.close")) {
+                                        detailStore.send(.delegate(.closeRequested))
+                                    }
+                                }
+                            }
+                        #endif
+                }
+                .appRootChrome()
+            }
+            .sheet(
+                store: store.scope(state: \.$addTorrent, action: \.addTorrent)
+            ) { addStore in
+                NavigationStack {
+                    AddTorrentView(store: addStore)
+                }
+                .appRootChrome()
+            }
+            .sheet(
+                store: store.scope(state: \.$settings, action: \.settings)
+            ) { settingsStore in
+                SettingsView(store: settingsStore)
+            }
+            .sheet(
+                store: store.scope(state: \.$diagnostics, action: \.diagnostics)
+            ) { diagnosticsStore in
+                DiagnosticsView(store: diagnosticsStore)
+                    .appRootChrome()
+            }
+            .alert(
+                $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+            )
+            .toolbar {
+                #if os(macOS)
+                    ToolbarItem(placement: .primaryAction) {
+                        macOSSettingsToolbarPill
+                    }
+                #else
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        if store.torrentList.connectionEnvironment != nil {
+                            Button {
+                                store.send(.torrentList(.addTorrentButtonTapped))
+                            } label: {
+                                Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
+                            }
+                            .accessibilityIdentifier("torrentlist_add_button")
+                            .accessibilityHint(L10n.tr("torrentList.action.add"))
+                        }
+
+                        Button {
+                            store.send(.settingsButtonTapped)
+                        } label: {
+                            Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
+                        }
+                        .accessibilityIdentifier("server_detail_edit_button")
+                        .accessibilityHint(L10n.tr("app.action.settings"))
+
+                        Button {
+                            store.send(.diagnosticsButtonTapped)
+                        } label: {
+                            Label(
+                                L10n.tr("diagnostics.title"),
+                                systemImage: "doc.text.below.ecg"
+                            )
+                        }
+                        .accessibilityIdentifier("server_detail_diagnostics_button")
+                        .accessibilityHint(L10n.tr("diagnostics.title"))
+                    }
+                #endif
+            }
+            .overlay(alignment: .topLeading) {
+                // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("server_detail_address")
+                    .accessibilityLabel(store.server.displayAddress)
+                    .accessibilityHidden(false)
+            }
+    }
+
+    private var isConnecting: Bool {
+        store.connectionState.isBlockingInteractions
+    }
+
+    private var mainContent: some View {
         Group {
             #if os(macOS)
                 VStack(alignment: .leading, spacing: 16) {
@@ -32,117 +155,6 @@ struct ServerDetailView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             #endif
-        }
-        .overlay {
-            if case .connecting = store.connectionState.phase {
-                VStack {
-                    ServerDetailConnectionPill()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .allowsHitTesting(false)
-            }
-        }
-        .navigationTitle(store.server.name)
-        #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-        #endif
-        .task { await store.send(.task).finish() }
-        .alert($store.scope(state: \.alert, action: \.alert))
-        .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
-            ServerFormView(store: editorStore)
-        }
-        .sheet(
-            store: store.scope(state: \.$torrentDetail, action: \.torrentDetail)
-        ) { detailStore in
-            NavigationStack {
-                TorrentDetailView(store: detailStore)
-                    #if os(macOS)
-                        .frame(
-                            minWidth: 520,
-                            idealWidth: 640,
-                            maxWidth: 760,
-                            minHeight: 520,
-                            idealHeight: 560,
-                            maxHeight: 600
-                        )
-                    #endif
-                    #if !os(macOS)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(L10n.tr("serverDetail.button.close")) {
-                                    detailStore.send(.delegate(.closeRequested))
-                                }
-                            }
-                        }
-                    #endif
-            }
-            .appRootChrome()
-        }
-        .sheet(
-            store: store.scope(state: \.$addTorrent, action: \.addTorrent)
-        ) { addStore in
-            NavigationStack {
-                AddTorrentView(store: addStore)
-            }
-            .appRootChrome()
-        }
-        .sheet(
-            store: store.scope(state: \.$settings, action: \.settings)
-        ) { settingsStore in
-            SettingsView(store: settingsStore)
-        }
-        .sheet(
-            store: store.scope(state: \.$diagnostics, action: \.diagnostics)
-        ) { diagnosticsStore in
-            DiagnosticsView(store: diagnosticsStore)
-                .appRootChrome()
-        }
-        .alert(
-            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-        )
-        .toolbar {
-            #if os(macOS)
-                ToolbarItem(placement: .primaryAction) {
-                    macOSSettingsToolbarPill
-                }
-            #else
-                ToolbarItemGroup(placement: .primaryAction) {
-                    if store.torrentList.connectionEnvironment != nil {
-                        Button {
-                            store.send(.torrentList(.addTorrentButtonTapped))
-                        } label: {
-                            Label(L10n.tr("torrentList.action.add"), systemImage: "plus")
-                        }
-                        .accessibilityIdentifier("torrentlist_add_button")
-                        .accessibilityHint(L10n.tr("torrentList.action.add"))
-                    }
-
-                    Button {
-                        store.send(.settingsButtonTapped)
-                    } label: {
-                        Label(L10n.tr("app.action.settings"), systemImage: "gearshape")
-                    }
-                    .accessibilityIdentifier("server_detail_edit_button")
-                    .accessibilityHint(L10n.tr("app.action.settings"))
-
-                    Button {
-                        store.send(.diagnosticsButtonTapped)
-                    } label: {
-                        Label(L10n.tr("diagnostics.title"), systemImage: "doc.text.below.ecg")
-                    }
-                    .accessibilityIdentifier("server_detail_diagnostics_button")
-                    .accessibilityHint(L10n.tr("diagnostics.title"))
-                }
-            #endif
-        }
-        .overlay(alignment: .topLeading) {
-            // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
-            Color.clear
-                .frame(width: 1, height: 1)
-                .accessibilityElement()
-                .accessibilityIdentifier("server_detail_address")
-                .accessibilityLabel(store.server.displayAddress)
-                .accessibilityHidden(false)
         }
     }
 

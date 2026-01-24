@@ -60,6 +60,15 @@ extension ServerDetailReducer {
 
         var phase: Phase = .idle
 
+        var isBlockingInteractions: Bool {
+            switch phase {
+            case .connecting:
+                return true
+            case .idle, .ready, .offline, .failed:
+                return false
+            }
+        }
+
         var failureMessage: String? {
             switch phase {
             case .failed(let failure):
