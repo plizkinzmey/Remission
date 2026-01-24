@@ -26,6 +26,24 @@ struct DiagnosticsFilterSection: View {
 
             Divider()
 
+            fieldRow(label: "Mode") {
+                Picker(
+                    "",
+                    selection: $store.viewMode.sending(\.viewModeChanged)
+                ) {
+                    Text(L10n.tr("diagnostics.mode.list")).tag(DiagnosticsViewMode.list)
+                    Text(L10n.tr("diagnostics.mode.json")).tag(DiagnosticsViewMode.text)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("diagnostics_mode_picker")
+                .tint(AppTheme.accent)
+                #if os(macOS)
+                    .controlSize(.large)
+                #endif
+            }
+
+            Divider()
+
             TextField(
                 L10n.tr("diagnostics.search.placeholder"),
                 text: $store.query.sending(\.queryChanged)

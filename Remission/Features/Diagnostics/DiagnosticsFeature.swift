@@ -12,6 +12,7 @@ struct DiagnosticsReducer {
         var maxEntries: Int?
         var pageSize: Int = 100
         var visibleCount: Int = 100
+        var viewMode: DiagnosticsViewMode = .list
         @Presents var alert: AlertState<AlertAction>?
 
         var filter: DiagnosticsLogFilter {
@@ -30,6 +31,7 @@ struct DiagnosticsReducer {
         case clearTapped
         case levelSelected(AppLogLevel?)
         case queryChanged(String)
+        case viewModeChanged(DiagnosticsViewMode)
         case copyEntry(DiagnosticsLogEntry)
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
         case logsStreamUpdated([DiagnosticsLogEntry])
@@ -78,6 +80,10 @@ struct DiagnosticsReducer {
                 state.selectedLevel = level
                 state.query = ""
                 return restartObservation(filter: state.filter)
+
+            case .viewModeChanged(let mode):
+                state.viewMode = mode
+                return .none
 
             case .shareAllTapped:
                 let entries = state.entries.elements

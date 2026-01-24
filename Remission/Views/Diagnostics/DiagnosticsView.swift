@@ -99,9 +99,16 @@ extension DiagnosticsView {
 
     private var logContent: some View {
         ZStack {
-            DiagnosticsLogListView(store: store)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .opacity(store.visibleEntries.isEmpty ? 0 : 1)
+            switch store.viewMode {
+            case .list:
+                DiagnosticsLogListView(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(store.visibleEntries.isEmpty ? 0 : 1)
+            case .text:
+                DiagnosticsLogTextView(store: store)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .opacity(store.visibleEntries.isEmpty ? 0 : 1)
+            }
 
             if store.isLoading && store.visibleEntries.isEmpty {
                 ProgressView(L10n.tr("diagnostics.loading"))
