@@ -33,7 +33,7 @@ enum TorrentActionType: String, CaseIterable, Sendable {
         case .remove: return .red
         }
     }
-    
+
     var accessibilityIdentifier: String {
         "torrent-action-\(self.rawValue)"
     }

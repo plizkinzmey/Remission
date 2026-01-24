@@ -50,8 +50,8 @@ struct ServerFormView: View {
                 ServerConfigurationView(
                     store: store.scope(state: \.serverConfig, action: \.serverConfig),
                     isSubmitting: store.isSaving,
-                    submissionLabel: store.mode.isEdit 
-                        ? L10n.tr("serverEditor.saving") 
+                    submissionLabel: store.mode.isEdit
+                        ? L10n.tr("serverEditor.saving")
                         : L10n.tr("onboarding.status.connecting")
                 )
             }
@@ -66,34 +66,35 @@ struct ServerFormView: View {
     }
 
     #if os(macOS)
-    @ViewBuilder
-    private var macOSFooterContent: some View {
-        Button(store.serverConfig.checkConnectionButtonTitle) {
-            if OnboardingViewEnvironment.isOnboardingUITest {
-                store.send(.serverConfig(.uiTestBypassConnection))
-            } else {
-                store.send(.serverConfig(.checkConnectionButtonTapped))
+        @ViewBuilder
+        private var macOSFooterContent: some View {
+            Button(store.serverConfig.checkConnectionButtonTitle) {
+                if OnboardingViewEnvironment.isOnboardingUITest {
+                    store.send(.serverConfig(.uiTestBypassConnection))
+                } else {
+                    store.send(.serverConfig(.checkConnectionButtonTapped))
+                }
             }
+            .disabled(
+                store.serverConfig.connectionStatus == .testing
+                    || store.serverConfig.form.isFormValid == false
+            )
+            .buttonStyle(
+                AppFooterButtonStyle(variant: store.serverConfig.checkConnectionButtonVariant))
+
+            Spacer(minLength: 0)
+
+            Button(L10n.tr("common.cancel")) {
+                store.send(.delegate(.cancelled))
+            }
+            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+
+            Button(L10n.tr("common.save")) {
+                store.send(.saveButtonTapped)
+            }
+            .disabled(store.isSaveButtonDisabled)
+            .buttonStyle(AppPrimaryButtonStyle())
         }
-        .disabled(
-            store.serverConfig.connectionStatus == .testing
-                || store.serverConfig.form.isFormValid == false
-        )
-        .buttonStyle(AppFooterButtonStyle(variant: store.serverConfig.checkConnectionButtonVariant))
-        
-        Spacer(minLength: 0)
-        
-        Button(L10n.tr("common.cancel")) {
-            store.send(.delegate(.cancelled))
-        }
-        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
-        
-        Button(L10n.tr("common.save")) {
-            store.send(.saveButtonTapped)
-        }
-        .disabled(store.isSaveButtonDisabled)
-        .buttonStyle(AppPrimaryButtonStyle())
-    }
     #endif
 }
 

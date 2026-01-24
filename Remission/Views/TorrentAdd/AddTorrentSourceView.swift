@@ -20,7 +20,7 @@ struct AddTorrentSourceView: View {
                         .accessibilityIdentifier("torrent_add_source_close_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.source.continue")) {
-                            store.send(.closeButtonTapped) // Close source picker and show submission form
+                            store.send(.closeButtonTapped)  // Close source picker and show submission form
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")
@@ -143,7 +143,7 @@ extension AddTorrentSourceView {
                                     .autocorrectionDisabled()
                                 #endif
                                 .accessibilityIdentifier("torrent_add_magnet_field")
-                                
+
                                 Button {
                                     store.send(.pasteFromClipboardTapped)
                                 } label: {
@@ -154,7 +154,7 @@ extension AddTorrentSourceView {
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("torrent_add_paste_button")
                             }
-                            
+
                             if store.magnetText.isEmpty == false && store.pendingInput == nil {
                                 Text(L10n.tr("serverDetail.addTorrent.invalidMagnet.message"))
                                     .font(.caption2)

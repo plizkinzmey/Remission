@@ -74,14 +74,14 @@ extension ServerConnectionProbe {
                     enableLogging: false
                 )
             )
-            
+
             let client = TransmissionClient.live(
                 config: config,
                 clock: clock,
                 appLogger: appLogger,
                 category: "connection.probe"
             )
-            
+
             if let trustHandler {
                 client.setTrustDecisionHandler(trustHandler)
             }

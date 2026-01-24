@@ -105,19 +105,11 @@ private struct TorrentFileRow: View {
     #Preview {
         TorrentFilesView(
             store: Store(
-                initialState: TorrentDetailReducer.State(
-                    torrentID: .init(rawValue: 1),
-                    files: [
-                        TorrentFile(
-                            index: 0,
-                            name: "ubuntu.iso",
-                            length: 1_024_000,
-                            bytesCompleted: 512_000,
-                            priority: 1,
-                            wanted: true
-                        )
-                    ]
-                )
+                initialState: {
+                    var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
+                    state.apply(.previewDownloading)
+                    return state
+                }()
             ) {
                 TorrentDetailReducer()
             } withDependencies: {

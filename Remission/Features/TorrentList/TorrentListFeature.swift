@@ -62,31 +62,7 @@ struct TorrentListReducer {
         var handshake: TransmissionHandshakeResult?
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
-            let query = normalizedSearchQuery
-            // NOTE: при списках 1000+ элементов стоит кешировать результаты фильтра/сортировки,
-            // сохраняя их в State и инвалидации через DiffID. Это избавит от лишних O(n log n)
-            // пересчётов при каждом `body` и заметно разгрузит UI при больших библиотеках.
-            let filtered = items.filter {
-                selectedFilter.matches($0)
-                    && selectedCategory.matches($0)
-                    && matchesSearch($0, query: query)
-            }
-            let sorted = filtered.sorted {
-                sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
-            }
-            return IdentifiedArray(uniqueElements: sorted)
-        }
-
-        private var normalizedSearchQuery: String {
-            searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-
-        fileprivate func matchesSearch(
-            _ item: TorrentListItem.State,
-            query: String
-        ) -> Bool {
-            guard query.isEmpty == false else { return true }
-            return item.torrent.name.localizedCaseInsensitiveContains(query)
+            TorrentListReducer().filteredVisibleItems(state: self)
         }
     }
 
@@ -150,7 +126,7 @@ struct TorrentListReducer {
             }
         }
 
-        fileprivate func matches(_ item: TorrentListItem.State) -> Bool {
+        func matches(_ item: TorrentListItem.State) -> Bool {
             switch self {
             case .all:
                 return true
@@ -191,7 +167,7 @@ struct TorrentListReducer {
             }
         }
 
-        fileprivate func matches(_ item: TorrentListItem.State) -> Bool {
+        func matches(_ item: TorrentListItem.State) -> Bool {
             guard let category = mappedCategory else { return true }
             return TorrentCategory.category(from: item.torrent.tags) == category
         }
@@ -229,7 +205,7 @@ struct TorrentListReducer {
             }
         }
 
-        fileprivate func areInIncreasingOrder(
+        func areInIncreasingOrder(
             lhs: TorrentListItem.State,
             rhs: TorrentListItem.State
         ) -> Bool {
@@ -564,6 +540,20 @@ struct TorrentListReducer {
         Scope(state: \.errorPresenter, action: \.errorPresenter) {
             ErrorPresenter<TorrentListReducer.State.Retry>()
         }
+    }
+}
+
+extension TorrentListReducer.State {
+    var normalizedSearchQuery: String {
+        searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func matchesSearch(
+        _ item: TorrentListItem.State,
+        query: String
+    ) -> Bool {
+        guard query.isEmpty == false else { return true }
+        return item.torrent.name.localizedCaseInsensitiveContains(query)
     }
 }
 

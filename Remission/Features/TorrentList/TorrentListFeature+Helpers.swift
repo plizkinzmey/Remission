@@ -160,11 +160,11 @@ extension TorrentListReducer {
         removingIDs: Set<Torrent.Identifier>
     ) -> IdentifiedArrayOf<TorrentListItem.State> {
         var updated = items
-        
+
         // Удаляем те, которых больше нет в ответе сервера
         let newIDs = Set(torrents.map(\.id))
         updated.removeAll(where: { !newIDs.contains($0.id) })
-        
+
         // Обновляем существующие или добавляем новые
         for torrent in torrents {
             let isRemoving = removingIDs.contains(torrent.id)

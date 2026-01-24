@@ -67,16 +67,16 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             host: config.baseURL.host,
             path: config.baseURL.path
         )
-        
+
         let logger = DefaultTransmissionLogger(
             appLogger: appLogger.withCategory(category),
             baseContext: context
         )
-        
+
         // Пересоздаем конфиг с внедренным логгером
         var finalConfig = config
         finalConfig.logger = logger
-        
+
         return TransmissionClient(
             config: finalConfig,
             clock: clock,

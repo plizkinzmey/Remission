@@ -27,12 +27,12 @@ enum TorrentDataFormatter {
         guard seconds > 0 else {
             return "0с"
         }
-        
+
         let formatter = DateComponentsFormatter()
         formatter.unitsStyle = .abbreviated
         formatter.maximumUnitCount = 2
         formatter.allowedUnits = seconds >= 3600 ? [.hour, .minute] : [.minute, .second]
-        
+
         if let formatted = formatter.string(from: TimeInterval(seconds)) {
             return formatted
         }

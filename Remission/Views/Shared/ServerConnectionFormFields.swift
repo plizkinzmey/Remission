@@ -3,7 +3,7 @@ import SwiftUI
 struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
     @State private var isPasswordVisible: Bool = false
-    @State private var labelWidth: CGFloat = 80 // Фиксированная ширина для выравнивания
+    @State private var labelWidth: CGFloat = 80  // Фиксированная ширина для выравнивания
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {

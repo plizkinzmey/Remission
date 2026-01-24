@@ -41,7 +41,7 @@ enum AlertFactory {
             TextState(message)
         }
     }
-    
+
     /// Создает алерт подтверждения действия.
     static func confirmation<Action>(
         title: String,

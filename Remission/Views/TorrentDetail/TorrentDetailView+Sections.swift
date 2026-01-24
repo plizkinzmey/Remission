@@ -320,7 +320,8 @@ extension TorrentDetailView {
     var advancedSections: some View {
         AppSectionCard("") {
             TorrentDetailSection(
-                title: String(format: L10n.tr("torrentDetail.files.title"), Int64(store.files.count)),
+                title: String(
+                    format: L10n.tr("torrentDetail.files.title"), Int64(store.files.count)),
                 isExpanded: $isFilesExpanded,
                 hasMetadata: store.hasLoadedMetadata,
                 isEmpty: store.files.isEmpty,

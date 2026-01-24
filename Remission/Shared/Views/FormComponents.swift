@@ -55,7 +55,7 @@ extension String {
     func filtered(allowed: CharacterSet) -> String {
         String(unicodeScalars.filter { allowed.contains($0) })
     }
-    
+
     /// Оставляет только ASCII и разрешенные символы.
     func filteredASCII(allowed: CharacterSet) -> String {
         String(unicodeScalars.filter { $0.isASCII && allowed.contains($0) })
@@ -70,7 +70,7 @@ extension Binding where Value == String {
             set: { self.wrappedValue = $0.filtered(allowed: allowed) }
         )
     }
-    
+
     /// Создает привязку с фильтрацией ASCII символов.
     func filteredASCII(allowed: CharacterSet) -> Binding<String> {
         Binding(

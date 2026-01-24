@@ -62,6 +62,7 @@ struct SettingsReducer {
 
     enum Delegate: Equatable {
         case closeRequested
+        case pollingIntervalChanged
     }
 
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
@@ -197,7 +198,10 @@ struct SettingsReducer {
                 state.persistedSession = result.session
                 apply(preferences: result.preferences, to: &state)
                 apply(session: result.session, to: &state)
-                return .send(.delegate(.closeRequested))
+                return .merge(
+                    .send(.delegate(.closeRequested)),
+                    .send(.delegate(.pollingIntervalChanged))
+                )
 
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
@@ -208,7 +212,7 @@ struct SettingsReducer {
                         TextState(L10n.tr("settings.alert.close"))
                     }
                 } message: {
-                    TextState(describe(error))
+                    TextState(error.userFacingMessage)
                 }
                 return .none
 
@@ -328,13 +332,7 @@ struct SettingsReducer {
     }
 
     private func describe(_ error: Error) -> String {
-        guard let localized = error as? LocalizedError,
-            let message = localized.errorDescription,
-            message.isEmpty == false
-        else {
-            return String(describing: error)
-        }
-        return message
+        error.userFacingMessage
     }
 
     private func parse(limit: String) -> Int? {
@@ -355,14 +353,13 @@ struct SettingsReducer {
     private func loadSession(
         environment: ServerConnectionEnvironment?
     ) -> Effect<Action> {
-        .run { send in
+        guard let environment else { return .none }
+        return .run { send in
             await send(
                 .sessionResponse(
                     TaskResult {
                         try await withDependencies {
-                            if let environment {
-                                environment.apply(to: &$0)
-                            }
+                            environment.apply(to: &$0)
                         } operation: {
                             @Dependency(\.sessionRepository) var sessionRepository:
                                 SessionRepository

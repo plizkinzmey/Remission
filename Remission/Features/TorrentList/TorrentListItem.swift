@@ -38,7 +38,8 @@ extension TorrentListItem {
             let clampedProgress = min(max(rawProgress, 0), 1)
             self.progressFraction = clampedProgress
             self.progressText = TorrentDataFormatter.progress(clampedProgress)
-            self.downloadRateText = TorrentDataFormatter.speed(torrent.summary.transfer.downloadRate)
+            self.downloadRateText = TorrentDataFormatter.speed(
+                torrent.summary.transfer.downloadRate)
             self.uploadRateText = TorrentDataFormatter.speed(torrent.summary.transfer.uploadRate)
             self.speedSummary = "↓ \(downloadRateText) · ↑ \(uploadRateText)"
             self.etaSeconds = torrent.summary.progress.etaSeconds

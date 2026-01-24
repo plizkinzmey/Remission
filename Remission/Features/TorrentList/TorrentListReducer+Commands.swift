@@ -53,7 +53,8 @@ extension TorrentListReducer {
                 }
                 await send(.commandResponse(torrentID, .success(true)))
             } catch {
-                await send(.commandResponse(torrentID, .failure(.init(message: error.userFacingMessage))))
+                await send(
+                    .commandResponse(torrentID, .failure(.init(message: error.userFacingMessage))))
             }
         }
         .cancellable(id: CancelID.command(torrentID), cancelInFlight: true)

@@ -95,27 +95,27 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                 server: server,
                 credentialsRepository: credentialsRepository
             )
-            
+
             let cache = ServerConnectionEnvironment.makeCacheComponents(
                 server: server,
                 password: password,
                 offlineCacheRepository: offlineCacheRepository
             )
-            
+
             let mapper = TransmissionDomainMapper()
 
             let config = server.makeTransmissionClientConfig(
                 password: password,
                 network: .default
             )
-            
+
             let client = TransmissionClient.live(
                 config: config,
                 clock: appClock.clock(),
                 appLogger: appLogger,
                 category: "transmission"
             )
-            
+
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())
 
             let dependency = TransmissionClientDependency.live(client: client)
@@ -216,9 +216,10 @@ extension ServerConnectionEnvironment {
                 isCompatible: true
             )
         }
-        
-        let cache = makeCacheComponents(server: server, password: nil, offlineCacheRepository: .inMemory())
-        
+
+        let cache = makeCacheComponents(
+            server: server, password: nil, offlineCacheRepository: .inMemory())
+
         return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,
@@ -239,8 +240,9 @@ extension ServerConnectionEnvironment {
         torrentRepository: TorrentRepository = .testValue,
         sessionRepository: SessionRepository = .placeholder
     ) -> ServerConnectionEnvironment {
-        let cache = makeCacheComponents(server: server, password: nil, offlineCacheRepository: .inMemory())
-        
+        let cache = makeCacheComponents(
+            server: server, password: nil, offlineCacheRepository: .inMemory())
+
         return ServerConnectionEnvironment(
             serverID: server.id,
             fingerprint: server.connectionFingerprint,

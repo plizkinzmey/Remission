@@ -22,13 +22,13 @@ struct AppTagView: View {
 }
 
 #if DEBUG
-#Preview {
-    HStack {
-        AppTagView(text: "ISO")
-        AppTagView(text: "Downloading", color: .blue)
-        AppTagView(text: "Seeding", color: .green)
-        AppTagView(text: "Paused", color: .secondary)
+    #Preview {
+        HStack {
+            AppTagView(text: "ISO")
+            AppTagView(text: "Downloading", color: .blue)
+            AppTagView(text: "Seeding", color: .green)
+            AppTagView(text: "Paused", color: .secondary)
+        }
+        .padding()
     }
-    .padding()
-}
 #endif

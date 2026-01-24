@@ -116,14 +116,14 @@ extension Error {
     /// Возвращает понятное пользователю описание ошибки.
     var userFacingMessage: String {
         if let localized = self as? LocalizedError,
-           let description = localized.errorDescription,
-           description.isEmpty == false {
+            let description = localized.errorDescription,
+            description.isEmpty == false {
             return description
         }
-        
+
         let nsError = self as NSError
-        return nsError.localizedDescription.isEmpty 
-            ? String(describing: self) 
+        return nsError.localizedDescription.isEmpty
+            ? String(describing: self)
             : nsError.localizedDescription
     }
 }

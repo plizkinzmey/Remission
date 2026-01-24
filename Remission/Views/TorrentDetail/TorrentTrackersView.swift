@@ -68,25 +68,11 @@ private struct TorrentTrackerRow: View {
     #Preview {
         TorrentTrackersView(
             store: Store(
-                initialState: TorrentDetailReducer.State(
-                    torrentID: .init(rawValue: 1),
-                    trackers: [
-                        TorrentTracker(
-                            id: 0,
-                            announce: "https://tracker.example.com/announce",
-                            tier: 0
-                        )
-                    ],
-                    trackerStats: [
-                        TrackerStat(
-                            trackerId: 0,
-                            lastAnnounceResult: "Success",
-                            downloadCount: 10,
-                            leecherCount: 5,
-                            seederCount: 25
-                        )
-                    ]
-                )
+                initialState: {
+                    var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
+                    state.apply(.previewDownloading)
+                    return state
+                }()
             ) {
                 TorrentDetailReducer()
             } withDependencies: {

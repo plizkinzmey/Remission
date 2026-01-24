@@ -691,6 +691,7 @@
       }
     },
     "onboarding.connection.cancelled" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -707,6 +708,7 @@
       }
     },
     "onboarding.connection.timeout" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1078,6 +1080,7 @@
       }
     },
     "serverDetail.alert.connectionFailed.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

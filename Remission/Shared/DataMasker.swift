@@ -21,7 +21,8 @@ enum DataMasker {
             return mask(authHeader, visibleCount: 4)
         }
 
-        let components = authHeader.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
+        let components = authHeader.split(
+            separator: " ", maxSplits: 1, omittingEmptySubsequences: true)
         guard components.count == 2 else {
             return "Basic ••••"
         }

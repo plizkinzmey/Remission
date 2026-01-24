@@ -252,45 +252,11 @@ enum AppBootstrap {
 
     static func torrentListSampleTorrents() -> [Torrent] {
         let torrents = [
-            torrentListSampleDownloading(),
-            torrentListSampleSeeding(),
-            torrentListSamplePaused()
+            Torrent.sampleDownloading(),
+            Torrent.sampleSeeding(),
+            Torrent.samplePaused()
         ]
         assert(!torrents.isEmpty, "Torrent list sample must contain at least one torrent")
         return torrents
-    }
-
-    private static func torrentListSampleDownloading() -> Torrent {
-        var downloading = Torrent.previewDownloading
-        downloading.id = .init(rawValue: 1_001)
-        downloading.name = "Ubuntu 25.04 Desktop"
-        downloading.status = .downloading
-        downloading.summary.progress.percentDone = 0.58
-        downloading.summary.progress.downloadedEver = 9_100_000_000
-        downloading.summary.progress.etaSeconds = 2_400
-        downloading.summary.transfer.downloadRate = 3_500_000
-        downloading.summary.transfer.uploadRate = 420_000
-        return downloading
-    }
-
-    private static func torrentListSampleSeeding() -> Torrent {
-        var seeding = Torrent.previewCompleted
-        seeding.id = .init(rawValue: 1_002)
-        seeding.name = "Fedora 41 Workstation"
-        seeding.status = .seeding
-        seeding.summary.transfer.uploadRate = 620_000
-        return seeding
-    }
-
-    private static func torrentListSamplePaused() -> Torrent {
-        var paused = Torrent.previewDownloading
-        paused.id = .init(rawValue: 1_003)
-        paused.name = "Arch Linux Snapshot"
-        paused.status = .stopped
-        paused.summary.progress.percentDone = 0.12
-        paused.summary.transfer.downloadRate = 0
-        paused.summary.transfer.uploadRate = 0
-        paused.summary.progress.etaSeconds = -1
-        return paused
     }
 }

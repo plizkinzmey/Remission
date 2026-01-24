@@ -1,5 +1,4 @@
 import ComposableArchitecture
-// swiftlint:disable file_length
 import SwiftUI
 
 struct TorrentListView: View {
@@ -112,15 +111,9 @@ extension TorrentListView {
             }
             .padding(.horizontal, 12)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
-            .frame(height: macOSToolbarPillHeight)
+            .frame(height: 34)
             .appToolbarPillSurface()
         }
-    #endif
-
-    #if os(macOS)
-        private var macOSToolbarPillHeight: CGFloat { 34 }
-        private var macOSSortPickerWidth: CGFloat { 150 }
-        private var macOSCategoryPickerWidth: CGFloat { 170 }
     #endif
 
     #if os(iOS)
@@ -129,32 +122,13 @@ extension TorrentListView {
             return store.visibleItems.isEmpty == false || store.searchQuery.isEmpty == false
         }
     #endif
-    private var longestStatusTitle: String {
-        let titles = [
-            L10n.tr("torrentList.status.paused"),
-            L10n.tr("torrentList.status.checkWaiting"),
-            L10n.tr("torrentList.status.checking"),
-            L10n.tr("torrentList.status.downloadWaiting"),
-            L10n.tr("torrentList.status.downloading"),
-            L10n.tr("torrentList.status.seedWaiting"),
-            L10n.tr("torrentList.status.seeding"),
-            L10n.tr("torrentList.status.error")
-        ]
-        return titles.max(by: { $0.count < $1.count }) ?? ""
-    }
 
     @ViewBuilder
     private var container: some View {
         #if os(macOS)
             AppFooterLayout {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(alignment: .center) {
-                        Spacer(minLength: 0)
-                        Text(L10n.tr("torrentList.section.title"))
-                            .font(.title3.weight(.semibold))
-                            .accessibilityIdentifier("torrent_list_header")
-                        Spacer(minLength: 0)
-                    }
+                    TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
 
                     if store.isRefreshing {
                         refreshIndicator
@@ -177,7 +151,7 @@ extension TorrentListView {
                             .padding(.bottom, 4)
                     }
 
-                    controls
+                    TorrentListControlsView(store: store)
 
                     macOSScrollableContent
                         .frame(maxWidth: .infinity, alignment: .top)
@@ -194,13 +168,9 @@ extension TorrentListView {
                 footerBar
             }
         #else
-            if shouldCenterEmptyState {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(L10n.tr("torrentList.section.title"))
-                        .font(.headline.weight(.semibold))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .accessibilityIdentifier("torrent_list_header")
-                        .allowsHitTesting(false)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
 
                     if store.isRefreshing {
                         refreshIndicator
@@ -222,16 +192,12 @@ extension TorrentListView {
                             .padding(.bottom, 4)
                     }
 
-                    storageSummaryView
+                    TorrentListStorageSummaryView(summary: store.storageSummary)
                         .frame(maxWidth: .infinity, alignment: .center)
 
-                    controls
+                    TorrentListControlsView(store: store)
 
-                    Spacer(minLength: 0)
-
-                    emptyStateView
-
-                    Spacer(minLength: 0)
+                    content
 
                     if store.connectionEnvironment != nil && store.isPollingEnabled == false {
                         Text(L10n.tr("torrentList.autorefresh.disabled"))
@@ -240,55 +206,18 @@ extension TorrentListView {
                             .accessibilityIdentifier("torrentlist_autorefresh_disabled")
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-            } else {
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        Text(L10n.tr("torrentList.section.title"))
-                            .font(.headline.weight(.semibold))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .accessibilityIdentifier("torrent_list_header")
-                            .allowsHitTesting(false)
-
-                        if store.isRefreshing {
-                            refreshIndicator
-                        }
-
-                        content
-
-                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                            Text(L10n.tr("torrentList.autorefresh.disabled"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                }
             }
         #endif
     }
-
-    #if os(iOS)
-        private var shouldCenterEmptyState: Bool {
-            guard store.connectionEnvironment != nil else { return false }
-            if case .loaded = store.phase {
-                return store.visibleItems.isEmpty
-            }
-            return false
-        }
-    #endif
 
     #if os(macOS)
         @ViewBuilder
         private var macOSScrollableContent: some View {
             if store.connectionEnvironment == nil,
                 store.items.isEmpty,
-                case .idle = store.phase
-            {
+                case .idle = store.phase {
                 disconnectedView
             } else {
                 switch store.phase {
@@ -299,7 +228,7 @@ extension TorrentListView {
                     if store.isRefreshing == false {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 10) {
-                                ForEach(0..<placeholderCount, id: \.self) { index in
+                                ForEach(0..<6, id: \.self) { index in
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.vertical, 10)
                                         .appCardSurface(cornerRadius: 14)
@@ -316,7 +245,7 @@ extension TorrentListView {
                         if case .offline(let offline) = store.phase {
                             offlineView(message: offline.message)
                         } else {
-                            emptyStateView
+                            TorrentListEmptyStateView()
                         }
                     } else {
                         ScrollView {
@@ -338,30 +267,9 @@ extension TorrentListView {
     private var content: some View {
         if store.connectionEnvironment == nil,
             store.items.isEmpty,
-            case .idle = store.phase
-        {
+            case .idle = store.phase {
             disconnectedView
         } else {
-            if let banner = store.errorPresenter.banner {
-                ErrorBannerView(
-                    message: banner.message,
-                    onRetry: banner.retry == nil
-                        ? nil
-                        : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                    onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                )
-                .padding(.bottom, 6)
-            }
-            if let offline = store.offlineState {
-                offlineBanner(offline)
-                    .padding(.bottom, 4)
-            }
-            #if !os(macOS)
-                storageSummaryView
-                    .frame(maxWidth: .infinity, alignment: .center)
-                controls
-            #endif
-
             switch store.phase {
             case .idle:
                 EmptyView()
@@ -376,7 +284,7 @@ extension TorrentListView {
                     if case .offline(let offline) = store.phase {
                         offlineView(message: offline.message)
                     } else {
-                        emptyStateView
+                        TorrentListEmptyStateView()
                     }
                 } else {
                     #if os(macOS)
@@ -406,7 +314,7 @@ extension TorrentListView {
     }
 
     private var loadingView: some View {
-        ForEach(0..<placeholderCount, id: \.self) { index in
+        ForEach(0..<6, id: \.self) { index in
             TorrentRowSkeletonView(index: index)
                 .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
         }
@@ -454,31 +362,6 @@ extension TorrentListView {
         .padding(.vertical, 8)
     }
 
-    @ViewBuilder
-    private var storageSummaryView: some View {
-        if let summary = store.storageSummary {
-            let total = StorageFormatters.bytes(summary.totalBytes)
-            let free = StorageFormatters.bytes(summary.freeBytes)
-            Label(
-                String(format: L10n.tr("storage.summary"), total, free),
-                systemImage: "externaldrive.fill"
-            )
-            .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 12)
-            #if os(macOS)
-                .frame(height: macOSToolbarPillHeight)
-            #else
-                .frame(height: 34)
-            #endif
-            .background(
-                Capsule()
-                    .fill(Color.primary.opacity(0.08))
-            )
-            .accessibilityIdentifier("torrent_list_storage_summary")
-        }
-    }
-
     private var footerBar: some View {
         AppFooterInfoBar(
             leftText: storageSummaryText,
@@ -510,33 +393,6 @@ extension TorrentListView {
             )
         }
         return "\(L10n.tr("serverList.transmissionVersionLabel")) \(versionText)"
-    }
-
-    private var emptyStateView: some View {
-        #if os(macOS)
-            VStack(spacing: 16) {
-                Image(systemName: "tray")
-                    .font(.system(size: 56, weight: .regular))
-                    .foregroundStyle(.secondary)
-
-                Text(L10n.tr("torrentList.empty.title"))
-                    .font(.title2.weight(.semibold))
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            .accessibilityIdentifier("torrent_list_empty_state")
-        #else
-            VStack(alignment: .center, spacing: 8) {
-                Image(systemName: "tray")
-                    .font(.largeTitle)
-                    .foregroundStyle(.secondary)
-                Text(L10n.tr("torrentList.empty.title"))
-                    .font(.subheadline)
-                    .bold()
-            }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .accessibilityIdentifier("torrent_list_empty_state")
-        #endif
     }
 
     private func errorView(message: String) -> some View {
@@ -681,157 +537,6 @@ extension TorrentListView {
         return false
     }
 
-    private var controls: some View {
-        #if os(macOS)
-            VStack(alignment: .leading, spacing: 12) {
-                filterAndSortRowMacOS
-            }
-            .padding(.vertical, 4)
-        #else
-            VStack(alignment: .leading, spacing: 12) {
-                filterSegmentedControl
-                HStack(spacing: 12) {
-                    if store.visibleItems.isEmpty == false {
-                        categoryPicker
-                    }
-                    Spacer(minLength: 0)
-                    if store.visibleItems.isEmpty == false {
-                        sortPicker
-                    }
-                }
-            }
-            .padding(.vertical, 4)
-        #endif
-    }
-
-    #if os(macOS)
-        private var filterAndSortRowMacOS: some View {
-            HStack(alignment: .center, spacing: 12) {
-                categoryPicker
-                    .labelsHidden()
-                    .frame(width: macOSCategoryPickerWidth)
-
-                Spacer(minLength: 0)
-
-                filterSegmentedControl
-                    .labelsHidden()
-                    .frame(maxWidth: 360)
-
-                Spacer(minLength: 0)
-
-                sortPicker
-                    .labelsHidden()
-                    .frame(width: macOSSortPickerWidth)
-            }
-        }
-    #endif
-
-    private var filterSegmentedControl: some View {
-        Picker(
-            L10n.tr("torrentList.filter.title"),
-            selection: Binding(
-                get: { store.selectedFilter },
-                set: { store.send(.filterChanged($0)) }
-            )
-        ) {
-            ForEach(TorrentListReducer.Filter.allCases, id: \.self) { filter in
-                Text(filter.title).tag(filter)
-            }
-        }
-        .accessibilityIdentifier("torrentlist_filter_picker")
-        .pickerStyle(.segmented)
-        .foregroundStyle(.primary)
-        #if os(macOS)
-            .controlSize(.large)
-        #endif
-    }
-
-    private var sortPicker: some View {
-        #if os(macOS)
-            Menu {
-                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                    Button(sort.title) {
-                        store.send(.sortChanged(sort))
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(store.sortOrder.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
-                .contentShape(Rectangle())
-                .appToolbarPillSurface()
-            }
-            .accessibilityIdentifier("torrentlist_sort_picker")
-            .buttonStyle(.plain)
-        #else
-            Picker(
-                L10n.tr("torrentList.sort.title"),
-                selection: Binding(
-                    get: { store.sortOrder },
-                    set: { store.send(.sortChanged($0)) }
-                )
-            ) {
-                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                    Text(sort.title).tag(sort)
-                }
-            }
-            .accessibilityIdentifier("torrentlist_sort_picker")
-            .pickerStyle(.menu)
-        #endif
-    }
-
-    private var categoryPicker: some View {
-        #if os(macOS)
-            Menu {
-                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
-                    Button(category.title) {
-                        store.send(.categoryChanged(category))
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(store.selectedCategory.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .frame(width: macOSCategoryPickerWidth, height: macOSToolbarPillHeight)
-                .contentShape(Rectangle())
-                .appToolbarPillSurface()
-            }
-            .accessibilityIdentifier("torrentlist_category_picker")
-            .buttonStyle(.plain)
-        #else
-            Picker(
-                L10n.tr("torrentList.category.title"),
-                selection: Binding(
-                    get: { store.selectedCategory },
-                    set: { store.send(.categoryChanged($0)) }
-                )
-            ) {
-                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
-                    Text(category.title).tag(category)
-                }
-            }
-            .accessibilityIdentifier("torrentlist_category_picker")
-            .pickerStyle(.menu)
-        #endif
-    }
-
     private var refreshIndicator: some View {
         HStack(spacing: 8) {
             ProgressView()
@@ -841,164 +546,22 @@ extension TorrentListView {
         }
         .accessibilityIdentifier("torrent_list_refresh_indicator")
     }
-}
 
-private let placeholderCount = 6
+    private var longestStatusTitle: String {
+        let titles = [
+            L10n.tr("torrentList.status.paused"),
+            L10n.tr("torrentList.status.checkWaiting"),
+            L10n.tr("torrentList.status.checking"),
+            L10n.tr("torrentList.status.downloadWaiting"),
+            L10n.tr("torrentList.status.downloading"),
+            L10n.tr("torrentList.status.seedWaiting"),
+            L10n.tr("torrentList.status.seeding"),
+            L10n.tr("torrentList.status.error")
+        ]
+        return titles.max(by: { $0.count < $1.count }) ?? ""
+    }
+}
 
 #Preview("Loaded list") {
-    let state = TorrentListReducer.State.previewLoaded()
-    #if os(macOS)
-        return NavigationStack {
-            ScrollView {
-                TorrentListView(store: .preview(state: state))
-                    .padding()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #else
-        return NavigationStack {
-            List {
-                TorrentListView(store: .preview(state: state))
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #endif
-}
-
-#Preview("Loading skeletons") {
-    let state = TorrentListReducer.State.previewLoading()
-    #if os(macOS)
-        return NavigationStack {
-            ScrollView {
-                TorrentListView(store: .preview(state: state))
-                    .padding()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #else
-        return NavigationStack {
-            List {
-                TorrentListView(store: .preview(state: state))
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #endif
-}
-
-#Preview("Empty state") {
-    let state = TorrentListReducer.State.previewEmpty()
-    #if os(macOS)
-        return NavigationStack {
-            ScrollView {
-                TorrentListView(store: .preview(state: state))
-                    .padding()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #else
-        return NavigationStack {
-            List {
-                TorrentListView(store: .preview(state: state))
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #endif
-}
-
-#Preview("Error state") {
-    let state = TorrentListReducer.State.previewError()
-    #if os(macOS)
-        return NavigationStack {
-            ScrollView {
-                TorrentListView(store: .preview(state: state))
-                    .padding()
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #else
-        return NavigationStack {
-            List {
-                TorrentListView(store: .preview(state: state))
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    #endif
-}
-
-extension Store where State == TorrentListReducer.State, Action == TorrentListReducer.Action {
-    fileprivate static func preview(state: State) -> Store {
-        Store(initialState: state) {
-            TorrentListReducer()
-        } withDependencies: {
-            $0 = AppDependencies.makePreview()
-        }
-    }
-}
-
-extension TorrentListReducer.State {
-    fileprivate static func previewBase() -> Self {
-        var state = Self()
-        state.connectionEnvironment = ServerConnectionEnvironment.preview(server: .previewLocalHTTP)
-        state.phase = .loaded
-        return state
-    }
-
-    fileprivate static func previewLoaded() -> Self {
-        var state = previewBase()
-        state.items = IdentifiedArray(
-            uniqueElements: [
-                TorrentListItem.State(torrent: .previewDownloading),
-                {
-                    var torrent = Torrent.previewDownloading
-                    torrent.id = .init(rawValue: 2)
-                    torrent.name = "Swift 6 GM Seed"
-                    torrent.status = .seeding
-                    torrent.summary = .init(
-                        progress: .init(
-                            percentDone: 1,
-                            recheckProgress: 0.0,
-                            totalSize: 8_000_000_000,
-                            downloadedEver: 8_000_000_000,
-                            uploadedEver: 4_200_000_000,
-                            uploadRatio: 2.0,
-                            etaSeconds: -1
-                        ),
-                        transfer: torrent.summary.transfer,
-                        peers: .init(connected: 3, sources: [])
-                    )
-                    return TorrentListItem.State(torrent: torrent)
-                }()
-            ]
-        )
-        state.storageSummary = StorageSummary(
-            totalBytes: 12_000_000_000,
-            freeBytes: 4_000_000_000
-        )
-        return state
-    }
-
-    fileprivate static func previewLoading() -> Self {
-        var state = previewBase()
-        state.phase = .loading
-        return state
-    }
-
-    fileprivate static func previewEmpty() -> Self {
-        var state = previewBase()
-        state.phase = .loaded
-        state.items = []
-        return state
-    }
-
-    fileprivate static func previewError() -> Self {
-        var state = previewBase()
-        state.phase = .offline(
-            .init(message: "Не удалось подключиться к Transmission", lastUpdatedAt: nil))
-        state.errorPresenter.banner = .init(
-            message: "Не удалось подключиться к Transmission",
-            retry: .refresh
-        )
-        state.items = []
-        return state
-    }
+    TorrentListView(store: .preview(state: .previewLoaded()))
 }

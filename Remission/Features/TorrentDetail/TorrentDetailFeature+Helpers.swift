@@ -109,7 +109,7 @@ extension TorrentDetailReducer {
             case .success:
                 await send(.commandResponse(.success(command)))
             case .failure(let error):
-                await send(.commandResponse(.failure(command, Self.describe(error))))
+                await send(.commandResponse(.failure(command, error.userFacingMessage)))
             }
         }
         .cancellable(id: CancelID.commandExecution, cancelInFlight: true)
@@ -198,7 +198,7 @@ extension TorrentDetailReducer {
             case .success:
                 await send(.refreshRequested)
             case .failure(let error):
-                await send(.commandFailed(Self.describe(error)))
+                await send(.commandFailed(error.userFacingMessage))
             }
         }
     }
@@ -228,7 +228,7 @@ extension TorrentDetailReducer {
             case .success:
                 mapped = .success
             case .failure(let error):
-                mapped = .failure(Self.describe(error))
+                mapped = .failure(error.userFacingMessage)
             }
 
             await send(.categoryUpdateResponse(mapped))
@@ -242,16 +242,6 @@ extension TorrentDetailReducer {
         case 1: return .high
         default: return nil
         }
-    }
-
-    static func describe(_ error: Error) -> String {
-        if let apiError = error as? APIError {
-            return apiError.userFacingMessage
-        }
-        if let parserError = error as? TorrentDetailParserError {
-            return parserError.localizedDescription
-        }
-        return error.localizedDescription
     }
 
     static func shouldSyncList(after command: CommandKind) -> Bool {

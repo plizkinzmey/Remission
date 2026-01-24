@@ -6,12 +6,12 @@ struct ServerFormReducer {
     enum Mode: Equatable, Sendable {
         case add
         case edit(ServerConfig)
-        
+
         var isEdit: Bool {
             if case .edit = self { return true }
             return false
         }
-        
+
         var title: String {
             switch self {
             case .add: return L10n.tr("onboarding.title")
@@ -38,10 +38,10 @@ struct ServerFormReducer {
         }
 
         var isSaveButtonDisabled: Bool {
-            serverConfig.form.isFormValid == false 
-            || serverConfig.connectionStatus == .testing
-            || (serverConfig.verifiedSubmission == nil && !mode.isEdit) // Для новых обязателен тест
-            || isSaving
+            serverConfig.form.isFormValid == false
+                || serverConfig.connectionStatus == .testing
+                || (serverConfig.verifiedSubmission == nil && !mode.isEdit)  // Для новых обязателен тест
+                || isSaving
         }
     }
 
@@ -104,7 +104,7 @@ struct ServerFormReducer {
             case .saveResponse(.failure(let error)):
                 state.isSaving = false
                 state.alert = AlertFactory.simpleAlert(
-                    title: state.mode.isEdit 
+                    title: state.mode.isEdit
                         ? L10n.tr("serverEditor.alert.saveFailed.title")
                         : L10n.tr("onboarding.alert.saveFailed.title"),
                     message: error.message,
@@ -131,12 +131,14 @@ struct ServerFormReducer {
 
         let mode = state.mode
         let form = state.serverConfig.form
-        let password = state.serverConfig.verifiedSubmission?.password ?? (form.password.isEmpty ? nil : form.password)
-        
+        let password =
+            state.serverConfig.verifiedSubmission?.password
+            ?? (form.password.isEmpty ? nil : form.password)
+
         // Определяем ID и дату создания
         let id: UUID
         let createdAt: Date
-        
+
         switch mode {
         case .add:
             id = uuidGenerator.generate()
@@ -145,7 +147,7 @@ struct ServerFormReducer {
             id = server.id
             createdAt = server.createdAt
         }
-        
+
         let config = form.makeServerConfig(id: id, createdAt: createdAt)
 
         return .run { send in
@@ -155,15 +157,15 @@ struct ServerFormReducer {
                     let credentials = TransmissionServerCredentials(key: key, password: password)
                     try await credentialsRepository.save(credentials: credentials)
                 }
-                
+
                 // 2. Сохраняем конфиг в репозиторий
                 _ = try await serverConfigRepository.upsert(config)
-                
+
                 // 3. Если это был онбординг, помечаем как завершенный
                 if case .add = mode {
                     onboardingProgressRepository.setCompletedOnboarding(true)
                 }
-                
+
                 await send(.saveResponse(.success(config)))
             } catch {
                 await send(.saveResponse(.failure(SaveError(message: error.userFacingMessage))))

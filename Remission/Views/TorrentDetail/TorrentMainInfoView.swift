@@ -73,28 +73,19 @@ struct TorrentMainInfoView: View {
     }
 }
 
-#if DEBUG
-    #Preview {
-        TorrentMainInfoView(
-            store: Store(
-                initialState: TorrentDetailReducer.State(
-                    torrentID: .init(rawValue: 1),
-                    name: "Ubuntu ISO",
-                    status: 4,
-                    percentDone: 0.42,
-                    totalSize: 1_024_000_000,
-                    downloadedEver: 512_000_000,
-                    uploadedEver: 128_000_000,
-                    downloadDir: "/downloads/ubuntu",
-                    dateAdded: Int(Date().timeIntervalSince1970),
-                    hasLoadedMetadata: true
-                )
-            ) {
-                TorrentDetailReducer()
-            } withDependencies: {
-                $0 = AppDependencies.makePreview()
-            }
-        )
-        .padding()
-    }
-#endif
+#Preview {
+    TorrentMainInfoView(
+        store: Store(
+            initialState: {
+                var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
+                state.apply(.previewDownloading)
+                return state
+            }()
+        ) {
+            TorrentDetailReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makePreview()
+        }
+    )
+    .padding()
+}

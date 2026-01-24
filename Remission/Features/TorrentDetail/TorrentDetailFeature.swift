@@ -48,6 +48,7 @@ struct TorrentDetailReducer {
         case closeRequested
         case torrentUpdated(Torrent)
         case torrentRemoved(Torrent.Identifier)
+        case removeRequested(Torrent.Identifier, deleteData: Bool)
     }
 
     enum CommandCategory: Equatable {
@@ -145,7 +146,7 @@ struct TorrentDetailReducer {
 
             case .detailsResponse(.failure(let error)):
                 state.isLoading = false
-                let message = Self.describe(error)
+                let message = error.userFacingMessage
                 state.errorPresenter.banner = .init(
                     message: message,
                     retry: .reloadDetails
@@ -187,11 +188,11 @@ struct TorrentDetailReducer {
 
             case .removeConfirmation(.presented(.deleteTorrentOnly)):
                 state.removeConfirmation = nil
-                return enqueueCommand(.remove(deleteData: false), state: &state)
+                return .send(.delegate(.removeRequested(state.torrentID, deleteData: false)))
 
             case .removeConfirmation(.presented(.deleteWithData)):
                 state.removeConfirmation = nil
-                return enqueueCommand(.remove(deleteData: true), state: &state)
+                return .send(.delegate(.removeRequested(state.torrentID, deleteData: true)))
 
             case .removeConfirmation(.presented(.cancel)):
                 state.removeConfirmation = nil

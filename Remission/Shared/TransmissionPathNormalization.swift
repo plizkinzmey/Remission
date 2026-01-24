@@ -20,7 +20,8 @@ enum TransmissionPathNormalization {
 
         // Если путь уже выглядит как абсолютный (начинается с / и содержит несколько компонентов),
         // или если база пуста, возвращаем как есть.
-        let hasNestedPath = trimmedDestination.hasPrefix("/") && trimmedDestination.dropFirst().contains("/")
+        let hasNestedPath =
+            trimmedDestination.hasPrefix("/") && trimmedDestination.dropFirst().contains("/")
         if hasNestedPath {
             return trimmedDestination
         }
