@@ -62,10 +62,9 @@ struct RemissionApp: App {
 
     private enum WindowConstants {
         // Минимальный размер окна, чтобы таблицы и панели не схлопывались.
-        // Bump the minimum width so modal/Settings sheets can be presented without
-        // forcing scroll content on smaller main windows. This keeps the app
-        // visually balanced and avoids cramped dialogs.
-        static let minimumSize = NSSize(width: 1100, height: 640)
+        // Reduced to support macOS Split View (half-screen snapping).
+        // Previous value (1100) prevented snapping on standard displays.
+        static let minimumSize = NSSize(width: 600, height: 450)
     }
 
     @MainActor

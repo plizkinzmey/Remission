@@ -40,6 +40,7 @@ You are an expert software engineer working on the **Remission** project. Remiss
 
 ## Workflow
 
+0. **Branching (MANDATORY):** NEVER work directly on `main` or `develop`. ALWAYS create a new feature/fix branch from `develop` (e.g., `git checkout develop && git checkout -b feature/my-feature`).
 1. **Understand:** Read `devdoc/PRD.md` and related code.
 2. **Research:** **MANDATORY**: Use Context7 (`resolve-library-id`, `query-docs`) to gather up-to-date documentation for any libraries or frameworks involved.
 3. **Plan:** Propose a plan adhering to TCA and project patterns.
