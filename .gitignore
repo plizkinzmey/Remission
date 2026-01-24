@@ -68,3 +68,4 @@ Icon?
 *.dSYM.zip
 *.dSYM
 .gemini/settings.json
+build.log

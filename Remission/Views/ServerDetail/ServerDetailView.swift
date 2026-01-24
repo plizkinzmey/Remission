@@ -168,11 +168,13 @@ struct ServerDetailView: View {
     }
 
     private var shouldShowTorrentList: Bool {
-        guard isConnecting == false else { return false }
         if store.connectionEnvironment != nil {
             return true
         }
         if case .connecting = store.connectionState.phase {
+            return true
+        }
+        if store.torrentList.isAwaitingConnection {
             return true
         }
         return false

@@ -67,7 +67,7 @@ extension TorrentListView {
                 VStack(alignment: .leading, spacing: 12) {
                     TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
 
-                    if store.isRefreshing {
+                    if store.isRefreshing && store.isAwaitingConnection == false {
                         refreshIndicator
                             .padding(.vertical, 2)
                     }
@@ -109,7 +109,7 @@ extension TorrentListView {
                 LazyVStack(alignment: .leading, spacing: 12) {
                     TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
 
-                    if store.isRefreshing {
+                    if store.isRefreshing && store.isAwaitingConnection == false {
                         refreshIndicator
                     }
 
@@ -152,7 +152,7 @@ extension TorrentListView {
     #if os(macOS)
         @ViewBuilder
         private var macOSScrollableContent: some View {
-            if store.connectionEnvironment == nil,
+            if store.connectionEnvironment == nil && store.isAwaitingConnection == false,
                 store.items.isEmpty,
                 case .idle = store.phase
             {
@@ -160,7 +160,22 @@ extension TorrentListView {
             } else {
                 switch store.phase {
                 case .idle:
-                    EmptyView()
+                    if store.isAwaitingConnection {
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(0..<6, id: \.self) { index in
+                                    TorrentRowSkeletonView(index: index)
+                                        .padding(.vertical, 10)
+                                        .appCardSurface(cornerRadius: 14)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 2)
+                        }
+                        .scrollIndicators(.hidden)
+                    } else {
+                        EmptyView()
+                    }
 
                 case .loading:
                     if store.isRefreshing == false {
@@ -203,7 +218,7 @@ extension TorrentListView {
 
     @ViewBuilder
     private var content: some View {
-        if store.connectionEnvironment == nil,
+        if store.connectionEnvironment == nil && store.isAwaitingConnection == false,
             store.items.isEmpty,
             case .idle = store.phase
         {
@@ -211,7 +226,11 @@ extension TorrentListView {
         } else {
             switch store.phase {
             case .idle:
-                EmptyView()
+                if store.isAwaitingConnection {
+                    loadingView
+                } else {
+                    EmptyView()
+                }
 
             case .loading:
                 if store.isRefreshing == false {
