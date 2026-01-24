@@ -44,6 +44,22 @@ struct DiagnosticsFilterSection: View {
 
             Divider()
 
+            fieldRow(label: L10n.tr("diagnostics.live")) {
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { store.isLive },
+                        set: { _ in store.send(.toggleLive) }
+                    )
+                )
+                .toggleStyle(.switch)
+                .tint(AppTheme.accent)
+                .labelsHidden()
+                .accessibilityIdentifier("diagnostics_live_toggle")
+            }
+
+            Divider()
+
             TextField(
                 L10n.tr("diagnostics.search.placeholder"),
                 text: $store.query.sending(\.queryChanged)

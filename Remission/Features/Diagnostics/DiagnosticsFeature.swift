@@ -13,6 +13,7 @@ struct DiagnosticsReducer {
         var pageSize: Int = 100
         var visibleCount: Int = 100
         var viewMode: DiagnosticsViewMode = .list
+        var isLive: Bool = true
         @Presents var alert: AlertState<AlertAction>?
 
         var filter: DiagnosticsLogFilter {
@@ -32,6 +33,7 @@ struct DiagnosticsReducer {
         case levelSelected(AppLogLevel?)
         case queryChanged(String)
         case viewModeChanged(DiagnosticsViewMode)
+        case toggleLive
         case copyEntry(DiagnosticsLogEntry)
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
         case logsStreamUpdated([DiagnosticsLogEntry])
@@ -63,6 +65,7 @@ struct DiagnosticsReducer {
                 state.isLoading = true
                 state.maxEntries = diagnosticsLogStore.maxEntries
                 state.visibleCount = state.pageSize
+                state.isLive = true
                 let filter = state.filter
                 return .merge(
                     loadLogs(filter: filter),
@@ -72,14 +75,26 @@ struct DiagnosticsReducer {
             case .teardown:
                 return .cancel(id: CancelID.observe)
 
+            case .toggleLive:
+                state.isLive.toggle()
+                if state.isLive {
+                    // Resume: Clear old values and start fresh stream
+                    state.entries.removeAll()
+                    state.visibleCount = state.pageSize
+                    return observeLogs(filter: state.filter)
+                } else {
+                    // Pause: Stop stream
+                    return .cancel(id: CancelID.observe)
+                }
+
             case .queryChanged(let value):
                 state.query = value
-                return restartObservation(filter: state.filter)
+                return restartObservation(state: state)
 
             case .levelSelected(let level):
                 state.selectedLevel = level
                 state.query = ""
-                return restartObservation(filter: state.filter)
+                return restartObservation(state: state)
 
             case .viewModeChanged(let mode):
                 state.viewMode = mode
@@ -196,12 +211,18 @@ struct DiagnosticsReducer {
         .cancellable(id: CancelID.observe, cancelInFlight: true)
     }
 
-    private func restartObservation(filter: DiagnosticsLogFilter) -> Effect<Action> {
-        .concatenate(
-            .cancel(id: CancelID.observe),
-            loadLogs(filter: filter),
-            observeLogs(filter: filter)
-        )
+    private func restartObservation(state: State) -> Effect<Action> {
+        let filter = state.filter
+        if state.isLive {
+            return .concatenate(
+                .cancel(id: CancelID.observe),
+                loadLogs(filter: filter),
+                observeLogs(filter: filter)
+            )
+        } else {
+            // If paused, just reload history to match filter, do not start stream
+            return loadLogs(filter: filter)
+        }
     }
 
     private func describe(_ error: Error) -> String {
