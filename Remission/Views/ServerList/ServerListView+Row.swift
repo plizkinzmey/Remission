@@ -50,38 +50,80 @@ extension ServerListView {
         status: ServerListReducer.ConnectionStatus
     ) -> some View {
         VStack(spacing: 12) {
-            HStack(alignment: .center, spacing: 16) {
-                Button {
-                    store.send(.serverTapped(server.id))
-                } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text(server.name)
-                                .font(.headline)
-                            Text(verbatim: "-")
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                            Text(server.displayAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.9)
+            ViewThatFits(in: .horizontal) {
+                // Wide layout
+                HStack(alignment: .center, spacing: 16) {
+                    Button {
+                        store.send(.serverTapped(server.id))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(server.name)
+                                    .font(.headline)
+                                Text(verbatim: "-")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                Text(server.displayAddress)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.9)
+                            }
+                            versionSummary(for: server, status: status)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
-                        versionSummary(for: server, status: status)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
-                HStack(spacing: 10) {
-                    storageSummaryChip(for: server, status: status)
-                    connectionStatusChip(status: status)
-                    securityBadge(for: server)
-                    editButton(for: server)
-                    deleteButton(for: server)
+                    HStack(spacing: 10) {
+                        storageSummaryChip(for: server, status: status)
+                        connectionStatusChip(status: status)
+                        securityBadge(for: server)
+                        editButton(for: server)
+                        deleteButton(for: server)
+                    }
+                }
+
+                // Compact layout
+                VStack(alignment: .leading, spacing: 12) {
+                    Button {
+                        store.send(.serverTapped(server.id))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(server.name)
+                                    .font(.headline)
+                                Text(verbatim: "-")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                Text(server.displayAddress)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.9)
+                            }
+                            versionSummary(for: server, status: status)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("server_list_item_compact_\(server.id.uuidString)")
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            storageSummaryChip(for: server, status: status)
+                            connectionStatusChip(status: status)
+                            securityBadge(for: server)
+                            Spacer()
+                            editButton(for: server)
+                            deleteButton(for: server)
+                        }
+                    }
                 }
             }
         }

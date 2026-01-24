@@ -84,50 +84,102 @@ struct TorrentRowView: View {
                         .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
                 }
             #else
-                HStack(spacing: 12) {
-                    Label(item.metrics.progressText, systemImage: "circle.dashed")
-                        .appCaption()
-                        .foregroundStyle(.primary)
-                        .appMonospacedDigit()
-                        .accessibilityIdentifier(
-                            "torrent_row_progress_\(item.torrent.id.rawValue)")
-
-                    if let etaText = item.metrics.etaText {
-                        Label(etaText, systemImage: "clock")
+                ViewThatFits(in: .horizontal) {
+                    // Wide layout (original)
+                    HStack(spacing: 12) {
+                        Label(item.metrics.progressText, systemImage: "circle.dashed")
                             .appCaption()
                             .foregroundStyle(.primary)
                             .appMonospacedDigit()
-                    }
+                            .accessibilityIdentifier(
+                                "torrent_row_progress_\(item.torrent.id.rawValue)")
 
-                    Label(
-                        peersText,
-                        systemImage: "person.2"
-                    )
-                    .appCaption()
-                    .foregroundStyle(.primary)
+                        if let etaText = item.metrics.etaText {
+                            Label(etaText, systemImage: "clock")
+                                .appCaption()
+                                .foregroundStyle(.primary)
+                                .appMonospacedDigit()
+                        }
 
-                    Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                        Label(
+                            peersText,
+                            systemImage: "person.2"
+                        )
                         .appCaption()
                         .foregroundStyle(.primary)
-                        .appMonospacedDigit()
-                        .accessibilityIdentifier(
-                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
 
-                    if item.torrent.tags.isEmpty == false {
-                        tagsInlineRow
-                            .layoutPriority(0)
+                        Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                            .appCaption()
+                            .foregroundStyle(.primary)
+                            .appMonospacedDigit()
+                            .accessibilityIdentifier(
+                                "torrent_row_ratio_\(item.torrent.id.rawValue)")
+
+                        if item.torrent.tags.isEmpty == false {
+                            tagsInlineRow
+                                .layoutPriority(0)
+                        }
+
+                        Spacer(minLength: 6)
+
+                        Label(item.metrics.speedSummary, systemImage: "speedometer")
+                            .appCaption()
+                            .foregroundStyle(.primary)
+                            .appMonospacedDigit()
+                            .lineLimit(1)
+                            .layoutPriority(1)
+                            .accessibilityIdentifier(
+                                "torrent_row_speed_\(item.torrent.id.rawValue)")
                     }
 
-                    Spacer(minLength: 6)
+                    // Compact layout
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 12) {
+                            Label(item.metrics.progressText, systemImage: "circle.dashed")
+                                .appCaption()
+                                .foregroundStyle(.primary)
+                                .appMonospacedDigit()
+                                .accessibilityIdentifier(
+                                    "torrent_row_progress_compact_\(item.torrent.id.rawValue)")
 
-                    Label(item.metrics.speedSummary, systemImage: "speedometer")
-                        .appCaption()
-                        .foregroundStyle(.primary)
-                        .appMonospacedDigit()
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                        .accessibilityIdentifier(
-                            "torrent_row_speed_\(item.torrent.id.rawValue)")
+                            if let etaText = item.metrics.etaText {
+                                Label(etaText, systemImage: "clock")
+                                    .appCaption()
+                                    .foregroundStyle(.primary)
+                                    .appMonospacedDigit()
+                            }
+
+                            Label(
+                                peersText,
+                                systemImage: "person.2"
+                            )
+                            .appCaption()
+                            .foregroundStyle(.primary)
+
+                            Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                                .appCaption()
+                                .foregroundStyle(.primary)
+                                .appMonospacedDigit()
+                                .accessibilityIdentifier(
+                                    "torrent_row_ratio_compact_\(item.torrent.id.rawValue)")
+                        }
+
+                        HStack(spacing: 12) {
+                            if item.torrent.tags.isEmpty == false {
+                                tagsInlineRow
+                            }
+
+                            Spacer(minLength: 0)
+
+                            Label(item.metrics.speedSummary, systemImage: "speedometer")
+                                .appCaption()
+                                .foregroundStyle(.primary)
+                                .appMonospacedDigit()
+                                .lineLimit(1)
+                                .accessibilityIdentifier(
+                                    "torrent_row_speed_compact_\(item.torrent.id.rawValue)")
+                        }
+                    }
                 }
             #endif
         }

@@ -67,22 +67,44 @@ struct TorrentListControlsView: View {
 
     #if os(macOS)
         private var filterAndSortRowMacOS: some View {
-            HStack(alignment: .center, spacing: 12) {
-                categoryPicker
-                    .labelsHidden()
-                    .frame(width: macOSCategoryPickerWidth)
+            ViewThatFits(in: .horizontal) {
+                // Wide layout
+                HStack(alignment: .center, spacing: 12) {
+                    categoryPicker
+                        .labelsHidden()
+                        .frame(width: macOSCategoryPickerWidth)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                filterSegmentedControl
-                    .labelsHidden()
-                    .frame(maxWidth: 360)
+                    filterSegmentedControl
+                        .labelsHidden()
+                        .frame(maxWidth: 360)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                sortPicker
-                    .labelsHidden()
-                    .frame(width: macOSSortPickerWidth)
+                    sortPicker
+                        .labelsHidden()
+                        .frame(width: macOSSortPickerWidth)
+                }
+
+                // Compact layout
+                VStack(spacing: 12) {
+                    filterSegmentedControl
+                        .labelsHidden()
+                        .frame(maxWidth: .infinity)
+
+                    HStack(alignment: .center, spacing: 12) {
+                        categoryPicker
+                            .labelsHidden()
+                            .frame(width: macOSCategoryPickerWidth)
+
+                        Spacer(minLength: 0)
+
+                        sortPicker
+                            .labelsHidden()
+                            .frame(width: macOSSortPickerWidth)
+                    }
+                }
             }
         }
     #endif
