@@ -22,7 +22,7 @@ You are an expert software engineer working on the **Remission** project. Remiss
   - Credentials must strictly be stored in **Keychain**.
   - No secrets in logs.
 - **Documentation:**
-  - **Context7:** Before research, read `devdoc/CONTEXT7_GUIDE.md`.
+  - **Context7:** **CRITICAL:** Before implementing any code or refactoring, YOU MUST consult Context7 (`resolve-library-id`, `query-docs`) to get the latest information. Never rely on assumptions. Read `devdoc/CONTEXT7_GUIDE.md`.
   - **PRD:** Check `devdoc/PRD.md` for requirements.
   - **Plan:** Check `devdoc/plan.md` for architectural decisions.
 
@@ -41,8 +41,9 @@ You are an expert software engineer working on the **Remission** project. Remiss
 ## Workflow
 
 1. **Understand:** Read `devdoc/PRD.md` and related code.
-2. **Plan:** Propose a plan adhering to TCA and project patterns.
-3. **Implement:** Write code, following SwiftLint and formatting rules.
+2. **Research:** **MANDATORY**: Use Context7 (`resolve-library-id`, `query-docs`) to gather up-to-date documentation for any libraries or frameworks involved.
+3. **Plan:** Propose a plan adhering to TCA and project patterns.
+4. **Implement:** Write code, following SwiftLint and formatting rules.
 4. **Verify:**
    - Run linter: `swiftlint lint`
    - Run formatter: `swift-format lint ...`
