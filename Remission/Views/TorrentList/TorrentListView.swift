@@ -501,6 +501,8 @@ extension TorrentListView {
     }
 }
 
-#Preview("Loaded list") {
-    TorrentListView(store: .preview(state: .previewLoaded()))
-}
+#if DEBUG
+    #Preview("Loaded list") {
+        TorrentListView(store: .preview(state: .previewLoaded()))
+    }
+#endif
