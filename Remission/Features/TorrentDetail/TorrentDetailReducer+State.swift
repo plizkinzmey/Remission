@@ -103,7 +103,8 @@ extension TorrentDetailReducer {
             }
             if category == .verify,
                 status == Torrent.Status.checkWaiting.rawValue
-                    || status == Torrent.Status.checking.rawValue {
+                    || status == Torrent.Status.checking.rawValue
+            {
                 return true
             }
             return pendingCommands.contains(where: { $0.category == category })

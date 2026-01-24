@@ -2,7 +2,8 @@ import Foundation
 
 extension TransmissionClient {
     public func torrentGet(ids: [Int]? = nil, fields: [String]? = nil) async throws
-        -> TransmissionResponse {
+        -> TransmissionResponse
+    {
         var arguments: [String: AnyCodable] = [:]
         if let ids {
             arguments["ids"] = .array(ids.map { .int($0) })
@@ -48,7 +49,8 @@ extension TransmissionClient {
     }
 
     public func torrentRemove(ids: [Int], deleteLocalData: Bool?) async throws
-        -> TransmissionResponse {
+        -> TransmissionResponse
+    {
         var arguments: [String: AnyCodable] = [
             "ids": .array(ids.map { .int($0) })
         ]
@@ -84,7 +86,8 @@ extension TransmissionClient {
     }
 
     public func torrentSet(ids: [Int], arguments: AnyCodable) async throws
-        -> TransmissionResponse {
+        -> TransmissionResponse
+    {
         var argsDict: [String: AnyCodable] = [:]
         if case .object(let dict) = arguments {
             argsDict = dict

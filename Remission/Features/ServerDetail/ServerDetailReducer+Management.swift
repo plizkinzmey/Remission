@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 extension ServerDetailReducer {
+    // swiftlint:disable:next function_body_length
     func managementReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .editButtonTapped:

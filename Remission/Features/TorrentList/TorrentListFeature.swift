@@ -61,10 +61,6 @@ struct TorrentListReducer {
         var storageSummary: StorageSummary?
         var handshake: TransmissionHandshakeResult?
         var isSearchFieldVisible: Bool = false
-
-        var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
-            TorrentListReducer().filteredVisibleItems(state: self)
-        }
     }
 
     enum Action: Equatable {
@@ -424,6 +420,12 @@ struct TorrentListReducer {
         Scope(state: \.errorPresenter, action: \.errorPresenter) {
             ErrorPresenter<TorrentListReducer.State.Retry>()
         }
+    }
+}
+
+extension TorrentListReducer.State {
+    var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
+        filteredVisibleItems()
     }
 }
 

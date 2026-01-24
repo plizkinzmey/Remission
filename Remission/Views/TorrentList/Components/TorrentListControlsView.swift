@@ -8,12 +8,15 @@ import SwiftUI
 struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
     @State private var searchText: String = ""
-    @State private var searchTask: Task<Void, Never>?
 
     #if os(macOS)
         private var macOSSortPickerWidth: CGFloat { 150 }
         private var macOSCategoryPickerWidth: CGFloat { 170 }
         private var macOSToolbarPillHeight: CGFloat { 34 }
+    #endif
+    #if os(iOS)
+        private var padFilterCapsuleHeight: CGFloat { 30 }
+        private var padFilterInnerPadding: CGFloat { 2 }
     #endif
 
     var body: some View {
@@ -51,17 +54,9 @@ struct TorrentListControlsView: View {
                     searchText = store.searchQuery
                 }
             }
-            .onDisappear {
-                searchTask?.cancel()
-                searchTask = nil
-            }
             .onChange(of: searchText) { _, newValue in
-                searchTask?.cancel()
                 guard newValue != store.searchQuery else { return }
-                searchTask = Task { @MainActor in
-                    guard Task.isCancelled == false else { return }
-                    await store.send(.searchQueryChanged(newValue)).finish()
-                }
+                store.send(.searchQueryChanged(newValue))
             }
             .onChange(of: store.searchQuery) { _, newValue in
                 guard newValue != searchText else { return }
@@ -92,63 +87,45 @@ struct TorrentListControlsView: View {
         }
     #endif
 
-    private var filterCapsules: some View {
-        HStack {
-            Spacer(minLength: 0)
+    #if os(iOS)
+        private var filterCapsules: some View {
+            HStack {
+                HStack(spacing: 4) {
+                    filterSegmentedControlPad
 
-            HStack(spacing: 4) {
-                ForEach(TorrentListReducer.Filter.allCases, id: \.self) { filter in
-                    let isSelected = store.selectedFilter == filter
                     Button {
-                        withAnimation(.spring(duration: 0.2)) {
-                            _ = store.send(.filterChanged(filter))
+                        withAnimation(.spring(duration: 0.3)) {
+                            _ = store.send(.toggleSearchField)
                         }
                     } label: {
-                        Text(filter.title)
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(isSelected ? .white : .primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                        Image(systemName: "magnifyingglass")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(store.isSearchFieldVisible ? .white : .secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
                             .background(
                                 Capsule()
-                                    .fill(isSelected ? AppTheme.accent : Color.clear)
+                                    .fill(
+                                        store.isSearchFieldVisible
+                                            ? AppTheme.accent
+                                            : Color.clear
+                                    )
                             )
                     }
                     .buttonStyle(.plain)
                 }
-
-                Color.secondary.opacity(0.2)
-                    .frame(width: 1, height: 20)
-                    .padding(.horizontal, 4)
-
-                Button {
-                    withAnimation(.spring(duration: 0.3)) {
-                        _ = store.send(.toggleSearchField)
-                    }
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(store.isSearchFieldVisible ? .white : .primary)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(store.isSearchFieldVisible ? AppTheme.accent : Color.clear)
-                        )
-                }
-                .buttonStyle(.plain)
+                .padding(padFilterInnerPadding)
+                .frame(height: padFilterCapsuleHeight)
+                .background(.regularMaterial)
+                .clipShape(Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
+                )
             }
-            .padding(4)
-            .background(.regularMaterial)
-            .clipShape(Capsule())
-            .overlay(
-                Capsule()
-                    .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
-            )
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .center)
         }
-    }
+    #endif
 
     #if os(iOS)
         private var searchFieldView: some View {
@@ -197,6 +174,15 @@ struct TorrentListControlsView: View {
             .controlSize(.large)
         #endif
     }
+
+    #if os(iOS)
+        private var filterSegmentedControlPad: some View {
+            filterSegmentedControl
+                .labelsHidden()
+                .controlSize(.small)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    #endif
 
     private var sortPicker: some View {
         #if os(macOS)

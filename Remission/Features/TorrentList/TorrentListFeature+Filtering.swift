@@ -132,19 +132,21 @@ extension TorrentListReducer {
             }
         }
     }
+}
 
-    func filteredVisibleItems(state: State) -> IdentifiedArrayOf<TorrentListItem.State> {
-        let query = state.normalizedSearchQuery
+extension TorrentListReducer.State {
+    func filteredVisibleItems() -> IdentifiedArrayOf<TorrentListItem.State> {
+        let query = normalizedSearchQuery
         // NOTE: при списках 1000+ элементов стоит кешировать результаты фильтра/сортировки,
         // сохраняя их в State и инвалидации через DiffID. Это избавит от лишних O(n log n)
         // пересчётов при каждом `body` и заметно разгрузит UI при больших библиотеках.
-        let filtered = state.items.filter {
-            state.selectedFilter.matches($0)
-                && state.selectedCategory.matches($0)
-                && state.matchesSearch($0, query: query)
+        let filtered = items.filter {
+            selectedFilter.matches($0)
+                && selectedCategory.matches($0)
+                && matchesSearch($0, query: query)
         }
         let sorted = filtered.sorted {
-            state.sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
+            sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
         }
         return IdentifiedArray(uniqueElements: sorted)
     }

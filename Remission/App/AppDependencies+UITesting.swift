@@ -232,7 +232,8 @@ extension AppDependencies {
     }
 
     private static func resolveUITestPreferencesDefaults(environment: [String: String])
-        -> UserDefaults? {
+        -> UserDefaults?
+    {
         guard let suiteName = environment["UI_TESTING_PREFERENCES_SUITE"] else { return nil }
         return UserDefaults(suiteName: suiteName)
     }

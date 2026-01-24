@@ -20,7 +20,8 @@ struct AddTorrentSourceView: View {
                         .accessibilityIdentifier("torrent_add_source_close_button")
                         .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.source.continue")) {
-                            store.send(.closeButtonTapped)  // Close source picker and show submission form
+                            // Close source picker and show submission form
+                            store.send(.closeButtonTapped)
                         }
                         .disabled(continueDisabled)
                         .accessibilityIdentifier("torrent_add_source_continue_button")

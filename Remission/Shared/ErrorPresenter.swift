@@ -117,7 +117,8 @@ extension Error {
     var userFacingMessage: String {
         if let localized = self as? LocalizedError,
             let description = localized.errorDescription,
-            description.isEmpty == false {
+            description.isEmpty == false
+        {
             return description
         }
 

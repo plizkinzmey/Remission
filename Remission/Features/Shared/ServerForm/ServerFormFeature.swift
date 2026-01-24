@@ -40,7 +40,8 @@ struct ServerFormReducer {
         var isSaveButtonDisabled: Bool {
             serverConfig.form.isFormValid == false
                 || serverConfig.connectionStatus == .testing
-                || (serverConfig.verifiedSubmission == nil && !mode.isEdit)  // Для новых обязателен тест
+                // Для новых обязателен тест
+                || (serverConfig.verifiedSubmission == nil && !mode.isEdit)
                 || isSaving
         }
     }
