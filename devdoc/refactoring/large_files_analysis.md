@@ -14,7 +14,7 @@
 | `Remission/Network/Transmission/TransmissionClient.swift` | 380 (было 546) | ✅ Выполнено | Разделен на extension: `+Session`, `+Torrent`, `+System`. Удален старый `+RPCMethods`. |
 | `Remission/Storage/ServerSnapshotCache.swift` | 100 (было 516) | ✅ Выполнено | Разделен на: `+Models`, `+FileStore`, `+InMemoryStore`. |
 | `Remission/App/AppDependencies.swift` | 45 (было 449) | ✅ Выполнено | Разбит на: `+UITesting.swift`, `+Fixtures.swift`, `DependencyValues+App.swift`. |
-| `Remission/Views/Diagnostics/DiagnosticsView.swift` | 436 | 🟠 Высокий приоритет | Вынести `LogsView`, `ConnectivityView`, `ServerInfoView` в отдельные файлы. |
+| `Remission/Views/Diagnostics/DiagnosticsView.swift` | 150 (было 436) | ✅ Выполнено | Вынесены `FilterSection`, `LogList`, `LogRow`, `Badges` в отдельные файлы в `Components/`. |
 | `Remission/Features/ServerDetail/ServerDetailFeature.swift` | 421 | 🟠 Высокий приоритет | Вынести логику удаления и сброса доверия в отдельные методы или middleware. |
 | `Remission/Views/TorrentAdd/AddTorrentView.swift` | 414 | 🟠 Высокий приоритет | Разделить на `MagnetInputView`, `FilePickerView` и `OptionsSection`. |
 | `Remission/Views/Settings/SettingsView.swift` | 405 | 🟠 Высокий приоритет | Вынести секции настроек (Server, Interface, Network) в отдельные View. |
@@ -41,4 +41,4 @@
 
 ## Следующий шаг
 
-Приступить к рефакторингу `Remission/Views/Diagnostics/DiagnosticsView.swift`.
+Приступить к рефакторингу `Remission/Features/ServerDetail/ServerDetailFeature.swift`.
