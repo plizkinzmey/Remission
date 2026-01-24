@@ -13,7 +13,7 @@
 | `Remission/Repositories/TorrentRepository.swift` | 270 (было 546) | ✅ Выполнено | Разделен на extension: `+Fetch`, `+Actions`, `+Mutation`, `+Cache`, `+Helpers`. |
 | `Remission/Network/Transmission/TransmissionClient.swift` | 380 (было 546) | ✅ Выполнено | Разделен на extension: `+Session`, `+Torrent`, `+System`. Удален старый `+RPCMethods`. |
 | `Remission/Storage/ServerSnapshotCache.swift` | 100 (было 516) | ✅ Выполнено | Разделен на: `+Models`, `+FileStore`, `+InMemoryStore`. |
-| `Remission/App/AppDependencies.swift` | 449 | 🟠 Высокий приоритет | Разбить на файлы по доменам (Network, Persistence, System). |
+| `Remission/App/AppDependencies.swift` | 45 (было 449) | ✅ Выполнено | Разбит на: `+UITesting.swift`, `+Fixtures.swift`, `DependencyValues+App.swift`. |
 | `Remission/Views/Diagnostics/DiagnosticsView.swift` | 436 | 🟠 Высокий приоритет | Вынести `LogsView`, `ConnectivityView`, `ServerInfoView` в отдельные файлы. |
 | `Remission/Features/ServerDetail/ServerDetailFeature.swift` | 421 | 🟠 Высокий приоритет | Вынести логику удаления и сброса доверия в отдельные методы или middleware. |
 | `Remission/Views/TorrentAdd/AddTorrentView.swift` | 414 | 🟠 Высокий приоритет | Разделить на `MagnetInputView`, `FilePickerView` и `OptionsSection`. |
@@ -41,4 +41,4 @@
 
 ## Следующий шаг
 
-Приступить к рефакторингу `Remission/App/AppDependencies.swift`.
+Приступить к рефакторингу `Remission/Views/Diagnostics/DiagnosticsView.swift`.
