@@ -25,7 +25,10 @@ struct ServerDetailReducer {
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
-            self.torrentList.serverID = server.id
+            var torrentListState = TorrentListReducer.State()
+            torrentListState.serverID = server.id
+            torrentListState.isAwaitingConnection = true
+            self.torrentList = torrentListState
             if startEditing {
                 self.editor = ServerFormReducer.State(mode: .edit(server))
             }

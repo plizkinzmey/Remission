@@ -17,9 +17,11 @@ extension ServerDetailReducer {
             state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
             state.connectionRetryAttempts = 0
+            state.torrentList.isAwaitingConnection = true
             if shouldResetList {
                 state.torrentList.items.removeAll()
                 state.torrentList.storageSummary = nil
+                state.torrentList.cacheKey = nil
             }
             if state.torrentList.items.isEmpty {
                 state.torrentList.phase = .loading

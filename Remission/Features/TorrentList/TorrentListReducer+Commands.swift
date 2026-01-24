@@ -97,6 +97,9 @@ extension TorrentListReducer {
 
         guard let environment = state.connectionEnvironment else {
             state.isRefreshing = false
+            if state.isAwaitingConnection {
+                return .none
+            }
             guard let cacheKey = state.cacheKey else { return .none }
 
             return .run { send in

@@ -61,6 +61,7 @@ struct TorrentListReducer {
         var storageSummary: StorageSummary?
         var handshake: TransmissionHandshakeResult?
         var isSearchFieldVisible: Bool = false
+        var isAwaitingConnection: Bool = false
     }
 
     enum Action: Equatable {
@@ -128,8 +129,9 @@ struct TorrentListReducer {
         Reduce { state, action in
             switch action {
             case .task:
-                if let environment = state.connectionEnvironment, state.cacheKey == nil {
+                if let environment = state.connectionEnvironment {
                     state.cacheKey = environment.cacheKey
+                    state.isAwaitingConnection = false
                 }
                 if state.items.isEmpty {
                     state.phase = .loading
@@ -140,7 +142,7 @@ struct TorrentListReducer {
                 return .merge(
                     loadPreferences(serverID: serverID),
                     observePreferences(serverID: serverID),
-                    .send(.restoreCachedSnapshot)
+                    state.isAwaitingConnection ? .none : .send(.restoreCachedSnapshot)
                 )
 
             case .teardown:
@@ -151,6 +153,7 @@ struct TorrentListReducer {
                 state.pendingRemoveTorrentID = nil
                 state.removingTorrentIDs.removeAll()
                 state.inFlightCommands.removeAll()
+                state.isAwaitingConnection = false
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -170,6 +173,7 @@ struct TorrentListReducer {
                 state.removingTorrentIDs.removeAll()
                 state.inFlightCommands.removeAll()
                 state.lastSnapshotAt = nil
+                state.isAwaitingConnection = true
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling)
@@ -332,6 +336,7 @@ struct TorrentListReducer {
                 state.offlineState = offline
                 state.phase = .offline(offline)
                 state.isRefreshing = false
+                state.isAwaitingConnection = false
                 let banner = Effect<Action>.send(
                     .errorPresenter(
                         .showBanner(
