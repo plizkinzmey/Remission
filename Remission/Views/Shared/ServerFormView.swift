@@ -56,16 +56,12 @@ struct ServerFormView: View {
 
     private var windowContent: some View {
         VStack {
-            ViewThatFits(in: .vertical) {
+            ScrollView {
                 formContent
-
-                ScrollView {
-                    formContent
-                }
-                #if os(iOS)
-                    .scrollDismissesKeyboard(.interactively)
-                #endif
             }
+            #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+            #endif
         }
         #if os(iOS)
             .appDismissKeyboardOnTap()

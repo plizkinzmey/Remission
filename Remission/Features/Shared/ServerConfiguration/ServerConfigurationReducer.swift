@@ -56,8 +56,23 @@ struct ServerConfigurationReducer {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func core(state: inout State, action: Action) -> Effect<Action> {
         switch action {
-        case .binding:
+        case .binding(let action):
             state.validationError = nil
+
+            if action.keyPath == \State.form.name {
+                state.form.name = state.form.name.filtered(allowed: .alphanumerics)
+            } else if action.keyPath == \State.form.host {
+                state.form.host = state.form.host.filteredASCII(allowed: .hostCharacters)
+            } else if action.keyPath == \State.form.port {
+                state.form.port = state.form.port.filtered(allowed: .decimalDigits)
+            } else if action.keyPath == \State.form.path {
+                state.form.path = state.form.path.filteredASCII(allowed: .pathCharacters)
+            } else if action.keyPath == \State.form.username {
+                state.form.username = state.form.username.filtered(allowed: .alphanumerics)
+            } else if action.keyPath == \State.form.password {
+                state.form.password = state.form.password.filteredASCII(allowed: .alphanumerics)
+            }
+
             let resetEffect = self.resetConnectionState(state: &state)
             return .merge(resetEffect, .send(.delegate(.formChanged)))
 

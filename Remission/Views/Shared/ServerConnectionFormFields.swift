@@ -33,7 +33,7 @@ struct ServerConnectionFormFields: View {
                     AppFormField(L10n.tr("serverForm.placeholder.name"), labelWidth: labelWidth) {
                         TextField(
                             L10n.tr("serverForm.placeholder.name"),
-                            text: $form.name.filtered(allowed: .alphanumerics)
+                            text: $form.name
                         )
                         .textFieldStyle(.appFormField)
                         .accessibilityIdentifier("server_form_name_field")
@@ -44,7 +44,7 @@ struct ServerConnectionFormFields: View {
                     AppFormField(L10n.tr("serverForm.placeholder.host"), labelWidth: labelWidth) {
                         TextField(
                             L10n.tr("serverForm.placeholder.host"),
-                            text: $form.host.filteredASCII(allowed: .hostCharacters)
+                            text: $form.host
                         )
                         .textFieldStyle(.appFormField)
                         .textContentType(.URL)
@@ -60,7 +60,7 @@ struct ServerConnectionFormFields: View {
                     AppFormField(L10n.tr("serverForm.placeholder.port"), labelWidth: labelWidth) {
                         TextField(
                             L10n.tr("serverForm.placeholder.port"),
-                            text: $form.port.filtered(allowed: .decimalDigits)
+                            text: $form.port
                         )
                         .textFieldStyle(.appFormField)
                         #if os(iOS)
@@ -74,7 +74,7 @@ struct ServerConnectionFormFields: View {
                     AppFormField(L10n.tr("serverForm.placeholder.path"), labelWidth: labelWidth) {
                         TextField(
                             L10n.tr("serverForm.placeholder.path"),
-                            text: $form.path.filteredASCII(allowed: .pathCharacters)
+                            text: $form.path
                         )
                         .textFieldStyle(.appFormField)
                         #if os(iOS)
@@ -94,7 +94,7 @@ struct ServerConnectionFormFields: View {
                 AppFormField(L10n.tr("serverForm.placeholder.username"), labelWidth: labelWidth) {
                     TextField(
                         L10n.tr("serverForm.placeholder.username"),
-                        text: $form.username.filtered(allowed: .alphanumerics)
+                        text: $form.username
                     )
                     .textFieldStyle(.appFormField)
                     #if os(iOS)
@@ -112,12 +112,12 @@ struct ServerConnectionFormFields: View {
                             if isPasswordVisible {
                                 TextField(
                                     L10n.tr("serverForm.placeholder.password"),
-                                    text: $form.password.filteredASCII(allowed: .alphanumerics)
+                                    text: $form.password
                                 )
                             } else {
                                 SecureField(
                                     L10n.tr("serverForm.placeholder.password"),
-                                    text: $form.password.filteredASCII(allowed: .alphanumerics)
+                                    text: $form.password
                                 )
                             }
                         }
