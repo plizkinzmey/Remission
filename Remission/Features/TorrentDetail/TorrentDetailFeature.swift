@@ -146,6 +146,10 @@ struct TorrentDetailReducer {
 
             case .detailsResponse(.failure(let error)):
                 state.isLoading = false
+                if error is CancellationError {
+                    state.pendingListSync = false
+                    return .none
+                }
                 let message = error.userFacingMessage
                 state.errorPresenter.banner = .init(
                     message: message,
