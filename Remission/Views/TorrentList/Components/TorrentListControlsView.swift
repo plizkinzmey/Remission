@@ -1,8 +1,14 @@
 import ComposableArchitecture
 import SwiftUI
 
+#if canImport(UIKit)
+    import UIKit
+#endif
+
 struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
+    @State private var searchText: String = ""
+    @State private var searchTask: Task<Void, Never>?
 
     #if os(macOS)
         private var macOSSortPickerWidth: CGFloat { 150 }
@@ -18,7 +24,17 @@ struct TorrentListControlsView: View {
             .padding(.vertical, 4)
         #else
             VStack(alignment: .leading, spacing: 12) {
-                filterSegmentedControl
+                if UIDevice.current.userInterfaceIdiom == .pad {
+                    filterCapsules
+
+                    if store.isSearchFieldVisible {
+                        searchFieldView
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                } else {
+                    filterSegmentedControl
+                }
+
                 HStack(spacing: 12) {
                     if store.visibleItems.isEmpty == false {
                         categoryPicker
@@ -30,6 +46,27 @@ struct TorrentListControlsView: View {
                 }
             }
             .padding(.vertical, 4)
+            .onAppear {
+                if searchText != store.searchQuery {
+                    searchText = store.searchQuery
+                }
+            }
+            .onDisappear {
+                searchTask?.cancel()
+                searchTask = nil
+            }
+            .onChange(of: searchText) { _, newValue in
+                searchTask?.cancel()
+                guard newValue != store.searchQuery else { return }
+                searchTask = Task { @MainActor in
+                    guard Task.isCancelled == false else { return }
+                    await store.send(.searchQueryChanged(newValue)).finish()
+                }
+            }
+            .onChange(of: store.searchQuery) { _, newValue in
+                guard newValue != searchText else { return }
+                searchText = newValue
+            }
         #endif
     }
 
@@ -52,6 +89,92 @@ struct TorrentListControlsView: View {
                     .labelsHidden()
                     .frame(width: macOSSortPickerWidth)
             }
+        }
+    #endif
+
+    private var filterCapsules: some View {
+        HStack {
+            Spacer(minLength: 0)
+
+            HStack(spacing: 4) {
+                ForEach(TorrentListReducer.Filter.allCases, id: \.self) { filter in
+                    let isSelected = store.selectedFilter == filter
+                    Button {
+                        withAnimation(.spring(duration: 0.2)) {
+                            _ = store.send(.filterChanged(filter))
+                        }
+                    } label: {
+                        Text(filter.title)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(isSelected ? .white : .primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isSelected ? AppTheme.accent : Color.clear)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Color.secondary.opacity(0.2)
+                    .frame(width: 1, height: 20)
+                    .padding(.horizontal, 4)
+
+                Button {
+                    withAnimation(.spring(duration: 0.3)) {
+                        _ = store.send(.toggleSearchField)
+                    }
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(store.isSearchFieldVisible ? .white : .primary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(store.isSearchFieldVisible ? AppTheme.accent : Color.clear)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(4)
+            .background(.regularMaterial)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
+            )
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    #if os(iOS)
+        private var searchFieldView: some View {
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+
+                TextField(L10n.tr("torrentList.search.prompt"), text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                    .submitLabel(.search)
+
+                if searchText.isEmpty == false {
+                    Button {
+                        searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(12)
+            .background(.regularMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     #endif
 

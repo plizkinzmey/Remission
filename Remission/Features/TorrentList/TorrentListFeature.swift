@@ -60,6 +60,7 @@ struct TorrentListReducer {
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
         var storageSummary: StorageSummary?
         var handshake: TransmissionHandshakeResult?
+        var isSearchFieldVisible: Bool = false
 
         var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
             TorrentListReducer().filteredVisibleItems(state: self)
@@ -72,6 +73,8 @@ struct TorrentListReducer {
         case refreshRequested
         case commandRefreshRequested
         case searchQueryChanged(String)
+        case toggleSearchField
+        case hideSearchField
         case filterChanged(Filter)
         case categoryChanged(CategoryFilter)
         case sortChanged(SortOrder)
@@ -169,6 +172,18 @@ struct TorrentListReducer {
 
             case .searchQueryChanged(let query):
                 state.searchQuery = query
+                return .none
+
+            case .toggleSearchField:
+                state.isSearchFieldVisible.toggle()
+                if state.isSearchFieldVisible == false {
+                    state.searchQuery = ""
+                }
+                return .none
+
+            case .hideSearchField:
+                state.isSearchFieldVisible = false
+                state.searchQuery = ""
                 return .none
 
             case .filterChanged(let filter):

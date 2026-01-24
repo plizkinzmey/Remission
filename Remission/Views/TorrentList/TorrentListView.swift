@@ -1,10 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
 
+#if canImport(UIKit)
+    import UIKit
+#endif
+
 struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
-    @State private var searchText: String = ""
-    @State private var searchTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -21,7 +23,10 @@ struct TorrentListView: View {
                 if shouldShowSearchBar {
                     container
                         .searchable(
-                            text: $searchText,
+                            text: .init(
+                                get: { store.searchQuery },
+                                set: { store.send(.searchQueryChanged($0)) }
+                            ),
                             placement: .automatic,
                             prompt: Text(L10n.tr("torrentList.search.prompt"))
                         ) {
@@ -43,27 +48,6 @@ struct TorrentListView: View {
         #if os(iOS)
             .background(AppBackgroundView())
         #endif
-        .onAppear {
-            if searchText != store.searchQuery {
-                searchText = store.searchQuery
-            }
-        }
-        .onDisappear {
-            searchTask?.cancel()
-            searchTask = nil
-        }
-        .onChange(of: searchText) { _, newValue in
-            searchTask?.cancel()
-            guard newValue != store.searchQuery else { return }
-            searchTask = Task { @MainActor in
-                guard Task.isCancelled == false else { return }
-                await store.send(.searchQueryChanged(newValue)).finish()
-            }
-        }
-        .onChange(of: store.searchQuery) { _, newValue in
-            guard newValue != searchText else { return }
-            searchText = newValue
-        }
         .alert(
             $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
         )
@@ -101,7 +85,10 @@ extension TorrentListView {
                         .foregroundStyle(.secondary)
                     TextField(
                         L10n.tr("torrentList.search.prompt"),
-                        text: $searchText
+                        text: .init(
+                            get: { store.searchQuery },
+                            set: { store.send(.searchQueryChanged($0)) }
+                        )
                     )
                     .textFieldStyle(.plain)
                     .font(.body)
@@ -118,6 +105,7 @@ extension TorrentListView {
 
     #if os(iOS)
         private var shouldShowSearchBar: Bool {
+            if UIDevice.current.userInterfaceIdiom == .pad { return false }
             guard store.connectionEnvironment != nil else { return false }
             return store.visibleItems.isEmpty == false || store.searchQuery.isEmpty == false
         }
