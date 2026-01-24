@@ -64,9 +64,6 @@ struct SettingsView: View {
 
     @ViewBuilder
     private var windowContent: some View {
-        // Render the Form only when we actually have persisted preferences available.
-        // This avoids rendering a default/placeholder UI and then reflowing when
-        // real values arrive. Until then show a small loading placeholder.
         if store.persistedPreferences == nil {
             VStack(spacing: 12) {
                 if store.isLoading {
@@ -78,9 +75,6 @@ struct SettingsView: View {
                     .controlSize(.large)
                     .padding(.vertical, 32)
                 } else {
-                    // Not loading and we have no persisted preferences — probably
-                    // an error occurred. Let the alert show (reducer sets it). As
-                    // a fallback show a small message and a retry action.
                     VStack(spacing: 8) {
                         Text(L10n.tr("settings.loading"))
                             .font(.body)
@@ -95,276 +89,17 @@ struct SettingsView: View {
             }
         } else {
             VStack(alignment: .leading, spacing: 16) {
-                autoRefreshSection
-                // Telemetry is hidden in production for now — keep it visible for
-                // UI tests only so automation and existing tests continue to run.
+                SettingsAutoRefreshSection(store: store)
                 if isUITesting {
-                    telemetrySection
+                    SettingsTelemetrySection(store: store, isUITesting: isUITesting)
                 }
-                pollingSection
-                speedLimitsSection
-                seedRatioSection
+                SettingsPollingSection(store: store)
+                SettingsSpeedLimitsSection(store: store)
+                SettingsSeedRatioSection(store: store)
             }
             .padding(12)
             .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
-        }
-    }
-
-    private var intervalLabel: String {
-        let seconds = Int(store.pollingIntervalSeconds.rounded())
-        return String(
-            format: L10n.tr("settings.polling.interval"),
-            Int64(seconds)
-        )
-    }
-
-    private var policyURL: URL? {
-        URL(string: "https://remission.app/privacy")
-    }
-
-    private func limitText(_ value: Int?) -> String {
-        guard let value else { return "" }
-        return "\(value)"
-    }
-
-    private func ratioText(isEnabled: Bool, value: Double) -> String {
-        guard isEnabled else { return "0" }
-        let formatter = NumberFormatter()
-        formatter.locale = Locale.current
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        formatter.decimalSeparator = Locale.current.decimalSeparator
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
-
-    private var autoRefreshSection: some View {
-        AppSectionCard(L10n.tr("settings.autoRefresh.section")) {
-            AppFormField(L10n.tr("settings.autoRefresh.toggle")) {
-                Toggle(
-                    "",
-                    isOn: Binding(
-                        get: { store.isAutoRefreshEnabled },
-                        set: { store.send(.autoRefreshToggled($0)) }
-                    )
-                )
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .accessibilityIdentifier("settings_auto_refresh_toggle")
-                .tint(AppTheme.accent)
-            }
-            Text(L10n.tr("settings.autoRefresh.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var telemetrySection: some View {
-        AppSectionCard(L10n.tr("settings.telemetry.section")) {
-            Toggle(
-                L10n.tr("settings.telemetry.toggle"),
-                isOn: Binding(
-                    get: { store.isTelemetryEnabled },
-                    set: { store.send(.telemetryToggled($0)) }
-                )
-            )
-            .accessibilityIdentifier("settings_telemetry_toggle")
-
-            Text(L10n.tr("settings.telemetry.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if let policyURL {
-                Link(L10n.tr("settings.telemetry.policy"), destination: policyURL)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("settings_telemetry_policy_link")
-            }
-
-            if isUITesting {
-                // UITests stub — provide a predictable element for automation without
-                // reusing production accessibility identifiers or bindings.
-                Toggle(
-                    L10n.tr("settings.telemetry.uiTestToggle"),
-                    isOn: Binding(
-                        get: { store.isTelemetryEnabled },
-                        set: { store.send(.telemetryToggled($0)) }
-                    )
-                )
-                .labelsHidden()
-                .accessibilityIdentifier("settings_telemetry_test_stub")
-                .opacity(0.01)
-            }
-        }
-    }
-
-    private var pollingSection: some View {
-        AppSectionCard(L10n.tr("settings.polling.section")) {
-            Slider(
-                value: Binding(
-                    get: { store.pollingIntervalSeconds },
-                    set: { store.send(.pollingIntervalChanged($0)) }
-                ),
-                in: 1...60,
-                step: 1
-            )
-            .accessibilityIdentifier("settings_polling_slider")
-            .tint(AppTheme.accent)
-            .padding(.horizontal, 10)
-            .frame(height: 32)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .appPillSurface()
-
-            Text(intervalLabel)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.primary)
-                .accessibilityIdentifier("settings_polling_value")
-            Text(L10n.tr("settings.polling.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-        .disabled(store.isAutoRefreshEnabled == false)
-        .opacity(store.isAutoRefreshEnabled ? 1 : 0.6)
-    }
-
-    private var speedLimitsSection: some View {
-        AppSectionCard(L10n.tr("settings.speed.section")) {
-            AppFormField(L10n.tr("settings.speed.download")) {
-                #if os(iOS)
-                    LeadingCursorTextField(
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
-                        ),
-                        keyboardType: .decimalPad,
-                        textAlignment: .right
-                    )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
-                #else
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.appFormField)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                #endif
-            }
-
-            Divider()
-
-            AppFormField(L10n.tr("settings.speed.upload")) {
-                #if os(iOS)
-                    LeadingCursorTextField(
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
-                        ),
-                        keyboardType: .decimalPad,
-                        textAlignment: .right
-                    )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
-                #else
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.appFormField)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                #endif
-            }
-
-            Text(L10n.tr("settings.speed.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var seedRatioSection: some View {
-        AppSectionCard(L10n.tr("settings.seedRatio.section")) {
-            AppFormField(L10n.tr("settings.seedRatio.limit")) {
-                #if os(iOS)
-                    LeadingCursorTextField(
-                        text: Binding(
-                            get: {
-                                ratioText(
-                                    isEnabled: store.isSeedRatioLimitEnabled,
-                                    value: store.seedRatioLimitValue
-                                )
-                            },
-                            set: { store.send(.seedRatioLimitChanged($0)) }
-                        ),
-                        keyboardType: .decimalPad,
-                        textAlignment: .right
-                    )
-                    .accessibilityIdentifier("settings_seed_ratio_field")
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
-                #else
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                ratioText(
-                                    isEnabled: store.isSeedRatioLimitEnabled,
-                                    value: store.seedRatioLimitValue
-                                )
-                            },
-                            set: { store.send(.seedRatioLimitChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("settings_seed_ratio_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.appFormField)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                #endif
-            }
-
-            Text(L10n.tr("settings.seedRatio.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var loadingSection: some View {
-        Group {
-            if store.isLoading {
-                Section {
-                    HStack {
-                        ProgressView()
-                        Text(L10n.tr("settings.loading"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
     }
 
