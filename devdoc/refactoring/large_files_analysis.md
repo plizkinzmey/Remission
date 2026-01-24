@@ -12,7 +12,7 @@
 | `Remission/Features/TorrentList/TorrentListFeature.swift` | 420 (было 560) | ✅ Выполнено | Вынесена логика фильтрации и сортировки в `+Filtering.swift`. |
 | `Remission/Repositories/TorrentRepository.swift` | 270 (было 546) | ✅ Выполнено | Разделен на extension: `+Fetch`, `+Actions`, `+Mutation`, `+Cache`, `+Helpers`. |
 | `Remission/Network/Transmission/TransmissionClient.swift` | 380 (было 546) | ✅ Выполнено | Разделен на extension: `+Session`, `+Torrent`, `+System`. Удален старый `+RPCMethods`. |
-| `Remission/Storage/ServerSnapshotCache.swift` | 516 | 🔴 Требует действий | Вынести логику `Actor` в отдельные методы или вспомогательный менеджер кеша. |
+| `Remission/Storage/ServerSnapshotCache.swift` | 100 (было 516) | ✅ Выполнено | Разделен на: `+Models`, `+FileStore`, `+InMemoryStore`. |
 | `Remission/App/AppDependencies.swift` | 449 | 🟠 Высокий приоритет | Разбить на файлы по доменам (Network, Persistence, System). |
 | `Remission/Views/Diagnostics/DiagnosticsView.swift` | 436 | 🟠 Высокий приоритет | Вынести `LogsView`, `ConnectivityView`, `ServerInfoView` в отдельные файлы. |
 | `Remission/Features/ServerDetail/ServerDetailFeature.swift` | 421 | 🟠 Высокий приоритет | Вынести логику удаления и сброса доверия в отдельные методы или middleware. |
@@ -41,4 +41,4 @@
 
 ## Следующий шаг
 
-Приступить к рефакторингу `Remission/Storage/ServerSnapshotCache.swift`.
+Приступить к рефакторингу `Remission/App/AppDependencies.swift`.
