@@ -330,6 +330,20 @@ main() {
     ok "Запушены main и тег $release_tag"
   fi
 
+  # Sync develop branch with the new version
+  if git show-ref --verify --quiet refs/heads/develop; then
+    info "🔄 Синхронизирую версию в ветку develop..."
+    git checkout develop
+    git merge main
+    if [[ "$push" == "true" ]]; then
+      git push origin develop
+      ok "Ветка develop обновлена и запушена."
+    else
+      ok "Ветка develop обновлена локально (не запушена, т.к. нет --push)."
+    fi
+    git checkout main
+  fi
+
   ok "Готово: ${out_dir}"
 }
 
