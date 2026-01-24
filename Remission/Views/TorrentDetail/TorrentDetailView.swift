@@ -57,8 +57,8 @@ struct TorrentDetailView: View {
     private var windowContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                summarySection
-                basicInformationSection
+                TorrentDetailSummarySection(store: store)
+                TorrentDetailInfoSection(store: store)
 
                 if let banner = store.errorPresenter.banner {
                     AppSectionCard("") {
@@ -94,7 +94,12 @@ struct TorrentDetailView: View {
                     }
                 }
 
-                advancedSections
+                TorrentDetailAdvancedSection(
+                    store: store,
+                    isFilesExpanded: $isFilesExpanded,
+                    isTrackersExpanded: $isTrackersExpanded,
+                    isPeersExpanded: $isPeersExpanded
+                )
             }
             .padding(12)
         }
@@ -102,6 +107,16 @@ struct TorrentDetailView: View {
             .scrollDismissesKeyboard(.interactively)
             .appDismissKeyboardOnTap()
         #endif
+    }
+
+    private var loadingOverlay: some View {
+        ProgressView(L10n.tr("torrentDetail.loading"))
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
+            .accessibilityIdentifier("torrent-detail-loading")
     }
 
     #if os(macOS)
