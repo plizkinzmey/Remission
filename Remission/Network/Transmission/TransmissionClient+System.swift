@@ -1,6 +1,7 @@
 import Foundation
 
 extension TransmissionClient {
+    /// Получает информацию о свободном месте по указанному пути.
     public func freeSpace(path: String) async throws -> TransmissionResponse {
         try await sendRequest(
             method: RPCMethod.freeSpace,
@@ -8,12 +9,14 @@ extension TransmissionClient {
         )
     }
 
+    /// Проверяет версию сервера на совместимость.
     public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
         // Reuse performHandshake logic which does session-get and version parsing
         let handshake = try await performHandshake()
         return (handshake.isCompatible, handshake.rpcVersion)
     }
 
+    /// Выполняет рукопожатие с сервером, проверяя версию RPC и устанавливая Session ID.
     public func performHandshake() async throws -> TransmissionHandshakeResult {
         // Делаем session-get запрос.
         let response = try await sessionGet()

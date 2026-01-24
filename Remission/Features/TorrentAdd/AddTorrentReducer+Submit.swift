@@ -56,8 +56,7 @@ extension AddTorrentReducer {
         }
     }
 
-    // swiftlint:disable function_body_length
-    func handleSubmit(state: inout State) -> Effect<Action> {
+    func submit(state: inout State) -> Effect<Action> {
         guard let input = state.pendingInput else { return .none }
         let destinationRaw = state.destinationPath.trimmingCharacters(
             in: .whitespacesAndNewlines
@@ -109,7 +108,6 @@ extension AddTorrentReducer {
         }
         .cancellable(id: AddTorrentCancelID.submit, cancelInFlight: true)
     }
-    // swiftlint:enable function_body_length
 
     func mapSubmitError(_ error: Error) -> SubmitError {
         if let apiError = error as? APIError {

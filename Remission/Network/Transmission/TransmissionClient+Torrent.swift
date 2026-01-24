@@ -1,6 +1,7 @@
 import Foundation
 
 extension TransmissionClient {
+    /// Получает список торрентов с указанными полями.
     public func torrentGet(ids: [Int]? = nil, fields: [String]? = nil) async throws
         -> TransmissionResponse
     {
@@ -18,6 +19,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Добавляет новый торрент через файл или magnet-ссылку.
     public func torrentAdd(
         filename: String?,
         metainfo: Data?,
@@ -48,6 +50,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Удаляет указанные торренты.
     public func torrentRemove(ids: [Int], deleteLocalData: Bool?) async throws
         -> TransmissionResponse
     {
@@ -64,6 +67,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Запускает указанные торренты.
     public func torrentStart(ids: [Int]) async throws -> TransmissionResponse {
         try await sendRequest(
             method: RPCMethod.torrentStart,
@@ -71,6 +75,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Останавливает указанные торренты.
     public func torrentStop(ids: [Int]) async throws -> TransmissionResponse {
         try await sendRequest(
             method: RPCMethod.torrentStop,
@@ -78,6 +83,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Запускает проверку данных указанных торрентов.
     public func torrentVerify(ids: [Int]) async throws -> TransmissionResponse {
         try await sendRequest(
             method: RPCMethod.torrentVerify,
@@ -85,6 +91,7 @@ extension TransmissionClient {
         )
     }
 
+    /// Обновляет параметры указанных торрентов.
     public func torrentSet(ids: [Int], arguments: AnyCodable) async throws
         -> TransmissionResponse
     {

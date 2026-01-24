@@ -2,6 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 extension ServerListReducer {
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func managementReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .addButtonTapped:

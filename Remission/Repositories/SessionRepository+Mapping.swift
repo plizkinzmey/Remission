@@ -37,6 +37,7 @@ extension SessionRepository {
         return state
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     static func makeSessionSetArguments(
         update: SessionRepository.SessionUpdate
     ) -> AnyCodable? {

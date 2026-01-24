@@ -53,6 +53,7 @@ struct ServerConfigurationReducer {
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func core(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .binding:

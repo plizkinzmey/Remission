@@ -23,14 +23,14 @@ struct TorrentDetailSpeedHistory: Equatable {
     }
 }
 
+struct TorrentDetailPendingStatusChange: Equatable {
+    var command: TorrentDetailReducer.CommandKind
+    var initialStatus: Int
+}
+
 extension TorrentDetailReducer {
     @ObservableState
     struct State: Equatable {
-        struct PendingStatusChange: Equatable {
-            var command: TorrentDetailReducer.CommandKind
-            var initialStatus: Int
-        }
-
         var torrentID: Torrent.Identifier
         var connectionEnvironment: ServerConnectionEnvironment?
         var name: String = ""
@@ -62,7 +62,7 @@ extension TorrentDetailReducer {
         var hasLoadedMetadata: Bool = false
         var activeCommand: TorrentDetailReducer.CommandKind?
         var pendingCommands: [TorrentDetailReducer.CommandKind] = []
-        var pendingStatusChange: PendingStatusChange?
+        var pendingStatusChange: TorrentDetailPendingStatusChange?
         var isLoading: Bool = false
         var errorPresenter: ErrorPresenter<TorrentDetailReducer.ErrorRetry>.State = .init()
         var pendingListSync: Bool = false

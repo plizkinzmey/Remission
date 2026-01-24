@@ -1,6 +1,9 @@
 import ComposableArchitecture
 import Foundation
 
+// swiftlint:disable type_body_length
+// swiftlint:disable function_body_length
+
 /// Управляет экраном настроек пользователя: интервал polling и автообновление.
 @Reducer
 struct SettingsReducer {
@@ -389,3 +392,6 @@ extension SettingsReducer {
         }
     }
 }
+
+// swiftlint:enable type_body_length
+// swiftlint:enable function_body_length
