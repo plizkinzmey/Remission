@@ -1,15 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
 
-#if os(macOS)
-    import AppKit
-#endif
-
 struct DiagnosticsLogRowView: View {
+
     let entry: DiagnosticsLogEntry
     let onCopy: () -> Void
 
-    @State private var isJSONExpanded: Bool = false
+    @State private var isDetailsPresented: Bool = false
 
     var body: some View {
         let metadata = DiagnosticsLogFormatter.metadataTags(for: entry)
@@ -19,7 +16,13 @@ struct DiagnosticsLogRowView: View {
 
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                DiagnosticsLevelBadge(level: entry.level)
+                Button {
+                    isDetailsPresented = true
+                } label: {
+                    DiagnosticsLevelBadge(level: entry.level)
+                }
+                .buttonStyle(.plain)
+
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.message)
                         .font(.subheadline)
@@ -47,39 +50,6 @@ struct DiagnosticsLogRowView: View {
             if metadata.isEmpty == false {
                 metadataRow(metadata)
             }
-
-            DisclosureGroup(
-                isExpanded: $isJSONExpanded,
-                content: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        let json = jsonString(for: entry)
-                        Text(json)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-
-                        Button {
-                            #if os(iOS)
-                                UIPasteboard.general.string = json
-                            #else
-                                NSPasteboard.general.clearContents()
-                                NSPasteboard.general.setString(json, forType: .string)
-                            #endif
-                        } label: {
-                            Label("Copy JSON", systemImage: "doc.on.doc")
-                                .font(.caption)
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
-                    .padding(.top, 8)
-                },
-                label: {
-                    Text("Raw JSON")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            )
         }
         .padding(.vertical, 2)
         .contextMenu { copyButton }
@@ -88,6 +58,9 @@ struct DiagnosticsLogRowView: View {
                 copyButton
             }
         #endif
+        .sheet(isPresented: $isDetailsPresented) {
+            DiagnosticsLogDetailsSheet(entry: entry)
+        }
         .accessibilityIdentifier("diagnostics_log_row_\(entry.id.uuidString)")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel)
@@ -105,19 +78,6 @@ struct DiagnosticsLogRowView: View {
         .tint(.accentColor)
         .accessibilityIdentifier("diagnostics_copy_\(entry.id.uuidString)")
     }
-
-    private func jsonString(for entry: DiagnosticsLogEntry) -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(entry),
-            let string = String(data: data, encoding: .utf8)
-        else {
-            return "{}"
-        }
-        return string
-    }
-
     private func metadataRow(_ metadata: [String]) -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
