@@ -135,6 +135,29 @@ struct AppReducer {
             case .path(.element(id: _, action: .delegate(.torrentSelected))):
                 return .none
 
+            case .path(
+                .element(id: let detailID, action: .connectionResponse(.success(let response)))):
+                guard let serverID = state.path[id: detailID]?.server.id else { return .none }
+                return .send(
+                    .serverList(
+                        .connectionProbeResponse(
+                            serverID,
+                            .success(.init(handshake: response.handshake))
+                        )
+                    )
+                )
+
+            case .path(.element(id: let detailID, action: .connectionResponse(.failure(let error)))):
+                guard let serverID = state.path[id: detailID]?.server.id else { return .none }
+                return .send(.serverList(.connectionProbeResponse(serverID, .failure(error))))
+
+            case .path(
+                .element(id: let detailID, action: .torrentList(.storageUpdated(let summary)))):
+                guard let serverID = state.path[id: detailID]?.server.id, let summary else {
+                    return .none
+                }
+                return .send(.serverList(.storageResponse(serverID, .success(summary))))
+
             case .path:
                 return .none
             }

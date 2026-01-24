@@ -44,6 +44,9 @@ extension ServerListReducer {
             return .none
 
         case .storageResponse(let id, .failure):
+            if state.connectionStatuses[id]?.storageSummary != nil {
+                return .none
+            }
             state.connectionStatuses[id]?.isLoadingStorage = false
             return .none
 

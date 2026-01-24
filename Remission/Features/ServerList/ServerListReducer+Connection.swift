@@ -109,6 +109,9 @@ extension ServerListReducer {
             return .send(.storageRequested(id))
 
         case .connectionProbeResponse(let id, .failure(let error)):
+            if case .connected = state.connectionStatuses[id]?.phase {
+                return .none
+            }
             state.connectionStatuses[id] = .init(phase: .failed(describe(error)))
             return .none
 

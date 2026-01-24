@@ -68,7 +68,7 @@ extension ServerConnectionProbe {
             let config = request.server.makeTransmissionClientConfig(
                 password: request.password,
                 network: .init(
-                    requestTimeout: 10,
+                    requestTimeout: 20,
                     maxRetries: 0,
                     retryDelay: 0.5,
                     enableLogging: false
