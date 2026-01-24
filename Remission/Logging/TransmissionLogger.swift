@@ -148,7 +148,17 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
     ) {
         let mergedContext = baseContext.merging(context)
         let bodySummary: String = sanitizeResponseBody(responseBody)
-        let level: TransmissionLogLevel = (200...299).contains(statusCode) ? .info : .warning
+
+        let level: TransmissionLogLevel
+        if statusCode == 409 {
+            // 409 is a standard handshake step for Transmission (CSRF token update)
+            level = .debug
+        } else if (200...299).contains(statusCode) {
+            level = .info
+        } else {
+            level = .warning
+        }
+
         let message =
             "[\(level.rawValue)] [Transmission] response method=\(method) status=\(statusCode) body=\(bodySummary) meta=\(formatMetadata(mergedContext))"
         emit(level: level, message: message, metadata: mergedContext.metadata())
@@ -160,10 +170,21 @@ public final class DefaultTransmissionLogger: TransmissionLogger, Sendable {
         context: TransmissionLogContext
     ) {
         let mergedContext = baseContext.merging(context)
-        let errorDescription = safeErrorDescription(error)
-        let message =
-            "[error] [Transmission] error method=\(method) message=\(errorDescription) meta=\(formatMetadata(mergedContext))"
-        emit(level: .error, message: message, metadata: mergedContext.metadata())
+
+        // Check for cancellation
+        let isCancelled = (error as NSError).code == NSURLErrorCancelled
+
+        if isCancelled {
+            // Cancelled requests are expected during navigation/refresh
+            let message =
+                "[debug] [Transmission] request cancelled method=\(method) meta=\(formatMetadata(mergedContext))"
+            emit(level: .debug, message: message, metadata: mergedContext.metadata())
+        } else {
+            let errorDescription = safeErrorDescription(error)
+            let message =
+                "[error] [Transmission] error method=\(method) message=\(errorDescription) meta=\(formatMetadata(mergedContext))"
+            emit(level: .error, message: message, metadata: mergedContext.metadata())
+        }
     }
 
     // MARK: - Private Helpers
