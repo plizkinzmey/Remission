@@ -19,110 +19,96 @@ struct TorrentListControlsView: View {
     #endif
 
     var body: some View {
-        #if os(macOS)
-            VStack(alignment: .leading, spacing: 12) {
-                filterAndSortRowMacOS
+        VStack(alignment: .leading, spacing: 16) {
+            // Row 1: Centered filter capsule
+            HStack {
+                Spacer()
+                filterSegmentedControl
+                    .labelsHidden()
+                    #if os(macOS)
+                        .controlSize(.large)
+                    #else
+                        .controlSize(.small)
+                    #endif
+                    .padding(4)
+                    .background(.regularMaterial)
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
+                    )
+                Spacer()
             }
-            .padding(.vertical, 4)
-        #else
-            VStack(alignment: .leading, spacing: 12) {
-                if UIDevice.current.userInterfaceIdiom == .pad {
-                    filterCapsules
 
-                    if store.isSearchFieldVisible {
-                        searchFieldView
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-                } else {
-                    filterSegmentedControl
+            #if os(iOS)
+                if UIDevice.current.userInterfaceIdiom == .pad && store.isSearchFieldVisible {
+                    searchFieldView
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
+            #endif
 
-                HStack(spacing: 12) {
-                    if store.visibleItems.isEmpty == false {
-                        categoryPicker
-                    }
-                    Spacer(minLength: 0)
-                }
-            }
-            .padding(.vertical, 4)
-            .onAppear {
-                if searchText != store.searchQuery {
-                    searchText = store.searchQuery
-                }
-            }
-            .onChange(of: searchText) { _, newValue in
-                guard newValue != store.searchQuery else { return }
-                store.send(.searchQueryChanged(newValue))
-            }
-            .onChange(of: store.searchQuery) { _, newValue in
-                guard newValue != searchText else { return }
-                searchText = newValue
-            }
-        #endif
-    }
-
-    #if os(macOS)
-        private var filterAndSortRowMacOS: some View {
-            ViewThatFits(in: .horizontal) {
-                // Wide layout
-                HStack(alignment: .center, spacing: 12) {
+            // Row 2: Category picker
+            HStack(spacing: 12) {
+                if store.visibleItems.isEmpty == false {
                     categoryPicker
-                        .labelsHidden()
-                        .frame(width: macOSCategoryPickerWidth)
-
-                    Spacer(minLength: 0)
-
-                    filterSegmentedControl
-                        .labelsHidden()
-                        .frame(maxWidth: 360)
-
-                    Spacer(minLength: 0)
-                }
-
-                // Compact layout
-                VStack(spacing: 12) {
-                    filterSegmentedControl
-                        .labelsHidden()
-                        .frame(maxWidth: .infinity)
-
-                    HStack(alignment: .center, spacing: 12) {
-                        categoryPicker
+                        #if os(macOS)
                             .labelsHidden()
-                            .frame(width: macOSCategoryPickerWidth)
-
-                        Spacer(minLength: 0)
-                    }
+                        #endif
                 }
+                Spacer(minLength: 0)
+
+                #if os(iOS)
+                    if UIDevice.current.userInterfaceIdiom == .pad {
+                        searchToggleButton
+                    }
+                #endif
             }
         }
-    #endif
+        .padding(.vertical, 4)
+        .onAppear {
+            if searchText != store.searchQuery {
+                searchText = store.searchQuery
+            }
+        }
+        .onChange(of: searchText) { _, newValue in
+            guard newValue != store.searchQuery else { return }
+            store.send(.searchQueryChanged(newValue))
+        }
+        .onChange(of: store.searchQuery) { _, newValue in
+            guard newValue != searchText else { return }
+            searchText = newValue
+        }
+    }
 
     #if os(iOS)
+        private var searchToggleButton: some View {
+            Button {
+                withAnimation(.spring(duration: 0.3)) {
+                    _ = store.send(.toggleSearchField)
+                }
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(store.isSearchFieldVisible ? .white : .secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(
+                        Capsule()
+                            .fill(
+                                store.isSearchFieldVisible
+                                    ? AppTheme.accent
+                                    : Color.clear
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+
         private var filterCapsules: some View {
             HStack {
                 HStack(spacing: 4) {
                     filterSegmentedControlPad
-
-                    Button {
-                        withAnimation(.spring(duration: 0.3)) {
-                            _ = store.send(.toggleSearchField)
-                        }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(store.isSearchFieldVisible ? .white : .secondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        store.isSearchFieldVisible
-                                            ? AppTheme.accent
-                                            : Color.clear
-                                    )
-                            )
-                    }
-                    .buttonStyle(.plain)
+                    searchToggleButton
                 }
                 .padding(padFilterInnerPadding)
                 .frame(height: padFilterCapsuleHeight)
