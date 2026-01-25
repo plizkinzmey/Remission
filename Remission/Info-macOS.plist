@@ -26,6 +26,11 @@
 	<string>public.app-category.utilities</string>
 	<key>LSMultipleInstancesProhibited</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Remission подключается к вашему серверу Transmission в локальной сети.</string>
 	<key>CFBundleDocumentTypes</key>
