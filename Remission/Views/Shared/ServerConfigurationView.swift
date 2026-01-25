@@ -56,7 +56,7 @@ struct ServerConfigurationView: View {
     @ViewBuilder
     private var submissionOverlay: some View {
         ZStack {
-            Color.black.opacity(0.1)
+            Color.secondary.opacity(0.2)
                 .ignoresSafeArea()
             ProgressView(submissionLabel)
                 .padding()

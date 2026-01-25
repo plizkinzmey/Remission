@@ -21,7 +21,7 @@ extension AppView {
                         .frame(width: 100, height: 100)
                         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                         .shadow(
-                            color: Color.black.opacity(0.15),
+                            color: .secondary.opacity(0.2),
                             radius: 12,
                             x: 0,
                             y: 4
