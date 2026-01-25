@@ -140,6 +140,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         let configuration: URLSessionConfiguration = sessionConfiguration ?? .default
         configuration.waitsForConnectivity = true
+        configuration.timeoutIntervalForResource = 30
         self.session = URLSession(
             configuration: configuration, delegate: delegate, delegateQueue: nil)
     }
@@ -246,9 +247,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         while true {
             // Восстанавливаем тело запроса на каждой попытке, чтобы повторные отправки
-            // (после 409 или ретраев) не уходили с опустошённым stream.
+            // (после 409 или ретраев) не уходили с пустым телом.
             mutableRequest.httpBody = bodyData
-            mutableRequest.httpBodyStream = InputStream(data: bodyData)
 
             let attemptStartedAt = Date()
             do {
@@ -264,16 +264,18 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     return transmissionResponse
                 }
             } catch let urlError as URLError {
-                if try await handleURLError(
+                let shouldRetryError = try await handleURLError(
                     urlError,
                     method: method,
                     remainingRetries: &remainingRetries,
                     retryAttempt: &retryAttempt,
                     elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
-                ) {
+                )
+                if remainingRetries > 0 && shouldRetryError {
                     continue
                 }
                 throw APIError.mapURLError(urlError)
+
             } catch let apiError as APIError {
                 logNetworkError(
                     method: method,
@@ -321,12 +323,11 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             }
         }
 
-        guard remainingRetries > 0, shouldRetry(urlError) else {
+        guard shouldRetry(urlError) else {
             return false
         }
         let delay = retryDelay(for: retryAttempt)
         retryAttempt += 1
-        remainingRetries -= 1
         try await clock.sleep(for: delay)
         return true
     }

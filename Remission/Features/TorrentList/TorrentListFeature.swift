@@ -131,6 +131,8 @@ struct TorrentListReducer {
                 }
                 if state.items.isEmpty {
                     state.phase = .loading
+                } else {
+                    state.isAwaitingConnection = false
                 }
                 guard let serverID = state.serverID else {
                     return .none
@@ -355,10 +357,12 @@ struct TorrentListReducer {
                     state.failedAttempts = 0
                     state.offlineState = nil
                     state.phase = .loaded
+                    state.isAwaitingConnection = false
                 } else if let offline = state.offlineState {
                     state.phase = .offline(offline)
                 } else {
                     state.phase = .loaded
+                    state.isAwaitingConnection = false
                 }
                 guard payload.isFromCache == false,
                     state.isPollingEnabled,
@@ -379,6 +383,7 @@ struct TorrentListReducer {
                 let message = describe(error)
                 state.isRefreshing = false
                 state.isAwaitingConnection = false
+                state.phase = .error(message)
                 state.failedAttempts += 1
                 let offline = State.OfflineState(
                     message: message,
