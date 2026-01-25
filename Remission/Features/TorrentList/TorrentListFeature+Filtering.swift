@@ -80,58 +80,6 @@ extension TorrentListReducer {
             }
         }
     }
-
-    enum SortOrder: String, Equatable, CaseIterable, Hashable, Sendable {
-        case name
-        case progress
-        case downloadSpeed
-        case eta
-
-        var title: String {
-            switch self {
-            case .name: return L10n.tr("torrentList.sort.name")
-            case .progress: return L10n.tr("torrentList.sort.progress")
-            case .downloadSpeed: return L10n.tr("torrentList.sort.speed")
-            case .eta: return L10n.tr("torrentList.sort.eta")
-            }
-        }
-
-        func areInIncreasingOrder(
-            lhs: TorrentListItem.State,
-            rhs: TorrentListItem.State
-        ) -> Bool {
-            switch self {
-            case .name:
-                return lhs.torrent.name.localizedCaseInsensitiveCompare(rhs.torrent.name)
-                    != .orderedDescending
-
-            case .progress:
-                if lhs.metrics.progressFraction == rhs.metrics.progressFraction {
-                    return lhs.torrent.name.localizedCaseInsensitiveCompare(rhs.torrent.name)
-                        != .orderedDescending
-                }
-                return lhs.metrics.progressFraction > rhs.metrics.progressFraction
-
-            case .downloadSpeed:
-                let lhsSpeed = lhs.torrent.summary.transfer.downloadRate
-                let rhsSpeed = rhs.torrent.summary.transfer.downloadRate
-                if lhsSpeed == rhsSpeed {
-                    return lhs.torrent.name.localizedCaseInsensitiveCompare(rhs.torrent.name)
-                        != .orderedDescending
-                }
-                return lhsSpeed > rhsSpeed
-
-            case .eta:
-                let lhsEta = lhs.metrics.etaSeconds > 0 ? lhs.metrics.etaSeconds : .max
-                let rhsEta = rhs.metrics.etaSeconds > 0 ? rhs.metrics.etaSeconds : .max
-                if lhsEta == rhsEta {
-                    return lhs.torrent.name.localizedCaseInsensitiveCompare(rhs.torrent.name)
-                        != .orderedDescending
-                }
-                return lhsEta < rhsEta
-            }
-        }
-    }
 }
 
 extension TorrentListReducer.State {
@@ -146,7 +94,7 @@ extension TorrentListReducer.State {
                 && matchesSearch($0, query: query)
         }
         let sorted = filtered.sorted {
-            sortOrder.areInIncreasingOrder(lhs: $0, rhs: $1)
+            $0.torrent.name.localizedCaseInsensitiveCompare($1.torrent.name) != .orderedDescending
         }
         return IdentifiedArray(uniqueElements: sorted)
     }

@@ -45,7 +45,6 @@ struct TorrentListReducer {
         var searchQuery: String = ""
         var selectedFilter: Filter = .all
         var selectedCategory: CategoryFilter = .all
-        var sortOrder: SortOrder = .name
         var isRefreshing: Bool = false
         var isPollingEnabled: Bool = true
         var failedAttempts: Int = 0
@@ -75,7 +74,6 @@ struct TorrentListReducer {
         case hideSearchField
         case filterChanged(Filter)
         case categoryChanged(CategoryFilter)
-        case sortChanged(SortOrder)
         case rowTapped(Torrent.Identifier)
         case startTapped(Torrent.Identifier)
         case pauseTapped(Torrent.Identifier)
@@ -206,10 +204,6 @@ struct TorrentListReducer {
 
             case .categoryChanged(let category):
                 state.selectedCategory = category
-                return .none
-
-            case .sortChanged(let sort):
-                state.sortOrder = sort
                 return .none
 
             case .rowTapped(let id):

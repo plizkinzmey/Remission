@@ -10,7 +10,6 @@ struct TorrentListControlsView: View {
     @State private var searchText: String = ""
 
     #if os(macOS)
-        private var macOSSortPickerWidth: CGFloat { 150 }
         private var macOSCategoryPickerWidth: CGFloat { 170 }
         private var macOSToolbarPillHeight: CGFloat { 34 }
     #endif
@@ -43,9 +42,6 @@ struct TorrentListControlsView: View {
                         categoryPicker
                     }
                     Spacer(minLength: 0)
-                    if store.visibleItems.isEmpty == false {
-                        sortPicker
-                    }
                 }
             }
             .padding(.vertical, 4)
@@ -81,10 +77,6 @@ struct TorrentListControlsView: View {
                         .frame(maxWidth: 360)
 
                     Spacer(minLength: 0)
-
-                    sortPicker
-                        .labelsHidden()
-                        .frame(width: macOSSortPickerWidth)
                 }
 
                 // Compact layout
@@ -99,10 +91,6 @@ struct TorrentListControlsView: View {
                             .frame(width: macOSCategoryPickerWidth)
 
                         Spacer(minLength: 0)
-
-                        sortPicker
-                            .labelsHidden()
-                            .frame(width: macOSSortPickerWidth)
                     }
                 }
             }
@@ -205,49 +193,6 @@ struct TorrentListControlsView: View {
                 .fixedSize(horizontal: true, vertical: false)
         }
     #endif
-
-    private var sortPicker: some View {
-        #if os(macOS)
-            Menu {
-                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                    Button(sort.title) {
-                        store.send(.sortChanged(sort))
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(store.sortOrder.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .frame(width: macOSSortPickerWidth, height: macOSToolbarPillHeight)
-                .contentShape(Rectangle())
-                .appToolbarPillSurface()
-            }
-            .accessibilityIdentifier("torrentlist_sort_picker")
-            .buttonStyle(.plain)
-        #else
-            Picker(
-                L10n.tr("torrentList.sort.title"),
-                selection: Binding(
-                    get: { store.sortOrder },
-                    set: { store.send(.sortChanged($0)) }
-                )
-            ) {
-                ForEach(TorrentListReducer.SortOrder.allCases, id: \.self) { sort in
-                    Text(sort.title).tag(sort)
-                }
-            }
-            .accessibilityIdentifier("torrentlist_sort_picker")
-            .pickerStyle(.menu)
-        #endif
-    }
 
     private var categoryPicker: some View {
         #if os(macOS)
