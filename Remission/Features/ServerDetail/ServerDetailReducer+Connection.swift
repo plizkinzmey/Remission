@@ -2,7 +2,7 @@ import ComposableArchitecture
 import Foundation
 
 extension ServerDetailReducer {
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func connectionReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .task:

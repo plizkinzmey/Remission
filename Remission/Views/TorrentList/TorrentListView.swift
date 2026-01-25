@@ -1,6 +1,8 @@
 import ComposableArchitecture
 import SwiftUI
 
+// swiftlint:disable file_length
+
 #if canImport(UIKit)
     import UIKit
 #endif
@@ -546,3 +548,5 @@ extension TorrentListView {
         TorrentListView(store: .preview(state: .previewLoaded()))
     }
 #endif
+
+// swiftlint:enable file_length

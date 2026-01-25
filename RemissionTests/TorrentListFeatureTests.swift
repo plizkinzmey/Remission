@@ -116,24 +116,8 @@ struct TorrentListFeatureTests {
     func testRemovalFlow() async throws {
         let torrent = Torrent.sampleDownloading()
         let clock = TestClock()
-        let server = ServerConfig(
-            id: serverID,
-            name: "Test Server",
-            connection: .init(host: "localhost", port: 9091),
-            security: .http,
-            authentication: .init(username: "admin"),
-            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
-        )
-        var torrentRepository = TorrentRepository.testValue
-        torrentRepository.removeClosure = { @Sendable ids, deleteData in
-            #expect(ids == [torrent.id])
-            #expect(deleteData == true)
-        }
-        torrentRepository.fetchListClosure = { @Sendable in [] }
-        let environment = ServerConnectionEnvironment.testEnvironment(
-            server: server,
-            torrentRepository: torrentRepository,
-            sessionRepository: .placeholder
+        let environment = makeEnvironment(
+            torrentRepository: makeRemovalRepository(torrent: torrent)
         )
         let expectedSummary = try #require(
             StorageSummary.calculate(torrents: [], session: .previewActive, updatedAt: nil)
@@ -181,20 +165,8 @@ struct TorrentListFeatureTests {
         let clock = TestClock()
         let error = NSError(
             domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Network error"])
-        let server = ServerConfig(
-            id: serverID,
-            name: "Test Server",
-            connection: .init(host: "localhost", port: 9091),
-            security: .http,
-            authentication: .init(username: "admin"),
-            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
-        )
-        var torrentRepository = TorrentRepository.testValue
-        torrentRepository.fetchListClosure = { @Sendable in throw error }
-        let environment = ServerConnectionEnvironment.testEnvironment(
-            server: server,
-            torrentRepository: torrentRepository,
-            sessionRepository: .placeholder
+        let environment = makeEnvironment(
+            torrentRepository: makeFailingFetchRepository(error: error)
         )
 
         let store = TestStoreFactory.makeTestStore(
@@ -318,5 +290,42 @@ struct TorrentListFeatureTests {
             TorrentListReducer.Action.errorPresenter(
                 .showBanner(message: "No internet", retry: .refresh)))
         await store.finish()
+    }
+
+    private func makeEnvironment(
+        torrentRepository: TorrentRepository
+    ) -> ServerConnectionEnvironment {
+        ServerConnectionEnvironment.testEnvironment(
+            server: makeServer(),
+            torrentRepository: torrentRepository,
+            sessionRepository: .placeholder
+        )
+    }
+
+    private func makeServer() -> ServerConfig {
+        ServerConfig(
+            id: serverID,
+            name: "Test Server",
+            connection: .init(host: "localhost", port: 9091),
+            security: .http,
+            authentication: .init(username: "admin"),
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+    }
+
+    private func makeRemovalRepository(torrent: Torrent) -> TorrentRepository {
+        var repository = TorrentRepository.testValue
+        repository.removeClosure = { @Sendable ids, deleteData in
+            #expect(ids == [torrent.id])
+            #expect(deleteData == true)
+        }
+        repository.fetchListClosure = { @Sendable in [] }
+        return repository
+    }
+
+    private func makeFailingFetchRepository(error: NSError) -> TorrentRepository {
+        var repository = TorrentRepository.testValue
+        repository.fetchListClosure = { @Sendable in throw error }
+        return repository
     }
 }
