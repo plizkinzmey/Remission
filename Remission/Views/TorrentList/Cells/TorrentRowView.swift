@@ -11,39 +11,7 @@ struct TorrentRowView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Group {
-                    if let openRequested {
-                        Button(action: openRequested) {
-                            Text(item.torrent.name)
-                                .font(.headline)
-                                .lineLimit(2)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(isLocked)
-                        .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
-                    } else {
-                        Text(item.torrent.name)
-                            .font(.headline)
-                            .lineLimit(2)
-                            .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
-                    }
-                }
-                .layoutPriority(1)
-
-                Spacer(minLength: 12)
-
-                HStack(spacing: 6) {
-                    #if os(macOS)
-                        if let actions {
-                            actionsPill(actions)
-                        }
-                    #endif
-                    statusBadge
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-            .frame(maxWidth: .infinity)
+            headerRow
 
             #if os(iOS)
                 if item.torrent.tags.isEmpty == false {
@@ -52,135 +20,15 @@ struct TorrentRowView: View {
             #endif
 
             ProgressView(value: item.metrics.progressFraction)
-                .tint(progressColor)
+                .tint(statusData.color)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
                 .accessibilityValue(item.metrics.progressText)
 
             #if os(iOS)
-                HStack(alignment: .center, spacing: 12) {
-                    Label(
-                        peersText,
-                        systemImage: "person.2"
-                    )
-                    .appCaption()
-                    .foregroundStyle(.primary)
-
-                    Text(ratioTextShort)
-                        .appCaption()
-                        .foregroundStyle(.primary)
-                        .appMonospacedDigit()
-                        .accessibilityIdentifier(
-                            "torrent_row_ratio_\(item.torrent.id.rawValue)")
-
-                    Spacer(minLength: 6)
-
-                    Label(item.metrics.speedSummary, systemImage: "speedometer")
-                        .appCaption()
-                        .foregroundStyle(.primary)
-                        .appMonospacedDigit()
-                        .lineLimit(1)
-                        .layoutPriority(1)
-                        .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
-                }
+                iOSMetricsRow
             #else
-                ViewThatFits(in: .horizontal) {
-                    // Wide layout (original)
-                    HStack(spacing: 12) {
-                        Label(item.metrics.progressText, systemImage: "circle.dashed")
-                            .appCaption()
-                            .foregroundStyle(.primary)
-                            .appMonospacedDigit()
-                            .accessibilityIdentifier(
-                                "torrent_row_progress_\(item.torrent.id.rawValue)")
-
-                        if let etaText = item.metrics.etaText {
-                            Label(etaText, systemImage: "clock")
-                                .appCaption()
-                                .foregroundStyle(.primary)
-                                .appMonospacedDigit()
-                        }
-
-                        Label(
-                            peersText,
-                            systemImage: "person.2"
-                        )
-                        .appCaption()
-                        .foregroundStyle(.primary)
-
-                        Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
-                            .appCaption()
-                            .foregroundStyle(.primary)
-                            .appMonospacedDigit()
-                            .accessibilityIdentifier(
-                                "torrent_row_ratio_\(item.torrent.id.rawValue)")
-
-                        if item.torrent.tags.isEmpty == false {
-                            tagsInlineRow
-                                .layoutPriority(0)
-                        }
-
-                        Spacer(minLength: 6)
-
-                        Label(item.metrics.speedSummary, systemImage: "speedometer")
-                            .appCaption()
-                            .foregroundStyle(.primary)
-                            .appMonospacedDigit()
-                            .lineLimit(1)
-                            .layoutPriority(1)
-                            .accessibilityIdentifier(
-                                "torrent_row_speed_\(item.torrent.id.rawValue)")
-                    }
-
-                    // Compact layout
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 12) {
-                            Label(item.metrics.progressText, systemImage: "circle.dashed")
-                                .appCaption()
-                                .foregroundStyle(.primary)
-                                .appMonospacedDigit()
-                                .accessibilityIdentifier(
-                                    "torrent_row_progress_compact_\(item.torrent.id.rawValue)")
-
-                            if let etaText = item.metrics.etaText {
-                                Label(etaText, systemImage: "clock")
-                                    .appCaption()
-                                    .foregroundStyle(.primary)
-                                    .appMonospacedDigit()
-                            }
-
-                            Label(
-                                peersText,
-                                systemImage: "person.2"
-                            )
-                            .appCaption()
-                            .foregroundStyle(.primary)
-
-                            Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
-                                .appCaption()
-                                .foregroundStyle(.primary)
-                                .appMonospacedDigit()
-                                .accessibilityIdentifier(
-                                    "torrent_row_ratio_compact_\(item.torrent.id.rawValue)")
-                        }
-
-                        HStack(spacing: 12) {
-                            if item.torrent.tags.isEmpty == false {
-                                tagsInlineRow
-                            }
-
-                            Spacer(minLength: 0)
-
-                            Label(item.metrics.speedSummary, systemImage: "speedometer")
-                                .appCaption()
-                                .foregroundStyle(.primary)
-                                .appMonospacedDigit()
-                                .lineLimit(1)
-                                .accessibilityIdentifier(
-                                    "torrent_row_speed_compact_\(item.torrent.id.rawValue)")
-                        }
-                    }
-                }
+                macOSMetricsRow
             #endif
         }
         .padding(.horizontal, 12)
@@ -188,16 +36,7 @@ struct TorrentRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            String(
-                format: L10n.tr("%@, %@, %@, %@"),
-                locale: Locale.current,
-                item.torrent.name,
-                statusTitle,
-                item.metrics.progressText,
-                item.metrics.speedSummary
-            )
-        )
+        .accessibilityLabel(accessibilityLabelText)
         #if !os(macOS)
             .accessibilityHint(L10n.tr("Open torrent details"))
         #endif
@@ -215,6 +54,169 @@ struct TorrentRowView: View {
 
         var isAnyBusy: Bool {
             isStartPauseBusy || isVerifyBusy || isRemoveBusy
+        }
+    }
+}
+
+// MARK: - Subviews
+extension TorrentRowView {
+    private var headerRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            nameLabel
+                .layoutPriority(1)
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 6) {
+                #if os(macOS)
+                    if let actions {
+                        actionsPill(actions)
+                    }
+                #endif
+                statusBadge
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var nameLabel: some View {
+        Group {
+            if let openRequested {
+                Button(action: openRequested) {
+                    Text(item.torrent.name)
+                        .font(.headline)
+                        .lineLimit(2)
+                }
+                .buttonStyle(.plain)
+                .disabled(isLocked)
+                .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+            } else {
+                Text(item.torrent.name)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .accessibilityIdentifier("torrent_row_name_\(item.torrent.id.rawValue)")
+            }
+        }
+    }
+
+    private var iOSMetricsRow: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Label(peersText, systemImage: "person.2")
+                .appCaption()
+                .foregroundStyle(.primary)
+
+            Text(ratioTextShort)
+                .appCaption()
+                .foregroundStyle(.primary)
+                .appMonospacedDigit()
+                .accessibilityIdentifier("torrent_row_ratio_\(item.torrent.id.rawValue)")
+
+            Spacer(minLength: 6)
+
+            Label(item.metrics.speedSummary, systemImage: "speedometer")
+                .appCaption()
+                .foregroundStyle(.primary)
+                .appMonospacedDigit()
+                .lineLimit(1)
+                .layoutPriority(1)
+                .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
+        }
+    }
+
+    private var macOSMetricsRow: some View {
+        ViewThatFits(in: .horizontal) {
+            wideMetricsRow
+            compactMetricsRow
+        }
+    }
+
+    private var wideMetricsRow: some View {
+        HStack(spacing: 12) {
+            Label(item.metrics.progressText, systemImage: "circle.dashed")
+                .appCaption()
+                .foregroundStyle(.primary)
+                .appMonospacedDigit()
+                .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
+
+            if let etaText = item.metrics.etaText {
+                Label(etaText, systemImage: "clock")
+                    .appCaption()
+                    .foregroundStyle(.primary)
+                    .appMonospacedDigit()
+            }
+
+            Label(peersText, systemImage: "person.2")
+                .appCaption()
+                .foregroundStyle(.primary)
+
+            Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                .appCaption()
+                .foregroundStyle(.primary)
+                .appMonospacedDigit()
+                .accessibilityIdentifier("torrent_row_ratio_\(item.torrent.id.rawValue)")
+
+            if item.torrent.tags.isEmpty == false {
+                tagsInlineRow
+                    .layoutPriority(0)
+            }
+
+            Spacer(minLength: 6)
+
+            Label(item.metrics.speedSummary, systemImage: "speedometer")
+                .appCaption()
+                .foregroundStyle(.primary)
+                .appMonospacedDigit()
+                .lineLimit(1)
+                .layoutPriority(1)
+                .accessibilityIdentifier("torrent_row_speed_\(item.torrent.id.rawValue)")
+        }
+    }
+
+    private var compactMetricsRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Label(item.metrics.progressText, systemImage: "circle.dashed")
+                    .appCaption()
+                    .foregroundStyle(.primary)
+                    .appMonospacedDigit()
+                    .accessibilityIdentifier(
+                        "torrent_row_progress_compact_\(item.torrent.id.rawValue)")
+
+                if let etaText = item.metrics.etaText {
+                    Label(etaText, systemImage: "clock")
+                        .appCaption()
+                        .foregroundStyle(.primary)
+                        .appMonospacedDigit()
+                }
+
+                Label(peersText, systemImage: "person.2")
+                    .appCaption()
+                    .foregroundStyle(.primary)
+
+                Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                    .appCaption()
+                    .foregroundStyle(.primary)
+                    .appMonospacedDigit()
+                    .accessibilityIdentifier(
+                        "torrent_row_ratio_compact_\(item.torrent.id.rawValue)")
+            }
+
+            HStack(spacing: 12) {
+                if item.torrent.tags.isEmpty == false {
+                    tagsInlineRow
+                }
+
+                Spacer(minLength: 0)
+
+                Label(item.metrics.speedSummary, systemImage: "speedometer")
+                    .appCaption()
+                    .foregroundStyle(.primary)
+                    .appMonospacedDigit()
+                    .lineLimit(1)
+                    .accessibilityIdentifier(
+                        "torrent_row_speed_compact_\(item.torrent.id.rawValue)")
+            }
         }
     }
 
@@ -281,16 +283,16 @@ struct TorrentRowView: View {
         }
         .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
     }
+}
 
-    private func displayTagLabel(_ tag: String) -> String {
-        TorrentCategory.localizedTitle(for: tag) ?? tag
+// MARK: - Computed Properties
+extension TorrentRowView {
+    private var statusData: TorrentStatusData {
+        TorrentStatusData(status: item.torrent.status)
     }
 
     private var peersText: String {
-        String(
-            format: L10n.tr("torrentList.peers"),
-            Int64(item.torrent.summary.peers.connected)
-        )
+        String(format: L10n.tr("torrentList.peers"), Int64(item.torrent.summary.peers.connected))
     }
 
     private var ratioText: String {
@@ -309,67 +311,75 @@ struct TorrentRowView: View {
         )
     }
 
+    private var accessibilityLabelText: String {
+        String(
+            format: L10n.tr("%@, %@, %@, %@"),
+            locale: Locale.current,
+            item.torrent.name,
+            statusData.title,
+            item.metrics.progressText,
+            item.metrics.speedSummary
+        )
+    }
+
     private var statusBadge: some View {
         ZStack {
-            Text(statusAbbreviation)
+            Text(statusData.abbreviation)
                 .font(.subheadline.weight(.semibold))
         }
         .frame(width: 28, height: 28)
-        .background(
-            Circle()
-                .fill(statusColor.opacity(0.15))
-        )
-        .overlay(
-            Circle()
-                .strokeBorder(.quaternary)
-        )
-        .foregroundStyle(statusColor)
+        .background(Circle().fill(statusData.color.opacity(0.15)))
+        .overlay(Circle().strokeBorder(.quaternary))
+        .foregroundStyle(statusData.color)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
-        .accessibilityLabel(statusTitle)
+        .accessibilityLabel(statusData.title)
     }
 
-    private var statusAbbreviation: String {
-        switch item.torrent.status {
+    private func displayTagLabel(_ tag: String) -> String {
+        TorrentCategory.localizedTitle(for: tag) ?? tag
+    }
+}
+
+// MARK: - Status Data Helper
+private struct TorrentStatusData {
+    let title: String
+    let abbreviation: String
+    let color: Color
+
+    init(status: Torrent.Status) {
+        switch status {
         case .stopped:
-            return L10n.tr("torrentList.status.abbrev.paused")
-        case .checkWaiting, .checking:
-            return L10n.tr("torrentList.status.abbrev.checking")
-        case .downloadWaiting, .seedWaiting:
-            return L10n.tr("torrentList.status.abbrev.waiting")
+            title = L10n.tr("torrentList.status.paused")
+            abbreviation = L10n.tr("torrentList.status.abbrev.paused")
+            color = .secondary
+        case .checkWaiting:
+            title = L10n.tr("torrentList.status.checkWaiting")
+            abbreviation = L10n.tr("torrentList.status.abbrev.checking")
+            color = .orange
+        case .checking:
+            title = L10n.tr("torrentList.status.checking")
+            abbreviation = L10n.tr("torrentList.status.abbrev.checking")
+            color = .orange
+        case .downloadWaiting:
+            title = L10n.tr("torrentList.status.downloadWaiting")
+            abbreviation = L10n.tr("torrentList.status.abbrev.waiting")
+            color = .indigo
         case .downloading:
-            return L10n.tr("torrentList.status.abbrev.downloading")
+            title = L10n.tr("torrentList.status.downloading")
+            abbreviation = L10n.tr("torrentList.status.abbrev.downloading")
+            color = .blue
+        case .seedWaiting:
+            title = L10n.tr("torrentList.status.seedWaiting")
+            abbreviation = L10n.tr("torrentList.status.abbrev.waiting")
+            color = .indigo
         case .seeding:
-            return L10n.tr("torrentList.status.abbrev.seeding")
+            title = L10n.tr("torrentList.status.seeding")
+            abbreviation = L10n.tr("torrentList.status.abbrev.seeding")
+            color = .green
         case .isolated:
-            return L10n.tr("torrentList.status.abbrev.error")
+            title = L10n.tr("torrentList.status.error")
+            abbreviation = L10n.tr("torrentList.status.abbrev.error")
+            color = .red
         }
-    }
-
-    private var statusTitle: String {
-        switch item.torrent.status {
-        case .stopped: return L10n.tr("torrentList.status.paused")
-        case .checkWaiting: return L10n.tr("torrentList.status.checkWaiting")
-        case .checking: return L10n.tr("torrentList.status.checking")
-        case .downloadWaiting: return L10n.tr("torrentList.status.downloadWaiting")
-        case .downloading: return L10n.tr("torrentList.status.downloading")
-        case .seedWaiting: return L10n.tr("torrentList.status.seedWaiting")
-        case .seeding: return L10n.tr("torrentList.status.seeding")
-        case .isolated: return L10n.tr("torrentList.status.error")
-        }
-    }
-
-    private var statusColor: Color {
-        switch item.torrent.status {
-        case .downloading: return .blue
-        case .seeding: return .green
-        case .stopped: return .secondary
-        case .checking, .checkWaiting: return .orange
-        case .downloadWaiting, .seedWaiting: return .indigo
-        case .isolated: return .red
-        }
-    }
-
-    private var progressColor: Color {
-        statusColor
     }
 }
