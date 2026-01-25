@@ -191,6 +191,25 @@ struct ServerDetailView: View {
     #if os(macOS)
         private var macOSSettingsToolbarPill: some View {
             HStack(spacing: 10) {
+                if store.torrentList.connectionEnvironment != nil {
+                    Button {
+                        store.send(.torrentList(.addTorrentButtonTapped))
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .frame(width: 24, height: 24)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("torrentlist_add_button")
+                    .accessibilityLabel(L10n.tr("torrentList.action.add"))
+
+                    Divider()
+                        .frame(height: 18)
+                }
+
                 Button {
                     store.send(.diagnosticsButtonTapped)
                 } label: {

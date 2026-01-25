@@ -9,22 +9,6 @@ extension TorrentListView {
     #if os(macOS)
         var macOSToolbarControls: some View {
             HStack(spacing: 10) {
-                Button {
-                    store.send(.addTorrentButtonTapped)
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.system(size: 15, weight: .semibold))
-                        .frame(width: 24, height: 24)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("torrentlist_add_button")
-
-                Divider()
-                    .frame(height: 18)
-
                 HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .imageScale(.medium)
@@ -42,10 +26,24 @@ extension TorrentListView {
                 }
                 .accessibilityIdentifier("torrentlist_search_field")
             }
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
             .frame(height: 34)
-            .appToolbarPillSurface()
+            .background(
+                Capsule(style: .continuous)
+                    .fill(.regularMaterial)
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .fill(toolbarCapsuleTint)
+                    )
+                    .overlay(
+                        Capsule(style: .continuous)
+                            .strokeBorder(
+                                AppTheme.Stroke.subtle(themeColorScheme).opacity(0.55),
+                                lineWidth: 1
+                            )
+                    )
+            )
         }
     #endif
 
@@ -57,3 +55,40 @@ extension TorrentListView {
         }
     #endif
 }
+
+#if os(macOS)
+    extension TorrentListView {
+        fileprivate var toolbarCapsuleTint: Color {
+            switch themeColorScheme {
+            case .dark:
+                return Color.black.opacity(0.35)
+            case .light:
+                return Color.white.opacity(0.35)
+            @unknown default:
+                return Color.black.opacity(0.35)
+            }
+        }
+
+        fileprivate var toolbarInnerCapsuleFill: Color {
+            switch themeColorScheme {
+            case .dark:
+                return Color.black.opacity(0.65)
+            case .light:
+                return Color.black.opacity(0.10)
+            @unknown default:
+                return Color.black.opacity(0.65)
+            }
+        }
+
+        fileprivate var toolbarInnerCapsuleStroke: Color {
+            switch themeColorScheme {
+            case .dark:
+                return Color.white.opacity(0.16)
+            case .light:
+                return Color.white.opacity(0.45)
+            @unknown default:
+                return Color.white.opacity(0.16)
+            }
+        }
+    }
+#endif

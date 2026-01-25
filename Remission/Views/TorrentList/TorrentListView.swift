@@ -7,6 +7,7 @@ import SwiftUI
 
 struct TorrentListView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
+    @Environment(\.colorScheme) var themeColorScheme
 
     var body: some View {
         Group {
