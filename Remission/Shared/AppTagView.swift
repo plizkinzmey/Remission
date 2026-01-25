@@ -13,10 +13,7 @@ struct AppTagView: View {
             .truncationMode(.tail)
             .padding(.horizontal, 8)
             .frame(height: 20)
-            .background(
-                Capsule()
-                    .fill(color.opacity(opacity))
-            )
+            .appTintedPillSurface(color: color, opacity: opacity)
             .foregroundStyle(color)
     }
 }

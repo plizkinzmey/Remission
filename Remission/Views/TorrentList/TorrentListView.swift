@@ -398,7 +398,7 @@ extension TorrentListView {
                 .disabled(item.isRemoving)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
-                .appCardSurface(cornerRadius: 14)
+                .appTintedCardSurface(color: TorrentStatusData(status: item.torrent.status).color)
                 .contentShape(
                     .contextMenuPreview,
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -428,6 +428,10 @@ extension TorrentListView {
                     .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
                     .opacity(item.isRemoving ? 0.6 : 1)
                     .disabled(item.isRemoving)
+                    .padding(.vertical, 10)
+                    .appTintedCardSurface(
+                        color: TorrentStatusData(status: item.torrent.status).color
+                    )
                     .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
                     .listRowBackground(rowBackground(for: item))
             #endif
@@ -446,7 +450,9 @@ extension TorrentListView {
                         isLocked: item.isRemoving
                     )
                     .padding(.vertical, 10)
-                    .appCardSurface(cornerRadius: 14)
+                    .appTintedCardSurface(
+                        color: TorrentStatusData(status: item.torrent.status).color
+                    )
                     .opacity(item.isRemoving ? 0.6 : 1)
                     .disabled(item.isRemoving)
                 }
@@ -518,6 +524,20 @@ extension TorrentListView {
             L10n.tr("torrentList.status.error")
         ]
         return titles.max(by: { $0.count < $1.count }) ?? ""
+    }
+
+    private struct TorrentStatusData {
+        let color: Color
+        init(status: Torrent.Status) {
+            switch status {
+            case .stopped: color = .secondary
+            case .checkWaiting, .checking: color = .orange
+            case .downloadWaiting, .seedWaiting: color = .indigo
+            case .downloading: color = .blue
+            case .seeding: color = .green
+            case .isolated: color = .red
+            }
+        }
     }
 }
 

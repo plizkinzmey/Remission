@@ -109,12 +109,7 @@ struct TorrentListControlsView: View {
                 }
                 .padding(padFilterInnerPadding)
                 .frame(height: padFilterCapsuleHeight)
-                .background(.regularMaterial)
-                .clipShape(Capsule())
-                .overlay(
-                    Capsule()
-                        .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
-                )
+                .appPillSurface()
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -143,8 +138,7 @@ struct TorrentListControlsView: View {
                 }
             }
             .padding(12)
-            .background(.regularMaterial)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .appCardSurface(cornerRadius: 12)
         }
     #endif
 

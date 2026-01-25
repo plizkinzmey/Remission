@@ -8,9 +8,10 @@ struct DiagnosticsLevelBadge: View {
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
-            .background(diagnosticsLevelColor(level).opacity(0.15))
+            .appTintedCardSurface(
+                color: diagnosticsLevelColor(level), opacity: 0.15, cornerRadius: 6
+            )
             .foregroundStyle(diagnosticsLevelColor(level))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
             .accessibilityIdentifier("diagnostics_level_badge_\(level.rawValue)")
     }
 
@@ -51,9 +52,8 @@ struct DiagnosticsNetworkBadge: View {
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(color.opacity(0.12))
+                .appTintedCardSurface(color: color, opacity: 0.12, cornerRadius: 8)
                 .foregroundStyle(color)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(title)
                 .accessibilityIdentifier(

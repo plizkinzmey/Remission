@@ -42,7 +42,7 @@ extension ServerListView {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .appCardSurface(cornerRadius: 14)
+        .appTintedCardSurface(color: .accentColor, opacity: 0.05)
     }
 
     private func serverRowMac(
@@ -57,7 +57,7 @@ extension ServerListView {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .appCardSurface(cornerRadius: 14)
+        .appTintedCardSurface(color: .accentColor, opacity: 0.05)
     }
 
     private func serverRowMacWide(
@@ -75,12 +75,14 @@ extension ServerListView {
             .buttonStyle(.plain)
             .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
-            HStack(spacing: 10) {
-                storageSummaryChip(for: server, status: status)
-                connectionStatusChip(status: status)
-                securityBadge(for: server)
-                editButton(for: server)
-                deleteButton(for: server)
+            GlassEffectContainer {
+                HStack(spacing: 10) {
+                    storageSummaryChip(for: server, status: status)
+                    connectionStatusChip(status: status)
+                    securityBadge(for: server)
+                    editButton(for: server)
+                    deleteButton(for: server)
+                }
             }
         }
     }
@@ -101,13 +103,15 @@ extension ServerListView {
             .accessibilityIdentifier("server_list_item_compact_\(server.id.uuidString)")
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    storageSummaryChip(for: server, status: status)
-                    connectionStatusChip(status: status)
-                    securityBadge(for: server)
-                    Spacer()
-                    editButton(for: server)
-                    deleteButton(for: server)
+                GlassEffectContainer {
+                    HStack(spacing: 10) {
+                        storageSummaryChip(for: server, status: status)
+                        connectionStatusChip(status: status)
+                        securityBadge(for: server)
+                        Spacer()
+                        editButton(for: server)
+                        deleteButton(for: server)
+                    }
                 }
             }
         }
@@ -165,10 +169,7 @@ extension ServerListView {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(height: macOSToolbarPillHeight)
-                .background(
-                    Capsule()
-                        .fill(.secondary.opacity(0.12))
-                )
+                .appPillSurface()
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
@@ -186,10 +187,7 @@ extension ServerListView {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(height: macOSToolbarPillHeight)
-                .background(
-                    Capsule()
-                        .fill(.secondary.opacity(0.12))
-                )
+                .appPillSurface()
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
@@ -207,7 +205,7 @@ extension ServerListView {
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
-            .background(Capsule().fill(descriptor.tint.opacity(0.15)))
+            .appTintedPillSurface(color: descriptor.tint)
             .foregroundStyle(descriptor.tint)
     }
 
@@ -231,7 +229,7 @@ extension ServerListView {
             .allowsTightening(true)
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
-            .background(Capsule().fill(.secondary.opacity(0.12)))
+            .appPillSurface()
             .foregroundStyle(.primary)
             .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
         }
@@ -282,10 +280,7 @@ extension ServerListView {
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
-            .background(
-                Capsule()
-                    .fill(fill)
-            )
+            .appTintedPillSurface(color: foreground)
             .foregroundStyle(foreground)
     }
 

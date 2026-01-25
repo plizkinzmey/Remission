@@ -38,7 +38,7 @@ struct AppWindowFooterBar<Content: View>: View {
         .padding(.vertical, contentPadding)
         .frame(maxWidth: .infinity)
         .frame(minHeight: AppFooterMetrics.barHeight)
-        .appPillSurface()
+        .appTintedPillSurface(color: .secondary, opacity: 0.05)
         .padding(.horizontal, AppFooterMetrics.contentInset)
         .padding(.top, AppFooterMetrics.bottomInset + AppFooterMetrics.capsuleVerticalNudge)
         .padding(
@@ -90,13 +90,8 @@ struct AppFooterButtonStyle: ButtonStyle {
             .padding(.vertical, 8)
             .frame(minHeight: 30)
             .foregroundStyle(foregroundColor)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(backgroundColor)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(.quaternary)
+            .appTintedPillSurface(
+                color: backgroundColor, opacity: colorScheme == .dark ? 0.35 : 0.20
             )
             .opacity(configuration.isPressed ? 0.88 : 1)
     }
@@ -104,13 +99,13 @@ struct AppFooterButtonStyle: ButtonStyle {
     private var backgroundColor: Color {
         switch variant {
         case .neutral:
-            return .secondary.opacity(0.12)
+            return .secondary
         case .accent:
-            return Color.accentColor.opacity(colorScheme == .dark ? 0.35 : 0.25)
+            return Color.accentColor
         case .success:
-            return .green.opacity(colorScheme == .dark ? 0.40 : 0.25)
+            return .green
         case .error:
-            return .red.opacity(colorScheme == .dark ? 0.40 : 0.25)
+            return .red
         }
     }
 
@@ -139,13 +134,8 @@ struct AppPrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 8)
             .frame(minHeight: 30)
             .foregroundStyle(isEnabled ? .white : .white.opacity(0.85))
-            .background(
-                Capsule(style: .continuous)
-                    .fill(primaryFill)
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .strokeBorder(primaryStroke)
+            .appTintedPillSurface(
+                color: accentFill, opacity: isEnabled ? (colorScheme == .dark ? 0.75 : 0.9) : 0.4
             )
             .shadow(color: primaryShadow, radius: 6, x: 0, y: 2)
             .opacity(configuration.isPressed ? 0.88 : 1)

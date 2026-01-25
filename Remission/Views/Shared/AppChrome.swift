@@ -19,12 +19,41 @@ extension View {
         )
     }
 
+    /// Применяет цветной эффект Liquid Glass к карточке (Stained Glass).
+    func appTintedCardSurface(
+        color: Color,
+        opacity: Double = 0.1,
+        cornerRadius: CGFloat = AppTheme.Radius.card
+    ) -> some View {
+        self.background(
+            color.opacity(opacity),
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        )
+        .glassEffect(
+            .regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(color.opacity(0.25))
+        )
+    }
+
     /// Применяет эффект Liquid Glass к капсуле.
     func appPillSurface() -> some View {
         self.glassEffect(.regular, in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(.quaternary)
+            )
+    }
+
+    /// Применяет цветной эффект Liquid Glass к капсуле (Stained Glass).
+    func appTintedPillSurface(color: Color, opacity: Double = 0.1) -> some View {
+        self.background(color.opacity(opacity), in: Capsule(style: .continuous))
+            .glassEffect(.regular, in: Capsule(style: .continuous))
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(color.opacity(0.25))
             )
     }
 

@@ -5,11 +5,13 @@ struct AppBackgroundView: View {
 
     var body: some View {
         #if os(macOS)
-            Color(nsColor: .windowBackgroundColor)
+            Rectangle()
+                .fill(.windowBackground)
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
         #else
-            Color(.systemBackground)
+            Rectangle()
+                .fill(.background)
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
         #endif

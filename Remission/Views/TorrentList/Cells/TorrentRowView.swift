@@ -328,8 +328,9 @@ extension TorrentRowView {
                 .font(.subheadline.weight(.semibold))
         }
         .frame(width: 28, height: 28)
-        .background(Circle().fill(statusData.color.opacity(0.15)))
-        .overlay(Circle().strokeBorder(.quaternary))
+        .background(statusData.color.opacity(0.15), in: Circle())
+        .glassEffect(.regular, in: Circle())
+        .overlay(Circle().strokeBorder(statusData.color.opacity(0.25)))
         .foregroundStyle(statusData.color)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
         .accessibilityLabel(statusData.title)
