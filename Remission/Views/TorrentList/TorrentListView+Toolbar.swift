@@ -34,14 +34,7 @@ extension TorrentListView {
                     .fill(.regularMaterial)
                     .overlay(
                         Capsule(style: .continuous)
-                            .fill(toolbarCapsuleTint)
-                    )
-                    .overlay(
-                        Capsule(style: .continuous)
-                            .strokeBorder(
-                                AppTheme.Stroke.subtle(themeColorScheme).opacity(0.55),
-                                lineWidth: 1
-                            )
+                            .strokeBorder(AppTheme.Stroke.subtle(themeColorScheme), lineWidth: 0.5)
                     )
             )
         }
@@ -55,40 +48,3 @@ extension TorrentListView {
         }
     #endif
 }
-
-#if os(macOS)
-    extension TorrentListView {
-        fileprivate var toolbarCapsuleTint: Color {
-            switch themeColorScheme {
-            case .dark:
-                return Color.black.opacity(0.35)
-            case .light:
-                return Color.white.opacity(0.35)
-            @unknown default:
-                return Color.black.opacity(0.35)
-            }
-        }
-
-        fileprivate var toolbarInnerCapsuleFill: Color {
-            switch themeColorScheme {
-            case .dark:
-                return Color.black.opacity(0.65)
-            case .light:
-                return Color.black.opacity(0.10)
-            @unknown default:
-                return Color.black.opacity(0.65)
-            }
-        }
-
-        fileprivate var toolbarInnerCapsuleStroke: Color {
-            switch themeColorScheme {
-            case .dark:
-                return Color.white.opacity(0.16)
-            case .light:
-                return Color.white.opacity(0.45)
-            @unknown default:
-                return Color.white.opacity(0.16)
-            }
-        }
-    }
-#endif

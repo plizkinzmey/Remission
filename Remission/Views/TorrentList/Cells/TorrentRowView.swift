@@ -364,9 +364,9 @@ struct TorrentRowView: View {
         switch item.torrent.status {
         case .downloading: return .blue
         case .seeding: return .green
-        case .stopped: return .primary
+        case .stopped: return .secondary
         case .checking, .checkWaiting: return .orange
-        case .downloadWaiting, .seedWaiting: return .purple
+        case .downloadWaiting, .seedWaiting: return .indigo
         case .isolated: return .red
         }
     }

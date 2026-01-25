@@ -137,16 +137,16 @@ extension ServerListView {
             badgeLabel(
                 text: L10n.tr("serverList.badge.https"),
                 systemImage: "lock.shield.fill",
-                fill: Color.blue.opacity(0.18),
-                foreground: Color.blue
+                fill: .blue.opacity(0.12),
+                foreground: .blue
             )
             .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
         } else {
             badgeLabel(
                 text: L10n.tr("serverList.badge.http"),
                 systemImage: "globe",
-                fill: Color.orange.opacity(0.18),
-                foreground: Color.orange
+                fill: .orange.opacity(0.12),
+                foreground: .orange
             )
             .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
         }
@@ -164,7 +164,7 @@ extension ServerListView {
                 .frame(height: macOSToolbarPillHeight)
                 .background(
                     Capsule()
-                        .fill(Color.primary.opacity(0.08))
+                        .fill(.secondary.opacity(0.12))
                 )
         }
         .buttonStyle(.plain)
@@ -185,7 +185,7 @@ extension ServerListView {
                 .frame(height: macOSToolbarPillHeight)
                 .background(
                     Capsule()
-                        .fill(Color.primary.opacity(0.08))
+                        .fill(.secondary.opacity(0.12))
                 )
         }
         .buttonStyle(.plain)
@@ -228,7 +228,7 @@ extension ServerListView {
             .allowsTightening(true)
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
-            .background(Capsule().fill(Color.primary.opacity(0.08)))
+            .background(Capsule().fill(.secondary.opacity(0.12)))
             .foregroundStyle(.primary)
             .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
         }

@@ -29,23 +29,7 @@ struct ServerDetailConnectionPill: View {
 
     private var background: some View {
         Capsule(style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [
-                        AppTheme.Glass.tint(colorScheme)
-                            .opacity(colorScheme == .dark ? 0.60 : 0.35),
-                        AppTheme.Background.glowColor(colorScheme)
-                            .opacity(colorScheme == .dark ? 0.35 : 0.18)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(Color.black.opacity(colorScheme == .dark ? 0.22 : 0.05))
-                    .blendMode(.multiply)
-            )
+            .fill(.regularMaterial)
             .shadow(
                 color: AppTheme.Shadow.card(colorScheme),
                 radius: 8,

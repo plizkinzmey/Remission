@@ -34,11 +34,11 @@ struct ErrorBannerView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color.orange.opacity(0.12))
+                .fill(.orange.opacity(0.12))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                .strokeBorder(.orange.opacity(0.3), lineWidth: 1)
         )
         .accessibilityIdentifier("error-banner")
         .accessibilityElement(children: .combine)

@@ -104,28 +104,26 @@ struct AppFooterButtonStyle: ButtonStyle {
     private var backgroundColor: Color {
         switch variant {
         case .neutral:
-            return colorScheme == .dark
-                ? Color.white.opacity(0.06)
-                : Color.black.opacity(0.06)
+            return .secondary.opacity(0.12)
         case .accent:
-            return AppTheme.accent.opacity(colorScheme == .dark ? 0.45 : 0.30)
+            return AppTheme.accent.opacity(colorScheme == .dark ? 0.35 : 0.25)
         case .success:
-            return Color.green.opacity(colorScheme == .dark ? 0.75 : 1.0)
+            return .green.opacity(colorScheme == .dark ? 0.40 : 0.25)
         case .error:
-            return Color.red.opacity(colorScheme == .dark ? 0.38 : 0.24)
+            return .red.opacity(colorScheme == .dark ? 0.40 : 0.25)
         }
     }
 
     private var foregroundColor: Color {
         switch variant {
         case .neutral:
-            return colorScheme == .dark ? .white : .black
+            return .primary
         case .accent:
-            return .white
+            return AppTheme.accent
         case .success:
-            return .white
+            return .green
         case .error:
-            return .white
+            return .red
         }
     }
 }

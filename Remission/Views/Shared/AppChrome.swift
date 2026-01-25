@@ -32,30 +32,10 @@ extension View {
 
 #if os(macOS)
     private struct AppRootChromeModifier: ViewModifier {
-        @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-        private let isUITesting = ProcessInfo.processInfo.environment["UI_TESTING"] == "1"
-
         func body(content: Content) -> some View {
             content
+                // Используем стандартный акцент и стандартный фон
                 .tint(AppTheme.accent)
-                .configureMacWindowForTranslucency()
-                .containerBackground(Color.clear, for: .window)
-                .background(
-                    Group {
-                        if isUITesting || reduceTransparency {
-                            AppBackgroundView()
-                        } else {
-                            MacWindowBackdropView()
-                                .ignoresSafeArea()
-                                .overlay(
-                                    AppBackgroundView()
-                                        .opacity(0.14)
-                                        .ignoresSafeArea()
-                                )
-                        }
-                    }
-                )
         }
     }
 #else
@@ -63,7 +43,6 @@ extension View {
         func body(content: Content) -> some View {
             content
                 .tint(AppTheme.accent)
-                .background(AppBackgroundView())
         }
     }
 #endif
@@ -93,12 +72,12 @@ private struct AppCardSurfaceModifier: ViewModifier {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(.regularMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(AppTheme.Glass.tint(colorScheme))
-                            .opacity(colorScheme == .dark ? 0.12 : 0.10)
-                    )
+                    // Используем стандартный фон для элементов управления/карточек
+                    #if os(macOS)
+                        .fill(Color(nsColor: .controlBackgroundColor))
+                    #else
+                        .fill(Color(uiColor: .secondarySystemBackground))
+                    #endif
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -124,12 +103,11 @@ private struct AppPillSurfaceModifier: ViewModifier {
     @ViewBuilder
     private var pillBackground: some View {
         Capsule(style: .continuous)
-            .fill(.regularMaterial)
-            .overlay(
-                Capsule(style: .continuous)
-                    .fill(AppTheme.Glass.tint(colorScheme))
-                    .opacity(colorScheme == .dark ? 0.10 : 0.10)
-            )
+            #if os(macOS)
+                .fill(Color(nsColor: .controlBackgroundColor))
+            #else
+                .fill(Color(uiColor: .secondarySystemBackground))
+            #endif
     }
 }
 
@@ -142,17 +120,17 @@ private struct AppToolbarPillSurfaceModifier: ViewModifier {
                 Capsule(style: .continuous)
                     .fill(toolbarFill)
             )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+            )
     }
 
     private var toolbarFill: Color {
         #if os(macOS)
             return Color(nsColor: .windowBackgroundColor)
         #else
-            switch colorScheme {
-            case .dark: return Color.black.opacity(0.35)
-            case .light: return Color.white.opacity(0.75)
-            @unknown default: return Color.black.opacity(0.35)
-            }
+            return Color(uiColor: .tertiarySystemBackground)
         #endif
     }
 }
