@@ -19,22 +19,7 @@ struct ServerDetailConnectionPill: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
         .fixedSize(horizontal: true, vertical: false)
-        .background(background)
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
-        )
+        .appPillSurface()
         .accessibilityIdentifier("server_detail_status_connecting")
-    }
-
-    private var background: some View {
-        Capsule(style: .continuous)
-            .fill(.regularMaterial)
-            .shadow(
-                color: AppTheme.Shadow.card(colorScheme),
-                radius: 8,
-                x: 0,
-                y: 4
-            )
     }
 }

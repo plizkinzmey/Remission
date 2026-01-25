@@ -112,7 +112,7 @@ extension AddTorrentSourceView {
                             .padding(.horizontal, 12)
                             .frame(height: 34)
                             .appPillSurface()
-                            .foregroundStyle(AppTheme.accent)
+                            .foregroundStyle(.tint)
                             .accessibilityIdentifier("torrent_add_choose_file_button")
 
                             if let fileName = store.selectedFileName {

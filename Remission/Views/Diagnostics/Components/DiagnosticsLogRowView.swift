@@ -75,7 +75,7 @@ struct DiagnosticsLogRowView: View {
         } label: {
             Label(L10n.tr("diagnostics.copy"), systemImage: "doc.on.doc")
         }
-        .tint(.accentColor)
+        .tint(Color.accentColor)
         .accessibilityIdentifier("diagnostics_copy_\(entry.id.uuidString)")
     }
     private func metadataRow(_ metadata: [String]) -> some View {

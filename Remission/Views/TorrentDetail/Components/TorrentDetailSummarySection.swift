@@ -67,7 +67,7 @@ struct TorrentDetailSummarySection: View {
                 .stroke(Color.secondary.opacity(0.2), lineWidth: 4)
             Circle()
                 .trim(from: 0, to: progress)
-                .stroke(AppTheme.accent, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                .stroke(Color.accentColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                 .rotationEffect(.degrees(-90))
         }
         .frame(width: 52, height: 52)

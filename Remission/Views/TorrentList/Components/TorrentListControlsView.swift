@@ -20,23 +20,20 @@ struct TorrentListControlsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Row 1: Centered filter capsule
+            // Row 1: Centered filter capsule (Liquid Glass style)
             HStack {
                 Spacer()
-                filterSegmentedControl
-                    .labelsHidden()
-                    #if os(macOS)
-                        .controlSize(.large)
-                    #else
-                        .controlSize(.small)
-                    #endif
-                    .padding(4)
-                    .background(.regularMaterial)
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(.secondary.opacity(0.2), lineWidth: 0.5)
-                    )
+                GlassEffectContainer {
+                    filterSegmentedControl
+                        .labelsHidden()
+                        #if os(macOS)
+                            .controlSize(.large)
+                        #else
+                            .controlSize(.small)
+                        #endif
+                        .padding(4)
+                        .appPillSurface()
+                }
                 Spacer()
             }
 
@@ -96,7 +93,7 @@ struct TorrentListControlsView: View {
                         Capsule()
                             .fill(
                                 store.isSearchFieldVisible
-                                    ? AppTheme.accent
+                                    ? Color.accentColor
                                     : Color.clear
                             )
                     )

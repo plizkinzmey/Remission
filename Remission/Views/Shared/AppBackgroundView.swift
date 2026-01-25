@@ -4,8 +4,14 @@ struct AppBackgroundView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        AppTheme.Background.baseGradient(colorScheme)
-            .ignoresSafeArea()
-            .accessibilityHidden(true)
+        #if os(macOS)
+            Color(nsColor: .windowBackgroundColor)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+        #else
+            Color(.systemBackground)
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+        #endif
     }
 }

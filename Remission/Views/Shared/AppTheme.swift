@@ -1,55 +1,22 @@
 import SwiftUI
 
+/// Стандарты визуальной системы Remission для Apple OS 26.0+ (Liquid Glass Era).
 enum AppTheme {
-    /// Стандартный системный акцентный цвет.
+    /// Системный акцент.
     static let accent = Color.accentColor
 
-    enum Stroke {
-        static func subtle(_ colorScheme: ColorScheme) -> Color {
-            // Системный цвет разделителя/границы
-            #if os(macOS)
-                return Color(nsColor: .separatorColor)
-            #else
-                return Color(uiColor: .separator)
-            #endif
-        }
-    }
+    /// Новая секция для управления эффектами Liquid Glass.
+    enum Liquid {
+        /// Стандартный вариант жидкого стекла.
+        static let glass = Glass.regular
 
-    enum Shadow {
-        static func card(_ colorScheme: ColorScheme) -> Color {
-            return Color.black.opacity(colorScheme == .dark ? 0.3 : 0.1)
-        }
-    }
-
-    enum Background {
-        static func baseGradient(_ colorScheme: ColorScheme) -> Color {
-            // Возвращаем системный фон вместо градиента
-            #if os(macOS)
-                return Color(nsColor: .windowBackgroundColor)
-            #else
-                return Color(uiColor: .systemBackground)
-            #endif
-        }
-
-        static func glowColor(_ colorScheme: ColorScheme) -> Color {
-            return .clear
-        }
-
-        static func glowOpacity(_ colorScheme: ColorScheme) -> Double {
-            return 0
-        }
-    }
-
-    enum Glass {
-        static func tint(_ colorScheme: ColorScheme) -> Color {
-            // Убираем тонирование, оставляем нейтральный цвет
-            return .clear
-        }
+        /// Эффект материализации для появления элементов.
+        static let transition = GlassEffectTransition.materialize
     }
 
     enum Radius {
-        static let card: CGFloat = 10  // Более стандартное для системных списков
-        static let modal: CGFloat = 12
+        static let card: CGFloat = 14
+        static let modal: CGFloat = 20
         static let pill: CGFloat = 100
     }
 

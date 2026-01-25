@@ -18,7 +18,7 @@ struct DiagnosticsFilterSection: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("diagnostics_level_picker")
-                .tint(AppTheme.accent)
+                .tint(Color.accentColor)
                 #if os(macOS)
                     .controlSize(.large)
                 #endif
@@ -36,7 +36,7 @@ struct DiagnosticsFilterSection: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("diagnostics_mode_picker")
-                .tint(AppTheme.accent)
+                .tint(Color.accentColor)
                 #if os(macOS)
                     .controlSize(.large)
                 #endif
@@ -53,7 +53,7 @@ struct DiagnosticsFilterSection: View {
                     )
                 )
                 .toggleStyle(.switch)
-                .tint(AppTheme.accent)
+                .tint(Color.accentColor)
                 .labelsHidden()
                 .accessibilityIdentifier("diagnostics_live_toggle")
             }

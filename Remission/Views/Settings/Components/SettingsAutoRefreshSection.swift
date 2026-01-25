@@ -17,7 +17,7 @@ struct SettingsAutoRefreshSection: View {
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .accessibilityIdentifier("settings_auto_refresh_toggle")
-                .tint(AppTheme.accent)
+                .tint(Color.accentColor)
             }
             Text(L10n.tr("settings.autoRefresh.note"))
                 .font(.footnote)

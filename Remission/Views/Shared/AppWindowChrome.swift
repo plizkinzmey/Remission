@@ -96,7 +96,7 @@ struct AppFooterButtonStyle: ButtonStyle {
             )
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+                    .strokeBorder(.quaternary)
             )
             .opacity(configuration.isPressed ? 0.88 : 1)
     }
@@ -106,7 +106,7 @@ struct AppFooterButtonStyle: ButtonStyle {
         case .neutral:
             return .secondary.opacity(0.12)
         case .accent:
-            return AppTheme.accent.opacity(colorScheme == .dark ? 0.35 : 0.25)
+            return Color.accentColor.opacity(colorScheme == .dark ? 0.35 : 0.25)
         case .success:
             return .green.opacity(colorScheme == .dark ? 0.40 : 0.25)
         case .error:
@@ -119,7 +119,7 @@ struct AppFooterButtonStyle: ButtonStyle {
         case .neutral:
             return .primary
         case .accent:
-            return AppTheme.accent
+            return Color.accentColor
         case .success:
             return .green
         case .error:
@@ -170,7 +170,7 @@ struct AppPrimaryButtonStyle: ButtonStyle {
         #if os(macOS)
             return Color(nsColor: .controlAccentColor)
         #else
-            return AppTheme.accent
+            return Color.accentColor
         #endif
     }
 }

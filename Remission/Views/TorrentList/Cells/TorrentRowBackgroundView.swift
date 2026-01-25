@@ -11,9 +11,6 @@ struct TorrentRowBackgroundView: View {
             : .secondary.opacity(colorScheme == .dark ? 0.16 : 0.08)
         return RoundedRectangle(cornerRadius: 10, style: .continuous)
             .fill(fillColor)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
-            )
+            .appCardSurface(cornerRadius: 10)
     }
 }

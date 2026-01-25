@@ -15,7 +15,7 @@ struct SettingsPollingSection: View {
                 step: 1
             )
             .accessibilityIdentifier("settings_polling_slider")
-            .tint(AppTheme.accent)
+            .tint(Color.accentColor)
             .padding(.horizontal, 10)
             .frame(height: 32)
             .frame(maxWidth: .infinity, alignment: .leading)

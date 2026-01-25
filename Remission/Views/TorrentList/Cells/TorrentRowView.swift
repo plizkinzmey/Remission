@@ -250,9 +250,7 @@ struct TorrentRowView: View {
         .padding(.horizontal, 12)
         .frame(height: 34)
         .appPillSurface()
-        #if !os(visionOS)
-            .appGlassEffectTransition(.materialize)
-        #endif
+        .appMaterialize()
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
     }
 
@@ -323,7 +321,7 @@ struct TorrentRowView: View {
         )
         .overlay(
             Circle()
-                .strokeBorder(AppTheme.Stroke.subtle(colorScheme))
+                .strokeBorder(.quaternary)
         )
         .foregroundStyle(statusColor)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
