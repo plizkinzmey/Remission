@@ -20,20 +20,16 @@ struct TorrentListControlsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Row 1: Centered filter capsule (Liquid Glass style)
+            // Row 1: Filter segmented control
             HStack {
                 Spacer()
-                GlassEffectContainer {
-                    filterSegmentedControl
-                        .labelsHidden()
-                        #if os(macOS)
-                            .controlSize(.large)
-                        #else
-                            .controlSize(.small)
-                        #endif
-                        .padding(4)
-                        .appPillSurface()
-                }
+                filterSegmentedControl
+                    .labelsHidden()
+                    #if os(macOS)
+                        .controlSize(.large)
+                    #else
+                        .controlSize(.small)
+                    #endif
                 Spacer()
             }
 
@@ -109,7 +105,6 @@ struct TorrentListControlsView: View {
                 }
                 .padding(padFilterInnerPadding)
                 .frame(height: padFilterCapsuleHeight)
-                .appPillSurface()
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
