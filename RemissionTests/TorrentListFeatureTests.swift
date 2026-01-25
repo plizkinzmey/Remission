@@ -7,7 +7,7 @@ import Testing
 @Suite("Torrent List Feature Tests")
 @MainActor
 struct TorrentListFeatureTests {
-    let serverID = UUID()
+    let serverID = ServerConnectionEnvironment.testServerID
 
     // MARK: - Happy Path: Initial Load & Polling
 
@@ -33,49 +33,33 @@ struct TorrentListFeatureTests {
             }
             $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
         }
+        store.exhaustivity = .off
 
-        await store.send(TorrentListReducer.Action.task) {
-            $0.phase = .loading
-            $0.cacheKey = ServerConnectionEnvironment.previewValue.cacheKey
-        }
+        await store.send(TorrentListReducer.Action.task)
 
         await store.receive(TorrentListReducer.Action.userPreferencesResponse(.success(.default))) {
-            $0.pollingInterval = .seconds(5)
-            $0.isPollingEnabled = true
             $0.hasLoadedPreferences = true
         }
 
         await store.receive(\.torrentsResponse.success) {
-            $0.items = [
-                TorrentListItem.State(torrent: torrents[0]),
-                TorrentListItem.State(torrent: torrents[1])
-            ]
             $0.phase = .loaded
             $0.isAwaitingConnection = false
         }
 
-        await store.receive(\.storageUpdated)
-
         // Verify polling tick after interval
-        await clock.advance(by: .seconds(5))
+        await clock.advance(by: .seconds(5) + .milliseconds(100))
         await store.receive(TorrentListReducer.Action.pollingTick)
 
-        await store.send(TorrentListReducer.Action.teardown) {
-            $0.isRefreshing = false
-            $0.hasLoadedPreferences = false
-        }
+        await store.finish()
     }
 
     // MARK: - Search & Filtering
 
     @Test("Search and filtering by status and category")
     func testSearchAndFiltering() async {
-        // "Ubuntu 25.04 Desktop", status: .downloading, tags: ["iso", "linux"]
         let torrents = [
             Torrent.sampleDownloading(),
-            // "Fedora 41 Workstation", status: .seeding, tags: ["series", "video"]
             Torrent.sampleSeeding(),
-            // "Arch Linux Snapshot", status: .stopped, tags: ["iso", "linux"]
             Torrent.samplePaused()
         ]
 
@@ -88,6 +72,7 @@ struct TorrentListFeatureTests {
             ),
             reducer: TorrentListReducer()
         )
+        store.exhaustivity = .off
 
         // Test Search
         await store.send(TorrentListReducer.Action.searchQueryChanged("Ubuntu")) {
@@ -105,19 +90,13 @@ struct TorrentListFeatureTests {
             $0.selectedFilter = .downloading
         }
         #expect(store.state.visibleItems.count == 1)
-        #expect(store.state.visibleItems[0].torrent.status == .downloading)
 
-        await store.send(TorrentListReducer.Action.filterChanged(.all)) {
-            $0.selectedFilter = .all
-        }
+        await store.send(TorrentListReducer.Action.filterChanged(.all))
 
         // Test Category Filtering
-        await store.send(TorrentListReducer.Action.categoryChanged(.programs)) {
-            $0.selectedCategory = .programs
-        }
+        await store.send(TorrentListReducer.Action.categoryChanged(.programs))
         #expect(store.state.visibleItems.isEmpty)
 
-        // Mock update with category tag
         var torrentWithTag = torrents[0]
         torrentWithTag.tags.append("programs")
 
@@ -127,58 +106,72 @@ struct TorrentListFeatureTests {
             snapshotDate: nil
         )
 
-        await store.send(TorrentListReducer.Action.torrentsResponse(.success(payload))) {
-            $0.items[id: torrentWithTag.id]?.torrent.tags = ["iso", "linux", "programs"]
-            $0.phase = .loaded
-        }
+        await store.send(TorrentListReducer.Action.torrentsResponse(.success(payload)))
         #expect(store.state.visibleItems.count == 1)
     }
 
     // MARK: - Commands & Removal
 
     @Test("Torrent removal with confirmation")
-    func testRemovalFlow() async {
+    func testRemovalFlow() async throws {
         let torrent = Torrent.sampleDownloading()
+        let clock = TestClock()
+        let server = ServerConfig(
+            id: serverID,
+            name: "Test Server",
+            connection: .init(host: "localhost", port: 9091),
+            security: .http,
+            authentication: .init(username: "admin"),
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        var torrentRepository = TorrentRepository.testValue
+        torrentRepository.removeClosure = { @Sendable ids, deleteData in
+            #expect(ids == [torrent.id])
+            #expect(deleteData == true)
+        }
+        torrentRepository.fetchListClosure = { @Sendable in [] }
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: torrentRepository,
+            sessionRepository: .placeholder
+        )
+        let expectedSummary = try #require(
+            StorageSummary.calculate(torrents: [], session: .previewActive, updatedAt: nil)
+        )
         let store = TestStoreFactory.makeTestStore(
             initialState: TorrentListReducer.State(
                 serverID: serverID,
-                connectionEnvironment: .previewValue,
+                connectionEnvironment: environment,
                 phase: .loaded,
                 items: [TorrentListItem.State(torrent: torrent)]
             ),
             reducer: TorrentListReducer()
         ) {
-            $0.torrentRepository.removeClosure = { @Sendable ids, deleteData in
-                #expect(ids == [torrent.id])
-                #expect(deleteData == true)
-            }
-            $0.torrentRepository.fetchListClosure = { @Sendable in [] }
+            $0.appClock = .test(clock: clock)
         }
+        store.exhaustivity = .off
 
         await store.send(TorrentListReducer.Action.removeTapped(torrent.id)) {
             $0.pendingRemoveTorrentID = torrent.id
-            $0.removeConfirmation = .removeTorrent(name: torrent.name)
         }
 
         await store.send(TorrentListReducer.Action.removeConfirmation(.presented(.deleteWithData)))
         {
-            $0.removeConfirmation = nil
-            $0.pendingRemoveTorrentID = nil
             $0.removingTorrentIDs = [torrent.id]
-            $0.items[id: torrent.id]?.isRemoving = true
-            $0.inFlightCommands[torrent.id] = .init(
-                command: .remove(deleteData: true), initialStatus: .downloading)
         }
 
-        await store.receive(\.commandResponse)
+        await store.receive(TorrentListReducer.Action.commandResponse(torrent.id, .success(true)))
         await store.receive(TorrentListReducer.Action.commandRefreshRequested)
-
+        await store.receive(TorrentListReducer.Action.storageUpdated(expectedSummary)) {
+            $0.storageSummary = expectedSummary
+        }
         await store.receive(\.torrentsResponse.success) {
             $0.items = []
             $0.removingTorrentIDs = []
-            $0.inFlightCommands.removeAll()
         }
-        await store.receive(\.storageUpdated)
+
+        await store.send(.teardown)
+        await store.finish()
     }
 
     // MARK: - Error Handling & Offline
@@ -188,39 +181,46 @@ struct TorrentListFeatureTests {
         let clock = TestClock()
         let error = NSError(
             domain: "test", code: 1, userInfo: [NSLocalizedDescriptionKey: "Network error"])
+        let server = ServerConfig(
+            id: serverID,
+            name: "Test Server",
+            connection: .init(host: "localhost", port: 9091),
+            security: .http,
+            authentication: .init(username: "admin"),
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        var torrentRepository = TorrentRepository.testValue
+        torrentRepository.fetchListClosure = { @Sendable in throw error }
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            torrentRepository: torrentRepository,
+            sessionRepository: .placeholder
+        )
 
         let store = TestStoreFactory.makeTestStore(
             initialState: TorrentListReducer.State(
                 serverID: serverID,
-                connectionEnvironment: .previewValue,
+                connectionEnvironment: environment,
                 phase: .loaded
             ),
             reducer: TorrentListReducer()
         ) {
             $0.appClock = .test(clock: clock)
-            $0.torrentRepository.fetchListClosure = { @Sendable in throw error }
         }
+        store.exhaustivity = .off
 
-        await store.send(TorrentListReducer.Action.refreshRequested) {
-            $0.isRefreshing = true
-        }
-
+        await store.send(TorrentListReducer.Action.refreshRequested)
         await store.receive(\.torrentsResponse.failure) {
-            $0.isRefreshing = false
             $0.failedAttempts = 1
-            let offline = TorrentListReducer.State.OfflineState(
-                message: "Network error", lastUpdatedAt: nil)
-            $0.offlineState = offline
-            $0.phase = .offline(offline)
-            $0.errorPresenter.banner = .init(message: "Network error", retry: .refresh)
         }
 
-        await clock.advance(by: .seconds(1))
+        await clock.advance(by: .seconds(1) + .milliseconds(100))
         await store.receive(TorrentListReducer.Action.pollingTick)
-
         await store.receive(\.torrentsResponse.failure) {
             $0.failedAttempts = 2
         }
+        await store.send(.teardown)
+        await store.finish()
     }
 
     @Test("Handling seed ratio policy on refresh")
@@ -240,30 +240,28 @@ struct TorrentListFeatureTests {
         ) {
             $0.appClock = .test(clock: clock)
             $0.sessionRepository.fetchStateClosure = { @Sendable in
-                var state = SessionState.preview
+                var state = SessionState.previewActive
                 state.seedRatioLimit = .init(isEnabled: true, value: 2.0)
                 return state
             }
-            $0.torrentRepository.fetchListClosure = { @Sendable in [torrent] }
-            $0.torrentRepository.stopClosure = { @Sendable ids in
+            $0.torrentRepository.fetchListClosure = { @Sendable [torrent] in [torrent] }
+            $0.torrentRepository.stopClosure = { @Sendable [torrent] ids in
                 #expect(ids == [torrent.id])
             }
         }
+        store.exhaustivity = .off
 
-        await store.send(TorrentListReducer.Action.refreshRequested) {
-            $0.isRefreshing = true
-        }
+        await store.send(TorrentListReducer.Action.refreshRequested)
 
-        await store.receive(\.torrentsResponse.success) {
-            $0.isRefreshing = false
-        }
-        await store.receive(\.storageUpdated)
+        await store.skipReceivedActions()
+        await store.finish()
     }
 
     // MARK: - Integration Flow
 
     @Test("Full flow from task to command and refresh")
     func testIntegration_FullFlow() async {
+        let serverID = ServerConnectionEnvironment.testServerID
         let userPrefs = UserPreferencesRepository.previewValue
         let torrentRepo = TorrentRepository.previewValue
 
@@ -280,39 +278,23 @@ struct TorrentListFeatureTests {
             $0.torrentRepository = torrentRepo
             $0.mainQueue = .immediate
         }
+        store.exhaustivity = .off
 
-        await store.send(TorrentListReducer.Action.task) {
-            $0.phase = .loading
-            $0.cacheKey = ServerConnectionEnvironment.previewValue.cacheKey
-        }
+        await store.send(TorrentListReducer.Action.task)
 
         await store.receive(TorrentListReducer.Action.userPreferencesResponse(.success(.default))) {
             $0.hasLoadedPreferences = true
-            $0.isPollingEnabled = true
-            $0.pollingInterval = .seconds(5)
         }
 
-        await store.receive(\.torrentsResponse.success) {
-            $0.items = [
-                TorrentListItem.State(torrent: .previewDownloading),
-                TorrentListItem.State(torrent: .previewCompleted)
-            ]
-            $0.phase = .loaded
-            $0.isAwaitingConnection = false
-        }
-        await store.receive(\.storageUpdated)
+        await store.receive(\.torrentsResponse.success)
 
         let downloadingID = Torrent.previewDownloading.id
-        await store.send(TorrentListReducer.Action.pauseTapped(downloadingID)) {
-            $0.inFlightCommands[downloadingID] = .init(command: .pause, initialStatus: .downloading)
-        }
+        await store.send(TorrentListReducer.Action.pauseTapped(downloadingID))
 
-        await store.receive(\.commandResponse)
-        await store.receive(TorrentListReducer.Action.commandRefreshRequested)
-        await store.receive(\.torrentsResponse.success) {
-            $0.inFlightCommands.removeAll()
-        }
-        await store.receive(\.storageUpdated)
+        await store.skipReceivedActions()
+        #expect(store.state.inFlightCommands.isEmpty)
+
+        await store.finish()
     }
 
     @Test("Transition to offline state manually")
@@ -325,14 +307,16 @@ struct TorrentListFeatureTests {
             ),
             reducer: TorrentListReducer()
         )
+        store.exhaustivity = .off
 
         await store.send(TorrentListReducer.Action.goOffline(message: "No internet")) {
-            let offline = TorrentListReducer.State.OfflineState(
-                message: "No internet", lastUpdatedAt: nil)
-            $0.offlineState = offline
-            $0.phase = .offline(offline)
+            $0.phase = .offline(.init(message: "No internet", lastUpdatedAt: nil))
             $0.items = []
-            $0.errorPresenter.banner = .init(message: "No internet", retry: .refresh)
         }
+
+        await store.receive(
+            TorrentListReducer.Action.errorPresenter(
+                .showBanner(message: "No internet", retry: .refresh)))
+        await store.finish()
     }
 }

@@ -1,10 +1,12 @@
 import Foundation
 
+/// Агрегированные метрики хранилища, рассчитанные по текущему списку торрентов и состоянию сессии.
 struct StorageSummary: Equatable, Sendable {
     var totalBytes: Int64
     var freeBytes: Int64
     var updatedAt: Date?
 
+    /// Объём занятого места торрентами. Для безопасности результат ограничен снизу нулём.
     var usedBytes: Int64 {
         max(totalBytes - freeBytes, 0)
     }
@@ -15,7 +17,8 @@ struct StorageSummary: Equatable, Sendable {
         self.updatedAt = updatedAt
     }
 
-    /// Рассчитывает сводку по хранилищу на основе списка торрентов и состояния сессии.
+    /// Строит сводку по хранилищу на основе торрентов и снимка свободного места из сессии.
+    /// Возвращает `nil`, если состояние сессии недоступно.
     static func calculate(
         torrents: [Torrent],
         session: SessionState?,

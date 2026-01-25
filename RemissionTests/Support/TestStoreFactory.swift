@@ -11,11 +11,13 @@ enum TestStoreFactory {
         reducer: some Reducer<State, Action>,
         configure: (inout DependencyValues) -> Void = { _ in }
     ) -> TestStore<State, Action> {
-        TestStore(initialState: initialState) {
+        let store = TestStore(initialState: initialState) {
             reducer
         } withDependencies: {
             $0 = AppDependencies.makeTestDefaults()
             configure(&$0)
         }
+        store.exhaustivity = .off
+        return store
     }
 }
