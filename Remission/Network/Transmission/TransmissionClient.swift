@@ -139,6 +139,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         self.sessionDelegate = delegate
 
         let configuration: URLSessionConfiguration = sessionConfiguration ?? .default
+        configuration.waitsForConnectivity = true
         self.session = URLSession(
             configuration: configuration, delegate: delegate, delegateQueue: nil)
     }
