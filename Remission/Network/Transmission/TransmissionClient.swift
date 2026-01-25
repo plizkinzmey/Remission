@@ -39,7 +39,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private let sessionDelegate: TransmissionSessionDelegate
 
     /// Clock для инъекции время-зависимой логики (retry с задержками).
-    /// Позволяет использовать TestClock в тестах для детерминированного управления временем.
+    /// Позволяет использовать TestClock in тестах для детерминированного управления временем.
     private let clock: any Clock<Duration>
 
     /// Логгер приложения для контекстного логирования ошибок.
@@ -264,15 +264,14 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     return transmissionResponse
                 }
             } catch let urlError as URLError {
-                if remainingRetries > 0
-                    && (try await handleURLError(
-                        urlError,
-                        method: method,
-                        remainingRetries: &remainingRetries,
-                        retryAttempt: &retryAttempt,
-                        elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
-                    ))
-                {
+                let shouldRetryError = try await handleURLError(
+                    urlError,
+                    method: method,
+                    remainingRetries: &remainingRetries,
+                    retryAttempt: &retryAttempt,
+                    elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
+                )
+                if remainingRetries > 0 && shouldRetryError {
                     continue
                 }
                 throw APIError.mapURLError(urlError)
