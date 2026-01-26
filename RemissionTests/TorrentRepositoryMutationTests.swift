@@ -255,10 +255,8 @@ private func makeClient(
         @escaping @Sendable (
             String?, Data?, String?, Bool?, [String]?
         ) async throws -> TransmissionResponse = { _, _, _, _, _ in fatalError("unused in tests") },
-    torrentSet: @escaping @Sendable ([Int], AnyCodable) async throws -> TransmissionResponse = {
-        _, _ in
-        fatalError("unused in tests")
-    }
+    torrentSet: @escaping @Sendable ([Int], AnyCodable) async throws -> TransmissionResponse =
+        { _, _ in fatalError("unused in tests") }
 ) -> TransmissionClientDependency {
     TransmissionClientDependency(
         sessionGet: { fatalError("unused in tests") },
