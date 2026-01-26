@@ -86,7 +86,7 @@ struct ServerConnectionEnvironmentTests {
             cacheKey: cacheKey,
             snapshot: snapshot,
             makeSnapshotClient: { key in
-                await recorder.record(key)
+                recorder.record(key)
                 return snapshot
             },
             rebuildRepositoriesOnVersionUpdate: false
@@ -95,14 +95,24 @@ struct ServerConnectionEnvironmentTests {
         let updated = environment.updatingRPCVersion(22)
 
         #expect(updated.cacheKey.rpcVersion == 22)
-        #expect(await recorder.receivedKey?.rpcVersion == 22)
+        #expect(recorder.receivedKey?.rpcVersion == 22)
     }
 }
 
-private actor SnapshotClientRecorder {
-    private(set) var receivedKey: OfflineCacheKey?
+private final class SnapshotClientRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedKey: OfflineCacheKey?
+
+    var receivedKey: OfflineCacheKey? {
+        lock.lock()
+        let value = storedKey
+        lock.unlock()
+        return value
+    }
 
     func record(_ key: OfflineCacheKey) {
-        receivedKey = key
+        lock.lock()
+        storedKey = key
+        lock.unlock()
     }
 }
