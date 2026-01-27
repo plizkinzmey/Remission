@@ -56,8 +56,10 @@ struct TransmissionSessionDelegateTests {
 
         // Using continuation to wait for async completion handler
         await withCheckedContinuation { continuation in
-            delegate.urlSession(URLSession.shared, didReceive: challenge) {
-                disposition, credential in
+            delegate.urlSession(
+                URLSession.shared,
+                didReceive: challenge
+            ) { disposition, credential in
                 // Expect useCredential because evaluator approved it (trustPermanently -> save -> useCredential)
                 #expect(disposition == .useCredential)
                 #expect(credential != nil)
@@ -89,8 +91,10 @@ struct TransmissionSessionDelegateTests {
             failureResponse: nil, error: nil, sender: sender)
 
         await withCheckedContinuation { continuation in
-            delegate.urlSession(URLSession.shared, didReceive: challenge) {
-                disposition, credential in
+            delegate.urlSession(
+                URLSession.shared,
+                didReceive: challenge
+            ) { disposition, credential in
                 #expect(disposition == .performDefaultHandling)
                 #expect(credential == nil)
                 continuation.resume()
