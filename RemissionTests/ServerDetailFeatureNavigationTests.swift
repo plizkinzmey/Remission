@@ -64,26 +64,30 @@ struct ServerDetailFeatureNavigationTests {
         // и пробрасывает событие в дочерний reducer.
         let server = ServerConfig.sample
         let url = URL(fileURLWithPath: "/tmp/test.torrent")
+        let fileData = Data([0x01, 0x02])
 
         let store = TestStore(initialState: ServerDetailReducer.State(server: server)) {
             ServerDetailReducer()
         } withDependencies: {
-            $0.torrentFileLoader.load = { @Sendable _ in Data([0x01, 0x02]) }
+            $0.torrentFileLoader.load = { @Sendable _ in fileData }
         }
         store.exhaustivity = .off
 
-        await store.send(.fileImportResult(.success(url))) {
+        await store.send(.fileImportResult(.success(url)))
+
+        await store.receive {
+            guard case .fileImportLoaded(.success) = $0 else { return false }
+            return true
+        } assert: {
             $0.addTorrent = AddTorrentReducer.State(
                 pendingInput: PendingTorrentInput(
-                    payload: .torrentFile(data: Data(), fileName: url.lastPathComponent),
+                    payload: .torrentFile(data: fileData, fileName: url.lastPathComponent),
                     sourceDescription: url.lastPathComponent
                 ),
                 connectionEnvironment: nil,
                 serverID: server.id
             )
         }
-
-        await store.receive(.addTorrent(.presented(.fileImportResult(.success(url)))))
     }
 
     @Test("Обработка загруженного файла создаёт PendingTorrentInput")

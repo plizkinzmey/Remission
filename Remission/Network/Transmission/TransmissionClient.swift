@@ -60,7 +60,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         config: TransmissionClientConfig,
         clock: any Clock<Duration>,
         appLogger: AppLogger,
-        category: String
+        category: String,
+        sessionConfiguration: URLSessionConfiguration? = nil
     ) -> TransmissionClient {
         let context = TransmissionLogContext(
             serverID: config.serverID,
@@ -79,6 +80,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         return TransmissionClient(
             config: finalConfig,
+            sessionConfiguration: sessionConfiguration,
             clock: clock,
             appLogger: appLogger.withCategory(category),
             baseLogContext: context

@@ -62,7 +62,8 @@ extension ServerConnectionProbe {
         clock: any Clock<Duration> = ContinuousClock(),
         appLogger: AppLogger = .noop,
         maxAttempts: Int = 3,
-        initialDelay: Duration = .seconds(1)
+        initialDelay: Duration = .seconds(1),
+        sessionConfiguration: URLSessionConfiguration? = nil
     ) -> ServerConnectionProbe {
         ServerConnectionProbe { request, trustHandler in
             let config = request.server.makeTransmissionClientConfig(
@@ -79,7 +80,8 @@ extension ServerConnectionProbe {
                 config: config,
                 clock: clock,
                 appLogger: appLogger,
-                category: "connection.probe"
+                category: "connection.probe",
+                sessionConfiguration: sessionConfiguration
             )
 
             if let trustHandler {

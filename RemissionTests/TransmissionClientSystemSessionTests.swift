@@ -147,6 +147,51 @@ struct TransmissionClientSystemSessionTests {
             Issue.record("Получили неожиданный тип ошибки: \(error)")
         }
     }
+
+    @Test("sessionSet отправляет arguments")
+    func sessionSetSendsArguments() async throws {
+        MockURLProtocol.reset()
+        let requests = RequestBox()
+        let expected = makeSuccessResponse(arguments: [:])
+
+        MockURLProtocol.enqueue { request in
+            let rpcRequest = try decodeRequest(from: request)
+            requests.append(rpcRequest)
+            return (httpResponse(for: request, statusCode: 200), try encode(expected))
+        }
+
+        let client = makeClient()
+        let arguments: AnyCodable = .object(["download-dir": .string("/tmp")])
+        let response = try await client.sessionSet(arguments: arguments)
+
+        #expect(response.result == "success")
+        let recorded = requests.requests
+        #expect(recorded.count == 1)
+        #expect(recorded.first?.method == TransmissionClient.RPCMethod.sessionSet.rawValue)
+        #expect(recorded.first?.arguments == arguments)
+    }
+
+    @Test("sessionStats отправляет session-stats без аргументов")
+    func sessionStatsSendsExpectedMethod() async throws {
+        MockURLProtocol.reset()
+        let requests = RequestBox()
+        let expected = makeSuccessResponse(arguments: [:])
+
+        MockURLProtocol.enqueue { request in
+            let rpcRequest = try decodeRequest(from: request)
+            requests.append(rpcRequest)
+            return (httpResponse(for: request, statusCode: 200), try encode(expected))
+        }
+
+        let client = makeClient()
+        let response = try await client.sessionStats()
+
+        #expect(response.result == "success")
+        let recorded = requests.requests
+        #expect(recorded.count == 1)
+        #expect(recorded.first?.method == TransmissionClient.RPCMethod.sessionStats.rawValue)
+        #expect(recorded.first?.arguments == nil)
+    }
 }
 
 // MARK: - Test Helpers

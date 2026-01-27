@@ -5,21 +5,13 @@ extension ServerDetailReducer {
     func importReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .fileImportResult(.success(let url)):
-            state.addTorrent = AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .torrentFile(data: Data(), fileName: url.lastPathComponent),
-                    sourceDescription: url.lastPathComponent
-                ),
-                connectionEnvironment: state.connectionEnvironment,
-                serverID: state.server.id
-            )
-            return .send(.addTorrent(.presented(.fileImportResult(.success(url)))))
+            return handleFileImport(url: url, state: &state)
 
-        case .fileImportResult(.failure):
-            return .none
+        case .fileImportResult(.failure(let message)):
+            return handleFileImportFailure(message: message, state: &state)
 
-        case .fileImportLoaded:
-            return .none
+        case .fileImportLoaded(let result):
+            return handleFileImportLoaded(result: result, state: &state)
 
         default:
             return .none
