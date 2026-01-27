@@ -8,11 +8,11 @@ struct TransmissionClientTorrentTests {
     @Test("torrentGet без параметров отправляет torrent-get без arguments")
     func torrentGetWithoutArguments() async throws {
         // Фиксируем контракт: при отсутствии ids/fields arguments должны быть nil.
-        MockTorrentURLProtocol.reset()
+        MockURLProtocol.reset()
         let requests = TorrentRequestBox()
         let expected = TransmissionResponse(result: "success", arguments: .object([:]))
 
-        MockTorrentURLProtocol.enqueue { request in
+        MockURLProtocol.enqueue { request in
             let rpcRequest = decodeRequest(from: request)
             requests.append(rpcRequest)
             return (httpResponse(for: request, statusCode: 200), try encode(expected))
@@ -30,10 +30,10 @@ struct TransmissionClientTorrentTests {
     @Test("torrentGet с ids и fields кодирует оба массива в arguments")
     func torrentGetWithIDsAndFields() async throws {
         // Проверяем форму arguments: ids -> [int], fields -> [string].
-        MockTorrentURLProtocol.reset()
+        MockURLProtocol.reset()
         let expected = TransmissionResponse(result: "success", arguments: .object([:]))
 
-        MockTorrentURLProtocol.enqueue { request in
+        MockURLProtocol.enqueue { request in
             let rpcRequest = decodeRequest(from: request)
             #expect(rpcRequest.method == TransmissionClient.RPCMethod.torrentGet.rawValue)
 
@@ -54,12 +54,12 @@ struct TransmissionClientTorrentTests {
     @Test("torrentAdd кодирует metainfo в base64 и пробрасывает опциональные поля")
     func torrentAddEncodesMetainfoAndOptions() async throws {
         // Это важный контракт для torrent-add: metainfo должен быть base64 строкой.
-        MockTorrentURLProtocol.reset()
+        MockURLProtocol.reset()
         let expected = TransmissionResponse(result: "success", arguments: .object([:]))
         let metainfo = Data([0x01, 0x02, 0x03])
         let base64 = metainfo.base64EncodedString()
 
-        MockTorrentURLProtocol.enqueue { request in
+        MockURLProtocol.enqueue { request in
             let rpcRequest = decodeRequest(from: request)
             #expect(rpcRequest.method == TransmissionClient.RPCMethod.torrentAdd.rawValue)
 
@@ -90,10 +90,10 @@ struct TransmissionClientTorrentTests {
     @Test("torrentRemove добавляет delete-local-data только когда он передан")
     func torrentRemoveRespectsDeleteLocalDataFlag() async throws {
         // Проверяем опциональный флаг delete-local-data.
-        MockTorrentURLProtocol.reset()
+        MockURLProtocol.reset()
         let expected = TransmissionResponse(result: "success", arguments: .object([:]))
 
-        MockTorrentURLProtocol.enqueue { request in
+        MockURLProtocol.enqueue { request in
             let rpcRequest = decodeRequest(from: request)
             guard case .object(let arguments)? = rpcRequest.arguments else {
                 Issue.record("Ожидали arguments как object")
@@ -112,10 +112,10 @@ struct TransmissionClientTorrentTests {
     @Test("torrentSet всегда добавляет ids даже если arguments не object")
     func torrentSetAlwaysInjectsIDs() async throws {
         // Контракт для torrent-set: ids должны присутствовать в любом случае.
-        MockTorrentURLProtocol.reset()
+        MockURLProtocol.reset()
         let expected = TransmissionResponse(result: "success", arguments: .object([:]))
 
-        MockTorrentURLProtocol.enqueue { request in
+        MockURLProtocol.enqueue { request in
             let rpcRequest = decodeRequest(from: request)
             #expect(rpcRequest.method == TransmissionClient.RPCMethod.torrentSet.rawValue)
 
@@ -142,7 +142,7 @@ private func makeTorrentClient() -> TransmissionClient {
     config.enableLogging = false
 
     let sessionConfiguration = URLSessionConfiguration.ephemeral
-    sessionConfiguration.protocolClasses = [MockTorrentURLProtocol.self]
+    sessionConfiguration.protocolClasses = [MockURLProtocol.self]
 
     return TransmissionClient(
         config: config,
@@ -231,52 +231,4 @@ private final class TorrentRequestBox: @unchecked Sendable {
         storage.append(request)
         lock.unlock()
     }
-}
-
-private final class MockTorrentURLProtocol: URLProtocol, @unchecked Sendable {
-    typealias Handler = @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)
-
-    nonisolated(unsafe) private static var handlers: [Handler] = []
-    private static let lock = NSLock()
-
-    static func enqueue(_ handler: @escaping Handler) {
-        lock.lock()
-        handlers.append(handler)
-        lock.unlock()
-    }
-
-    static func reset() {
-        lock.lock()
-        handlers.removeAll()
-        lock.unlock()
-    }
-
-    private static func dequeue() -> Handler? {
-        lock.lock()
-        defer { lock.unlock() }
-        guard handlers.isEmpty == false else { return nil }
-        return handlers.removeFirst()
-    }
-
-    // swiftlint:disable:next static_over_final_class
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    // swiftlint:disable:next static_over_final_class
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        guard let handler = Self.dequeue() else {
-            fatalError("MockTorrentURLProtocol handler queue is empty")
-        }
-
-        do {
-            let (response, data) = try handler(request)
-            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-            client?.urlProtocol(self, didLoad: data)
-            client?.urlProtocolDidFinishLoading(self)
-        } catch {
-            client?.urlProtocol(self, didFailWithError: error)
-        }
-    }
-
-    override func stopLoading() {}
 }
