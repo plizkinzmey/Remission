@@ -44,4 +44,28 @@ struct KeychainCredentialsDependencyTests {
             try dependencies.keychainCredentials.delete(key)
         }
     }
+
+    // Проверяет, что liveValue сохраняет, читает и удаляет ключ в Keychain.
+    @Test
+    func liveDependencySaveLoadDeleteRoundTrip() throws {
+        let uniqueKey = TransmissionServerCredentialsKey(
+            host: "example.com",
+            port: 9091,
+            isSecure: true,
+            username: "user-\(UUID().uuidString)"
+        )
+        let credentials = TransmissionServerCredentials(key: uniqueKey, password: "secret")
+        let live = KeychainCredentialsDependency.liveValue
+
+        // Ensure clean slate in case of a previous run.
+        try? live.delete(uniqueKey)
+
+        try live.save(credentials)
+        let loaded = try live.load(uniqueKey)
+        #expect(loaded == credentials)
+
+        try live.delete(uniqueKey)
+        let deleted = try live.load(uniqueKey)
+        #expect(deleted == nil)
+    }
 }

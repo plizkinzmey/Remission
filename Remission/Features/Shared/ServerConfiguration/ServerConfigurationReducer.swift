@@ -36,6 +36,8 @@ struct ServerConfigurationReducer {
 
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
     @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
+    @Dependency(\.uuidGenerator) var uuidGenerator
+    @Dependency(\.dateProvider) var dateProvider
 
     private enum CancellationID: Hashable {
         case connectionProbe
@@ -150,7 +152,10 @@ struct ServerConfigurationReducer {
         }
         state.validationError = nil
 
-        let server = state.form.makeServerConfig(id: UUID(), createdAt: Date())
+        let server = state.form.makeServerConfig(
+            id: uuidGenerator.generate(),
+            createdAt: dateProvider.now()
+        )
         let password = state.form.password.isEmpty ? nil : state.form.password
 
         let context = ServerSubmissionContext(server: server, password: password)

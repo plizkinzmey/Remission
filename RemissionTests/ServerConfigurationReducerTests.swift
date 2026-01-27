@@ -64,18 +64,24 @@ struct ServerConfigurationReducerTests {
         state.form.host = "nas.local"
         state.form.port = "9091"
 
+        let fixedID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let expectedServer = state.form.makeServerConfig(id: fixedID, createdAt: fixedDate)
+        let expectedContext = ServerSubmissionContext(server: expectedServer, password: nil)
+
         let store = TestStore(initialState: state) {
             ServerConfigurationReducer()
+        } withDependencies: {
+            $0.uuidGenerator.generate = { fixedID }
+            $0.dateProvider.now = { fixedDate }
         }
 
         await store.send(.uiTestBypassConnection) {
             $0.connectionStatus = .success(.uiTestPlaceholder)
-            #expect($0.verifiedSubmission != nil)
+            $0.verifiedSubmission = expectedContext
         }
 
-        if let context = store.state.verifiedSubmission {
-            await store.receive(.delegate(.connectionVerified(context)))
-        }
+        await store.receive(.delegate(.connectionVerified(expectedContext)))
     }
 
     @Test("Успешная проверка соединения сообщает delegate")

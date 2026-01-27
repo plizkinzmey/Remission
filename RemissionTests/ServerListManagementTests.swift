@@ -80,12 +80,39 @@ struct ServerListManagementTests {
     @Test("Создание сервера добавляет в список и запускает probe")
     func testServerFormDidCreate() async {
         // Проверяем, что didCreate добавляет сервер и запускает connectionProbe.
-        let server = ServerConfig.previewLocalHTTP
+        var server = ServerConfig.previewLocalHTTP
+        server.authentication = nil
 
-        let store = TestStore(initialState: ServerListReducer.State()) {
+        var state = ServerListReducer.State()
+        state.serverForm = ServerFormReducer.State(mode: .add)
+
+        let store = TestStore(initialState: state) {
             ServerListReducer()
+        } withDependencies: {
+            let handshake = TransmissionHandshakeResult(
+                sessionID: "probe-session",
+                rpcVersion: 17,
+                minimumSupportedRpcVersion: 14,
+                serverVersionDescription: "Transmission Test 4.0",
+                isCompatible: true
+            )
+            $0.serverConnectionProbe.run = { _, _ in
+                ServerConnectionProbe.Result(handshake: handshake)
+            }
+            let environment = ServerConnectionEnvironment.testEnvironment(
+                server: server,
+                handshake: handshake,
+                torrentRepository: .testValue,
+                sessionRepository: .testValue
+            )
+            $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in environment }
         }
-        store.exhaustivity = .off
+
+        let expectedSummary = StorageSummary.calculate(
+            torrents: [],
+            session: .previewActive,
+            updatedAt: nil
+        )
 
         await store.send(.serverForm(.presented(.delegate(.didCreate(server))))) {
             $0.servers.append(server)
@@ -93,6 +120,29 @@ struct ServerListManagementTests {
         }
 
         await store.receive(.delegate(.serverCreated(server)))
-        await store.receive(.connectionProbeRequested(server.id))
+        await store.receive(.connectionProbeRequested(server.id)) {
+            $0.connectionStatuses[server.id] = .init(phase: .probing)
+        }
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "probe-session",
+            rpcVersion: 17,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission Test 4.0",
+            isCompatible: true
+        )
+        await store.receive(
+            .connectionProbeResponse(server.id, .success(.init(handshake: handshake)))
+        ) {
+            $0.connectionStatuses[server.id] = .init(phase: .connected(handshake))
+        }
+        await store.receive(.storageRequested(server.id)) {
+            $0.connectionStatuses[server.id]?.isLoadingStorage = true
+        }
+        if let expectedSummary {
+            await store.receive(.storageResponse(server.id, .success(expectedSummary))) {
+                $0.connectionStatuses[server.id]?.storageSummary = expectedSummary
+                $0.connectionStatuses[server.id]?.isLoadingStorage = false
+            }
+        }
     }
 }
