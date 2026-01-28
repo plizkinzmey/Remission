@@ -109,9 +109,7 @@ extension TorrentListView {
             }
         #else
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
-
+                LazyVStack(alignment: .leading, spacing: 12, pinnedViews: [.sectionHeaders]) {
                     if store.isRefreshing && store.isAwaitingConnection == false {
                         refreshIndicator
                     }
@@ -132,18 +130,17 @@ extension TorrentListView {
                             .padding(.bottom, 4)
                     }
 
-                    TorrentListStorageSummaryView(summary: store.storageSummary)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                    Section {
+                        content
 
-                    TorrentListControlsView(store: store)
-
-                    content
-
-                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                        Text(L10n.tr("torrentList.autorefresh.disabled"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                            Text(L10n.tr("torrentList.autorefresh.disabled"))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        }
+                    } header: {
+                        TorrentListHeaderiOSView(store: store)
                     }
                 }
                 .padding(.horizontal, 8)

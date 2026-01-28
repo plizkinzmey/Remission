@@ -80,8 +80,9 @@ struct ServerListManagementTests {
     @Test("Создание сервера добавляет в список и запускает probe")
     func testServerFormDidCreate() async {
         // Проверяем, что didCreate добавляет сервер и запускает connectionProbe.
-        var server = ServerConfig.previewLocalHTTP
-        server.authentication = nil
+        var serverConfig = ServerConfig.previewLocalHTTP
+        serverConfig.authentication = nil
+        let server = serverConfig
         let handshake = TransmissionHandshakeResult(
             sessionID: "probe-session", rpcVersion: 17, minimumSupportedRpcVersion: 14,
             serverVersionDescription: "Transmission Test 4.0", isCompatible: true
