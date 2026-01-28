@@ -23,13 +23,19 @@ struct TorrentListControlsView: View {
             // Row 1: Filter segmented control
             HStack {
                 Spacer()
-                filterSegmentedControl
-                    .labelsHidden()
-                    #if os(macOS)
+                #if os(iOS)
+                    if UIDevice.current.userInterfaceIdiom == .pad {
+                        filterCapsules
+                    } else {
+                        filterSegmentedControl
+                            .labelsHidden()
+                            .controlSize(.small)
+                    }
+                #else
+                    filterSegmentedControl
+                        .labelsHidden()
                         .controlSize(.large)
-                    #else
-                        .controlSize(.small)
-                    #endif
+                #endif
                 Spacer()
             }
 
@@ -49,12 +55,6 @@ struct TorrentListControlsView: View {
                         #endif
                 }
                 Spacer(minLength: 0)
-
-                #if os(iOS)
-                    if UIDevice.current.userInterfaceIdiom == .pad {
-                        searchToggleButton
-                    }
-                #endif
             }
         }
         .padding(.vertical, 4)
@@ -82,17 +82,9 @@ struct TorrentListControlsView: View {
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(store.isSearchFieldVisible ? .white : .secondary)
+                    .foregroundStyle(.primary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(
-                        Capsule()
-                            .fill(
-                                store.isSearchFieldVisible
-                                    ? Color.accentColor
-                                    : Color.clear
-                            )
-                    )
             }
             .buttonStyle(.plain)
         }
@@ -105,6 +97,7 @@ struct TorrentListControlsView: View {
                 }
                 .padding(padFilterInnerPadding)
                 .frame(height: padFilterCapsuleHeight)
+                .appPillSurface()
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -132,8 +125,9 @@ struct TorrentListControlsView: View {
                     }
                 }
             }
-            .padding(12)
-            .appCardSurface(cornerRadius: 12)
+            .padding(.horizontal, 10)
+            .frame(height: padFilterCapsuleHeight)
+            .appPillSurface()
         }
     #endif
 
