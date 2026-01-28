@@ -69,3 +69,7 @@ Icon?
 *.dSYM
 .gemini/settings.json
 build.log
+
+.gemini/
+gha-creds-*.json
+.github

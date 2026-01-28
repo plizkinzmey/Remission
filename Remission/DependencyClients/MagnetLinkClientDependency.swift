@@ -35,7 +35,7 @@ private func currentPasteboardString() -> String? {
     #endif
 }
 
-private func extractMagnetLink(from value: String?) -> String? {
+func extractMagnetLink(from value: String?) -> String? {
     guard let value else { return nil }
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     guard trimmed.isEmpty == false else { return nil }

@@ -39,8 +39,8 @@ import Foundation
 
     extension ClipboardClient: DependencyKey {
         static let liveValue: ClipboardClient = .live
-        static let previewValue: ClipboardClient = ClipboardClient()
-        static let testValue: ClipboardClient = ClipboardClient()
+        static let previewValue: ClipboardClient = ClipboardClient(copy: { _ in })
+        static let testValue: ClipboardClient = ClipboardClient(copy: { _ in })
     }
 
     extension DependencyValues {

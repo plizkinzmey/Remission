@@ -18,7 +18,7 @@ import Foundation
         )
     }
 
-    enum TorrentDetailParserDependencyError: Error, LocalizedError, Sendable {
+    enum TorrentDetailParserDependencyError: Error, LocalizedError, Sendable, Equatable {
         case notConfigured(String)
 
         var errorDescription: String? {
