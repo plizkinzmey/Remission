@@ -23,7 +23,7 @@ struct TorrentListEmptyStateView: View {
                     .bold()
             }
             .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityIdentifier("torrent_list_empty_state")
         #endif
     }
