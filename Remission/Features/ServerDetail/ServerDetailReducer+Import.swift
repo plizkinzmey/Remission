@@ -13,6 +13,13 @@ extension ServerDetailReducer {
         case .fileImportLoaded(let result):
             return handleFileImportLoaded(result: result, state: &state)
 
+        case .addTorrentDataLoaded(let input, let downloadDir):
+            return handleAddTorrentDataLoaded(
+                input: input,
+                downloadDir: downloadDir,
+                state: &state
+            )
+
         default:
             return .none
         }

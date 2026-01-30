@@ -186,6 +186,7 @@ struct TorrentListReducer {
             case .refreshRequested:
                 state.failedAttempts = 0
                 state.offlineState = nil
+                state.isRefreshing = true
                 return fetchTorrents(state: &state, trigger: .manualRefresh)
 
             case .commandRefreshRequested:

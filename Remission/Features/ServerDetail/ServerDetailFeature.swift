@@ -22,6 +22,7 @@ struct ServerDetailReducer {
         var connectionRetryAttempts: Int = 0
         var preferences: UserPreferences?
         var lastAppliedDefaultSpeedLimits: UserPreferences.DefaultSpeedLimits?
+        var pendingAddTorrentInput: PendingTorrentInput?
 
         init(server: ServerConfig, startEditing: Bool = false) {
             self.server = server
@@ -59,6 +60,7 @@ struct ServerDetailReducer {
         case addTorrent(PresentationAction<AddTorrentReducer.Action>)
         case fileImportResult(FileImportResult)
         case fileImportLoaded(Result<PendingTorrentInput, FileImportError>)
+        case addTorrentDataLoaded(PendingTorrentInput, String?)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
     }

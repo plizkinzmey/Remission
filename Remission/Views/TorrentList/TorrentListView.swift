@@ -12,60 +12,57 @@ struct TorrentListView: View {
     @Environment(\.colorScheme) var themeColorScheme
 
     var body: some View {
-        ZStack {
-            Group {
-                #if os(macOS)
+        #if os(macOS)
+            container
+                .toolbar {
+                    if store.connectionEnvironment != nil {
+                        ToolbarItem(placement: .principal) {
+                            macOSToolbarControls
+                        }
+                    }
+                }
+                .confirmationDialog(
+                    $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+                )
+                .alert(
+                    $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
+                )
+        #else
+            ZStack {
+                if shouldShowSearchBar {
                     container
-                        .toolbar {
-                            if store.connectionEnvironment != nil {
-                                ToolbarItem(placement: .principal) {
-                                    macOSToolbarControls
-                                }
+                        .searchable(
+                            text: .init(
+                                get: { store.searchQuery },
+                                set: { store.send(.searchQueryChanged($0)) }
+                            ),
+                            placement: .automatic,
+                            prompt: Text(L10n.tr("torrentList.search.prompt"))
+                        ) {
+                            ForEach(searchSuggestions, id: \.self) { suggestion in
+                                Text(suggestion)
+                                    .searchCompletion(suggestion)
                             }
                         }
-                #else
-                    if shouldShowSearchBar {
-                        container
-                            .searchable(
-                                text: .init(
-                                    get: { store.searchQuery },
-                                    set: { store.send(.searchQueryChanged($0)) }
-                                ),
-                                placement: .automatic,
-                                prompt: Text(L10n.tr("torrentList.search.prompt"))
-                            ) {
-                                ForEach(searchSuggestions, id: \.self) { suggestion in
-                                    Text(suggestion)
-                                        .searchCompletion(suggestion)
-                                }
-                            }
-                    } else {
-                        container
-                    }
-                #endif
-            }
+                } else {
+                    container
+                }
 
-            #if os(iOS)
                 if store.visibleItems.isEmpty && store.phase == .loaded {
                     TorrentListEmptyStateView()
                         .allowsHitTesting(false)
                 }
-            #endif
-        }
-        #if os(iOS)
-            .refreshable {
-                await store.send(.refreshRequested).finish()
             }
-        #endif
-        #if os(iOS)
+            .refreshable {
+                store.send(.refreshRequested)
+                // Ждем завершения обновления (сброса флага), игнорируя долгоживущие эффекты (поллинг)
+                while store.isRefreshing {
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+            }
             .background(AppBackgroundView())
-        #endif
-        .alert(
-            $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
-        )
-        #if os(macOS)
-            .confirmationDialog(
-                $store.scope(state: \.removeConfirmation, action: \.removeConfirmation)
+            .alert(
+                $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )
         #endif
     }
@@ -120,10 +117,6 @@ extension TorrentListView {
             GeometryReader { geometry in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
-                        if store.isRefreshing && store.isAwaitingConnection == false {
-                            refreshIndicator
-                        }
-
                         if let banner = store.errorPresenter.banner {
                             ErrorBannerView(
                                 message: banner.message,
@@ -140,7 +133,11 @@ extension TorrentListView {
                                 .padding(.bottom, 4)
                         }
 
-                        content
+                        Group {
+                            content
+                        }
+                        .redacted(reason: store.isRefreshing ? .placeholder : [])
+                        .disabled(store.isRefreshing)
 
                         if store.connectionEnvironment != nil && store.isPollingEnabled == false {
                             Text(L10n.tr("torrentList.autorefresh.disabled"))
@@ -150,6 +147,7 @@ extension TorrentListView {
                         }
                     }
                     .padding(.horizontal, 8)
+                    .padding(.top, 12)
                     .padding(.bottom, 4)
                     .frame(minHeight: geometry.size.height)
                 }
@@ -165,7 +163,7 @@ extension TorrentListView {
                             .mask(
                                 LinearGradient(
                                     stops: [
-                                        .init(color: .black, location: 0.95),
+                                        .init(color: .black, location: 0.90),
                                         .init(color: .black.opacity(0), location: 1.0)
                                     ],
                                     startPoint: .top,

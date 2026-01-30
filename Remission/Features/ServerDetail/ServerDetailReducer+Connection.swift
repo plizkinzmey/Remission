@@ -49,10 +49,21 @@ extension ServerDetailReducer {
                 .send(.torrentList(.task)),
                 .send(.torrentList(.refreshRequested))
             )
+
+            var pendingImportEffect: Effect<Action> = .none
+            if let pendingInput = state.pendingAddTorrentInput {
+                state.pendingAddTorrentInput = nil
+                pendingImportEffect = handleFileImportLoaded(
+                    result: .success(pendingInput),
+                    state: &state
+                )
+            }
+
             return .merge(
                 .cancel(id: ConnectionCancellationID.connectionRetry),
                 effects,
-                applyDefaultSpeedLimitsIfNeeded(state: &state)
+                applyDefaultSpeedLimitsIfNeeded(state: &state),
+                pendingImportEffect
             )
 
         case .connectionResponse(.failure(let error)):
