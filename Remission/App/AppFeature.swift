@@ -85,13 +85,11 @@ struct AppReducer {
                 }
 
                 state.pendingTorrentFileURL = url
+                state.path = StackState()
                 if state.serverList.isLoading == false {
-                    return .merge(
-                        .send(.serverList(.task)),
-                        .send(.serverList(.addButtonTapped))
-                    )
+                    return .send(.serverList(.task))
                 }
-                return .send(.serverList(.addButtonTapped))
+                return .none
 
             case .serverList(.delegate(.serverSelected(let server))):
                 if let pendingURL = state.pendingTorrentFileURL {
@@ -213,9 +211,10 @@ struct AppReducer {
     private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
         let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
         if let lastServer { return lastServer }
-        return servers.max { lhs, rhs in
-            lhs.createdAt < rhs.createdAt
+        if servers.count == 1 {
+            return servers.first
         }
+        return nil
     }
 
     private func openServerDetail(

@@ -55,12 +55,19 @@ extension ServerDetailReducer {
     ) -> Effect<Action> {
         switch result {
         case .success(let input):
-            state.addTorrent = AddTorrentReducer.State(
-                pendingInput: input,
-                connectionEnvironment: state.connectionEnvironment,
-                serverID: state.server.id
-            )
-            return .none
+            guard let environment = state.connectionEnvironment else {
+                state.pendingAddTorrentInput = input
+                return .none
+            }
+
+            return .run { send in
+                let session = try? await environment.withDependencies {
+                    @Dependency(\.sessionRepository) var sessionRepo
+                    return try await sessionRepo.fetchState()
+                }
+
+                await send(.addTorrentDataLoaded(input, session?.downloadDirectory))
+            }
 
         case .failure(let error):
             state.alert = AlertState {
@@ -74,5 +81,23 @@ extension ServerDetailReducer {
             }
             return .none
         }
+    }
+
+    func handleAddTorrentDataLoaded(
+        input: PendingTorrentInput,
+        downloadDir: String?,
+        state: inout State
+    ) -> Effect<Action> {
+        var addState = AddTorrentReducer.State(
+            pendingInput: input,
+            connectionEnvironment: state.connectionEnvironment,
+            serverID: state.server.id
+        )
+        if let downloadDir {
+            addState.serverDownloadDirectory = downloadDir
+            addState.destinationPath = downloadDir
+        }
+        state.addTorrent = addState
+        return .none
     }
 }
