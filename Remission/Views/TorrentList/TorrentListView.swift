@@ -12,34 +12,43 @@ struct TorrentListView: View {
     @Environment(\.colorScheme) var themeColorScheme
 
     var body: some View {
-        Group {
-            #if os(macOS)
-                container
-                    .toolbar {
-                        if store.connectionEnvironment != nil {
-                            ToolbarItem(placement: .principal) {
-                                macOSToolbarControls
+        ZStack {
+            Group {
+                #if os(macOS)
+                    container
+                        .toolbar {
+                            if store.connectionEnvironment != nil {
+                                ToolbarItem(placement: .principal) {
+                                    macOSToolbarControls
+                                }
                             }
                         }
+                #else
+                    if shouldShowSearchBar {
+                        container
+                            .searchable(
+                                text: .init(
+                                    get: { store.searchQuery },
+                                    set: { store.send(.searchQueryChanged($0)) }
+                                ),
+                                placement: .automatic,
+                                prompt: Text(L10n.tr("torrentList.search.prompt"))
+                            ) {
+                                ForEach(searchSuggestions, id: \.self) { suggestion in
+                                    Text(suggestion)
+                                        .searchCompletion(suggestion)
+                                }
+                            }
+                    } else {
+                        container
                     }
-            #else
-                if shouldShowSearchBar {
-                    container
-                        .searchable(
-                            text: .init(
-                                get: { store.searchQuery },
-                                set: { store.send(.searchQueryChanged($0)) }
-                            ),
-                            placement: .automatic,
-                            prompt: Text(L10n.tr("torrentList.search.prompt"))
-                        ) {
-                            ForEach(searchSuggestions, id: \.self) { suggestion in
-                                Text(suggestion)
-                                    .searchCompletion(suggestion)
-                            }
-                        }
-                } else {
-                    container
+                #endif
+            }
+
+            #if os(iOS)
+                if store.visibleItems.isEmpty && store.phase == .loaded {
+                    TorrentListEmptyStateView()
+                        .allowsHitTesting(false)
                 }
             #endif
         }
@@ -108,39 +117,42 @@ extension TorrentListView {
                 footerBar
             }
         #else
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
-                    if store.isRefreshing && store.isAwaitingConnection == false {
-                        refreshIndicator
-                    }
+            GeometryReader { geometry in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 12) {
+                        if store.isRefreshing && store.isAwaitingConnection == false {
+                            refreshIndicator
+                        }
 
-                    if let banner = store.errorPresenter.banner {
-                        ErrorBannerView(
-                            message: banner.message,
-                            onRetry: banner.retry == nil
-                                ? nil
-                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                        )
-                        .padding(.bottom, 6)
-                    }
+                        if let banner = store.errorPresenter.banner {
+                            ErrorBannerView(
+                                message: banner.message,
+                                onRetry: banner.retry == nil
+                                    ? nil
+                                    : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                                onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                            )
+                            .padding(.bottom, 6)
+                        }
 
-                    if let offline = store.offlineState {
-                        offlineBanner(offline)
-                            .padding(.bottom, 4)
-                    }
+                        if let offline = store.offlineState {
+                            offlineBanner(offline)
+                                .padding(.bottom, 4)
+                        }
 
-                    content
+                        content
 
-                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                        Text(L10n.tr("torrentList.autorefresh.disabled"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                            Text(L10n.tr("torrentList.autorefresh.disabled"))
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                        }
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+                    .frame(minHeight: geometry.size.height)
                 }
-                .padding(.horizontal, 8)
-                .padding(.bottom, 4)
             }
             .safeAreaInset(edge: .top) {
                 TorrentListHeaderiOSView(store: store)
@@ -148,13 +160,12 @@ extension TorrentListView {
                     .padding(.top, 4)
                     .padding(.bottom, 8)
                     .background(
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
+                        BlurView(style: .regular)
                             .ignoresSafeArea(edges: .top)
                             .mask(
                                 LinearGradient(
                                     stops: [
-                                        .init(color: .black, location: 0.90),
+                                        .init(color: .black, location: 0.95),
                                         .init(color: .black.opacity(0), location: 1.0)
                                     ],
                                     startPoint: .top,
@@ -217,7 +228,7 @@ extension TorrentListView {
                         if case .offline(let offline) = store.phase {
                             offlineView(message: offline.message)
                         } else {
-                            TorrentListEmptyStateView()
+                            Color.clear
                         }
                     } else {
                         ScrollView {
@@ -261,7 +272,7 @@ extension TorrentListView {
                     if case .offline(let offline) = store.phase {
                         offlineView(message: offline.message)
                     } else {
-                        TorrentListEmptyStateView()
+                        Color.clear
                     }
                 } else {
                     #if os(macOS)
@@ -270,7 +281,6 @@ extension TorrentListView {
                         torrentRows
                     #endif
                 }
-
             case .error(let message):
                 errorView(message: message)
             }
@@ -558,6 +568,21 @@ extension TorrentListView {
         }
     }
 }
+
+#if os(iOS)
+    struct BlurView: UIViewRepresentable {
+        let style: UIBlurEffect.Style
+
+        func makeUIView(context: Context) -> UIVisualEffectView {
+            let view = UIVisualEffectView(effect: UIBlurEffect(style: style))
+            return view
+        }
+
+        func updateUIView(_ uiView: UIVisualEffectView, context: Context) {
+            uiView.effect = UIBlurEffect(style: style)
+        }
+    }
+#endif
 
 #if DEBUG
     #Preview("Loaded list") {
