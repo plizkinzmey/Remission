@@ -4,12 +4,9 @@ struct ServerDetailConnectionPill: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             ProgressView()
                 .controlSize(.regular)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[VerticalAlignment.center]
-                }
             Text(L10n.tr("serverDetail.status.connecting"))
                 .font(.subheadline)
                 .foregroundStyle(.primary)
