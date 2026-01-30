@@ -81,58 +81,8 @@ struct RemissionApp: App {
 
         func applicationDidFinishLaunching(_ notification: Notification) {
             Task { @MainActor in
-                let isUITesting = ProcessInfo.processInfo.environment["UI_TESTING"] == "1"
-                NSApp.activate(ignoringOtherApps: true)
-                for window in NSApp.windows {
-                    window.contentMinSize = WindowConstants.minimumSize
-                    window.makeKeyAndOrderFront(nil)
-                }
                 registerOpenFilesObserver()
-                if isUITesting == false {
-                    applyInitialPresentationIfNeeded()
-                }
             }
-        }
-
-        @MainActor
-        private func shouldApplyInitialPresentation(_ window: NSWindow) -> Bool {
-            let size = window.frame.size
-            let epsilon: CGFloat = 1
-            return abs(size.width - WindowConstants.minimumSize.width) <= epsilon
-                && abs(size.height - WindowConstants.minimumSize.height) <= epsilon
-        }
-
-        @MainActor
-        private func applyInitialPresentationIfNeeded() {
-            guard let window = preferredMainWindow() else { return }
-
-            let shouldApplyInitialPresentation =
-                window.isZoomed == false
-                && window.isMiniaturized == false
-                && shouldApplyInitialPresentation(window)
-
-            guard shouldApplyInitialPresentation else { return }
-
-            window.collectionBehavior.insert(.fullScreenPrimary)
-
-            if window.styleMask.contains(.fullScreen) == false {
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 250_000_000)
-                    guard window.styleMask.contains(.fullScreen) == false else { return }
-                    window.toggleFullScreen(nil)
-                }
-            }
-        }
-
-        @MainActor
-        private func preferredMainWindow() -> NSWindow? {
-            if let window = NSApp.mainWindow {
-                return window
-            }
-            if let window = NSApp.keyWindow {
-                return window
-            }
-            return NSApp.windows.first(where: { $0.isVisible }) ?? NSApp.windows.first
         }
 
         func application(_ sender: NSApplication, openFile filename: String) -> Bool {
