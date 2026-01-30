@@ -11,14 +11,12 @@ struct TorrentFileLoaderDependency: Sendable {
 extension TorrentFileLoaderDependency: DependencyKey {
     static let liveValue: Self = Self(
         load: { url in
-            #if os(macOS)
-                let didStartAccess = url.startAccessingSecurityScopedResource()
-                defer {
-                    if didStartAccess {
-                        url.stopAccessingSecurityScopedResource()
-                    }
+            let didStartAccess = url.startAccessingSecurityScopedResource()
+            defer {
+                if didStartAccess {
+                    url.stopAccessingSecurityScopedResource()
                 }
-            #endif
+            }
 
             return try Data(contentsOf: url, options: [.mappedIfSafe])
         }

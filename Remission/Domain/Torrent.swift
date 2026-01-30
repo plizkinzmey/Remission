@@ -19,6 +19,10 @@ public struct Torrent: Equatable, Sendable, Identifiable, Codable {
     public var id: Identifier
     public var name: String
     public var status: Status
+    /// Ошибка, если есть (0 = нет ошибки).
+    public var error: Int
+    /// Описание ошибки.
+    public var errorString: String
     /// Список тегов (`torrent-get` → `labels`).
     public var tags: [String]
     public var summary: Summary
@@ -28,6 +32,8 @@ public struct Torrent: Equatable, Sendable, Identifiable, Codable {
         id: Identifier,
         name: String,
         status: Status,
+        error: Int = 0,
+        errorString: String = "",
         tags: [String] = [],
         summary: Summary,
         details: Details? = nil
@@ -35,9 +41,18 @@ public struct Torrent: Equatable, Sendable, Identifiable, Codable {
         self.id = id
         self.name = name
         self.status = status
+        self.error = error
+        self.errorString = errorString
         self.tags = tags
         self.summary = summary
         self.details = details
+    }
+}
+
+extension Torrent {
+    /// Проверяет, есть ли у торрента ошибка.
+    public var hasError: Bool {
+        error != 0
     }
 }
 

@@ -1,6 +1,10 @@
 import ComposableArchitecture
 import Foundation
 
+#if os(iOS)
+    import UIKit
+#endif
+
 @Reducer
 struct AppReducer {
     @ObservableState
@@ -11,6 +15,7 @@ struct AppReducer {
         var pendingTorrentFileURL: URL?
         #if os(iOS)
             var startup: StartupState = .init()
+            var backgroundFetchCompletion: BackgroundFetchCompletion?
         #endif
 
         init(
@@ -30,6 +35,9 @@ struct AppReducer {
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case openTorrentFile(URL)
+        #if os(iOS)
+            case backgroundFetch(BackgroundFetchCompletion)
+        #endif
     }
 
     @Dependency(\.appClock) var appClock
@@ -158,8 +166,33 @@ struct AppReducer {
                 }
                 return .send(.serverList(.storageResponse(serverID, .success(summary))))
 
+            case .path(.element(id: _, action: .torrentList(.torrentsResponse(let result)))):
+                #if os(iOS)
+                    if let completion = state.backgroundFetchCompletion {
+                        switch result {
+                        case .success:
+                            completion.run(.newData)
+                        case .failure:
+                            completion.run(.failed)
+                        }
+                        state.backgroundFetchCompletion = nil
+                    }
+                #endif
+                return .none
+
             case .path:
                 return .none
+
+            #if os(iOS)
+                case .backgroundFetch(let completion):
+                    guard let lastID = state.path.ids.last else {
+                        completion.run(.noData)
+                        return .none
+                    }
+                    state.backgroundFetchCompletion = completion
+                    return .send(
+                        .path(.element(id: lastID, action: .torrentList(.refreshRequested))))
+            #endif
             }
         }
         .forEach(\.path, action: \.path) {
@@ -233,5 +266,13 @@ struct AppReducer {
 
     private enum StartupCancellationID {
         case timer
+    }
+#endif
+
+#if os(iOS)
+    struct BackgroundFetchCompletion: Equatable {
+        let id = UUID()
+        let run: (UIBackgroundFetchResult) -> Void
+        static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
     }
 #endif

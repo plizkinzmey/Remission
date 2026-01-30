@@ -1,6 +1,7 @@
 import ComposableArchitecture
 import Dependencies
 import Foundation
+import UserNotifications
 
 // swiftlint:disable nesting type_body_length
 
@@ -112,6 +113,7 @@ struct TorrentListReducer {
     @Dependency(\.appClock) var appClock
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
     @Dependency(\.offlineCacheRepository) var offlineCacheRepository
+    @Dependency(\.notificationClient) var notificationClient
 
     enum CancelID: Hashable {
         case fetch
@@ -139,7 +141,12 @@ struct TorrentListReducer {
                 }
                 return .merge(
                     loadPreferences(serverID: serverID),
-                    observePreferences(serverID: serverID)
+                    observePreferences(serverID: serverID),
+                    .run { _ in
+                        _ = try await notificationClient.requestAuthorization([
+                            .alert, .sound, .badge
+                        ])
+                    }
                 )
 
             case .teardown:
@@ -337,15 +344,143 @@ struct TorrentListReducer {
                 return banner
 
             case .torrentsResponse(.success(let payload)):
+
+                let previousItems = state.items
+
+                // Проверяем, был ли список загружен ранее. Если phase == .loaded, значит это обновление (polling/refresh),
+
+                // и мы должны уведомлять о новых торрентах (добавленных на другом устройстве).
+
+                // Если нет (первая загрузка), уведомления для "новых" (всех) торрентов подавляем.
+
+                let wasLoaded = state.phase == .loaded
+
                 state.isRefreshing = false
+
                 state.isAwaitingConnection = false
+
                 state.errorPresenter.banner = nil
+
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
+
                 state.items = merge(
+
                     items: state.items,
+
                     with: payload.torrents,
+
                     removingIDs: state.removingTorrentIDs
+
                 )
+
+                let notificationsEffect: Effect<Action> = .run { [items = state.items] _ in
+
+                    for newItem in items {
+
+                        if let oldItem = previousItems[id: newItem.id] {
+
+                            // 1. Логика для уже существовавших торрентов (изменение состояния)
+
+                            // Check for completion
+
+                            let wasNotFinished = oldItem.torrent.summary.progress.percentDone < 1.0
+
+                            let isFinished = newItem.torrent.summary.progress.percentDone >= 1.0
+
+                            if wasNotFinished && isFinished {
+
+                                try? await notificationClient.sendNotification(
+
+                                    L10n.tr("torrentList.notification.completed.title"),
+
+                                    L10n.tr(
+                                        "torrentList.notification.completed.body",
+                                        newItem.torrent.name),
+
+                                    "completed-\(newItem.id.rawValue)"
+
+                                )
+
+                            }
+
+                            // Check for error
+
+                            let hadNoError = oldItem.torrent.error == 0
+
+                            let hasError = newItem.torrent.error != 0
+
+                            if hadNoError && hasError {
+
+                                try? await notificationClient.sendNotification(
+
+                                    L10n.tr("torrentList.notification.error.title"),
+
+                                    newItem.torrent.errorString.isEmpty
+
+                                        ? L10n.tr(
+                                            "torrentList.notification.error.body",
+                                            newItem.torrent.name)
+
+                                        : newItem.torrent.errorString,
+
+                                    "error-\(newItem.id.rawValue)"
+
+                                )
+
+                            }
+
+                        } else if wasLoaded {
+
+                            // 2. Логика для НОВЫХ торрентов (добавленных удаленно),
+
+                            // но только если это не первый запуск приложения.
+
+                            // Если новый торрент появился сразу готовым (или почти готовым)
+
+                            if newItem.torrent.summary.progress.percentDone >= 1.0 {
+
+                                try? await notificationClient.sendNotification(
+
+                                    L10n.tr("torrentList.notification.completed.title"),
+
+                                    L10n.tr(
+                                        "torrentList.notification.completed.body",
+                                        newItem.torrent.name),
+
+                                    "completed-\(newItem.id.rawValue)"
+
+                                )
+
+                            }
+
+                            // Если новый торрент появился сразу с ошибкой
+
+                            if newItem.torrent.error != 0 {
+
+                                try? await notificationClient.sendNotification(
+
+                                    L10n.tr("torrentList.notification.error.title"),
+
+                                    newItem.torrent.errorString.isEmpty
+
+                                        ? L10n.tr(
+                                            "torrentList.notification.error.body",
+                                            newItem.torrent.name)
+
+                                        : newItem.torrent.errorString,
+
+                                    "error-\(newItem.id.rawValue)"
+
+                                )
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
                 let currentIDs = Set(state.items.map(\.id))
                 state.removingTorrentIDs.formIntersection(currentIDs)
                 state.inFlightCommands = state.inFlightCommands.filter { id, inFlight in
@@ -368,9 +503,11 @@ struct TorrentListReducer {
                     state.isPollingEnabled,
                     state.connectionEnvironment != nil
                 else {
-                    return payload.isFromCache ? .none : .cancel(id: CancelID.polling)
+                    let finalEffect =
+                        payload.isFromCache ? .none : Effect<Action>.cancel(id: CancelID.polling)
+                    return .merge(notificationsEffect, finalEffect)
                 }
-                return schedulePolling(after: state.pollingInterval)
+                return .merge(notificationsEffect, schedulePolling(after: state.pollingInterval))
 
             case .storageUpdated(let summary):
                 state.storageSummary = summary

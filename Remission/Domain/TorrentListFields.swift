@@ -5,6 +5,8 @@ enum TorrentListFields {
         "id",
         "name",
         "status",
+        "error",
+        "errorString",
         "labels",
         "percentDone",
         "recheckProgress",

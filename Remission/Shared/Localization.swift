@@ -1,6 +1,11 @@
 import Foundation
 
 enum L10n {
+    static func tr(_ key: String, _ args: CVarArg..., table: String = "Localizable") -> String {
+        let format = localizedString(forKey: key, table: table) ?? key
+        return String(format: format, arguments: args)
+    }
+
     static func tr(_ key: String, table: String = "Localizable") -> String {
         localizedString(forKey: key, table: table) ?? key
     }

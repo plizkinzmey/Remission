@@ -8,8 +8,12 @@ struct RemissionApp: App {
     #if os(macOS)
         @NSApplicationDelegateAdaptor(RemissionAppDelegate.self) var appDelegate
     #endif
+    #if os(iOS)
+        @UIApplicationDelegateAdaptor(RemissionAppDelegate.self) var appDelegate
+    #endif
 
     init() {
+        NotificationClient.configure()
         let arguments = ProcessInfo.processInfo.arguments
         let scenario = AppBootstrap.parseUITestScenario(arguments: arguments)
         let fixture = AppBootstrap.parseUITestFixture(arguments: arguments)
@@ -31,6 +35,9 @@ struct RemissionApp: App {
 
         _store = StateObject(wrappedValue: store)
         #if os(macOS)
+            RemissionAppDelegate.appStore = store
+        #endif
+        #if os(iOS)
             RemissionAppDelegate.appStore = store
         #endif
     }
@@ -209,5 +216,37 @@ struct RemissionApp: App {
         static let name = Notification.Name("RemissionOpenFilesNotification")
         static let pathsKey = "paths"
         static let senderKey = "senderPID"
+    }
+#endif
+
+#if os(iOS)
+    import ComposableArchitecture
+    import UIKit
+
+    class RemissionAppDelegate: NSObject, UIApplicationDelegate {
+        static var appStore: StoreOf<AppReducer>?
+
+        func application(
+            _ application: UIApplication,
+            didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? =
+                nil
+        ) -> Bool {
+            return true
+        }
+
+        func application(
+            _ application: UIApplication,
+            performFetchWithCompletionHandler completionHandler:
+                @escaping (UIBackgroundFetchResult) ->
+                Void
+        ) {
+            guard let store = Self.appStore else {
+                completionHandler(.failed)
+                return
+            }
+
+            let completion = BackgroundFetchCompletion(run: completionHandler)
+            store.send(.backgroundFetch(completion))
+        }
     }
 #endif

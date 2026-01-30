@@ -60,6 +60,8 @@ extension TransmissionDomainMapper {
             id: Torrent.Identifier(rawValue: dto.id),
             name: dto.name,
             status: status,
+            error: dto.error ?? 0,
+            errorString: dto.errorString ?? "",
             tags: dto.labels?.filter { !$0.isEmpty } ?? [],
             summary: summary,
             details: details
@@ -193,6 +195,8 @@ struct TorrentObject: Decodable {
     let id: Int
     let name: String
     let status: Int
+    let error: Int?
+    let errorString: String?
     let labels: [String]?
 
     // Progress
