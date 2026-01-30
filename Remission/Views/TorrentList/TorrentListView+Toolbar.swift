@@ -40,7 +40,7 @@ extension TorrentListView {
         var shouldShowSearchBar: Bool {
             if UIDevice.current.userInterfaceIdiom == .pad { return false }
             guard store.connectionEnvironment != nil else { return false }
-            return store.visibleItems.isEmpty == false || store.searchQuery.isEmpty == false
+            return store.items.isEmpty == false || store.searchQuery.isEmpty == false
         }
     #endif
 }

@@ -48,12 +48,10 @@ struct TorrentListControlsView: View {
 
             // Row 2: Category picker
             HStack(spacing: 12) {
-                if store.visibleItems.isEmpty == false {
-                    categoryPicker
-                        #if os(macOS)
-                            .labelsHidden()
-                        #endif
-                }
+                categoryPicker
+                    #if os(macOS)
+                        .labelsHidden()
+                    #endif
                 Spacer(minLength: 0)
             }
         }

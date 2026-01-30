@@ -110,6 +110,36 @@ struct TorrentListFeatureTests {
         #expect(store.state.visibleItems.count == 1)
     }
 
+    @Test("UI Controls remain accessible when filtered list is empty but total items exist")
+    func testControlVisibilityWithEmptyFilteredList() async {
+        let torrent = Torrent.sampleDownloading()
+        // Изначально торрент без тегов (категория 'other' или 'all')
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                phase: .loaded,
+                items: [TorrentListItem.State(torrent: torrent)],
+                selectedCategory: .programs  // Выбираем категорию, которой нет
+            ),
+            reducer: TorrentListReducer()
+        )
+
+        // 1. Проверяем, что видимый список пуст
+        #expect(store.state.visibleItems.isEmpty)
+
+        // 2. Проверяем, что общий список НЕ пуст (это условие для показа поиска и категорий)
+        #expect(!store.state.items.isEmpty)
+
+        // 3. Имитируем смену категории обратно на 'all'
+        await store.send(.categoryChanged(.all)) {
+            $0.selectedCategory = .all
+        }
+
+        // 4. Теперь список должен стать непустым
+        #expect(!store.state.visibleItems.isEmpty)
+    }
+
     // MARK: - Commands & Removal
 
     @Test("Torrent removal with confirmation")
