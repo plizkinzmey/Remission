@@ -18,7 +18,6 @@ struct TorrentListHeaderiOSView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 12)
-        .appCardSurface(cornerRadius: 12)
     }
 }
 

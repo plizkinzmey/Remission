@@ -109,7 +109,7 @@ extension TorrentListView {
             }
         #else
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(alignment: .leading, spacing: 12) {
                     if store.isRefreshing && store.isAwaitingConnection == false {
                         refreshIndicator
                     }
@@ -130,22 +130,31 @@ extension TorrentListView {
                             .padding(.bottom, 4)
                     }
 
-                    Section {
-                        content
+                    content
 
-                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                            Text(L10n.tr("torrentList.autorefresh.disabled"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                        }
-                    } header: {
-                        TorrentListHeaderiOSView(store: store)
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
                     }
                 }
                 .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.bottom, 4)
             }
+            .safeAreaInset(edge: .top) {
+                TorrentListHeaderiOSView(store: store)
+                    .padding(.horizontal, 8)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
+                    .background(
+                        Rectangle()
+                            .fill(.clear)
+                            .glassEffect(.regular, in: Rectangle())
+                            .ignoresSafeArea(edges: .top)
+                    )
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
         #endif
     }
 
