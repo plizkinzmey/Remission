@@ -12,10 +12,10 @@ public struct TransmissionClientConfig: Sendable {
     /// Пароль для Basic Auth. Нил, если аутентификация не используется.
     public var password: String?
 
-    /// Таймаут для запросов (по умолчанию 30 секунд).
+    /// Таймаут для запросов (по умолчанию 10 секунд).
     public var requestTimeout: TimeInterval
 
-    /// Количество попыток повтора при временных ошибках (по умолчанию 3).
+    /// Количество попыток повтора при временных ошибках (по умолчанию 1).
     public var maxRetries: Int
 
     /// Интервал между повторами в секундах (по умолчанию 1).
@@ -45,8 +45,8 @@ public struct TransmissionClientConfig: Sendable {
         baseURL: URL,
         username: String? = nil,
         password: String? = nil,
-        requestTimeout: TimeInterval = 30,
-        maxRetries: Int = 3,
+        requestTimeout: TimeInterval = 10,
+        maxRetries: Int = 1,
         retryDelay: TimeInterval = 1,
         serverID: UUID? = nil,
         enableLogging: Bool = false,

@@ -48,6 +48,7 @@ struct ServerDetailReducer {
         case resetTrustSucceeded
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
+        case connectionRetryTick
         case errorPresenter(ErrorPresenter<ErrorRetry>.Action)
         case cacheKeyPrepared(OfflineCacheKey)
         case connectionResponse(TaskResult<ConnectionResponse>)

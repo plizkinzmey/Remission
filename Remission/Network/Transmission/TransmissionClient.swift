@@ -516,8 +516,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     /// Определяет, стоит ли повторять запрос для указанной сетевой ошибки.
     private func shouldRetry(_ urlError: URLError) -> Bool {
         switch urlError.code {
-        case .notConnectedToInternet,
-            .networkConnectionLost,
+        case .notConnectedToInternet:
+            // Не повторяем, если интернета нет совсем - сообщаем наверх сразу
+            return false
+        case .networkConnectionLost,
             .timedOut,
             .cannotFindHost,
             .cannotConnectToHost,

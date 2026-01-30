@@ -10,20 +10,14 @@ struct ServerDetailConnectionCard: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        connectionContent
+        VStack {
+            connectionContent
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
     }
 
     @ViewBuilder
     private var connectionContent: some View {
-        if let banner = errorPresenter.banner {
-            ErrorBannerView(
-                message: banner.message,
-                onRetry: banner.retry == nil
-                    ? nil
-                    : { onRetryError(banner.retry!) },
-                onDismiss: { onDismissError() }
-            )
-        }
         switch connectionState.phase {
         case .idle:
             Text(L10n.tr("serverDetail.status.waiting"))
@@ -32,42 +26,32 @@ struct ServerDetailConnectionCard: View {
                 .accessibilityIdentifier("server_detail_status_idle")
 
         case .connecting:
-            HStack {
-                Spacer(minLength: 0)
-                ServerDetailConnectionPill()
-                Spacer(minLength: 0)
-            }
+            ServerDetailConnectionPill()
 
         case .ready:
             EmptyView()
 
         case .offline(let offline):
-            Label(
-                L10n.tr("serverDetail.status.error"),
-                systemImage: "wifi.slash"
+            AppStatusCardView(
+                systemImage: "wifi.slash",
+                title: L10n.tr("serverDetail.status.error"),
+                message: offline.message,
+                buttonTitle: L10n.tr("common.retry"),
+                onButtonTap: onRetry,
+                iconColor: .orange
             )
-            .foregroundStyle(.orange)
-            Text(offline.message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Button(L10n.tr("common.retry")) {
-                onRetry()
-            }
-            .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("server_detail_status_offline")
 
         case .failed(let failure):
-            Label(L10n.tr("serverDetail.status.error"), systemImage: "xmark.octagon.fill")
-                .foregroundStyle(.red)
-            Text(failure.message)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Button(L10n.tr("serverDetail.action.retry")) {
-                onRetry()
-            }
-            .buttonStyle(.borderedProminent)
+            AppStatusCardView(
+                systemImage: "xmark.octagon.fill",
+                title: L10n.tr("serverDetail.status.error"),
+                message: failure.message,
+                buttonTitle: L10n.tr("serverDetail.action.retry"),
+                onButtonTap: onRetry,
+                iconColor: .red
+            )
             .accessibilityIdentifier("server_detail_status_failed")
-            .accessibilityHint(L10n.tr("serverDetail.action.retry"))
         }
     }
 }

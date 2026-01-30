@@ -17,6 +17,10 @@ extension ServerDetailReducer {
 
         case .retryConnectionButtonTapped:
             state.errorPresenter.banner = nil
+            state.connectionRetryAttempts = 0
+            return startConnection(state: &state, force: true)
+
+        case .connectionRetryTick:
             return startConnection(state: &state, force: true)
 
         case .cacheKeyPrepared(let key):
@@ -87,6 +91,11 @@ extension ServerDetailReducer {
                 message: message,
                 retry: .reconnect
             )
+
+            if state.connectionRetryAttempts >= maxConnectionRetryAttempts {
+                state.torrentList.isAwaitingConnection = false
+            }
+
             let teardown: Effect<Action> = .send(.torrentList(.teardown))
             let reset: Effect<Action> = .send(.torrentList(.resetForReconnect))
             let offlineEffect: Effect<Action> = .send(

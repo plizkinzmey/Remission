@@ -120,5 +120,9 @@ extension ServerDetailReducer {
         )
     }
 
-    var maxConnectionRetryAttempts: Int { 5 }
+    func describe(_ error: Error) -> String {
+        error.userFacingMessage
+    }
+
+    var maxConnectionRetryAttempts: Int { 3 }
 }

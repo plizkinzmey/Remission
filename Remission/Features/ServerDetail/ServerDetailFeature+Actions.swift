@@ -16,7 +16,6 @@ extension ServerDetailReducer {
             state.connectionEnvironment = nil
             state.lastAppliedDefaultSpeedLimits = nil
             state.connectionState.phase = .connecting
-            state.connectionRetryAttempts = 0
             state.torrentList.isAwaitingConnection = true
             if shouldResetList {
                 state.torrentList.items.removeAll()
@@ -111,7 +110,7 @@ extension ServerDetailReducer {
             let clock = appClock.clock()
             do {
                 try await clock.sleep(for: delay)
-                await send(.retryConnectionButtonTapped)
+                await send(.connectionRetryTick)
             } catch is CancellationError {
                 return
             }
