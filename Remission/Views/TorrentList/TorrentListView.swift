@@ -226,7 +226,7 @@ extension TorrentListView {
                         if case .offline(let offline) = store.phase {
                             offlineView(message: offline.message)
                         } else {
-                            Color.clear
+                            TorrentListEmptyStateView()
                         }
                     } else {
                         ScrollView {
