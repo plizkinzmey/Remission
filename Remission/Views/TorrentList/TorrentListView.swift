@@ -149,9 +149,19 @@ extension TorrentListView {
                     .padding(.bottom, 8)
                     .background(
                         Rectangle()
-                            .fill(.clear)
-                            .glassEffect(.regular, in: Rectangle())
+                            .fill(.ultraThinMaterial)
                             .ignoresSafeArea(edges: .top)
+                            .mask(
+                                LinearGradient(
+                                    stops: [
+                                        .init(color: .black, location: 0.90),
+                                        .init(color: .black.opacity(0), location: 1.0)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                                .ignoresSafeArea(edges: .top)
+                            )
                     )
             }
             .toolbarBackground(.hidden, for: .navigationBar)
