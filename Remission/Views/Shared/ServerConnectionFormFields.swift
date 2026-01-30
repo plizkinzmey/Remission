@@ -3,12 +3,17 @@ import SwiftUI
 struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
     @State private var isPasswordVisible: Bool = false
-    @State private var labelWidth: CGFloat = 80  // Фиксированная ширина для выравнивания
+    @State private var labelWidth: CGFloat?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             connectionSection
             credentialsSection
+        }
+        .onPreferenceChange(LabelWidthPreferenceKey.self) { widths in
+            if let max = widths.max(), max != labelWidth {
+                labelWidth = max
+            }
         }
     }
 

@@ -16,6 +16,14 @@ extension TextFieldStyle where Self == AppFormFieldStyle {
     static var appFormField: AppFormFieldStyle { .init() }
 }
 
+/// Ключ для передачи ширины лейблов вверх по иерархии.
+struct LabelWidthPreferenceKey: PreferenceKey {
+    static let defaultValue: [CGFloat] = []
+    static func reduce(value: inout [CGFloat], nextValue: () -> [CGFloat]) {
+        value.append(contentsOf: nextValue())
+    }
+}
+
 /// Универсальная строка формы с меткой и контентом.
 @MainActor
 struct AppFormField<Content: View>: View {
@@ -40,6 +48,14 @@ struct AppFormField<Content: View>: View {
                 .foregroundStyle(.primary)
                 .lineLimit(1)
                 .fixedSize(horizontal: true, vertical: false)
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear.preference(
+                            key: LabelWidthPreferenceKey.self,
+                            value: [geometry.size.width]
+                        )
+                    }
+                )
                 .frame(width: labelWidth, alignment: .leading)
 
             content()
