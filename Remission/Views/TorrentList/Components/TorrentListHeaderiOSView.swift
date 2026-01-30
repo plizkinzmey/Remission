@@ -17,7 +17,8 @@ struct TorrentListHeaderiOSView: View {
             TorrentListControlsView(store: store)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 12)
+        .padding(.top, 12)
+        .padding(.bottom, 0)
     }
 }
 

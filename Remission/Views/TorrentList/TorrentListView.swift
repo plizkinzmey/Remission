@@ -147,23 +147,21 @@ extension TorrentListView {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.top, 12)
+                    .padding(.top, 4)
                     .padding(.bottom, 4)
-                    .frame(minHeight: geometry.size.height)
+                    .frame(minHeight: geometry.size.height, alignment: .top)
                 }
             }
             .safeAreaInset(edge: .top) {
                 TorrentListHeaderiOSView(store: store)
                     .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
                     .background(
                         BlurView(style: .regular)
                             .ignoresSafeArea(edges: .top)
                             .mask(
                                 LinearGradient(
                                     stops: [
-                                        .init(color: .black, location: 0.90),
+                                        .init(color: .black, location: 0.98),
                                         .init(color: .black.opacity(0), location: 1.0)
                                     ],
                                     startPoint: .top,
