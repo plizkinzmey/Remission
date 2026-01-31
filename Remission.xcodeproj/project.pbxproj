@@ -5,12 +5,10 @@
 	};
 	objectVersion = 90;
 	objects = {
-
 /* Begin PBXBuildFile section */
 		15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 15AADFF42EA417C5003711C3 /* ComposableArchitecture */; };
 		15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 15B1A0002F0B7B2E00E3D111 /* Logging */; };
 /* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		15AA8C492EA1C9370025EF81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,24 +25,23 @@
 			remoteInfo = Remission;
 		};
 /* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
-
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		15F6B6D12F1A2B3C00A0A111 /* Exceptions for "Remission" folder in "Remission" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Info-macOS.plist",
-			);
+			                        membershipExceptions = (
+			                                "Info-macOS.plist",
+			                                "Info-iOS.plist",
+			                        );
+			
 			target = 15AA8C3A2EA1C9360025EF81 /* Remission */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		15AA8C3D2EA1C9360025EF81 /* Remission */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -65,7 +62,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
 /* Begin PBXFrameworksBuildPhase section */
 		15AA8C382EA1C9360025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -85,11 +81,12 @@
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
-
 /* Begin PBXGroup section */
 		15AA8C322EA1C9360025EF81 = {
 			isa = PBXGroup;
 			children = (
+				15AA8C3F2EA1C9360025EF81 /* Info-macOS.plist */,
+				15AA8C3E2EA1C9360025EF81 /* Info-iOS.plist */,
 				15D03AFF2EA3B62200044487 /* Remission.xctestplan */,
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 				15AA8C4B2EA1C9370025EF81 /* RemissionTests */,
@@ -109,7 +106,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
-
 /* Begin PBXNativeTarget section */
 		15AA8C3A2EA1C9360025EF81 /* Remission */ = {
 			isa = PBXNativeTarget;
@@ -178,7 +174,6 @@
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
-
 /* Begin PBXProject section */
 		15AA8C332EA1C9360025EF81 /* Project object */ = {
 			isa = PBXProject;
@@ -225,7 +220,6 @@
 			);
 		};
 /* End PBXProject section */
-
 /* Begin PBXResourcesBuildPhase section */
 		15AA8C392EA1C9360025EF81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
@@ -243,7 +237,6 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
-
 /* Begin PBXShellScriptBuildPhase section */
 		15AA8C6A2EA1CA570025EF81 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -342,7 +335,6 @@
 			);
 		};
 /* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		15AA8C372EA1C9360025EF81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -360,7 +352,6 @@
 			);
 		};
 /* End PBXSourcesBuildPhase section */
-
 /* Begin PBXTargetDependency section */
 		15AA8C4A2EA1C9370025EF81 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -373,7 +364,6 @@
 			targetProxy = 15AA8C532EA1C9370025EF81 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
 		15AA8C5A2EA1C9370025EF81 /* Debug configuration for PBXProject "Remission" */ = {
 			isa = XCBuildConfiguration;
@@ -515,8 +505,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = LaunchScreen.storyboard;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
 				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
-				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
@@ -532,7 +522,6 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UTImportedTypeDeclarations = "{\n    UTTypeConformsTo =     (\n        \"public.data\"\n    );\n    UTTypeDescription = \"BitTorrent document\";\n    UTTypeIdentifier = \"org.bittorrent.torrent\";\n    UTTypeTagSpecification =     {\n        \"public.filename-extension\" =         (\n            torrent\n        );\n        \"public.mime-type\" =         (\n            \"application/x-bittorrent\"\n        );\n    };\n}";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -572,8 +561,8 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = LaunchScreen.storyboard;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
 				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
-				INFOPLIST_KEY_CFBundleDocumentTypes = "{\n    CFBundleTypeExtensions =     (\n        torrent\n    );\n    CFBundleTypeName = \"BitTorrent document\";\n    CFBundleTypeRole = Viewer;\n    LSHandlerRank = Default;\n    LSItemContentTypes =     (\n        \"org.bittorrent.torrent\"\n    );\n}";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
@@ -589,7 +578,6 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UTImportedTypeDeclarations = "{\n    UTTypeConformsTo =     (\n        \"public.data\"\n    );\n    UTTypeDescription = \"BitTorrent document\";\n    UTTypeIdentifier = \"org.bittorrent.torrent\";\n    UTTypeTagSpecification =     {\n        \"public.filename-extension\" =         (\n            torrent\n        );\n        \"public.mime-type\" =         (\n            \"application/x-bittorrent\"\n        );\n    };\n}";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
@@ -620,6 +608,23 @@
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_SWIFT_TESTING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = NO;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = NO;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphoneos*]" = LaunchScreen;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphonesimulator*]" = LaunchScreen;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.8.0;
@@ -648,6 +653,23 @@
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				ENABLE_SWIFT_TESTING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = NO;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = NO;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphoneos*]" = LaunchScreen;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphonesimulator*]" = LaunchScreen;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.8.0;
@@ -674,6 +696,23 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = NO;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = NO;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphoneos*]" = LaunchScreen;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphonesimulator*]" = LaunchScreen;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.8.0;
@@ -700,6 +739,23 @@
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Remission/Info-iOS.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Remission/Info-macOS.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				"INFOPLIST_KEY_LSMultipleInstancesProhibited[sdk=macosx*]" = YES;
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Remission подключается к вашему серверу Transmission в локальной сети.";
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = NO;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = NO;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphoneos*]" = LaunchScreen;
+				"INFOPLIST_KEY_UILaunchStoryboardName[sdk=iphonesimulator*]" = LaunchScreen;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.8.0;
@@ -719,7 +775,6 @@
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
-
 /* Begin XCConfigurationList section */
 		15AA8C362EA1C9360025EF81 /* Build configuration list for PBXProject "Remission" */ = {
 			isa = XCConfigurationList;
@@ -754,7 +809,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
 /* Begin XCRemoteSwiftPackageReference section */
 		15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -773,7 +827,6 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
 		15AADFF42EA417C5003711C3 /* ComposableArchitecture */ = {
 			isa = XCSwiftPackageProductDependency;
