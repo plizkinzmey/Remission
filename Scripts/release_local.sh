@@ -7,8 +7,8 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--export-options-plist PATH]
-  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--export-options-plist PATH]
+  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--export-options-plist PATH]
+  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--export-options-plist PATH]
   Scripts/release_local.sh --version X.Y.Z --no-version-commit [--tag] [--push]
   Scripts/release_local.sh --version X.Y.Z --version-only [--no-version-commit]
 
@@ -21,6 +21,11 @@ Builds:
 Rules:
   - Only runs from branch 'main'
   - Requires clean git working tree unless --allow-dirty is set
+
+Options:
+  --github-release  Create a GitHub release and upload built artifacts (requires 'gh' CLI).
+  --pre-release     Mark the GitHub release as a pre-release.
+  --draft           Create the GitHub release as a draft (not published).
 
 Outputs:
   Build/Releases/vX.Y.Z/
@@ -145,6 +150,9 @@ main() {
   local version_only="false"
   local export_options_plist="ExportOptions.plist"
   local platform="all"
+  local github_release="false"
+  local pre_release="false"
+  local draft="false"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -157,6 +165,9 @@ main() {
       --version-only) version_only="true"; shift ;;
       --export-options-plist) export_options_plist="${2:-}"; shift 2 ;;
       --platform) platform="${2:-}"; shift 2 ;;
+      --github-release) github_release="true"; shift ;;
+      --pre-release) pre_release="true"; shift ;;
+      --draft) draft="true"; shift ;;
       -h|--help) usage; exit 0 ;;
       *) die "Неизвестный аргумент: $1 (см. --help)" ;;
     esac
@@ -344,6 +355,59 @@ main() {
       ok "Ветка develop обновлена локально (не запушена, т.к. нет --push)."
     fi
     git checkout main
+  fi
+
+  if [[ "$github_release" == "true" ]]; then
+    info "🚀 Создаю релиз на GitHub..."
+    
+    command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) не установлен."
+    gh auth status >/dev/null 2>&1 || die "Вы не авторизованы в GitHub CLI. Выполните 'gh auth login'."
+
+    local assets=()
+    if [[ -f "$macos_zip" ]]; then
+      assets+=("$macos_zip")
+    fi
+    
+    local ipa_file
+    ipa_file=$(find "$ios_dir" -name "*.ipa" | head -n 1)
+    if [[ -n "$ipa_file" ]]; then
+      assets+=("$ipa_file")
+    fi
+
+    if [[ ${#assets[@]} -eq 0 ]]; then
+      info "⚠️  Нет файлов для загрузки (macos zip или ios ipa). Пропускаю создание релиза."
+    else
+      local previous_tag
+      previous_tag=$(git describe --tags --abbrev=0 "$release_tag^" 2>/dev/null || true)
+      local notes_file="${out_dir}/release_notes.md"
+      
+      {
+        echo "## What's Changed"
+        if [[ -n "$previous_tag" ]]; then
+          git log "${previous_tag}..${release_tag}" --oneline --pretty=format:"* %s (%h)"
+        else
+          echo "Initial release."
+        fi
+      } > "$notes_file"
+
+      local gh_args=(
+        "release" "create" "$release_tag"
+        "--title" "Remission ${release_tag}"
+        "--notes-file" "$notes_file"
+      )
+      
+      if [[ "$pre_release" == "true" ]]; then
+        gh_args+=("--prerelease")
+      fi
+      
+      if [[ "$draft" == "true" ]]; then
+        gh_args+=("--draft")
+      fi
+
+      info "Загружаю файлы: ${assets[*]}"
+      run gh "${gh_args[@]}" "${assets[@]}"
+      ok "Релиз на GitHub успешно создан!"
+    fi
   fi
 
   ok "Готово: ${out_dir}"
