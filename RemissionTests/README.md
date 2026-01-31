@@ -60,10 +60,9 @@ UI-тест «Добавление сервера» использует арг�
 
 ## Справочные материалы
 
-- [Context7 Guide](../devdoc/CONTEXT7_GUIDE.md) — Как исследовать документацию новых библиотек
 - [TCA Testing Guide](https://github.com/pointfreeco/swift-composable-architecture/blob/main/Sources/ComposableArchitecture/Documentation.docc/Articles/TestingTCA.md) — Best practices тестирования TCA reducers и effects
 - [Swift Dependencies](https://github.com/pointfreeco/swift-dependencies) — Официальная документация по фреймворку Dependencies
-- [AppDependencies.swift](../Remission/AppDependencies.swift) — Центральное место конфигурации зависимостей
+- [AppDependencies.swift](../Remission/App/AppDependencies.swift) — Центральное место конфигурации зависимостей
 
 ## Фикстуры деталей торрента
 
