@@ -220,10 +220,7 @@ struct AppReducer {
     private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
         let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
         if let lastServer { return lastServer }
-        if servers.count == 1 {
-            return servers.first
-        }
-        return nil
+        return servers.sorted(by: { $0.createdAt > $1.createdAt }).first
     }
 
     private func openServerDetail(

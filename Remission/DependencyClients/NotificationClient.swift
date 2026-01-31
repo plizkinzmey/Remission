@@ -71,6 +71,7 @@ extension NotificationClient: DependencyKey {
 }
 
 extension DependencyValues {
+    /// Клиент для работы с локальными уведомлениями.
     public var notificationClient: NotificationClient {
         get { self[NotificationClient.self] }
         set { self[NotificationClient.self] = newValue }
