@@ -7,8 +7,8 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--export-options-plist PATH]
-  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--export-options-plist PATH]
+  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH]
+  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH]
   Scripts/release_local.sh --version X.Y.Z --no-version-commit [--tag] [--push]
   Scripts/release_local.sh --version X.Y.Z --version-only [--no-version-commit]
 
@@ -26,6 +26,7 @@ Options:
   --github-release  Create a GitHub release and upload built artifacts (requires 'gh' CLI).
   --pre-release     Mark the GitHub release as a pre-release.
   --draft           Create the GitHub release as a draft (not published).
+  --skip-build      Skip the building process and only perform tagging/pushing/releasing (requires existing artifacts).
 
 Outputs:
   Build/Releases/vX.Y.Z/
@@ -153,6 +154,7 @@ main() {
   local github_release="false"
   local pre_release="false"
   local draft="false"
+  local skip_build="false"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -168,6 +170,7 @@ main() {
       --github-release) github_release="true"; shift ;;
       --pre-release) pre_release="true"; shift ;;
       --draft) draft="true"; shift ;;
+      --skip-build) skip_build="true"; shift ;;
       -h|--help) usage; exit 0 ;;
       *) die "Неизвестный аргумент: $1 (см. --help)" ;;
     esac
@@ -175,6 +178,11 @@ main() {
 
   [[ -n "$version" || -n "$bump" ]] || { usage; exit 1; }
   [[ -z "$version" || -z "$bump" ]] || die "Используй либо --version, либо --bump (не вместе)."
+
+  if [[ "$github_release" == "true" ]]; then
+    command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) не установлен. Установите его через 'brew install gh'."
+    gh auth status >/dev/null 2>&1 || die "Вы не авторизованы в GitHub CLI. Выполните 'gh auth login'."
+  fi
 
   require_branch_main
   require_clean_tree "$allow_dirty"
@@ -252,62 +260,69 @@ main() {
   local ios_ok="skipped"
   local macos_ok="skipped"
 
-  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+  if [[ "$skip_build" == "true" ]]; then
+    info "⏩ Пропускаю сборку (--skip-build). Использую существующие артефакты."
+    [[ -d "$out_dir" ]] || die "Директория с релизом не найдена: $out_dir. Нечего выпускать без сборки."
     ios_ok="true"
-    info "Архивирую iOS…"
-    if ! run xcodebuild \
-      -project Remission.xcodeproj \
-      -scheme Remission \
-      -configuration Release \
-      -destination 'generic/platform=iOS' \
-      -archivePath "$ios_archive" \
-      -allowProvisioningUpdates \
-      -allowProvisioningDeviceRegistration \
-      MARKETING_VERSION="$version" \
-      CURRENT_PROJECT_VERSION="$build_number" \
-      archive | pipe_xcbeautify_if_available; then
-      ios_ok="false"
-    fi
-
-    if [[ "$ios_ok" == "true" ]]; then
-      info "Экспортирую iOS IPA…"
+    macos_ok="true"
+  else
+    if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+      ios_ok="true"
+      info "Архивирую iOS…"
       if ! run xcodebuild \
-        -exportArchive \
+        -project Remission.xcodeproj \
+        -scheme Remission \
+        -configuration Release \
+        -destination 'generic/platform=iOS' \
         -archivePath "$ios_archive" \
-        -exportOptionsPlist "$export_options_plist" \
         -allowProvisioningUpdates \
         -allowProvisioningDeviceRegistration \
-        -exportPath "$ios_dir" | pipe_xcbeautify_if_available; then
+        MARKETING_VERSION="$version" \
+        CURRENT_PROJECT_VERSION="$build_number" \
+        archive | pipe_xcbeautify_if_available; then
         ios_ok="false"
       fi
-    fi
-  fi
 
-  if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
-    macos_ok="true"
-    info "Архивирую macOS…"
-    if ! run xcodebuild \
-      -project Remission.xcodeproj \
-      -scheme Remission \
-      -configuration Release \
-      -destination 'generic/platform=macOS' \
-      -archivePath "$macos_archive" \
-      MARKETING_VERSION="$version" \
-      CURRENT_PROJECT_VERSION="$build_number" \
-      archive | pipe_xcbeautify_if_available; then
-      macos_ok="false"
+      if [[ "$ios_ok" == "true" ]]; then
+        info "Экспортирую iOS IPA…"
+        if ! run xcodebuild \
+          -exportArchive \
+          -archivePath "$ios_archive" \
+          -exportOptionsPlist "$export_options_plist" \
+          -allowProvisioningUpdates \
+          -allowProvisioningDeviceRegistration \
+          -exportPath "$ios_dir" | pipe_xcbeautify_if_available; then
+          ios_ok="false"
+        fi
+      fi
     fi
 
-    if [[ "$macos_ok" == "true" ]]; then
-      info "Собираю macOS zip…"
-      local macos_app="${macos_archive}/Products/Applications/Remission.app"
-      [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
+    if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
+      macos_ok="true"
+      info "Архивирую macOS…"
+      if ! run xcodebuild \
+        -project Remission.xcodeproj \
+        -scheme Remission \
+        -configuration Release \
+        -destination 'generic/platform=macOS' \
+        -archivePath "$macos_archive" \
+        MARKETING_VERSION="$version" \
+        CURRENT_PROJECT_VERSION="$build_number" \
+        archive | pipe_xcbeautify_if_available; then
+        macos_ok="false"
+      fi
 
-      run rm -rf "${macos_dir}/Remission.app"
-      run cp -R "$macos_app" "${macos_dir}/Remission.app"
+      if [[ "$macos_ok" == "true" ]]; then
+        info "Собираю macOS zip…"
+        local macos_app="${macos_archive}/Products/Applications/Remission.app"
+        [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
 
-      local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
-      run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
+        run rm -rf "${macos_dir}/Remission.app"
+        run cp -R "$macos_app" "${macos_dir}/Remission.app"
+
+        local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
+        run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
+      fi
     fi
   fi
 
@@ -360,9 +375,6 @@ main() {
   if [[ "$github_release" == "true" ]]; then
     info "🚀 Создаю релиз на GitHub..."
     
-    command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) не установлен."
-    gh auth status >/dev/null 2>&1 || die "Вы не авторизованы в GitHub CLI. Выполните 'gh auth login'."
-
     local assets=()
     if [[ -f "$macos_zip" ]]; then
       assets+=("$macos_zip")
@@ -405,8 +417,14 @@ main() {
       fi
 
       info "Загружаю файлы: ${assets[*]}"
-      run gh "${gh_args[@]}" "${assets[@]}"
-      ok "Релиз на GitHub успешно создан!"
+      local release_url
+      release_url=$(run gh "${gh_args[@]}" "${assets[@]}")
+      ok "Релиз на GitHub успешно создан: ${release_url}"
+
+      if [[ "$draft" == "true" && "$(uname)" == "Darwin" ]]; then
+        info "Открываю черновик релиза в браузере..."
+        open "$release_url"
+      fi
     fi
   fi
 
