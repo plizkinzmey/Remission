@@ -41,6 +41,7 @@ struct AppReducer {
     }
 
     @Dependency(\.appClock) var appClock
+    @Dependency(\.appLogger) var logger
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
@@ -77,8 +78,16 @@ struct AppReducer {
                 return .none
 
             case .openTorrentFile(let url):
-                guard url.isFileURL else { return .none }
-                guard url.pathExtension.lowercased() == "torrent" else { return .none }
+                logger.info("Opening torrent file", metadata: ["url": url.absoluteString])
+                guard url.isFileURL else {
+                    logger.warning("Not a file URL", metadata: ["url": url.absoluteString])
+                    return .none
+                }
+                guard url.pathExtension.lowercased() == "torrent" else {
+                    logger.warning(
+                        "Not a .torrent file", metadata: ["extension": url.pathExtension])
+                    return .none
+                }
 
                 if let targetServer = preferredServer(in: state) {
                     return openTorrentFile(url, in: targetServer, state: &state)

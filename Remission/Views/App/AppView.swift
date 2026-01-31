@@ -24,12 +24,18 @@ struct AppView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.6), value: shouldShowStartup)
+            .onOpenURL { url in
+                store.send(.openTorrentFile(url))
+            }
             .task {
                 await store.send(.task).finish()
             }
         #else
             navigationContent
                 .appRootChrome()
+                .onOpenURL { url in
+                    store.send(.openTorrentFile(url))
+                }
                 .handlesExternalEvents(
                     preferring: Set(["*"]),
                     allowing: Set(["*"])
@@ -67,9 +73,6 @@ struct AppView: View {
         #if os(macOS)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         #endif
-        .onOpenURL { url in
-            store.send(.openTorrentFile(url))
-        }
         .background(AppBackgroundView())
         .appRootChrome()
     }
