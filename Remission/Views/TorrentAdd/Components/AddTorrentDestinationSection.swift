@@ -67,7 +67,7 @@ struct AddTorrentDestinationSection: View {
             .frame(height: destinationFieldHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .appPillSurface()
+            .appInteractivePillSurface()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(L10n.tr("torrentAdd.destination.suggestions"))

@@ -19,7 +19,7 @@ struct SettingsPollingSection: View {
             .padding(.horizontal, 10)
             .frame(height: 32)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .appPillSurface()
+            .appInteractivePillSurface()
 
             Text(intervalLabel)
                 .font(.subheadline.weight(.semibold))

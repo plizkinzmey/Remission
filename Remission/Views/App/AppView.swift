@@ -132,9 +132,11 @@ struct AppView: View {
         private func toolbarIconButton(
             systemImage: String,
             accessibilityIdentifier: String,
-            action: @escaping () -> Void
+            action: @MainActor @escaping () -> Void
         ) -> some View {
-            Button(action: action) {
+            Button {
+                action()
+            } label: {
                 Image(systemName: systemImage)
                     .font(.system(size: 15, weight: .semibold))
                     .frame(width: 24, height: 24)

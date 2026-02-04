@@ -90,7 +90,7 @@ struct AppFooterButtonStyle: ButtonStyle {
             .padding(.vertical, 8)
             .frame(minHeight: 30)
             .foregroundStyle(foregroundColor)
-            .appTintedPillSurface(
+            .appInteractiveTintedPillSurface(
                 color: backgroundColor, opacity: colorScheme == .dark ? 0.35 : 0.20
             )
             .opacity(configuration.isPressed ? 0.88 : 1)
@@ -134,7 +134,7 @@ struct AppPrimaryButtonStyle: ButtonStyle {
             .padding(.vertical, 8)
             .frame(minHeight: 30)
             .foregroundStyle(isEnabled ? .white : .white.opacity(0.85))
-            .appTintedPillSurface(
+            .appInteractiveTintedPillSurface(
                 color: accentFill, opacity: isEnabled ? (colorScheme == .dark ? 0.75 : 0.9) : 0.4
             )
             .shadow(color: primaryShadow, radius: 6, x: 0, y: 2)

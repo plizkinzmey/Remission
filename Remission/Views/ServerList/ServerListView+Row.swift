@@ -75,7 +75,7 @@ extension ServerListView {
             .buttonStyle(.plain)
             .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
-            GlassEffectContainer {
+            GlassEffectContainer(spacing: AppTheme.Spacing.small) {
                 HStack(spacing: 10) {
                     storageSummaryChip(for: server, status: status)
                     connectionStatusChip(status: status)
@@ -103,7 +103,7 @@ extension ServerListView {
             .accessibilityIdentifier("server_list_item_compact_\(server.id.uuidString)")
 
             ScrollView(.horizontal, showsIndicators: false) {
-                GlassEffectContainer {
+                GlassEffectContainer(spacing: AppTheme.Spacing.small) {
                     HStack(spacing: 10) {
                         storageSummaryChip(for: server, status: status)
                         connectionStatusChip(status: status)
@@ -169,7 +169,7 @@ extension ServerListView {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(height: macOSToolbarPillHeight)
-                .appPillSurface()
+                .appInteractivePillSurface()
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
@@ -187,7 +187,7 @@ extension ServerListView {
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
                 .frame(height: macOSToolbarPillHeight)
-                .appPillSurface()
+                .appInteractivePillSurface()
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)

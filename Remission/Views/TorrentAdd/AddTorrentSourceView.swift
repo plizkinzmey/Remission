@@ -111,7 +111,7 @@ extension AddTorrentSourceView {
                             .buttonStyle(.plain)
                             .padding(.horizontal, 12)
                             .frame(height: 34)
-                            .appPillSurface()
+                            .appInteractivePillSurface()
                             .foregroundStyle(.tint)
                             .accessibilityIdentifier("torrent_add_choose_file_button")
 
@@ -138,7 +138,7 @@ extension AddTorrentSourceView {
                                 .textFieldStyle(.plain)
                                 .padding(.horizontal, 12)
                                 .frame(height: 34)
-                                .appPillSurface()
+                                .appInteractivePillSurface()
                                 #if os(iOS)
                                     .textInputAutocapitalization(.never)
                                     .autocorrectionDisabled()
@@ -150,7 +150,7 @@ extension AddTorrentSourceView {
                                 } label: {
                                     Image(systemName: "doc.on.clipboard")
                                         .frame(width: 34, height: 34)
-                                        .appPillSurface()
+                                        .appInteractivePillSurface()
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityIdentifier("torrent_add_paste_button")
@@ -173,3 +173,33 @@ extension AddTorrentSourceView {
         .padding(.horizontal, 12)
     }
 }
+
+#if DEBUG
+    #Preview("Add Torrent Source - Magnet") {
+        NavigationStack {
+            AddTorrentSourceView(
+                store: Store(
+                    initialState: {
+                        var state = AddTorrentReducer.State(
+                            connectionEnvironment: .preview(server: .previewLocalHTTP)
+                        )
+                        state.source = .magnetLink
+                        state.magnetText = "magnet:?xt=urn:btih:demo"
+                        state.pendingInput = PendingTorrentInput(
+                            payload: .magnetLink(
+                                url: URL(string: "magnet:?xt=urn:btih:demo")!,
+                                rawValue: "magnet:?xt=urn:btih:demo"
+                            ),
+                            sourceDescription: "Clipboard"
+                        )
+                        return state
+                    }()
+                ) {
+                    AddTorrentReducer()
+                } withDependencies: {
+                    $0 = AppDependencies.makePreview()
+                }
+            )
+        }
+    }
+#endif

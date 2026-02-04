@@ -9,7 +9,7 @@ extension TorrentListView {
     #if os(macOS)
         var macOSToolbarControls: some View {
             // Используем контейнер для управления эффектами Liquid Glass на OS 26+
-            GlassEffectContainer {
+            GlassEffectContainer(spacing: AppTheme.Spacing.small) {
                 HStack(spacing: 10) {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")

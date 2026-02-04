@@ -10,7 +10,8 @@ extension View {
     /// Применяет эффект Liquid Glass к карточке.
     func appCardSurface(cornerRadius: CGFloat = AppTheme.Radius.card) -> some View {
         self.glassEffect(
-            .regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            AppTheme.Liquid.glass,
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -30,7 +31,8 @@ extension View {
             in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
         .glassEffect(
-            .regular, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            AppTheme.Liquid.glass,
+            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
         .overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
@@ -40,17 +42,32 @@ extension View {
 
     /// Применяет эффект Liquid Glass к капсуле.
     func appPillSurface() -> some View {
-        self.glassEffect(.regular, in: Capsule(style: .continuous))
+        self.glassEffect(AppTheme.Liquid.glass, in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(.quaternary)
             )
     }
 
+    /// Применяет интерактивный эффект Liquid Glass к капсуле.
+    func appInteractivePillSurface() -> some View {
+        self.glassEffect(AppTheme.Liquid.interactiveGlass, in: Capsule(style: .continuous))
+    }
+
     /// Применяет цветной эффект Liquid Glass к капсуле (Stained Glass).
     func appTintedPillSurface(color: Color, opacity: Double = 0.1) -> some View {
         self.background(color.opacity(opacity), in: Capsule(style: .continuous))
-            .glassEffect(.regular, in: Capsule(style: .continuous))
+            .glassEffect(AppTheme.Liquid.glass, in: Capsule(style: .continuous))
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(color.opacity(0.25))
+            )
+    }
+
+    /// Применяет интерактивный цветной эффект Liquid Glass к капсуле (Stained Glass).
+    func appInteractiveTintedPillSurface(color: Color, opacity: Double = 0.1) -> some View {
+        self.background(color.opacity(opacity), in: Capsule(style: .continuous))
+            .glassEffect(AppTheme.Liquid.interactiveGlass, in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(color.opacity(0.25))
@@ -59,7 +76,7 @@ extension View {
 
     /// Специальный стиль для кнопок в тулбаре.
     func appToolbarPillSurface() -> some View {
-        self.glassEffect(.regular, in: Capsule(style: .continuous))
+        self.glassEffect(AppTheme.Liquid.interactiveGlass, in: Capsule(style: .continuous))
     }
 
     /// Применяет стандартный стиль для подписей.

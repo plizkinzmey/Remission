@@ -67,7 +67,7 @@ struct DiagnosticsFilterSection: View {
             .textFieldStyle(.plain)
             .padding(.horizontal, 12)
             .frame(height: 34)
-            .appPillSurface()
+            .appInteractivePillSurface()
             .accessibilityIdentifier("diagnostics_search_field")
         }
     }

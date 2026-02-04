@@ -95,7 +95,7 @@ struct TorrentListControlsView: View {
                 }
                 .padding(padFilterInnerPadding)
                 .frame(height: padFilterCapsuleHeight)
-                .appPillSurface()
+                .appInteractivePillSurface()
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -125,7 +125,7 @@ struct TorrentListControlsView: View {
             }
             .padding(.horizontal, 10)
             .frame(height: padFilterCapsuleHeight)
-            .appPillSurface()
+            .appInteractivePillSurface()
         }
     #endif
 

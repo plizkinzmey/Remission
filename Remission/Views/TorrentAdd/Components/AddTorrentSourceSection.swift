@@ -36,7 +36,7 @@ struct AddTorrentSourceSection: View {
                         .buttonStyle(.plain)
                         .padding(.horizontal, 12)
                         .frame(height: 34)
-                        .appPillSurface()
+                        .appInteractivePillSurface()
                         .foregroundStyle(.tint)
                         .accessibilityIdentifier("torrent_add_choose_file_button")
 
@@ -61,7 +61,7 @@ struct AddTorrentSourceSection: View {
                     .textFieldStyle(.plain)
                     .padding(.horizontal, 12)
                     .frame(height: 34)
-                    .appPillSurface()
+                    .appInteractivePillSurface()
                     #if os(iOS)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()

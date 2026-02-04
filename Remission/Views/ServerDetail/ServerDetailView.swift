@@ -11,6 +11,7 @@ struct ServerDetailView: View {
                 if isConnecting {
                     VStack {
                         ServerDetailConnectionPill()
+                            .appMaterialize()
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .allowsHitTesting(false)

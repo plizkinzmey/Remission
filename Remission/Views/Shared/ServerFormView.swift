@@ -108,3 +108,35 @@ private enum OnboardingViewEnvironment {
     static let isOnboardingUITest: Bool = ProcessInfo.processInfo.arguments.contains(
         "--ui-testing-scenario=onboarding-flow")
 }
+
+#if DEBUG
+    #Preview("Server Form - Add") {
+        NavigationStack {
+            ServerFormView(
+                store: Store(
+                    initialState: ServerFormReducer.State(mode: .add)
+                ) {
+                    ServerFormReducer()
+                } withDependencies: {
+                    $0 = AppDependencies.makePreview()
+                }
+            )
+        }
+    }
+
+    #Preview("Server Form - Edit") {
+        NavigationStack {
+            ServerFormView(
+                store: Store(
+                    initialState: ServerFormReducer.State(
+                        mode: .edit(.previewLocalHTTP)
+                    )
+                ) {
+                    ServerFormReducer()
+                } withDependencies: {
+                    $0 = AppDependencies.makePreview()
+                }
+            )
+        }
+    }
+#endif

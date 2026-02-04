@@ -22,7 +22,7 @@ struct SettingsSpeedLimitsSection: View {
                     .padding(.horizontal, 10)
                     .frame(height: 32)
                     .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
+                    .appInteractivePillSurface()
                 #else
                     TextField(
                         "",
@@ -58,7 +58,7 @@ struct SettingsSpeedLimitsSection: View {
                     .padding(.horizontal, 10)
                     .frame(height: 32)
                     .frame(maxWidth: 160, alignment: .trailing)
-                    .appPillSurface()
+                    .appInteractivePillSurface()
                 #else
                     TextField(
                         "",

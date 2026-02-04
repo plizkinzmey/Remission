@@ -10,6 +10,9 @@ enum AppTheme {
         /// Стандартный вариант жидкого стекла.
         static let glass = Glass.regular
 
+        /// Интерактивный вариант для контролов (реакция на тап/ховер).
+        static let interactiveGlass = Glass.regular.interactive(true)
+
         /// Эффект материализации для появления элементов.
         static let transition = GlassEffectTransition.materialize
     }

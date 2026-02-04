@@ -94,7 +94,7 @@ private struct TorrentLimitControl: View {
                     .padding(.horizontal, 10)
                     .frame(height: 32)
                     .frame(maxWidth: 180)
-                    .appPillSurface()
+                    .appInteractivePillSurface()
                     .appMonospacedDigit()
                     .accessibilityIdentifier("torrent_limit_value_\(identifierSuffix)")
                     #if os(macOS)

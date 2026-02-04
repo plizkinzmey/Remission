@@ -27,6 +27,7 @@ struct ServerDetailConnectionCard: View {
 
         case .connecting:
             ServerDetailConnectionPill()
+                .appMaterialize()
 
         case .ready:
             EmptyView()
@@ -40,6 +41,7 @@ struct ServerDetailConnectionCard: View {
                 onButtonTap: onRetry,
                 iconColor: .orange
             )
+            .appMaterialize()
             .accessibilityIdentifier("server_detail_status_offline")
 
         case .failed(let failure):
@@ -51,6 +53,7 @@ struct ServerDetailConnectionCard: View {
                 onButtonTap: onRetry,
                 iconColor: .red
             )
+            .appMaterialize()
             .accessibilityIdentifier("server_detail_status_failed")
         }
     }
