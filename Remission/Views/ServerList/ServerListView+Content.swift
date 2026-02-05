@@ -24,13 +24,21 @@ extension ServerListView {
     var serverRows: some View {
         ForEach(store.servers) { server in
             let status = store.connectionStatuses[server.id] ?? .init()
-            serverRow(server, status: status)
-                .accessibilityLabel(server.name)
-                #if os(iOS)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(.init(top: 8, leading: 8, bottom: 12, trailing: 8))
-                    .listRowSeparator(.hidden)
-                #endif
+            ServerRowView(
+                server: server,
+                status: status,
+                onTap: { store.send(.serverTapped(server.id)) },
+                onEdit: { store.send(.editButtonTapped(server.id)) },
+                onDelete: { store.send(.deleteButtonTapped(server.id)) }
+            )
+            .equatable()
+            .transaction { $0.animation = nil }
+            .accessibilityLabel(server.name)
+            #if os(iOS)
+                .listRowBackground(Color.clear)
+                .listRowInsets(.init(top: 8, leading: 8, bottom: 12, trailing: 8))
+                .listRowSeparator(.hidden)
+            #endif
         }
     }
 
@@ -40,16 +48,16 @@ extension ServerListView {
                 .imageScale(.large)
                 .font(.system(size: 48))
                 .foregroundStyle(.primary)
-            Text(L10n.tr("serverList.empty.title"))
+            Text(ServerListStrings.emptyTitle)
                 .font(.title3)
                 .accessibilityIdentifier("server_list_empty_title")
-            Text(L10n.tr("serverList.empty.message"))
+            Text(ServerListStrings.emptyMessage)
                 .font(.body)
                 .foregroundStyle(.primary)
             Button {
                 store.send(.addButtonTapped)
             } label: {
-                Text(L10n.tr("serverList.action.addServer"))
+                Text(ServerListStrings.addServer)
             }
             .buttonStyle(AppPrimaryButtonStyle())
             .accessibilityIdentifier("server_list_add_button")

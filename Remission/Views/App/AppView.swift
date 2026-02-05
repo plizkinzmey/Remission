@@ -126,17 +126,15 @@ struct AppView: View {
             }
             .padding(.horizontal, 12)
             .frame(height: macOSToolbarPillHeight)
-            .appToolbarPillSurface()
+            .appInteractivePillSurface()
         }
 
         private func toolbarIconButton(
             systemImage: String,
             accessibilityIdentifier: String,
-            action: @MainActor @escaping () -> Void
+            action: @escaping () -> Void
         ) -> some View {
-            Button {
-                action()
-            } label: {
+            Button(action: action) {
                 Image(systemName: systemImage)
                     .font(.system(size: 15, weight: .semibold))
                     .frame(width: 24, height: 24)

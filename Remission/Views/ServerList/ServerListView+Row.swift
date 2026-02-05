@@ -1,25 +1,31 @@
-import ComposableArchitecture
 import SwiftUI
 
-extension ServerListView {
-    @ViewBuilder
-    func serverRow(
-        _ server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+struct ServerRowView: View, Equatable {
+    let server: ServerConfig
+    let status: ServerListReducer.ConnectionStatus
+    let onTap: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
         #if os(iOS)
-            serverRowIOS(server)
+            serverRowIOS
         #else
-            serverRowMac(server, status: status)
+            serverRowMac
         #endif
     }
 
-    private func serverRowIOS(_ server: ServerConfig) -> some View {
+    static func == (lhs: ServerRowView, rhs: ServerRowView) -> Bool {
+        lhs.server == rhs.server
+            && lhs.status == rhs.status
+    }
+}
+
+extension ServerRowView {
+    fileprivate var serverRowIOS: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 12) {
-                Button {
-                    store.send(.serverTapped(server.id))
-                } label: {
+                Button(action: onTap) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(server.name)
                             .font(.headline)
@@ -35,8 +41,8 @@ extension ServerListView {
                 .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
                 HStack(spacing: 8) {
-                    editButton(for: server)
-                    deleteButton(for: server)
+                    editButton
+                    deleteButton
                 }
             }
         }
@@ -45,14 +51,11 @@ extension ServerListView {
         .appTintedCardSurface(color: .accentColor, opacity: 0.05)
     }
 
-    private func serverRowMac(
-        _ server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var serverRowMac: some View {
         VStack(spacing: 12) {
             ViewThatFits(in: .horizontal) {
-                serverRowMacWide(server, status: status)
-                serverRowMacCompact(server, status: status)
+                serverRowMacWide
+                serverRowMacCompact
             }
         }
         .padding(.horizontal, 16)
@@ -60,42 +63,30 @@ extension ServerListView {
         .appTintedCardSurface(color: .accentColor, opacity: 0.05)
     }
 
-    private func serverRowMacWide(
-        _ server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var serverRowMacWide: some View {
         HStack(alignment: .center, spacing: 16) {
-            Button {
-                store.send(.serverTapped(server.id))
-            } label: {
-                serverRowInfoStack(for: server, status: status)
+            Button(action: onTap) {
+                serverRowInfoStack
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
-            GlassEffectContainer(spacing: AppTheme.Spacing.small) {
-                HStack(spacing: 10) {
-                    storageSummaryChip(for: server, status: status)
-                    connectionStatusChip(status: status)
-                    securityBadge(for: server)
-                    editButton(for: server)
-                    deleteButton(for: server)
-                }
+            HStack(spacing: 10) {
+                storageSummaryChip
+                connectionStatusChip
+                securityBadge
+                editButton
+                deleteButton
             }
         }
     }
 
-    private func serverRowMacCompact(
-        _ server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var serverRowMacCompact: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button {
-                store.send(.serverTapped(server.id))
-            } label: {
-                serverRowInfoStack(for: server, status: status)
+            Button(action: onTap) {
+                serverRowInfoStack
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
             }
@@ -103,24 +94,19 @@ extension ServerListView {
             .accessibilityIdentifier("server_list_item_compact_\(server.id.uuidString)")
 
             ScrollView(.horizontal, showsIndicators: false) {
-                GlassEffectContainer(spacing: AppTheme.Spacing.small) {
-                    HStack(spacing: 10) {
-                        storageSummaryChip(for: server, status: status)
-                        connectionStatusChip(status: status)
-                        securityBadge(for: server)
-                        Spacer()
-                        editButton(for: server)
-                        deleteButton(for: server)
-                    }
+                HStack(spacing: 10) {
+                    storageSummaryChip
+                    connectionStatusChip
+                    securityBadge
+                    Spacer()
+                    editButton
+                    deleteButton
                 }
             }
         }
     }
 
-    private func serverRowInfoStack(
-        for server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var serverRowInfoStack: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(server.name)
@@ -134,35 +120,33 @@ extension ServerListView {
                     .lineLimit(1)
                     .minimumScaleFactor(0.9)
             }
-            versionSummary(for: server, status: status)
+            versionSummary
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private func securityBadge(for server: ServerConfig) -> some View {
+    fileprivate var securityBadge: some View {
         if server.isSecure {
             badgeLabel(
-                text: L10n.tr("serverList.badge.https"),
+                text: ServerListStrings.badgeHTTPS,
                 systemImage: "lock.shield.fill",
                 fill: .blue.opacity(0.12),
                 foreground: .blue
             )
-            .accessibilityLabel(L10n.tr("serverList.accessibility.secure"))
+            .accessibilityLabel(ServerListStrings.accessibilitySecure)
         } else {
             badgeLabel(
-                text: L10n.tr("serverList.badge.http"),
+                text: ServerListStrings.badgeHTTP,
                 systemImage: "globe",
                 fill: .orange.opacity(0.12),
                 foreground: .orange
             )
-            .accessibilityLabel(L10n.tr("serverList.accessibility.insecure"))
+            .accessibilityLabel(ServerListStrings.accessibilityInsecure)
         }
     }
 
-    private func deleteButton(for server: ServerConfig) -> some View {
-        Button {
-            store.send(.deleteButtonTapped(server.id))
-        } label: {
+    fileprivate var deleteButton: some View {
+        Button(action: onDelete) {
             Image(systemName: "trash")
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: 24, height: 24)
@@ -173,14 +157,12 @@ extension ServerListView {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
-        .accessibilityLabel(L10n.tr("serverDetail.action.delete"))
+        .accessibilityLabel(ServerListStrings.actionDelete)
         .contentShape(Rectangle())
     }
 
-    private func editButton(for server: ServerConfig) -> some View {
-        Button {
-            store.send(.editButtonTapped(server.id))
-        } label: {
+    fileprivate var editButton: some View {
+        Button(action: onEdit) {
             Image(systemName: "pencil")
                 .font(.system(size: 14, weight: .semibold))
                 .frame(width: 24, height: 24)
@@ -191,17 +173,14 @@ extension ServerListView {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.primary)
-        .accessibilityLabel(L10n.tr("serverList.action.edit"))
+        .accessibilityLabel(ServerListStrings.actionEdit)
         .contentShape(Rectangle())
     }
 
-    @ViewBuilder
-    private func connectionStatusChip(
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var connectionStatusChip: some View {
         let descriptor = ConnectionStatusChipDescriptor(phase: status.phase)
 
-        Label(descriptor.label, systemImage: descriptor.systemImage)
+        return Label(descriptor.label, systemImage: descriptor.systemImage)
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
             .frame(height: macOSToolbarPillHeight)
@@ -210,16 +189,12 @@ extension ServerListView {
     }
 
     @ViewBuilder
-    private func storageSummaryChip(
-        for server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
-        let summary = status.storageSummary
-        if let summary {
+    fileprivate var storageSummaryChip: some View {
+        if let summary = status.storageSummary {
             let total = StorageFormatters.bytes(summary.totalBytes)
             let free = StorageFormatters.bytes(summary.freeBytes)
             Label(
-                String(format: L10n.tr("storage.summary.short"), total, free),
+                String(format: ServerListStrings.storageSummaryTemplate, total, free),
                 systemImage: "externaldrive.fill"
             )
             .font(.subheadline.weight(.semibold))
@@ -232,19 +207,18 @@ extension ServerListView {
             .appPillSurface()
             .foregroundStyle(.primary)
             .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
+        } else {
+            EmptyView()
         }
     }
 
     @ViewBuilder
-    private func versionSummary(
-        for server: ServerConfig,
-        status: ServerListReducer.ConnectionStatus
-    ) -> some View {
+    fileprivate var versionSummary: some View {
         switch status.phase {
         case .connected(let handshake):
             let description = handshake.serverVersionDescription ?? ""
             let rpcText = String(
-                format: L10n.tr("serverDetail.status.rpcVersion"),
+                format: ServerListStrings.rpcVersionTemplate,
                 Int64(handshake.rpcVersion)
             )
             if description.isEmpty {
@@ -253,7 +227,7 @@ extension ServerListView {
                     .foregroundStyle(.primary)
             } else {
                 HStack(spacing: 6) {
-                    Text(L10n.tr("serverList.transmissionVersionLabel"))
+                    Text(ServerListStrings.transmissionVersionLabel)
                     Text(description)
                     Text(rpcText)
                 }
@@ -270,7 +244,7 @@ extension ServerListView {
         }
     }
 
-    private func badgeLabel(
+    fileprivate func badgeLabel(
         text: String,
         systemImage: String,
         fill: Color,
@@ -284,7 +258,7 @@ extension ServerListView {
             .foregroundStyle(foreground)
     }
 
-    private var macOSToolbarPillHeight: CGFloat { 34 }
+    fileprivate var macOSToolbarPillHeight: CGFloat { 34 }
 }
 
 struct ConnectionStatusChipDescriptor {
@@ -295,17 +269,38 @@ struct ConnectionStatusChipDescriptor {
     init(phase: ServerListReducer.ConnectionStatusPhase) {
         switch phase {
         case .idle, .probing:
-            label = L10n.tr("serverDetail.status.connecting")
+            label = ServerListStrings.statusConnecting
             systemImage = "arrow.clockwise"
             tint = .blue
         case .connected:
-            label = L10n.tr("serverDetail.status.connected")
+            label = ServerListStrings.statusConnected
             systemImage = "checkmark.circle.fill"
             tint = .green
         case .failed:
-            label = L10n.tr("serverDetail.status.error")
+            label = ServerListStrings.statusError
             systemImage = "exclamationmark.triangle.fill"
             tint = .red
         }
     }
+}
+
+enum ServerListStrings {
+    static let serversTitle = L10n.tr("Servers")
+    static let serversSubtitle =
+        L10n.tr("Manage connections, security and actions for each Transmission server.")
+    static let emptyTitle = L10n.tr("serverList.empty.title")
+    static let emptyMessage = L10n.tr("serverList.empty.message")
+    static let addServer = L10n.tr("serverList.action.addServer")
+    static let badgeHTTPS = L10n.tr("serverList.badge.https")
+    static let badgeHTTP = L10n.tr("serverList.badge.http")
+    static let accessibilitySecure = L10n.tr("serverList.accessibility.secure")
+    static let accessibilityInsecure = L10n.tr("serverList.accessibility.insecure")
+    static let actionDelete = L10n.tr("serverDetail.action.delete")
+    static let actionEdit = L10n.tr("serverList.action.edit")
+    static let statusConnecting = L10n.tr("serverDetail.status.connecting")
+    static let statusConnected = L10n.tr("serverDetail.status.connected")
+    static let statusError = L10n.tr("serverDetail.status.error")
+    static let transmissionVersionLabel = L10n.tr("serverList.transmissionVersionLabel")
+    static let rpcVersionTemplate = L10n.tr("serverDetail.status.rpcVersion")
+    static let storageSummaryTemplate = L10n.tr("storage.summary.short")
 }

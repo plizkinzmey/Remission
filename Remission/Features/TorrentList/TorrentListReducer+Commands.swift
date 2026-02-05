@@ -100,7 +100,21 @@ extension TorrentListReducer {
             return .none
         }
 
+        let logTrigger = trigger
+        let logInterval = state.pollingInterval
+        let logAdaptive = state.adaptivePollingInterval
+
         return .run { send in
+            if appLogger.isNoop == false {
+                appLogger.withCategory("torrent-list").debug(
+                    "fetchTorrents.start",
+                    metadata: [
+                        "trigger": "\(logTrigger)",
+                        "interval": "\(logInterval)",
+                        "adaptive": "\(String(describing: logAdaptive))"
+                    ]
+                )
+            }
             do {
                 let torrents = try await environment.withDependencies {
                     @Dependency(\.torrentRepository) var repository: TorrentRepository
@@ -142,6 +156,12 @@ extension TorrentListReducer {
                     )
                 )
             } catch {
+                if appLogger.isNoop == false {
+                    appLogger.withCategory("torrent-list").warning(
+                        "fetchTorrents.failed",
+                        metadata: ["error": "\(error)"]
+                    )
+                }
                 await send(.torrentsResponse(.failure(error)))
             }
         }

@@ -11,6 +11,13 @@ import UserNotifications
 struct TorrentListReducer {
     @ObservableState
     struct State: Equatable {
+        struct VisibleItemsSignature: Equatable {
+            var query: String
+            var filter: Filter
+            var category: CategoryFilter
+            var itemsRevision: Int
+            var metricsRevision: Int
+        }
         struct InFlightCommand: Equatable {
             var command: TorrentCommand
             var initialStatus: Torrent.Status
@@ -43,6 +50,11 @@ struct TorrentListReducer {
         var connectionEnvironment: ServerConnectionEnvironment?
         var phase: Phase = .idle
         var items: IdentifiedArrayOf<TorrentListItem.State> = []
+        var itemsRevision: Int = 0
+        var metricsRevision: Int = 0
+        var visibleItemsCache: IdentifiedArrayOf<TorrentListItem.State> = []
+        var visibleItemsSignature: VisibleItemsSignature?
+        var searchSuggestions: [String] = []
         var searchQuery: String = ""
         var selectedFilter: Filter = .all
         var selectedCategory: CategoryFilter = .all
@@ -50,6 +62,7 @@ struct TorrentListReducer {
         var isPollingEnabled: Bool = true
         var failedAttempts: Int = 0
         var pollingInterval: Duration = .seconds(5)
+        var adaptivePollingInterval: Duration?
         var hasLoadedPreferences: Bool = false
         var offlineState: OfflineState?
         var lastSnapshotAt: Date?
@@ -62,6 +75,7 @@ struct TorrentListReducer {
         var handshake: TransmissionHandshakeResult?
         var isSearchFieldVisible: Bool = false
         var isAwaitingConnection: Bool = false
+        var lastMetricsUpdateAt: Date?
     }
 
     enum Action: Equatable {
@@ -111,9 +125,11 @@ struct TorrentListReducer {
     }
 
     @Dependency(\.appClock) var appClock
+    @Dependency(\.dateProvider) var dateProvider
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
     @Dependency(\.offlineCacheRepository) var offlineCacheRepository
     @Dependency(\.notificationClient) var notificationClient
+    @Dependency(\.appLogger) var appLogger
 
     enum CancelID: Hashable {
         case fetch
@@ -158,6 +174,7 @@ struct TorrentListReducer {
                 state.removingTorrentIDs.removeAll()
                 state.inFlightCommands.removeAll()
                 state.isAwaitingConnection = false
+                updateVisibleItemsCache(state: &state)
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling),
@@ -178,6 +195,8 @@ struct TorrentListReducer {
                 state.inFlightCommands.removeAll()
                 state.lastSnapshotAt = nil
                 state.isAwaitingConnection = true
+                state.itemsRevision += 1
+                updateVisibleItemsCache(state: &state)
                 return .merge(
                     .cancel(id: CancelID.fetch),
                     .cancel(id: CancelID.polling)
@@ -194,6 +213,7 @@ struct TorrentListReducer {
 
             case .searchQueryChanged(let query):
                 state.searchQuery = query
+                updateVisibleItemsCache(state: &state)
                 return .none
 
             case .toggleSearchField:
@@ -201,19 +221,23 @@ struct TorrentListReducer {
                 if state.isSearchFieldVisible == false {
                     state.searchQuery = ""
                 }
+                updateVisibleItemsCache(state: &state)
                 return .none
 
             case .hideSearchField:
                 state.isSearchFieldVisible = false
                 state.searchQuery = ""
+                updateVisibleItemsCache(state: &state)
                 return .none
 
             case .filterChanged(let filter):
                 state.selectedFilter = filter
+                updateVisibleItemsCache(state: &state)
                 return .none
 
             case .categoryChanged(let category):
                 state.selectedCategory = category
+                updateVisibleItemsCache(state: &state)
                 return .none
 
             case .rowTapped(let id):
@@ -289,6 +313,18 @@ struct TorrentListReducer {
                 return .send(.delegate(.addTorrentRequested))
 
             case .pollingTick:
+                if appLogger.isNoop == false {
+                    appLogger.withCategory("torrent-list").debug(
+                        "pollingTick",
+                        metadata: [
+                            "items": "\(state.items.count)",
+                            "visible": "\(state.visibleItemsCache.count)",
+                            "itemsRevision": "\(state.itemsRevision)",
+                            "metricsRevision": "\(state.metricsRevision)",
+                            "interval": "\(state.pollingInterval)"
+                        ]
+                    )
+                }
                 return fetchTorrents(state: &state, trigger: .polling)
 
             case .userPreferencesResponse(.success(let preferences)):
@@ -298,6 +334,9 @@ struct TorrentListReducer {
                 let autoRefreshChanged = state.isPollingEnabled != newAutoRefresh
                 state.pollingInterval = newInterval
                 state.isPollingEnabled = newAutoRefresh
+                if intervalChanged {
+                    state.adaptivePollingInterval = nil
+                }
 
                 if state.hasLoadedPreferences == false {
                     state.hasLoadedPreferences = true
@@ -334,6 +373,8 @@ struct TorrentListReducer {
                 state.isAwaitingConnection = false
                 state.items.removeAll()
                 state.storageSummary = nil
+                state.itemsRevision += 1
+                updateVisibleItemsCache(state: &state)
                 let banner = Effect<Action>.send(
                     .errorPresenter(
                         .showBanner(
@@ -364,15 +405,54 @@ struct TorrentListReducer {
 
                 state.lastSnapshotAt = payload.snapshotDate ?? state.lastSnapshotAt
 
-                state.items = merge(
-
-                    items: state.items,
-
+                let mergeResult = merge(
+                    state: &state,
                     with: payload.torrents,
-
                     removingIDs: state.removingTorrentIDs
-
                 )
+                let hasVisibleChanges = mergeResult.didChange
+                if hasVisibleChanges {
+                    state.items = mergeResult.items
+                    state.itemsRevision += 1
+                    updateVisibleItemsCache(state: &state)
+                }
+                if appLogger.isNoop == false {
+                    appLogger.withCategory("torrent-list").debug(
+                        "torrentsResponse.success",
+                        metadata: [
+                            "torrents": "\(payload.torrents.count)",
+                            "hasVisibleChanges": "\(hasVisibleChanges)",
+                            "itemsRevision": "\(state.itemsRevision)",
+                            "metricsRevision": "\(state.metricsRevision)",
+                            "visible": "\(state.visibleItemsCache.count)",
+                            "filter": "\(state.selectedFilter.rawValue)",
+                            "category": "\(state.selectedCategory.rawValue)",
+                            "query": "\(state.normalizedSearchQuery)"
+                        ]
+                    )
+
+                    if let sample = payload.torrents.first(where: { $0.status == .downloading })
+                        ?? payload.torrents.first
+                    {
+                        let previous = previousItems[id: sample.id]?.torrent
+                        let prevPercent = previous?.summary.progress.percentDone ?? -1
+                        let prevDown = previous?.summary.transfer.downloadRate ?? -1
+                        let prevUp = previous?.summary.transfer.uploadRate ?? -1
+                        appLogger.withCategory("torrent-list").debug(
+                            "torrentsResponse.sample",
+                            metadata: [
+                                "id": "\(sample.id.rawValue)",
+                                "status": "\(sample.status)",
+                                "percent": "\(sample.summary.progress.percentDone)",
+                                "rateDown": "\(sample.summary.transfer.downloadRate)",
+                                "rateUp": "\(sample.summary.transfer.uploadRate)",
+                                "prevPercent": "\(prevPercent)",
+                                "prevDown": "\(prevDown)",
+                                "prevUp": "\(prevUp)"
+                            ]
+                        )
+                    }
+                }
 
                 let notificationsEffect: Effect<Action> = .run { [items = state.items] _ in
 
@@ -508,7 +588,11 @@ struct TorrentListReducer {
                         payload.isFromCache ? .none : Effect<Action>.cancel(id: CancelID.polling)
                     return .merge(notificationsEffect, finalEffect)
                 }
-                return .merge(notificationsEffect, schedulePolling(after: state.pollingInterval))
+                let nextInterval = nextAdaptiveInterval(
+                    state: &state,
+                    hasVisibleChanges: hasVisibleChanges
+                )
+                return .merge(notificationsEffect, schedulePolling(after: nextInterval))
 
             case .storageUpdated(let summary):
                 state.storageSummary = summary
@@ -579,7 +663,7 @@ struct TorrentListReducer {
 
 extension TorrentListReducer.State {
     var visibleItems: IdentifiedArrayOf<TorrentListItem.State> {
-        filteredVisibleItems()
+        visibleItemsCache
     }
 }
 

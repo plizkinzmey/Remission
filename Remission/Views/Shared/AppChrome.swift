@@ -9,13 +9,8 @@ extension View {
 
     /// Применяет эффект Liquid Glass к карточке.
     func appCardSurface(cornerRadius: CGFloat = AppTheme.Radius.card) -> some View {
-        self.glassEffect(
-            AppTheme.Liquid.glass,
-            in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        )
-        .overlay(
+        self.overlay(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                // Используем тонкую обводку для четкости границ "стекла"
                 .strokeBorder(.quaternary)
         )
     }
@@ -30,8 +25,20 @@ extension View {
             color.opacity(opacity),
             in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
-        .glassEffect(
-            AppTheme.Liquid.glass,
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(color.opacity(0.25))
+        )
+    }
+
+    /// Легкий стиль для списков без Liquid Glass (экономит перерисовки).
+    func appListRowSurface(
+        color: Color,
+        opacity: Double = 0.1,
+        cornerRadius: CGFloat = AppTheme.Radius.card
+    ) -> some View {
+        self.background(
+            color.opacity(opacity),
             in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         )
         .overlay(
@@ -40,9 +47,17 @@ extension View {
         )
     }
 
+    /// Карточка без Liquid Glass для фоновых элементов.
+    func appFlatCardSurface(cornerRadius: CGFloat = AppTheme.Radius.card) -> some View {
+        self.overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(.quaternary)
+        )
+    }
+
     /// Применяет эффект Liquid Glass к капсуле.
     func appPillSurface() -> some View {
-        self.glassEffect(AppTheme.Liquid.glass, in: Capsule(style: .continuous))
+        self.background(.secondary.opacity(0.08), in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(.quaternary)
@@ -51,13 +66,16 @@ extension View {
 
     /// Применяет интерактивный эффект Liquid Glass к капсуле.
     func appInteractivePillSurface() -> some View {
-        self.glassEffect(AppTheme.Liquid.interactiveGlass, in: Capsule(style: .continuous))
+        self.background(.secondary.opacity(0.12), in: Capsule(style: .continuous))
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(.quaternary)
+            )
     }
 
     /// Применяет цветной эффект Liquid Glass к капсуле (Stained Glass).
     func appTintedPillSurface(color: Color, opacity: Double = 0.1) -> some View {
         self.background(color.opacity(opacity), in: Capsule(style: .continuous))
-            .glassEffect(AppTheme.Liquid.glass, in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(color.opacity(0.25))
@@ -67,7 +85,6 @@ extension View {
     /// Применяет интерактивный цветной эффект Liquid Glass к капсуле (Stained Glass).
     func appInteractiveTintedPillSurface(color: Color, opacity: Double = 0.1) -> some View {
         self.background(color.opacity(opacity), in: Capsule(style: .continuous))
-            .glassEffect(AppTheme.Liquid.interactiveGlass, in: Capsule(style: .continuous))
             .overlay(
                 Capsule(style: .continuous)
                     .strokeBorder(color.opacity(0.25))

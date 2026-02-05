@@ -180,7 +180,7 @@ struct TorrentListControlsView: View {
                 .padding(.horizontal, 12)
                 .frame(width: macOSCategoryPickerWidth, height: macOSToolbarPillHeight)
                 .contentShape(Rectangle())
-                .appToolbarPillSurface()
+                .appInteractivePillSurface()
             }
             .accessibilityIdentifier("torrentlist_category_picker")
             .buttonStyle(.plain)

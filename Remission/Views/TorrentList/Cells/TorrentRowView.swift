@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct TorrentRowView: View {
+struct TorrentRowView: View, Equatable {
     var item: TorrentListItem.State
     var openRequested: (() -> Void)?
     var actions: RowActions?
@@ -10,8 +10,11 @@ struct TorrentRowView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            headerRow
+        let metrics = item.metrics
+        let status = statusData
+
+        return VStack(alignment: .leading, spacing: 6) {
+            headerRow(status: status)
 
             #if os(iOS)
                 if item.torrent.tags.isEmpty == false {
@@ -19,16 +22,16 @@ struct TorrentRowView: View {
                 }
             #endif
 
-            ProgressView(value: item.metrics.progressFraction)
-                .tint(statusData.color)
+            ProgressView(value: metrics.progressFraction)
+                .tint(status.color)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("torrent_row_progressbar_\(item.torrent.id.rawValue)")
-                .accessibilityValue(item.metrics.progressText)
+                .accessibilityValue(metrics.progressText)
 
             #if os(iOS)
-                iOSMetricsRow
+                iOSMetricsRow(metrics: metrics)
             #else
-                macOSMetricsRow
+                macOSMetricsRow(metrics: metrics)
             #endif
         }
         .padding(.horizontal, 12)
@@ -36,7 +39,7 @@ struct TorrentRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("torrent_row_\(item.torrent.id.rawValue)")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityLabelText)
+        .accessibilityLabel(accessibilityLabelText(status: status, metrics: metrics))
         #if !os(macOS)
             .accessibilityHint(L10n.tr("Open torrent details"))
         #endif
@@ -56,11 +59,24 @@ struct TorrentRowView: View {
             isStartPauseBusy || isVerifyBusy || isRemoveBusy
         }
     }
+
+    static func == (lhs: TorrentRowView, rhs: TorrentRowView) -> Bool {
+        let lhsActions = lhs.actions
+        let rhsActions = rhs.actions
+        return lhs.item.displaySignature == rhs.item.displaySignature
+            && lhs.isLocked == rhs.isLocked
+            && lhs.longestStatusTitle == rhs.longestStatusTitle
+            && lhsActions?.isActive == rhsActions?.isActive
+            && lhsActions?.isLocked == rhsActions?.isLocked
+            && lhsActions?.isStartPauseBusy == rhsActions?.isStartPauseBusy
+            && lhsActions?.isVerifyBusy == rhsActions?.isVerifyBusy
+            && lhsActions?.isRemoveBusy == rhsActions?.isRemoveBusy
+    }
 }
 
 // MARK: - Subviews
 extension TorrentRowView {
-    private var headerRow: some View {
+    private func headerRow(status: TorrentStatusData) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             nameLabel
                 .layoutPriority(1)
@@ -73,7 +89,7 @@ extension TorrentRowView {
                         actionsPill(actions)
                     }
                 #endif
-                statusBadge
+                statusBadge(status: status)
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -100,13 +116,13 @@ extension TorrentRowView {
         }
     }
 
-    private var iOSMetricsRow: some View {
+    private func iOSMetricsRow(metrics: TorrentListItem.Metrics) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            Label(peersText, systemImage: "person.2")
+            Label(metrics.peersText, systemImage: "person.2")
                 .appCaption()
                 .foregroundStyle(.primary)
 
-            Text(ratioTextShort)
+            Text(metrics.ratioTextShort)
                 .appCaption()
                 .foregroundStyle(.primary)
                 .appMonospacedDigit()
@@ -114,7 +130,7 @@ extension TorrentRowView {
 
             Spacer(minLength: 6)
 
-            Label(item.metrics.speedSummary, systemImage: "speedometer")
+            Label(metrics.speedSummary, systemImage: "speedometer")
                 .appCaption()
                 .foregroundStyle(.primary)
                 .appMonospacedDigit()
@@ -124,33 +140,33 @@ extension TorrentRowView {
         }
     }
 
-    private var macOSMetricsRow: some View {
+    private func macOSMetricsRow(metrics: TorrentListItem.Metrics) -> some View {
         ViewThatFits(in: .horizontal) {
-            wideMetricsRow
-            compactMetricsRow
+            wideMetricsRow(metrics: metrics)
+            compactMetricsRow(metrics: metrics)
         }
     }
 
-    private var wideMetricsRow: some View {
+    private func wideMetricsRow(metrics: TorrentListItem.Metrics) -> some View {
         HStack(spacing: 12) {
-            Label(item.metrics.progressText, systemImage: "circle.dashed")
+            Label(metrics.progressText, systemImage: "circle.dashed")
                 .appCaption()
                 .foregroundStyle(.primary)
                 .appMonospacedDigit()
                 .accessibilityIdentifier("torrent_row_progress_\(item.torrent.id.rawValue)")
 
-            if let etaText = item.metrics.etaText {
+            if let etaText = metrics.etaText {
                 Label(etaText, systemImage: "clock")
                     .appCaption()
                     .foregroundStyle(.primary)
                     .appMonospacedDigit()
             }
 
-            Label(peersText, systemImage: "person.2")
+            Label(metrics.peersText, systemImage: "person.2")
                 .appCaption()
                 .foregroundStyle(.primary)
 
-            Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+            Label(metrics.ratioText, systemImage: "gauge.with.dots.needle.100percent")
                 .appCaption()
                 .foregroundStyle(.primary)
                 .appMonospacedDigit()
@@ -163,7 +179,7 @@ extension TorrentRowView {
 
             Spacer(minLength: 6)
 
-            Label(item.metrics.speedSummary, systemImage: "speedometer")
+            Label(metrics.speedSummary, systemImage: "speedometer")
                 .appCaption()
                 .foregroundStyle(.primary)
                 .appMonospacedDigit()
@@ -173,28 +189,28 @@ extension TorrentRowView {
         }
     }
 
-    private var compactMetricsRow: some View {
+    private func compactMetricsRow(metrics: TorrentListItem.Metrics) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 12) {
-                Label(item.metrics.progressText, systemImage: "circle.dashed")
+                Label(metrics.progressText, systemImage: "circle.dashed")
                     .appCaption()
                     .foregroundStyle(.primary)
                     .appMonospacedDigit()
                     .accessibilityIdentifier(
                         "torrent_row_progress_compact_\(item.torrent.id.rawValue)")
 
-                if let etaText = item.metrics.etaText {
+                if let etaText = metrics.etaText {
                     Label(etaText, systemImage: "clock")
                         .appCaption()
                         .foregroundStyle(.primary)
                         .appMonospacedDigit()
                 }
 
-                Label(peersText, systemImage: "person.2")
+                Label(metrics.peersText, systemImage: "person.2")
                     .appCaption()
                     .foregroundStyle(.primary)
 
-                Label(ratioText, systemImage: "gauge.with.dots.needle.100percent")
+                Label(metrics.ratioText, systemImage: "gauge.with.dots.needle.100percent")
                     .appCaption()
                     .foregroundStyle(.primary)
                     .appMonospacedDigit()
@@ -209,7 +225,7 @@ extension TorrentRowView {
 
                 Spacer(minLength: 0)
 
-                Label(item.metrics.speedSummary, systemImage: "speedometer")
+                Label(metrics.speedSummary, systemImage: "speedometer")
                     .appCaption()
                     .foregroundStyle(.primary)
                     .appMonospacedDigit()
@@ -291,49 +307,31 @@ extension TorrentRowView {
         TorrentStatusData(status: item.torrent.status)
     }
 
-    private var peersText: String {
-        String(format: L10n.tr("torrentList.peers"), Int64(item.torrent.summary.peers.connected))
-    }
-
-    private var ratioText: String {
-        String(
-            format: L10n.tr("torrentList.ratio"),
-            locale: Locale.current,
-            item.torrent.summary.progress.uploadRatio
-        )
-    }
-
-    private var ratioTextShort: String {
-        String(
-            format: L10n.tr("torrentList.ratio.short"),
-            locale: Locale.current,
-            item.torrent.summary.progress.uploadRatio
-        )
-    }
-
-    private var accessibilityLabelText: String {
+    private func accessibilityLabelText(
+        status: TorrentStatusData,
+        metrics: TorrentListItem.Metrics
+    ) -> String {
         String(
             format: L10n.tr("%@, %@, %@, %@"),
             locale: Locale.current,
             item.torrent.name,
-            statusData.title,
-            item.metrics.progressText,
-            item.metrics.speedSummary
+            status.title,
+            metrics.progressText,
+            metrics.speedSummary
         )
     }
 
-    private var statusBadge: some View {
+    private func statusBadge(status: TorrentStatusData) -> some View {
         ZStack {
-            Text(statusData.abbreviation)
+            Text(status.abbreviation)
                 .font(.subheadline.weight(.semibold))
         }
         .frame(width: 28, height: 28)
-        .background(statusData.color.opacity(0.15), in: Circle())
-        .glassEffect(AppTheme.Liquid.glass, in: Circle())
-        .overlay(Circle().strokeBorder(statusData.color.opacity(0.25)))
-        .foregroundStyle(statusData.color)
+        .background(status.color.opacity(0.15), in: Circle())
+        .overlay(Circle().strokeBorder(status.color.opacity(0.25)))
+        .foregroundStyle(status.color)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
-        .accessibilityLabel(statusData.title)
+        .accessibilityLabel(status.title)
     }
 
     private func displayTagLabel(_ tag: String) -> String {

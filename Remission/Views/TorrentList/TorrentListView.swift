@@ -39,7 +39,7 @@ struct TorrentListView: View {
                             placement: .automatic,
                             prompt: Text(L10n.tr("torrentList.search.prompt"))
                         ) {
-                            ForEach(searchSuggestions, id: \.self) { suggestion in
+                            ForEach(store.searchSuggestions, id: \.self) { suggestion in
                                 Text(suggestion)
                                     .searchCompletion(suggestion)
                             }
@@ -114,43 +114,41 @@ extension TorrentListView {
                 footerBar
             }
         #else
-            GeometryReader { geometry in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
-                        if let banner = store.errorPresenter.banner {
-                            ErrorBannerView(
-                                message: banner.message,
-                                onRetry: banner.retry == nil
-                                    ? nil
-                                    : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                                onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                            )
-                            .padding(.bottom, 6)
-                        }
-
-                        if let offline = store.offlineState {
-                            offlineBanner(offline)
-                                .padding(.bottom, 4)
-                        }
-
-                        Group {
-                            content
-                        }
-                        .redacted(reason: store.isRefreshing ? .placeholder : [])
-                        .disabled(store.isRefreshing)
-
-                        if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                            Text(L10n.tr("torrentList.autorefresh.disabled"))
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                        }
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    if let banner = store.errorPresenter.banner {
+                        ErrorBannerView(
+                            message: banner.message,
+                            onRetry: banner.retry == nil
+                                ? nil
+                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                        )
+                        .padding(.bottom, 6)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.top, 4)
-                    .padding(.bottom, 4)
-                    .frame(minHeight: geometry.size.height, alignment: .top)
+
+                    if let offline = store.offlineState {
+                        offlineBanner(offline)
+                            .padding(.bottom, 4)
+                    }
+
+                    Group {
+                        content
+                    }
+                    .redacted(reason: store.isRefreshing ? .placeholder : [])
+                    .disabled(store.isRefreshing)
+
+                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                        Text(L10n.tr("torrentList.autorefresh.disabled"))
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                    }
                 }
+                .padding(.horizontal, 8)
+                .padding(.top, 4)
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
             .safeAreaInset(edge: .top) {
                 TorrentListHeaderiOSView(store: store)
@@ -283,19 +281,6 @@ extension TorrentListView {
         }
     }
 
-    private var searchSuggestions: [String] {
-        let query = store.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        return Array(
-            store.visibleItems
-                .map(\.torrent.name)
-                .filter { name in
-                    guard query.isEmpty == false else { return true }
-                    return name.localizedCaseInsensitiveContains(query) == false
-                }
-                .prefix(5)
-        )
-    }
-
     private var loadingView: some View {
         ForEach(0..<6, id: \.self) { index in
             TorrentRowSkeletonView(index: index)
@@ -395,34 +380,33 @@ extension TorrentListView {
     }
 
     private var torrentRows: some View {
-        ForEach(store.visibleItems) { item in
-            let actions = rowActions(for: item)
-            let row = TorrentRowView(
-                item: item,
-                openRequested: { store.send(.rowTapped(item.id)) },
-                actions: actions,
-                longestStatusTitle: longestStatusTitle,
-                isLocked: item.isRemoving
-            )
-            #if os(iOS)
-                Group {
-                    if store.pendingRemoveTorrentID == item.id {
-                        row.confirmationDialog(
-                            $store.scope(
-                                state: \.removeConfirmation,
-                                action: \.removeConfirmation
-                            )
-                        )
-                    } else {
-                        row
-                    }
-                }
+        ForEach(store.visibleItems, id: \.id) { item in
+            torrentRow(item)
+        }
+        .id(store.itemsRevision)
+    }
+
+    @ViewBuilder
+    private func torrentRow(_ item: TorrentListItem.State) -> some View {
+        let actions = rowActions(for: item)
+        let statusColor = TorrentStatusData(status: item.torrent.status).color
+        let row = TorrentRowView(
+            item: item,
+            openRequested: { store.send(.rowTapped(item.id)) },
+            actions: actions,
+            longestStatusTitle: longestStatusTitle,
+            isLocked: item.isRemoving
+        )
+        #if os(iOS)
+            let baseRow =
+                row
+                .transaction { $0.animation = nil }
                 .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
                 .opacity(item.isRemoving ? 0.6 : 1)
                 .disabled(item.isRemoving)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
-                .appTintedCardSurface(color: TorrentStatusData(status: item.torrent.status).color)
+                .appListRowSurface(color: statusColor)
                 .contentShape(
                     .contextMenuPreview,
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -447,19 +431,28 @@ extension TorrentListView {
                         .disabled(actions.isRemoveBusy)
                     }
                 }
-            #else
-                row
-                    .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
-                    .opacity(item.isRemoving ? 0.6 : 1)
-                    .disabled(item.isRemoving)
-                    .padding(.vertical, 10)
-                    .appTintedCardSurface(
-                        color: TorrentStatusData(status: item.torrent.status).color
+            if store.pendingRemoveTorrentID == item.id {
+                baseRow.confirmationDialog(
+                    $store.scope(
+                        state: \.removeConfirmation,
+                        action: \.removeConfirmation
                     )
-                    .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
-                    .listRowBackground(rowBackground(for: item))
-            #endif
-        }
+                )
+            } else {
+                baseRow
+            }
+        #else
+            row
+                .equatable()
+                .transaction { $0.animation = nil }
+                .accessibilityIdentifier("torrent_list_item_\(item.id.rawValue)")
+                .opacity(item.isRemoving ? 0.6 : 1)
+                .disabled(item.isRemoving)
+                .padding(.vertical, 10)
+                .appListRowSurface(color: statusColor)
+                .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
+                .listRowBackground(rowBackground(for: item))
+        #endif
     }
 
     #if os(macOS)
@@ -473,8 +466,10 @@ extension TorrentListView {
                         longestStatusTitle: longestStatusTitle,
                         isLocked: item.isRemoving
                     )
+                    .equatable()
+                    .transaction { $0.animation = nil }
                     .padding(.vertical, 10)
-                    .appTintedCardSurface(
+                    .appListRowSurface(
                         color: TorrentStatusData(status: item.torrent.status).color
                     )
                     .opacity(item.isRemoving ? 0.6 : 1)

@@ -93,8 +93,12 @@ extension TorrentListReducer.State {
                 && selectedCategory.matches($0)
                 && matchesSearch($0, query: query)
         }
-        let sorted = filtered.sorted {
-            $0.torrent.name.localizedCaseInsensitiveCompare($1.torrent.name) != .orderedDescending
+        let sorted = filtered.sorted { lhs, rhs in
+            if lhs.id != rhs.id {
+                return lhs.id.rawValue > rhs.id.rawValue
+            }
+            return lhs.torrent.name.localizedCaseInsensitiveCompare(rhs.torrent.name)
+                == .orderedAscending
         }
         return IdentifiedArray(uniqueElements: sorted)
     }

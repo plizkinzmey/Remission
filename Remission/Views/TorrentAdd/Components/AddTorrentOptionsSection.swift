@@ -29,7 +29,7 @@ struct AddTorrentOptionsSection: View {
                             .padding(.horizontal, 12)
                             .frame(width: 170, height: 34)
                             .contentShape(Rectangle())
-                            .appToolbarPillSurface()
+                            .appInteractivePillSurface()
                         }
                         .accessibilityIdentifier("torrent_add_category_picker")
                         .buttonStyle(.plain)

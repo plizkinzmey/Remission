@@ -58,13 +58,27 @@ extension TorrentListReducer {
         state: inout State,
         torrent: Torrent
     ) -> Effect<Action> {
+        let shouldUpdateMetrics = shouldRefreshMetrics(state: &state)
+        var didChange = false
         if var existing = state.items[id: torrent.id] {
-            existing.update(with: torrent)
-            existing.isRemoving = state.removingTorrentIDs.contains(torrent.id)
-            state.items[id: torrent.id] = existing
+            let isRemoving = state.removingTorrentIDs.contains(torrent.id)
+            let didUpdate = existing.update(with: torrent, updateMetrics: shouldUpdateMetrics)
+            let didUpdateRemoving = existing.isRemoving != isRemoving
+            if didUpdateRemoving {
+                existing.isRemoving = isRemoving
+            }
+            if didUpdate || didUpdateRemoving {
+                state.items[id: torrent.id] = existing
+                didChange = true
+            }
         } else {
             let isRemoving = state.removingTorrentIDs.contains(torrent.id)
             state.items.append(TorrentListItem.State(torrent: torrent, isRemoving: isRemoving))
+            didChange = true
+        }
+        if didChange {
+            state.itemsRevision += 1
+            updateVisibleItemsCache(state: &state)
         }
         state.phase = .loaded
         state.errorPresenter.banner = nil
@@ -80,9 +94,15 @@ extension TorrentListReducer {
         guard state.connectionEnvironment != nil else {
             return .none
         }
+        var didAdd = false
         if state.items[id: result.id] == nil {
             let placeholder = makePlaceholderTorrent(addResult: result)
             state.items.append(TorrentListItem.State(torrent: placeholder))
+            didAdd = true
+        }
+        if didAdd {
+            state.itemsRevision += 1
+            updateVisibleItemsCache(state: &state)
         }
         state.phase = .loaded
         state.errorPresenter.banner = nil
@@ -101,7 +121,11 @@ extension TorrentListReducer {
         identifier: Torrent.Identifier
     ) -> Effect<Action> {
         state.removingTorrentIDs.remove(identifier)
-        state.items.remove(id: identifier)
+        let didRemove = state.items.remove(id: identifier) != nil
+        if didRemove {
+            state.itemsRevision += 1
+            updateVisibleItemsCache(state: &state)
+        }
         state.phase = .loaded
         state.errorPresenter.banner = nil
         state.failedAttempts = 0
@@ -133,30 +157,192 @@ extension TorrentListReducer {
         .cancellable(id: CancelID.polling, cancelInFlight: true)
     }
 
+    func nextAdaptiveInterval(
+        state: inout State,
+        hasVisibleChanges: Bool
+    ) -> Duration {
+        guard state.isPollingEnabled else {
+            state.adaptivePollingInterval = nil
+            return state.pollingInterval
+        }
+        if hasVisibleChanges {
+            state.adaptivePollingInterval = nil
+            return state.pollingInterval
+        }
+        let base = state.pollingInterval
+        let current = state.adaptivePollingInterval ?? base
+        let next = min(current * 2, .seconds(30))
+        state.adaptivePollingInterval = next
+        return next
+    }
+
     func merge(
-        items: IdentifiedArrayOf<TorrentListItem.State>,
+        state: inout State,
         with torrents: [Torrent],
         removingIDs: Set<Torrent.Identifier>
-    ) -> IdentifiedArrayOf<TorrentListItem.State> {
-        var updated = items
+    ) -> (items: IdentifiedArrayOf<TorrentListItem.State>, didChange: Bool) {
+        var updated = state.items
+        var didChange = false
+        let shouldUpdateMetrics = shouldRefreshMetrics(state: &state)
+        let sampleID: Torrent.Identifier? =
+            appLogger.isNoop
+            ? nil
+            : (torrents.first(where: { $0.status == .downloading })?.id ?? torrents.first?.id)
 
         // Удаляем те, которых больше нет в ответе сервера
         let newIDs = Set(torrents.map(\.id))
+        let beforeCount = updated.count
         updated.removeAll(where: { !newIDs.contains($0.id) })
+        if updated.count != beforeCount {
+            didChange = true
+        }
 
         // Обновляем существующие или добавляем новые
         for torrent in torrents {
             let isRemoving = removingIDs.contains(torrent.id)
             if var existing = updated[id: torrent.id] {
-                existing.update(with: torrent)
-                existing.isRemoving = isRemoving
-                updated[id: torrent.id] = existing
+                let shouldLogSample = sampleID == torrent.id && appLogger.isNoop == false
+                let oldSignature = existing.displaySignature
+                let didUpdate = existing.update(with: torrent, updateMetrics: shouldUpdateMetrics)
+                if shouldLogSample {
+                    let newSignature = existing.displaySignature
+                    appLogger.withCategory("torrent-list").debug(
+                        "merge.sample",
+                        metadata: [
+                            "id": "\(torrent.id.rawValue)",
+                            "didUpdate": "\(didUpdate)",
+                            "updateMetrics": "\(shouldUpdateMetrics)",
+                            "oldStatus": "\(oldSignature.status)",
+                            "newStatus": "\(newSignature.status)",
+                            "oldPercent": "\(oldSignature.percentDone)",
+                            "newPercent": "\(newSignature.percentDone)",
+                            "oldDown": "\(oldSignature.downloadRate)",
+                            "newDown": "\(newSignature.downloadRate)",
+                            "oldUp": "\(oldSignature.uploadRate)",
+                            "newUp": "\(newSignature.uploadRate)",
+                            "oldPeers": "\(oldSignature.peersConnected)",
+                            "newPeers": "\(newSignature.peersConnected)",
+                            "oldEta": "\(oldSignature.etaSeconds)",
+                            "newEta": "\(newSignature.etaSeconds)"
+                        ]
+                    )
+                }
+                let didUpdateRemoving = existing.isRemoving != isRemoving
+                if didUpdateRemoving {
+                    existing.isRemoving = isRemoving
+                }
+                if didUpdate || didUpdateRemoving {
+                    updated[id: torrent.id] = existing
+                    didChange = true
+                }
             } else {
                 updated.append(TorrentListItem.State(torrent: torrent, isRemoving: isRemoving))
+                didChange = true
             }
         }
 
-        return updated
+        return (updated, didChange)
+    }
+
+    func shouldRefreshMetrics(state: inout State) -> Bool {
+        let now = dateProvider.now()
+        guard let lastUpdate = state.lastMetricsUpdateAt else {
+            state.lastMetricsUpdateAt = now
+            state.metricsRevision += 1
+            if appLogger.isNoop == false {
+                appLogger.withCategory("torrent-list").debug(
+                    "metrics.refresh.first",
+                    metadata: ["metricsRevision": "\(state.metricsRevision)"]
+                )
+            }
+            return true
+        }
+        let delta = now.timeIntervalSince(lastUpdate)
+        if delta >= 1.0 {
+            state.lastMetricsUpdateAt = now
+            state.metricsRevision += 1
+            if appLogger.isNoop == false {
+                appLogger.withCategory("torrent-list").debug(
+                    "metrics.refresh",
+                    metadata: [
+                        "delta": "\(String(format: "%.3f", delta))",
+                        "metricsRevision": "\(state.metricsRevision)"
+                    ]
+                )
+            }
+            return true
+        }
+        if appLogger.isNoop == false {
+            appLogger.withCategory("torrent-list").debug(
+                "metrics.skip",
+                metadata: [
+                    "delta": "\(String(format: "%.3f", delta))",
+                    "metricsRevision": "\(state.metricsRevision)"
+                ]
+            )
+        }
+        return false
+    }
+
+    func updateVisibleItemsCache(state: inout State) {
+        let signature = State.VisibleItemsSignature(
+            query: state.normalizedSearchQuery,
+            filter: state.selectedFilter,
+            category: state.selectedCategory,
+            itemsRevision: state.itemsRevision,
+            metricsRevision: state.metricsRevision
+        )
+        guard state.visibleItemsSignature != signature else {
+            if appLogger.isNoop == false {
+                appLogger.withCategory("torrent-list").debug(
+                    "visibleItemsCache.skip",
+                    metadata: [
+                        "visible": "\(state.visibleItemsCache.count)",
+                        "itemsRevision": "\(state.itemsRevision)",
+                        "metricsRevision": "\(state.metricsRevision)",
+                        "filter": "\(state.selectedFilter.rawValue)",
+                        "category": "\(state.selectedCategory.rawValue)",
+                        "query": "\(state.normalizedSearchQuery)"
+                    ]
+                )
+            }
+            return
+        }
+        state.visibleItemsCache = state.filteredVisibleItems()
+        state.visibleItemsSignature = signature
+        state.searchSuggestions = buildSearchSuggestions(
+            items: state.visibleItemsCache,
+            query: state.searchQuery
+        )
+        if appLogger.isNoop == false {
+            appLogger.withCategory("torrent-list").debug(
+                "visibleItemsCache.updated",
+                metadata: [
+                    "visible": "\(state.visibleItemsCache.count)",
+                    "itemsRevision": "\(state.itemsRevision)",
+                    "metricsRevision": "\(state.metricsRevision)",
+                    "filter": "\(state.selectedFilter.rawValue)",
+                    "category": "\(state.selectedCategory.rawValue)",
+                    "query": "\(state.normalizedSearchQuery)"
+                ]
+            )
+        }
+    }
+
+    func buildSearchSuggestions(
+        items: IdentifiedArrayOf<TorrentListItem.State>,
+        query: String
+    ) -> [String] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Array(
+            items
+                .map(\.torrent.name)
+                .filter { name in
+                    guard trimmed.isEmpty == false else { return true }
+                    return name.localizedCaseInsensitiveContains(trimmed) == false
+                }
+                .prefix(5)
+        )
     }
 
     func makePlaceholderTorrent(

@@ -36,16 +36,12 @@ struct ServerListView: View {
                             }
                         } else {
                             VStack(alignment: .center, spacing: 12) {
-                                Text(L10n.tr("Servers"))
+                                Text(ServerListStrings.serversTitle)
                                     .font(.title3.bold())
-                                Text(
-                                    L10n.tr(
-                                        "Manage connections, security and actions for each Transmission server."
-                                    )
-                                )
-                                .font(.footnote)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
+                                Text(ServerListStrings.serversSubtitle)
+                                    .font(.footnote)
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.center)
                                 serverList
                             }
                             .frame(maxWidth: .infinity)
@@ -70,16 +66,12 @@ struct ServerListView: View {
                         }
                     } else {
                         VStack(alignment: .center, spacing: 12) {
-                            Text(L10n.tr("Servers"))
+                            Text(ServerListStrings.serversTitle)
                                 .font(.title3.bold())
-                            Text(
-                                L10n.tr(
-                                    "Manage connections, security and actions for each Transmission server."
-                                )
-                            )
-                            .font(.footnote)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.center)
+                            Text(ServerListStrings.serversSubtitle)
+                                .font(.footnote)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
                             serverList
                         }
                         .frame(maxWidth: .infinity)
