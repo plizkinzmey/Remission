@@ -7,8 +7,8 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH]
-  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH]
+  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
+  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
   Scripts/release_local.sh --version X.Y.Z --no-version-commit [--tag] [--push]
   Scripts/release_local.sh --version X.Y.Z --version-only [--no-version-commit]
 
@@ -27,6 +27,7 @@ Options:
   --pre-release     Mark the GitHub release as a pre-release.
   --draft           Create the GitHub release as a draft (not published).
   --skip-build      Skip the building process and only perform tagging/pushing/releasing (requires existing artifacts).
+  --notes-file      Use a custom Markdown file as GitHub release notes (recommended for bilingual RU/EN notes).
 
 Outputs:
   Build/Releases/vX.Y.Z/
@@ -147,6 +148,35 @@ compute_build_number() {
   git rev-list --count HEAD
 }
 
+generate_release_notes() {
+  local notes_file="$1"
+  local previous_tag="$2"
+  local range_end="$3"
+
+  {
+    cat <<'MD'
+## What's New
+
+### English
+* (Write user-facing changes here.)
+
+### Русский
+* (Напишите изменения для пользователя здесь.)
+
+## Changes (Git Log)
+MD
+
+    if [[ -n "$previous_tag" ]]; then
+      # Filter out version bump commits; keep user-relevant changes.
+      git log "${previous_tag}..${range_end}" --pretty=format:"* %s (%h)" \
+        | grep -v -E '^\* Обновить версию ' \
+        || true
+    else
+      echo "* Initial release."
+    fi
+  } >"$notes_file"
+}
+
 main() {
   local version=""
   local bump=""
@@ -161,6 +191,7 @@ main() {
   local pre_release="false"
   local draft="false"
   local skip_build="false"
+  local notes_file_arg=""
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -177,6 +208,7 @@ main() {
       --pre-release) pre_release="true"; shift ;;
       --draft) draft="true"; shift ;;
       --skip-build) skip_build="true"; shift ;;
+      --notes-file) notes_file_arg="${2:-}"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) die "Неизвестный аргумент: $1 (см. --help)" ;;
     esac
@@ -385,6 +417,7 @@ main() {
 
   if [[ "$github_release" == "true" ]]; then
     info "🚀 Создаю релиз на GitHub..."
+    [[ "$tag" == "true" ]] || die "--github-release требует --tag (релиз на GitHub должен быть привязан к тегу)."
     
     local assets=()
     if [[ -f "$macos_zip" ]]; then
@@ -401,17 +434,15 @@ main() {
       info "⚠️  Нет файлов для загрузки (macos zip или ios ipa). Пропускаю создание релиза."
     else
       local previous_tag
-      previous_tag=$(git describe --tags --abbrev=0 "$release_tag^" 2>/dev/null || true)
+      previous_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 HEAD^ 2>/dev/null || true)"
+
       local notes_file="${out_dir}/release_notes.md"
-      
-      {
-        echo "## What's Changed"
-        if [[ -n "$previous_tag" ]]; then
-          git log "${previous_tag}..${release_tag}" --oneline --pretty=format:"* %s (%h)"
-        else
-          echo "Initial release."
-        fi
-      } > "$notes_file"
+      if [[ -n "$notes_file_arg" ]]; then
+        notes_file="$notes_file_arg"
+        [[ -f "$notes_file" ]] || die "Не найден файл заметок: $notes_file"
+      else
+        generate_release_notes "$notes_file" "$previous_tag" "$release_tag"
+      fi
 
       local gh_args=(
         "release" "create" "$release_tag"
