@@ -414,6 +414,7 @@ extension TorrentListView {
     }
 
     #if os(iOS)
+        @ViewBuilder
         private func torrentRowIOS(
             item: TorrentListItem.State,
             row: TorrentRowView,
