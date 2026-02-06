@@ -5,10 +5,12 @@
 	};
 	objectVersion = 90;
 	objects = {
+
 /* Begin PBXBuildFile section */
 		15AADFF52EA417C5003711C3 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = 15AADFF42EA417C5003711C3 /* ComposableArchitecture */; };
 		15B1A0012F0B7B2E00E3D111 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 15B1A0002F0B7B2E00E3D111 /* Logging */; };
 /* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		15AA8C492EA1C9370025EF81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -25,23 +27,25 @@
 			remoteInfo = Remission;
 		};
 /* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		15F6B6D12F1A2B3C00A0A111 /* Exceptions for "Remission" folder in "Remission" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			                        membershipExceptions = (
-			                                "Info-macOS.plist",
-			                                "Info-iOS.plist",
-			                        );
-			
+			membershipExceptions = (
+				"Info-iOS.plist",
+				"Info-macOS.plist",
+			);
 			target = 15AA8C3A2EA1C9360025EF81 /* Remission */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		15AA8C3D2EA1C9360025EF81 /* Remission */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -62,6 +66,7 @@
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		15AA8C382EA1C9360025EF81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
@@ -81,12 +86,11 @@
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
+
 /* Begin PBXGroup section */
 		15AA8C322EA1C9360025EF81 = {
 			isa = PBXGroup;
 			children = (
-				15AA8C3F2EA1C9360025EF81 /* Info-macOS.plist */,
-				15AA8C3E2EA1C9360025EF81 /* Info-iOS.plist */,
 				15D03AFF2EA3B62200044487 /* Remission.xctestplan */,
 				15AA8C3D2EA1C9360025EF81 /* Remission */,
 				15AA8C4B2EA1C9370025EF81 /* RemissionTests */,
@@ -106,6 +110,7 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
 /* Begin PBXNativeTarget section */
 		15AA8C3A2EA1C9360025EF81 /* Remission */ = {
 			isa = PBXNativeTarget;
@@ -174,13 +179,14 @@
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
+
 /* Begin PBXProject section */
 		15AA8C332EA1C9360025EF81 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 2600;
-				LastUpgradeCheck = 2620;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					15AA8C3A2EA1C9360025EF81 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -220,6 +226,7 @@
 			);
 		};
 /* End PBXProject section */
+
 /* Begin PBXResourcesBuildPhase section */
 		15AA8C392EA1C9360025EF81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
@@ -237,6 +244,7 @@
 			);
 		};
 /* End PBXResourcesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
 		15AA8C6A2EA1CA570025EF81 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -335,6 +343,7 @@
 			);
 		};
 /* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		15AA8C372EA1C9360025EF81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -352,6 +361,7 @@
 			);
 		};
 /* End PBXSourcesBuildPhase section */
+
 /* Begin PBXTargetDependency section */
 		15AA8C4A2EA1C9370025EF81 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -364,6 +374,7 @@
 			targetProxy = 15AA8C532EA1C9370025EF81 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		15AA8C5A2EA1C9370025EF81 /* Debug configuration for PBXProject "Remission" */ = {
 			isa = XCBuildConfiguration;
@@ -775,6 +786,7 @@
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
+
 /* Begin XCConfigurationList section */
 		15AA8C362EA1C9360025EF81 /* Build configuration list for PBXProject "Remission" */ = {
 			isa = XCConfigurationList;
@@ -809,6 +821,7 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		15AADFF32EA417C5003711C3 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -827,6 +840,7 @@
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		15AADFF42EA417C5003711C3 /* ComposableArchitecture */ = {
 			isa = XCSwiftPackageProductDependency;
