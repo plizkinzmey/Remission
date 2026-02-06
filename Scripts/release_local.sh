@@ -188,6 +188,11 @@ main() {
   if [[ "$github_release" == "true" ]]; then
     command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) не установлен. Установите его через 'brew install gh'."
     gh auth status >/dev/null 2>&1 || die "Вы не авторизованы в GitHub CLI. Выполните 'gh auth login'."
+
+    # Xcode/SwiftPM can opportunistically rewrite workspace SwiftPM files while CLI tools
+    # (including `gh`) probe git state, which may temporarily delete a tracked Package.resolved.
+    # Keep the release script strict about cleanliness, but auto-restore this known-volatile file.
+    git checkout -- Remission.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved 2>/dev/null || true
   fi
 
   require_branch_main
