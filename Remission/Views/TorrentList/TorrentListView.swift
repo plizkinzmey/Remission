@@ -94,7 +94,7 @@ extension TorrentListView {
 
                     if let offline = store.offlineState {
                         offlineBanner(offline)
-                            .padding(.bottom, 4)
+                            .padding(Edge.Set.bottom, 4)
                     }
 
                     TorrentListControlsView(store: store)
@@ -300,7 +300,7 @@ extension TorrentListView {
         }
     }
 
-    private func offlineBanner(_ offline: TorrentListReducer.State.OfflineState) -> some View {
+    private func offlineBanner(_ offline: TorrentListReducer.OfflineState) -> some View {
         HStack(spacing: 8) {
             Label(L10n.tr("torrentList.state.noConnection.title"), systemImage: "wifi.slash")
                 .font(.footnote)
@@ -398,6 +398,28 @@ extension TorrentListView {
             isLocked: item.isRemoving
         )
         #if os(iOS)
+            torrentRowIOS(
+                item: item,
+                row: row,
+                statusColor: statusColor,
+                actions: actions
+            )
+        #else
+            torrentRowMacOS(
+                item: item,
+                row: row,
+                statusColor: statusColor
+            )
+        #endif
+    }
+
+    #if os(iOS)
+        private func torrentRowIOS(
+            item: TorrentListItem.State,
+            row: TorrentRowView,
+            statusColor: Color,
+            actions: TorrentRowView.RowActions?
+        ) -> some View {
             let baseRow =
                 row
                 .transaction { $0.animation = nil }
@@ -441,7 +463,13 @@ extension TorrentListView {
             } else {
                 baseRow
             }
-        #else
+        }
+    #else
+        private func torrentRowMacOS(
+            item: TorrentListItem.State,
+            row: TorrentRowView,
+            statusColor: Color
+        ) -> some View {
             row
                 .equatable()
                 .transaction { $0.animation = nil }
@@ -452,8 +480,8 @@ extension TorrentListView {
                 .appListRowSurface(color: statusColor)
                 .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
                 .listRowBackground(rowBackground(for: item))
-        #endif
-    }
+        }
+    #endif
 
     #if os(macOS)
         private var torrentRowsMacOS: some View {

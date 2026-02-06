@@ -4,21 +4,21 @@ import Foundation
 enum TorrentListItem {}
 
 extension TorrentListItem {
+    struct DisplaySignature: Equatable, Sendable {
+        var name: String
+        var status: Torrent.Status
+        var tags: [String]
+        var percentDone: Double
+        var recheckProgress: Double
+        var downloadRate: Int
+        var uploadRate: Int
+        var peersConnected: Int
+        var uploadRatio: Double
+        var etaSeconds: Int
+    }
+
     @ObservableState
     struct State: Equatable, Identifiable, Sendable {
-        struct DisplaySignature: Equatable, Sendable {
-            var name: String
-            var status: Torrent.Status
-            var tags: [String]
-            var percentDone: Double
-            var recheckProgress: Double
-            var downloadRate: Int
-            var uploadRate: Int
-            var peersConnected: Int
-            var uploadRatio: Double
-            var etaSeconds: Int
-        }
-
         var torrent: Torrent
         var metrics: Metrics
         var isRemoving: Bool
@@ -51,7 +51,7 @@ extension TorrentListItem {
             return true
         }
 
-        private static func displaySignature(for torrent: Torrent) -> DisplaySignature {
+        static func displaySignature(for torrent: Torrent) -> DisplaySignature {
             DisplaySignature(
                 name: torrent.name,
                 status: torrent.status,

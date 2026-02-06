@@ -184,10 +184,7 @@ extension TorrentListReducer {
         var updated = state.items
         var didChange = false
         let shouldUpdateMetrics = shouldRefreshMetrics(state: &state)
-        let sampleID: Torrent.Identifier? =
-            appLogger.isNoop
-            ? nil
-            : (torrents.first(where: { $0.status == .downloading })?.id ?? torrents.first?.id)
+        let sampleID = mergeSampleID(from: torrents)
 
         // Удаляем те, которых больше нет в ответе сервера
         let newIDs = Set(torrents.map(\.id))
@@ -201,32 +198,14 @@ extension TorrentListReducer {
         for torrent in torrents {
             let isRemoving = removingIDs.contains(torrent.id)
             if var existing = updated[id: torrent.id] {
-                let shouldLogSample = sampleID == torrent.id && appLogger.isNoop == false
-                let oldSignature = existing.displaySignature
                 let didUpdate = existing.update(with: torrent, updateMetrics: shouldUpdateMetrics)
-                if shouldLogSample {
-                    let newSignature = existing.displaySignature
-                    appLogger.withCategory("torrent-list").debug(
-                        "merge.sample",
-                        metadata: [
-                            "id": "\(torrent.id.rawValue)",
-                            "didUpdate": "\(didUpdate)",
-                            "updateMetrics": "\(shouldUpdateMetrics)",
-                            "oldStatus": "\(oldSignature.status)",
-                            "newStatus": "\(newSignature.status)",
-                            "oldPercent": "\(oldSignature.percentDone)",
-                            "newPercent": "\(newSignature.percentDone)",
-                            "oldDown": "\(oldSignature.downloadRate)",
-                            "newDown": "\(newSignature.downloadRate)",
-                            "oldUp": "\(oldSignature.uploadRate)",
-                            "newUp": "\(newSignature.uploadRate)",
-                            "oldPeers": "\(oldSignature.peersConnected)",
-                            "newPeers": "\(newSignature.peersConnected)",
-                            "oldEta": "\(oldSignature.etaSeconds)",
-                            "newEta": "\(newSignature.etaSeconds)"
-                        ]
-                    )
-                }
+                logMergeSampleIfNeeded(
+                    sampleID: sampleID,
+                    torrent: torrent,
+                    didUpdate: didUpdate,
+                    updateMetrics: shouldUpdateMetrics,
+                    existing: existing
+                )
                 let didUpdateRemoving = existing.isRemoving != isRemoving
                 if didUpdateRemoving {
                     existing.isRemoving = isRemoving
@@ -284,8 +263,45 @@ extension TorrentListReducer {
         return false
     }
 
+    func mergeSampleID(from torrents: [Torrent]) -> Torrent.Identifier? {
+        guard appLogger.isNoop == false else { return nil }
+        return torrents.first(where: { $0.status == .downloading })?.id ?? torrents.first?.id
+    }
+
+    func logMergeSampleIfNeeded(
+        sampleID: Torrent.Identifier?,
+        torrent: Torrent,
+        didUpdate: Bool,
+        updateMetrics: Bool,
+        existing: TorrentListItem.State
+    ) {
+        guard appLogger.isNoop == false, sampleID == torrent.id else { return }
+        let oldSignature = existing.displaySignature
+        let newSignature = TorrentListItem.State.displaySignature(for: torrent)
+        appLogger.withCategory("torrent-list").debug(
+            "merge.sample",
+            metadata: [
+                "id": "\(torrent.id.rawValue)",
+                "didUpdate": "\(didUpdate)",
+                "updateMetrics": "\(updateMetrics)",
+                "oldStatus": "\(oldSignature.status)",
+                "newStatus": "\(newSignature.status)",
+                "oldPercent": "\(oldSignature.percentDone)",
+                "newPercent": "\(newSignature.percentDone)",
+                "oldDown": "\(oldSignature.downloadRate)",
+                "newDown": "\(newSignature.downloadRate)",
+                "oldUp": "\(oldSignature.uploadRate)",
+                "newUp": "\(newSignature.uploadRate)",
+                "oldPeers": "\(oldSignature.peersConnected)",
+                "newPeers": "\(newSignature.peersConnected)",
+                "oldEta": "\(oldSignature.etaSeconds)",
+                "newEta": "\(newSignature.etaSeconds)"
+            ]
+        )
+    }
+
     func updateVisibleItemsCache(state: inout State) {
-        let signature = State.VisibleItemsSignature(
+        let signature = TorrentListReducer.VisibleItemsSignature(
             query: state.normalizedSearchQuery,
             filter: state.selectedFilter,
             category: state.selectedCategory,

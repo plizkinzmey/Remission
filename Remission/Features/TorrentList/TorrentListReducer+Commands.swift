@@ -147,7 +147,7 @@ extension TorrentListReducer {
                 await send(
                     .torrentsResponse(
                         .success(
-                            State.FetchSuccess(
+                            FetchSuccess(
                                 torrents: torrents,
                                 isFromCache: false,
                                 snapshotDate: updatedAt
