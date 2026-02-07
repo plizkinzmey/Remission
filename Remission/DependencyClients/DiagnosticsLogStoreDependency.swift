@@ -8,9 +8,15 @@ import Foundation
     /// Хранилище диагностических логов с поддержкой фильтрации и очистки.
     @DependencyClient
     struct DiagnosticsLogStore: Sendable {
+        enum StreamEvent: Equatable, Sendable {
+            case appended(DiagnosticsLogEntry)
+            case dropped([UUID])
+            case cleared
+        }
+
         var load: @Sendable (DiagnosticsLogFilter) async throws -> [DiagnosticsLogEntry] = { _ in []
         }
-        var observe: @Sendable (DiagnosticsLogFilter) async -> AsyncStream<[DiagnosticsLogEntry]> =
+        var observe: @Sendable (DiagnosticsLogFilter) async -> AsyncStream<StreamEvent> =
             { _ in
                 AsyncStream { $0.finish() }
             }
@@ -116,11 +122,14 @@ import Foundation
 
     /// Актор, который хранит лог-записи в кольцевом буфере и нотифицирует подписчиков.
     actor DiagnosticsLogBuffer {
+        private struct Observer {
+            let filter: DiagnosticsLogFilter
+            let continuation: AsyncStream<DiagnosticsLogStore.StreamEvent>.Continuation
+        }
+
         private var entries: [DiagnosticsLogEntry]
         private let maxEntries: Int
-        private var observers:
-            [UUID: (DiagnosticsLogFilter, AsyncStream<[DiagnosticsLogEntry]>.Continuation)] =
-                [:]
+        private var observers: [UUID: Observer] = [:]
 
         init(maxEntries: Int, seed: [DiagnosticsLogEntry] = []) {
             self.maxEntries = maxEntries
@@ -129,31 +138,32 @@ import Foundation
 
         func append(_ entry: DiagnosticsLogEntry) {
             entries.append(entry)
+            var droppedIDs: [UUID] = []
             if entries.count > maxEntries {
-                entries.removeFirst(entries.count - maxEntries)
+                let dropCount = entries.count - maxEntries
+                droppedIDs = entries.prefix(dropCount).map(\.id)
+                entries.removeFirst(dropCount)
             }
-            notifyObservers()
+            notifyObservers(appended: entry, droppedIDs: droppedIDs)
         }
 
         func clear() {
             entries.removeAll()
-            notifyObservers()
+            notifyObserversCleared()
         }
 
         func snapshot(filter: DiagnosticsLogFilter) -> [DiagnosticsLogEntry] {
             apply(filter: filter, to: entries)
         }
 
-        func observe(filter: DiagnosticsLogFilter) -> AsyncStream<[DiagnosticsLogEntry]> {
+        func observe(filter: DiagnosticsLogFilter) -> AsyncStream<DiagnosticsLogStore.StreamEvent> {
             AsyncStream { continuation in
                 let id = UUID()
-                observers[id] = (filter, continuation)
+                observers[id] = Observer(filter: filter, continuation: continuation)
 
                 continuation.onTermination = { [weak self] _ in
                     Task { await self?.removeObserver(id) }
                 }
-
-                continuation.yield(apply(filter: filter, to: entries))
             }
         }
 
@@ -161,10 +171,22 @@ import Foundation
             observers.removeValue(forKey: id)
         }
 
-        private func notifyObservers() {
-            for value in observers.values {
-                let (filter, continuation) = value
-                continuation.yield(apply(filter: filter, to: entries))
+        private func notifyObservers(appended entry: DiagnosticsLogEntry, droppedIDs: [UUID]) {
+            for observer in observers.values {
+                let filter = observer.filter
+                let continuation = observer.continuation
+                if droppedIDs.isEmpty == false {
+                    continuation.yield(.dropped(droppedIDs))
+                }
+                if filter.matches(entry) {
+                    continuation.yield(.appended(entry))
+                }
+            }
+        }
+
+        private func notifyObserversCleared() {
+            for observer in observers.values {
+                observer.continuation.yield(.cleared)
             }
         }
 
@@ -179,6 +201,11 @@ import Foundation
     }
 
     private actor PersistentDiagnosticsLogStore {
+        private struct Observer {
+            let filter: DiagnosticsLogFilter
+            let continuation: AsyncStream<DiagnosticsLogStore.StreamEvent>.Continuation
+        }
+
         private enum StorageKey {
             static let entries = "diagnostics_log_entries"
         }
@@ -186,9 +213,7 @@ import Foundation
         private let defaults: DiagnosticsUserDefaultsBox
         private let maxEntries: Int
         private var entries: [DiagnosticsLogEntry]
-        private var observers:
-            [UUID: (DiagnosticsLogFilter, AsyncStream<[DiagnosticsLogEntry]>.Continuation)] =
-                [:]
+        private var observers: [UUID: Observer] = [:]
 
         init(defaults: DiagnosticsUserDefaultsBox, maxEntries: Int) {
             self.defaults = defaults
@@ -199,33 +224,34 @@ import Foundation
 
         func append(_ entry: DiagnosticsLogEntry) {
             entries.append(entry)
+            var droppedIDs: [UUID] = []
             if entries.count > maxEntries {
-                entries.removeFirst(entries.count - maxEntries)
+                let dropCount = entries.count - maxEntries
+                droppedIDs = entries.prefix(dropCount).map(\.id)
+                entries.removeFirst(dropCount)
             }
             persist()
-            notifyObservers()
+            notifyObservers(appended: entry, droppedIDs: droppedIDs)
         }
 
         func clear() throws {
             entries.removeAll()
             defaults.remove(StorageKey.entries)
-            notifyObservers()
+            notifyObserversCleared()
         }
 
         func snapshot(filter: DiagnosticsLogFilter) -> [DiagnosticsLogEntry] {
             apply(filter: filter, to: entries)
         }
 
-        func observe(filter: DiagnosticsLogFilter) -> AsyncStream<[DiagnosticsLogEntry]> {
+        func observe(filter: DiagnosticsLogFilter) -> AsyncStream<DiagnosticsLogStore.StreamEvent> {
             AsyncStream { continuation in
                 let id = UUID()
-                observers[id] = (filter, continuation)
+                observers[id] = Observer(filter: filter, continuation: continuation)
 
                 continuation.onTermination = { [weak self] _ in
                     Task { await self?.removeObserver(id) }
                 }
-
-                continuation.yield(apply(filter: filter, to: entries))
             }
         }
 
@@ -233,10 +259,22 @@ import Foundation
             observers.removeValue(forKey: id)
         }
 
-        private func notifyObservers() {
-            for value in observers.values {
-                let (filter, continuation) = value
-                continuation.yield(apply(filter: filter, to: entries))
+        private func notifyObservers(appended entry: DiagnosticsLogEntry, droppedIDs: [UUID]) {
+            for observer in observers.values {
+                let filter = observer.filter
+                let continuation = observer.continuation
+                if droppedIDs.isEmpty == false {
+                    continuation.yield(.dropped(droppedIDs))
+                }
+                if filter.matches(entry) {
+                    continuation.yield(.appended(entry))
+                }
+            }
+        }
+
+        private func notifyObserversCleared() {
+            for observer in observers.values {
+                observer.continuation.yield(.cleared)
             }
         }
 

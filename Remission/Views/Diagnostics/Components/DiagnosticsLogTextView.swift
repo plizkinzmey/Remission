@@ -34,7 +34,7 @@ struct DiagnosticsLogTextView: View {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
 
-        let entries = store.visibleEntries.elements
+        let entries = store.visibleEntries
 
         guard let data = try? encoder.encode(entries),
             let string = String(data: data, encoding: .utf8)

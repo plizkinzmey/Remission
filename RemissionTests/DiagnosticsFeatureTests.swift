@@ -25,7 +25,7 @@ struct DiagnosticsFeatureTests {
         } withDependencies: {
             $0.diagnosticsLogStore.load = { @Sendable _ in entries }
             $0.diagnosticsLogStore.observe = { @Sendable _ in
-                AsyncStream { $0.finish() }
+                AsyncStream<DiagnosticsLogStore.StreamEvent> { $0.finish() }
             }
             $0.diagnosticsLogStore.maxEntries = 250
         }
@@ -62,7 +62,7 @@ struct DiagnosticsFeatureTests {
         } withDependencies: {
             $0.diagnosticsLogStore.load = { @Sendable _ in entries }
             $0.diagnosticsLogStore.observe = { @Sendable _ in
-                AsyncStream { $0.finish() }
+                AsyncStream<DiagnosticsLogStore.StreamEvent> { $0.finish() }
             }
         }
         store.exhaustivity = .off

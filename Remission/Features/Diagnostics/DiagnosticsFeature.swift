@@ -14,15 +14,19 @@ struct DiagnosticsReducer {
         var visibleCount: Int = 100
         var viewMode: DiagnosticsViewMode = .list
         var isLive: Bool = true
+        var isAtTop: Bool = true
+        var pendingEntries: [DiagnosticsLogEntry] = []
+        var scrollToLatestRequest: Int = 0
         @Presents var alert: AlertState<AlertAction>?
 
         var filter: DiagnosticsLogFilter {
             DiagnosticsLogFilter(level: selectedLevel, searchText: query)
         }
 
-        var visibleEntries: IdentifiedArrayOf<DiagnosticsLogEntry> {
-            let slice = entries.prefix(visibleCount)
-            return IdentifiedArrayOf(uniqueElements: Array(slice))
+        var pendingCount: Int { pendingEntries.count }
+
+        var visibleEntries: [DiagnosticsLogEntry] {
+            Array(entries.prefix(visibleCount))
         }
     }
 
@@ -34,9 +38,11 @@ struct DiagnosticsReducer {
         case queryChanged(String)
         case viewModeChanged(DiagnosticsViewMode)
         case toggleLive
+        case topRowVisibilityChanged(Bool)
+        case jumpToLatestTapped
         case copyEntry(DiagnosticsLogEntry)
         case logsResponse(TaskResult<[DiagnosticsLogEntry]>)
-        case logsStreamUpdated([DiagnosticsLogEntry])
+        case logsStreamEvent(DiagnosticsLogStore.StreamEvent)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
         case shareAllTapped
@@ -66,8 +72,10 @@ struct DiagnosticsReducer {
                 state.maxEntries = diagnosticsLogStore.maxEntries
                 state.visibleCount = state.pageSize
                 state.isLive = true
+                state.isAtTop = true
+                state.pendingEntries.removeAll()
                 let filter = state.filter
-                return .merge(
+                return .concatenate(
                     loadLogs(filter: filter),
                     observeLogs(filter: filter)
                 )
@@ -77,23 +85,66 @@ struct DiagnosticsReducer {
 
             case .toggleLive:
                 state.isLive.toggle()
+                state.pendingEntries.removeAll()
                 if state.isLive {
                     // Resume: Clear old values and start fresh stream
                     state.entries.removeAll()
                     state.visibleCount = state.pageSize
-                    return observeLogs(filter: state.filter)
+                    state.isAtTop = true
+                    return .concatenate(
+                        loadLogs(filter: state.filter),
+                        observeLogs(filter: state.filter)
+                    )
                 } else {
                     // Pause: Stop stream
                     return .cancel(id: CancelID.observe)
                 }
 
+            case .topRowVisibilityChanged(let isVisible):
+                state.isAtTop = isVisible
+                if isVisible, state.isLive, state.pendingEntries.isEmpty == false {
+                    let pending = state.pendingEntries
+                    state.pendingEntries.removeAll()
+                    // Insert oldest-first so newest ends up at the very top.
+                    for entry in pending.reversed() {
+                        state.entries.insert(entry, at: 0)
+                    }
+                    if let max = state.maxEntries, state.entries.count > max {
+                        state.entries.removeLast(state.entries.count - max)
+                    }
+                    state.visibleCount = max(
+                        1,
+                        min(max(state.visibleCount, state.pageSize), state.entries.count)
+                    )
+                }
+                return .none
+
+            case .jumpToLatestTapped:
+                guard state.isLive else { return .none }
+                if state.pendingEntries.isEmpty == false {
+                    let pending = state.pendingEntries
+                    state.pendingEntries.removeAll()
+                    // Insert oldest-first so newest ends up at the very top.
+                    for entry in pending.reversed() {
+                        state.entries.insert(entry, at: 0)
+                    }
+                    if let max = state.maxEntries, state.entries.count > max {
+                        state.entries.removeLast(state.entries.count - max)
+                    }
+                }
+                state.scrollToLatestRequest += 1
+                state.isAtTop = true
+                return .none
+
             case .queryChanged(let value):
                 state.query = value
+                state.pendingEntries.removeAll()
                 return restartObservation(state: state)
 
             case .levelSelected(let level):
                 state.selectedLevel = level
                 state.query = ""
+                state.pendingEntries.removeAll()
                 return restartObservation(state: state)
 
             case .viewModeChanged(let mode):
@@ -115,6 +166,7 @@ struct DiagnosticsReducer {
             case .logsResponse(.success(let entries)):
                 state.isLoading = false
                 state.entries = IdentifiedArrayOf(uniqueElements: entries)
+                state.pendingEntries.removeAll()
                 if state.entries.isEmpty {
                     state.visibleCount = 0
                 } else {
@@ -141,24 +193,50 @@ struct DiagnosticsReducer {
                 }
                 return .none
 
-            case .logsStreamUpdated(let entries):
-                state.entries = IdentifiedArrayOf(uniqueElements: entries)
-                if state.entries.isEmpty {
+            case .logsStreamEvent(let event):
+                guard state.isLive else { return .none }
+                switch event {
+                case .cleared:
+                    state.entries.removeAll()
+                    state.pendingEntries.removeAll()
                     state.visibleCount = 0
-                } else {
-                    state.visibleCount = max(
-                        1,
-                        min(
-                            max(state.visibleCount, state.pageSize),
-                            state.entries.count
+
+                case .dropped(let ids):
+                    for id in ids {
+                        state.entries.remove(id: id)
+                    }
+                    if state.entries.isEmpty {
+                        state.visibleCount = 0
+                    } else {
+                        state.visibleCount = max(
+                            1,
+                            min(max(state.visibleCount, state.pageSize), state.entries.count)
                         )
-                    )
+                    }
+
+                case .appended(let entry):
+                    if state.isAtTop {
+                        state.entries.insert(entry, at: 0)
+                        if let max = state.maxEntries, state.entries.count > max {
+                            state.entries.removeLast(state.entries.count - max)
+                        }
+                        state.visibleCount = max(
+                            1,
+                            min(max(state.visibleCount, state.pageSize), state.entries.count)
+                        )
+                    } else {
+                        state.pendingEntries.insert(entry, at: 0)
+                        if let max = state.maxEntries, state.pendingEntries.count > max {
+                            state.pendingEntries.removeLast(state.pendingEntries.count - max)
+                        }
+                    }
                 }
                 return .none
 
             case .clearTapped:
                 state.isLoading = true
                 state.entries.removeAll()
+                state.pendingEntries.removeAll()
                 let filter = state.filter
                 return .run { send in
                     do {
@@ -204,8 +282,8 @@ struct DiagnosticsReducer {
     private func observeLogs(filter: DiagnosticsLogFilter) -> Effect<Action> {
         .run { send in
             let stream = await diagnosticsLogStore.observe(filter)
-            for await entries in stream {
-                await send(.logsStreamUpdated(entries))
+            for await event in stream {
+                await send(.logsStreamEvent(event))
             }
         }
         .cancellable(id: CancelID.observe, cancelInFlight: true)
