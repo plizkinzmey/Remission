@@ -56,7 +56,6 @@ struct ServerConnectionFormStateTests {
         let state = ServerConnectionFormState(server: server)
 
         #expect(state.transport == .https)
-        #expect(state.allowUntrustedCertificates == false)
         #expect(state.username == "seeduser")
     }
 
@@ -69,7 +68,6 @@ struct ServerConnectionFormStateTests {
         state.port = "443"
         state.path = "api"
         state.transport = .https
-        state.allowUntrustedCertificates = true
         state.username = "admin"
 
         let id = UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!

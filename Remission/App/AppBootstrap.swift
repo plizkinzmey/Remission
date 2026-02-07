@@ -210,7 +210,7 @@ enum AppBootstrap {
                     port: 443,
                     path: "/transmission/rpc"
                 ),
-                security: .https(allowUntrustedCertificates: false),
+                security: .https,
                 authentication: .init(username: "seeduser")
             )
         ]
@@ -226,7 +226,7 @@ enum AppBootstrap {
                 port: 443,
                 path: "/transmission/rpc"
             ),
-            security: .https(allowUntrustedCertificates: true),
+            security: .https,
             authentication: .init(username: "uitester")
         )
         server.id = makeFixedUUID("AAAA1111-B222-C333-D444-EEEEEEEEEEEE")

@@ -23,8 +23,8 @@ struct ServerConfig: Equatable, Sendable, Identifiable {
     enum Security: Equatable, Sendable {
         /// HTTP без шифрования.
         case http
-        /// HTTPS с опциональным разрешением недоверенных сертификатов.
-        case https(allowUntrustedCertificates: Bool)
+        /// HTTPS.
+        case https
     }
 
     struct NetworkOptions: Equatable, Sendable {
@@ -187,7 +187,7 @@ extension ServerConfig {
         return ServerConfig(
             name: "Seedbox",
             connection: connection,
-            security: .https(allowUntrustedCertificates: false),
+            security: .https,
             authentication: .init(username: "seeduser"),
             createdAt: Date(timeIntervalSince1970: 1_701_111_111)
         )

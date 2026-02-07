@@ -20,7 +20,6 @@ struct ServerConnectionFormState: Equatable, Sendable {
     var port: String = "9091"
     var path: String = "/transmission/rpc"
     var transport: Transport = .http
-    var allowUntrustedCertificates: Bool = false
     var username: String = ""
     var password: String = ""
 
@@ -34,10 +33,8 @@ struct ServerConnectionFormState: Equatable, Sendable {
         switch server.security {
         case .http:
             self.transport = .http
-            self.allowUntrustedCertificates = false
-        case .https(let allowUntrusted):
+        case .https:
             self.transport = .https
-            self.allowUntrustedCertificates = allowUntrusted
         }
         self.username = server.authentication?.username ?? ""
     }
@@ -83,10 +80,8 @@ struct ServerConnectionFormState: Equatable, Sendable {
         switch server.security {
         case .http:
             transport = .http
-            allowUntrustedCertificates = false
-        case .https(let allowUntrusted):
+        case .https:
             transport = .https
-            allowUntrustedCertificates = allowUntrusted
         }
         username = server.authentication?.username ?? ""
         self.password = password ?? ""
@@ -103,7 +98,7 @@ struct ServerConnectionFormState: Equatable, Sendable {
         )
         let security: ServerConfig.Security =
             transport == .https
-            ? .https(allowUntrustedCertificates: allowUntrustedCertificates)
+            ? .https
             : .http
 
         var authentication: ServerConfig.Authentication?

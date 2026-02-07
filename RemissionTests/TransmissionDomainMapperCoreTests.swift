@@ -52,7 +52,6 @@ struct TransmissionDomainMapperCoreTests {
             port: 9091,
             path: "/transmission/rpc",
             isSecure: false,
-            allowUntrustedCertificates: false,
             username: "user",
             createdAt: Date(timeIntervalSince1970: 1_700_000_000)
         )
