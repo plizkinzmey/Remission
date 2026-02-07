@@ -36,12 +36,6 @@ struct ServerFormView: View {
             #endif
         }
         .alert($store.scope(state: \.alert, action: \.alert))
-        .sheet(
-            store: store.scope(
-                state: \.serverConfig.$trustPrompt, action: \.serverConfig.trustPrompt)
-        ) { promptStore in
-            TransmissionTrustPromptView(store: promptStore)
-        }
     }
 
     private var formContent: some View {

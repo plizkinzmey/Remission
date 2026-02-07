@@ -38,7 +38,6 @@ struct StoredServerConfigRecord: Equatable, Sendable, Codable {
     var port: Int
     var path: String?
     var isSecure: Bool
-    var allowUntrustedCertificates: Bool
     var username: String?
     var createdAt: Date?
 }

@@ -7,6 +7,8 @@ extension TorrentListItem {
     struct DisplaySignature: Equatable, Sendable {
         var name: String
         var status: Torrent.Status
+        var error: Int
+        var errorString: String
         var tags: [String]
         var percentDone: Double
         var recheckProgress: Double
@@ -55,6 +57,8 @@ extension TorrentListItem {
             DisplaySignature(
                 name: torrent.name,
                 status: torrent.status,
+                error: torrent.error,
+                errorString: torrent.errorString,
                 tags: torrent.tags,
                 percentDone: torrent.summary.progress.percentDone,
                 recheckProgress: torrent.summary.progress.recheckProgress,

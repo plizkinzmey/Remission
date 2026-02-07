@@ -86,7 +86,7 @@ struct OfflineCacheModelsTests {
             id: UUID(uuidString: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE")!,
             name: "Test",
             connection: .init(host: "NAS.LOCAL", port: 9091, path: "/rpc"),
-            security: .https(allowUntrustedCertificates: false),
+            security: .https,
             authentication: .init(username: "Admin"),
             createdAt: Date(timeIntervalSince1970: 1)
         )

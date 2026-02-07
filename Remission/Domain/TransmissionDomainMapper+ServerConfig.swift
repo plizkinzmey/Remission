@@ -35,7 +35,7 @@ extension TransmissionDomainMapper {
 
         let security: ServerConfig.Security =
             record.isSecure
-            ? .https(allowUntrustedCertificates: record.allowUntrustedCertificates)
+            ? .https
             : .http
 
         let authentication: ServerConfig.Authentication? = try makeAuthentication(

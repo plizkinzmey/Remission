@@ -10,8 +10,6 @@ struct ServerConfigurationReducer {
         var connectionStatus: ServerConnectionStatus = .idle
         var verifiedSubmission: ServerSubmissionContext?
 
-        @Presents var trustPrompt: ServerTrustPromptReducer.State?
-
         var isCheckButtonDisabled: Bool {
             connectionStatus == .testing
         }
@@ -21,8 +19,6 @@ struct ServerConfigurationReducer {
         case binding(BindingAction<State>)
         case checkConnectionButtonTapped
         case connectionTestFinished(ServerConnectionTestResult)
-        case trustPromptReceived(TransmissionTrustPrompt)
-        case trustPrompt(PresentationAction<ServerTrustPromptReducer.Action>)
 
         case uiTestBypassConnection  // Для UI тестов
 
@@ -41,7 +37,6 @@ struct ServerConfigurationReducer {
 
     private enum CancellationID: Hashable {
         case connectionProbe
-        case trustPrompts
     }
 
     var body: some ReducerOf<Self> {
@@ -49,9 +44,6 @@ struct ServerConfigurationReducer {
 
         Reduce { state, action in
             self.core(state: &state, action: action)
-        }
-        .ifLet(\.$trustPrompt, action: \.trustPrompt) {
-            ServerTrustPromptReducer()
         }
     }
 
@@ -88,40 +80,19 @@ struct ServerConfigurationReducer {
             if let verified = state.verifiedSubmission {
                 return .merge(
                     .cancel(id: CancellationID.connectionProbe),
-                    .cancel(id: CancellationID.trustPrompts),
                     .send(.delegate(.connectionVerified(verified)))
                 )
             }
             return .merge(
-                .cancel(id: CancellationID.connectionProbe),
-                .cancel(id: CancellationID.trustPrompts)
+                .cancel(id: CancellationID.connectionProbe)
             )
 
         case .connectionTestFinished(.failure(let message)):
             state.connectionStatus = .failed(message)
             state.verifiedSubmission = nil
             return .merge(
-                .cancel(id: CancellationID.connectionProbe),
-                .cancel(id: CancellationID.trustPrompts)
+                .cancel(id: CancellationID.connectionProbe)
             )
-
-        case .trustPromptReceived(let prompt):
-            state.trustPrompt = ServerTrustPromptReducer.State(prompt: prompt)
-            return .none
-
-        case .trustPrompt(.presented(.trustConfirmed)):
-            state.trustPrompt?.prompt.resolve(with: .trustPermanently)
-            state.trustPrompt = nil
-            return .none
-
-        case .trustPrompt(.presented(.cancelled)):
-            state.trustPrompt?.prompt.resolve(with: .deny)
-            state.trustPrompt = nil
-            return .none
-
-        case .trustPrompt(.dismiss):
-            state.trustPrompt = nil
-            return .none
 
         case .uiTestBypassConnection:
             guard let context = self.prepareSubmission(state: &state) else { return .none }
@@ -140,8 +111,7 @@ struct ServerConfigurationReducer {
             state.verifiedSubmission = nil
         }
         return .merge(
-            .cancel(id: CancellationID.connectionProbe),
-            .cancel(id: CancellationID.trustPrompts)
+            .cancel(id: CancellationID.connectionProbe)
         )
     }
 
@@ -168,34 +138,22 @@ struct ServerConfigurationReducer {
         context: ServerSubmissionContext
     ) -> Effect<Action> {
         state.connectionStatus = .testing
-        return .merge(
-            .run { [context] send in
-                do {
-                    let result = try await serverConnectionProbe.run(
-                        .init(server: context.server, password: context.password),
-                        trustPromptCenter.makeHandler()
-                    )
-                    await send(.connectionTestFinished(.success(result.handshake)))
-                } catch let probeError as ServerConnectionProbe.ProbeError {
-                    await send(.connectionTestFinished(.failure(probeError.displayMessage)))
-                } catch {
-                    await send(
-                        .connectionTestFinished(
-                            .failure(error.userFacingMessage)))
-                }
-            }
-            .cancellable(id: CancellationID.connectionProbe, cancelInFlight: true),
-            listenForTrustPrompts()
-        )
-    }
-
-    private func listenForTrustPrompts() -> Effect<Action> {
-        .run { send in
-            for await prompt in trustPromptCenter.prompts {
-                await send(.trustPromptReceived(prompt))
+        return .run { [context] send in
+            do {
+                let result = try await serverConnectionProbe.run(
+                    .init(server: context.server, password: context.password),
+                    trustPromptCenter.makeHandler()
+                )
+                await send(.connectionTestFinished(.success(result.handshake)))
+            } catch let probeError as ServerConnectionProbe.ProbeError {
+                await send(.connectionTestFinished(.failure(probeError.displayMessage)))
+            } catch {
+                await send(
+                    .connectionTestFinished(
+                        .failure(error.userFacingMessage)))
             }
         }
-        .cancellable(id: CancellationID.trustPrompts, cancelInFlight: true)
+        .cancellable(id: CancellationID.connectionProbe, cancelInFlight: true)
     }
 }
 
@@ -222,23 +180,6 @@ extension ServerConfigurationReducer.State {
         case .idle, .testing:
             return .neutral
         }
-    }
-}
-
-@Reducer
-struct ServerTrustPromptReducer {
-    @ObservableState
-    struct State: Equatable {
-        var prompt: TransmissionTrustPrompt
-    }
-
-    enum Action: Equatable {
-        case trustConfirmed
-        case cancelled
-    }
-
-    var body: some ReducerOf<Self> {
-        EmptyReducer()
     }
 }
 

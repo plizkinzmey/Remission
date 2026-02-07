@@ -104,7 +104,7 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
 
             let mapper = TransmissionDomainMapper()
 
-            let config = server.makeTransmissionClientConfig(
+            let config = try server.makeTransmissionClientConfig(
                 password: password,
                 network: .default
             )

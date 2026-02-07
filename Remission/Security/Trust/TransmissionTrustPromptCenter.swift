@@ -1,57 +1,73 @@
 import Foundation
 
-/// Представляет запрос на доверие сертификату и способ ответить на него.
-public struct TransmissionTrustPrompt: Sendable, Equatable {
-    public let challenge: TransmissionTrustChallenge
-    private let resolver: @Sendable (TransmissionTrustDecision) -> Void
+private actor OneShotTrustDecision {
+    private var continuation: CheckedContinuation<TransmissionTrustDecision, Never>?
 
-    init(
-        challenge: TransmissionTrustChallenge,
-        resolver: @escaping @Sendable (TransmissionTrustDecision) -> Void
-    ) {
-        self.challenge = challenge
-        self.resolver = resolver
-    }
-
-    /// Завершает запрос решением пользователя.
-    public func resolve(with decision: TransmissionTrustDecision) {
-        resolver(decision)
-    }
-}
-
-extension TransmissionTrustPrompt {
-    /// Compares prompts by their underlying challenge identity.
-    public static func == (lhs: TransmissionTrustPrompt, rhs: TransmissionTrustPrompt) -> Bool {
-        lhs.challenge == rhs.challenge
-    }
-}
-
-/// Координатор, выпускающий события запросов доверия и позволяющий асинхронно отвечать на них.
-public final class TransmissionTrustPromptCenter: @unchecked Sendable {
-    private let continuation: AsyncStream<TransmissionTrustPrompt>.Continuation
-    public let prompts: AsyncStream<TransmissionTrustPrompt>
-
-    public init() {
-        var continuation: AsyncStream<TransmissionTrustPrompt>.Continuation!
-        self.prompts = AsyncStream { continuation = $0 }
+    init(_ continuation: CheckedContinuation<TransmissionTrustDecision, Never>) {
         self.continuation = continuation
     }
 
-    deinit {
-        continuation.finish()
+    func resume(with decision: TransmissionTrustDecision) {
+        guard let continuation else { return }
+        self.continuation = nil
+        continuation.resume(returning: decision)
+    }
+}
+
+/// Coordinator that broadcasts TLS trust prompts to UI listeners.
+///
+/// Invariant: `makeHandler()` must never suspend forever if there are no observers.
+/// If no observers are registered, the handler returns `.deny` to avoid hanging a URLSession challenge.
+public actor TransmissionTrustPromptCenter {
+    private var observers: [UUID: AsyncStream<TransmissionTrustPrompt>.Continuation] = [:]
+
+    public init() {}
+
+    public func observe() -> AsyncStream<TransmissionTrustPrompt> {
+        AsyncStream { continuation in
+            let id = UUID()
+            observers[id] = continuation
+            continuation.onTermination = { [weak self] _ in
+                Task { await self?.removeObserver(id) }
+            }
+        }
     }
 
-    /// Создаёт хендлер, совместимый с TransmissionTrustEvaluator.
-    public func makeHandler() -> TransmissionTrustDecisionHandler {
+    private func removeObserver(_ id: UUID) {
+        observers.removeValue(forKey: id)
+    }
+
+    private func emit(_ prompt: TransmissionTrustPrompt) {
+        for continuation in observers.values {
+            continuation.yield(prompt)
+        }
+    }
+
+    /// Creates a handler compatible with the trust evaluator.
+    ///
+    /// Nonisolated so call sites don't need to `await` just to obtain the closure.
+    nonisolated public func makeHandler() -> TransmissionTrustDecisionHandler {
         { [weak self] challenge in
             guard let self else { return .deny }
-            return await withCheckedContinuation { continuation in
-                let prompt = TransmissionTrustPrompt(
-                    challenge: challenge,
-                    resolver: { decision in continuation.resume(returning: decision) }
-                )
-                self.continuation.yield(prompt)
-            }
+            return await self.handle(challenge)
+        }
+    }
+
+    private func handle(
+        _ challenge: TransmissionTrustChallenge
+    ) async -> TransmissionTrustDecision {
+        let hasObservers = observers.isEmpty == false
+        guard hasObservers else { return .deny }
+
+        return await withCheckedContinuation { continuation in
+            let oneShot = OneShotTrustDecision(continuation)
+            let prompt = TransmissionTrustPrompt(
+                challenge: challenge,
+                resolver: { decision in
+                    Task { await oneShot.resume(with: decision) }
+                }
+            )
+            emit(prompt)
         }
     }
 }

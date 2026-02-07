@@ -102,9 +102,9 @@ extension ServerConfigRepository {
         let security: StoredSecurity =
             switch server.security {
             case .http:
-                .init(isSecure: false, allowUntrustedCertificates: false)
-            case .https(let allowUntrustedCertificates):
-                .init(isSecure: true, allowUntrustedCertificates: allowUntrustedCertificates)
+                .init(isSecure: false)
+            case .https:
+                .init(isSecure: true)
             }
 
         return StoredServerConfigRecord(
@@ -114,7 +114,6 @@ extension ServerConfigRepository {
             port: server.connection.port,
             path: path,
             isSecure: security.isSecure,
-            allowUntrustedCertificates: security.allowUntrustedCertificates,
             username: server.authentication?.username,
             createdAt: server.createdAt
         )
@@ -122,7 +121,6 @@ extension ServerConfigRepository {
 
     private struct StoredSecurity {
         var isSecure: Bool
-        var allowUntrustedCertificates: Bool
     }
 }
 

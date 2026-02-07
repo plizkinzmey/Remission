@@ -9,13 +9,6 @@ import Testing
 struct ServerListRowCoverageTests {
     @Test
     func serverRowRendersConnectedAndFailedStates() {
-        let store = Store(initialState: ServerListReducer.State()) {
-            ServerListReducer()
-        } withDependencies: {
-            $0 = AppDependencies.makeTestDefaults()
-        }
-        let view = ServerListView(store: store)
-
         let handshake = TransmissionHandshakeResult(
             sessionID: "session",
             rpcVersion: 17,
@@ -28,11 +21,23 @@ struct ServerListRowCoverageTests {
         connected.phase = .connected(handshake)
         connected.storageSummary = StorageSummary(totalBytes: 10_000, freeBytes: 4_000)
 
-        _ = view.serverRow(ServerConfig.sample, status: connected)
+        _ = ServerRowView(
+            server: ServerConfig.sample,
+            status: connected,
+            onTap: {},
+            onEdit: {},
+            onDelete: {}
+        )
 
         var failed = ServerListReducer.ConnectionStatus()
         failed.phase = .failed("Connection failed")
-        _ = view.serverRow(ServerConfig.sample, status: failed)
+        _ = ServerRowView(
+            server: ServerConfig.sample,
+            status: failed,
+            onTap: {},
+            onEdit: {},
+            onDelete: {}
+        )
     }
 
     @Test

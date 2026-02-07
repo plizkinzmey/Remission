@@ -13,6 +13,8 @@ struct AppReducer {
         var serverList: ServerListReducer.State
         var path: StackState<ServerDetailReducer.State>
         var pendingTorrentFileURL: URL?
+        @Presents var trustPrompt: ServerTrustPromptReducer.State?
+        var trustPromptQueue: [TransmissionTrustPrompt] = []
         #if os(iOS)
             var startup: StartupState = .init()
             var backgroundFetchCompletion: BackgroundFetchCompletion?
@@ -35,6 +37,8 @@ struct AppReducer {
         case serverList(ServerListReducer.Action)
         case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
         case openTorrentFile(URL)
+        case trustPromptReceived(TransmissionTrustPrompt)
+        case trustPrompt(PresentationAction<ServerTrustPromptReducer.Action>)
         #if os(iOS)
             case backgroundFetch(BackgroundFetchCompletion)
         #endif
@@ -42,13 +46,20 @@ struct AppReducer {
 
     @Dependency(\.appClock) var appClock
     @Dependency(\.appLogger) var logger
+    @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
 
     var body: some Reducer<State, Action> {
         Reduce { state, action in
             switch action {
             case .task:
                 var effects: [Effect<Action>] = [
-                    .send(.serverList(.task))
+                    .send(.serverList(.task)),
+                    .run { send in
+                        let stream = await trustPromptCenter.observe()
+                        for await prompt in stream {
+                            await send(.trustPromptReceived(prompt))
+                        }
+                    }
                 ]
                 #if os(iOS)
                     if state.startup.shouldScheduleTimer {
@@ -68,6 +79,34 @@ struct AppReducer {
                     }
                 #endif
                 return .merge(effects)
+
+            case .trustPromptReceived(let prompt):
+                if state.trustPrompt == nil {
+                    state.trustPrompt = ServerTrustPromptReducer.State(prompt: prompt)
+                } else {
+                    // Multiple concurrent URLSession challenges are possible; queue them so none hang.
+                    state.trustPromptQueue.append(prompt)
+                }
+                return .none
+
+            case .trustPrompt(.presented(.trustConfirmed)):
+                state.trustPrompt?.prompt.resolve(with: .trustPermanently)
+                state.trustPrompt = nil
+                self.presentNextTrustPromptIfNeeded(state: &state)
+                return .none
+
+            case .trustPrompt(.presented(.cancelled)):
+                state.trustPrompt?.prompt.resolve(with: .deny)
+                state.trustPrompt = nil
+                self.presentNextTrustPromptIfNeeded(state: &state)
+                return .none
+
+            case .trustPrompt(.dismiss):
+                // Treat dismiss as deny, otherwise the URLSession challenge may hang forever.
+                state.trustPrompt?.prompt.resolve(with: .deny)
+                state.trustPrompt = nil
+                self.presentNextTrustPromptIfNeeded(state: &state)
+                return .none
 
             case .startupTimerElapsed:
                 #if os(iOS)
@@ -205,10 +244,19 @@ struct AppReducer {
         .forEach(\.path, action: \.path) {
             ServerDetailReducer()
         }
+        .ifLet(\.$trustPrompt, action: \.trustPrompt) {
+            ServerTrustPromptReducer()
+        }
 
         Scope(state: \.serverList, action: \.serverList) {
             ServerListReducer()
         }
+    }
+
+    private func presentNextTrustPromptIfNeeded(state: inout State) {
+        guard state.trustPrompt == nil else { return }
+        guard state.trustPromptQueue.isEmpty == false else { return }
+        state.trustPrompt = .init(prompt: state.trustPromptQueue.removeFirst())
     }
 
     private func preferredServer(in state: State) -> ServerConfig? {

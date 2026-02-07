@@ -13,9 +13,10 @@ struct TransmissionTrustPromptCenterTests {
         let handler = center.makeHandler()
 
         let challenge = makeChallenge(host: "seedbox.local")
-        let decisionTask = Task { await handler(challenge) }
+        let stream = await center.observe()
+        var iterator = stream.makeAsyncIterator()
 
-        var iterator = center.prompts.makeAsyncIterator()
+        let decisionTask = Task { await handler(challenge) }
         let prompt = try #require(await iterator.next())
 
         #expect(prompt.challenge == challenge)
@@ -23,6 +24,34 @@ struct TransmissionTrustPromptCenterTests {
         prompt.resolve(with: .trustPermanently)
         let decision = await decisionTask.value
 
+        #expect(decision == .trustPermanently)
+    }
+
+    @Test("observe() is broadcast: несколько подписчиков получают один и тот же prompt")
+    func observeBroadcastsPromptsToMultipleSubscribers() async throws {
+        let center = TransmissionTrustPromptCenter()
+        let handler = center.makeHandler()
+
+        let stream1 = await center.observe()
+        let stream2 = await center.observe()
+
+        var it1 = stream1.makeAsyncIterator()
+        var it2 = stream2.makeAsyncIterator()
+
+        let challenge = makeChallenge(host: "broadcast.local")
+        let decisionTask = Task { await handler(challenge) }
+
+        let prompt1 = try #require(await it1.next())
+        let prompt2 = try #require(await it2.next())
+
+        #expect(prompt1.challenge == challenge)
+        #expect(prompt2.challenge == challenge)
+
+        // Resolving multiple times must not crash (Only the first should win).
+        prompt1.resolve(with: .trustPermanently)
+        prompt2.resolve(with: .deny)
+
+        let decision = await decisionTask.value
         #expect(decision == .trustPermanently)
     }
 }

@@ -19,7 +19,6 @@ struct TransmissionDomainMapperServerConfigTests {
             port: 9091,
             path: nil,
             isSecure: false,
-            allowUntrustedCertificates: false,
             username: "alice",
             createdAt: nil
         )
@@ -49,7 +48,6 @@ struct TransmissionDomainMapperServerConfigTests {
             port: 9091,
             path: nil,
             isSecure: false,
-            allowUntrustedCertificates: false,
             username: nil,
             createdAt: Date()
         )
@@ -66,7 +64,6 @@ struct TransmissionDomainMapperServerConfigTests {
             port: 0,
             path: nil,
             isSecure: false,
-            allowUntrustedCertificates: false,
             username: nil,
             createdAt: Date()
         )
@@ -94,7 +91,6 @@ struct TransmissionDomainMapperServerConfigTests {
             port: 443,
             path: nil,
             isSecure: true,
-            allowUntrustedCertificates: false,
             username: nil,
             createdAt: Date()
         )
@@ -107,7 +103,6 @@ struct TransmissionDomainMapperServerConfigTests {
             port: 443,
             path: nil,
             isSecure: true,
-            allowUntrustedCertificates: false,
             username: "alice",
             createdAt: Date()
         )
