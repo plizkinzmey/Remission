@@ -499,12 +499,11 @@ extension TorrentListView {
 
     #if os(macOS)
         private var torrentRowsMacOS: some View {
-            // On macOS we render from a cached `visibleItems` list for performance.
-            // Map through `displayItem(for:)` so optimistic verify state (checkWaiting + busy) is
-            // reflected immediately and consistently across platforms.
-            let displayedItems = store.visibleItems.map(displayItem(for:))
             LazyVStack(spacing: 10) {
-                ForEach(displayedItems) { item in
+                // On macOS we render from a cached `visibleItems` list for performance.
+                // Map through `displayItem(for:)` so optimistic verify state (checkWaiting + busy) is
+                // reflected immediately and consistently across platforms.
+                ForEach(store.visibleItems.map(displayItem(for:))) { item in
                     TorrentRowView(
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
