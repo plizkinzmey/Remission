@@ -24,9 +24,14 @@ extension TorrentListReducer {
                         loadPreferences(serverID: serverID),
                         observePreferences(serverID: serverID),
                         .run { _ in
-                            _ = try await notificationClient.requestAuthorization([
-                                .alert, .sound, .badge
-                            ])
+                            do {
+                                _ = try await notificationClient.requestAuthorization([
+                                    .alert, .sound, .badge
+                                ])
+                            } catch {
+                                // If notifications aren't available (or aren't configured in tests),
+                                // we treat it as non-fatal and continue without them.
+                            }
                         }
                     )
 
