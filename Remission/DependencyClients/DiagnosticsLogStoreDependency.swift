@@ -276,6 +276,9 @@ import Foundation
     }
 
     private final class DiagnosticsUserDefaultsBox: @unchecked Sendable {
+        // Safety invariant:
+        // - `UserDefaults` is thread-safe for concurrent access.
+        // - This wrapper only provides a minimal API for `Data` get/set/remove.
         private let defaults: UserDefaults
 
         init(defaults: UserDefaults) {

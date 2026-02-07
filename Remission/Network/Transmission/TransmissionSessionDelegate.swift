@@ -1,10 +1,17 @@
 import Foundation
 
 private struct SendableSecTrust: @unchecked Sendable {
+    // Safety invariant:
+    // - `SecTrust` is treated as immutable after creation by the system.
+    // - We only pass it across concurrency boundaries for evaluation; we do not mutate it.
     let value: SecTrust
 }
 
 private struct CompletionWrapper: @unchecked Sendable {
+    // Safety invariant:
+    // - The wrapped completion handler is invoked from a Task (potentially off-main).
+    // - URLSession requires it to be called exactly once per challenge; our code path satisfies that.
+    // - We never share/mutate captured state through this wrapper; it is a thin transport container.
     let handler: (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
 
     init(_ handler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
