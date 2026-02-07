@@ -66,7 +66,7 @@ extension ServerConnectionProbe {
         sessionConfiguration: URLSessionConfiguration? = nil
     ) -> ServerConnectionProbe {
         ServerConnectionProbe { request, trustHandler in
-            let config = request.server.makeTransmissionClientConfig(
+            let config = try request.server.makeTransmissionClientConfig(
                 password: request.password,
                 network: .init(
                     requestTimeout: 20,

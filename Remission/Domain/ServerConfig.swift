@@ -64,8 +64,20 @@ extension ServerConfig {
         return false
     }
 
+    enum ServerConfigError: Error, LocalizedError, Sendable, Equatable {
+        case invalidBaseURL(host: String, port: Int, path: String, isSecure: Bool)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidBaseURL(let host, let port, let path, let isSecure):
+                let scheme = isSecure ? "https" : "http"
+                return "Невозможно построить URL для \(scheme)://\(host):\(port)\(path)"
+            }
+        }
+    }
+
     /// Базовый URL `scheme://host:port/path`.
-    var baseURL: URL {
+    func makeBaseURL() throws -> URL {
         var components = URLComponents()
         components.scheme = isSecure ? "https" : "http"
         components.host = connection.host
@@ -73,8 +85,11 @@ extension ServerConfig {
         components.path = connection.path.hasPrefix("/") ? connection.path : "/\(connection.path)"
 
         guard let url = components.url else {
-            preconditionFailure(
-                "Невозможно построить URL для \(connection.host):\(connection.port)"
+            throw ServerConfigError.invalidBaseURL(
+                host: connection.host,
+                port: connection.port,
+                path: components.path,
+                isSecure: isSecure
             )
         }
         return url
@@ -128,8 +143,9 @@ extension ServerConfig {
         password: String?,
         network: NetworkOptions = .default,
         logger: TransmissionLogger = NoOpTransmissionLogger.shared
-    ) -> TransmissionClientConfig {
-        TransmissionClientConfig(
+    ) throws -> TransmissionClientConfig {
+        let baseURL = try makeBaseURL()
+        return TransmissionClientConfig(
             baseURL: baseURL,
             username: authentication?.username,
             password: password,

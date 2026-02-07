@@ -18,14 +18,24 @@ struct ServerConfigTests {
 
     // Проверяет построение baseURL и displayAddress для HTTP.
     @Test
-    func httpBaseURLAndDisplayAddress() {
+    func httpBaseURLAndDisplayAddress() throws {
         var server = ServerConfig.previewLocalHTTP
         server.connection.path = "rpc"
 
         #expect(server.isSecure == false)
         #expect(server.usesInsecureTransport)
-        #expect(server.baseURL.absoluteString.contains("http://nas.local:9091/"))
+        let url = try server.makeBaseURL()
+        #expect(url.absoluteString.contains("http://nas.local:9091/"))
         #expect(server.displayAddress == "http://nas.local:9091")
+    }
+
+    @Test
+    func invalidHostThrows() {
+        var server = ServerConfig.previewLocalHTTP
+        server.connection.host = ""
+        #expect(throws: ServerConfig.ServerConfigError.self) {
+            _ = try server.makeBaseURL()
+        }
     }
 
     // Проверяет, что credentialsKey формируется при наличии username.
