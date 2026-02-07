@@ -35,7 +35,7 @@ final class TransmissionSessionDelegate: NSObject, URLSessionTaskDelegate, Senda
 
         let wrappedTrust = SendableSecTrust(value: serverTrust)
         let completion = CompletionWrapper(completionHandler)
-        Task { @MainActor in
+        Task {
             let outcome = await trustEvaluator.evaluate(serverTrust: wrappedTrust.value)
             switch outcome {
             case .useCredential(let credential):
