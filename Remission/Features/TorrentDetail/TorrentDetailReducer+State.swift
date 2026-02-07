@@ -94,6 +94,15 @@ extension TorrentDetailReducer {
             pendingListSync = false
         }
 
+        // Expose lock state as computed properties so SwiftUI can observe them.
+        // Avoid using `store.withState { ... }` in views, since it bypasses observation and can
+        // introduce UI delays (e.g. a command icon not switching to a spinner immediately).
+        var isStartLocked: Bool { isCommandCategoryLocked(.start) }
+        var isPauseLocked: Bool { isCommandCategoryLocked(.pause) }
+        var isVerifyLocked: Bool { isCommandCategoryLocked(.verify) }
+        var isRemoveLocked: Bool { isCommandCategoryLocked(.remove) }
+        var isPriorityLocked: Bool { isCommandCategoryLocked(.priority) }
+
         func isCommandCategoryLocked(_ category: TorrentDetailReducer.CommandCategory) -> Bool {
             if let activeCommand, activeCommand.category == category {
                 return true

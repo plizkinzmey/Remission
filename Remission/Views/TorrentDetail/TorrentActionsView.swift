@@ -8,7 +8,7 @@ struct TorrentActionsView: View {
         HStack(spacing: 10) {
             AppTorrentActionButton(
                 type: isActive ? .pause : .start,
-                isBusy: isBusy(for: isActive ? .pause : .start),
+                isBusy: isActive ? store.isPauseLocked : store.isStartLocked,
                 isLocked: false,
                 action: { store.send(isActive ? .pauseTapped : .startTapped) }
             )
@@ -18,7 +18,7 @@ struct TorrentActionsView: View {
 
             AppTorrentActionButton(
                 type: .verify,
-                isBusy: isBusy(for: .verify),
+                isBusy: store.isVerifyLocked,
                 isLocked: false,
                 action: { store.send(.verifyTapped) }
             )
@@ -28,7 +28,7 @@ struct TorrentActionsView: View {
 
             AppTorrentActionButton(
                 type: .remove,
-                isBusy: isBusy(for: .remove),
+                isBusy: store.isRemoveLocked,
                 isLocked: false,
                 action: { store.send(.removeButtonTapped) }
             )
@@ -51,17 +51,6 @@ struct TorrentActionsView: View {
     }
 
     private var toolbarPillHeight: CGFloat { 34 }
-
-    private func isBusy(for type: TorrentActionType) -> Bool {
-        let category: TorrentDetailReducer.CommandCategory
-        switch type {
-        case .start: category = .start
-        case .pause: category = .pause
-        case .verify: category = .verify
-        case .remove: category = .remove
-        }
-        return store.withState { $0.isCommandCategoryLocked(category) }
-    }
 }
 
 #if DEBUG

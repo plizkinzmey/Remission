@@ -22,7 +22,7 @@ struct TorrentFilesView: View {
     }
 
     private var isPriorityLocked: Bool {
-        store.withState { $0.isCommandCategoryLocked(.priority) }
+        store.isPriorityLocked
     }
 }
 
