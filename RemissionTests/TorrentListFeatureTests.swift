@@ -174,8 +174,7 @@ struct TorrentListFeatureTests {
         await store.send(.verifyTapped(torrentID)) {
             $0.inFlightCommands[torrentID] = .init(
                 command: .verify,
-                initialStatus: .downloading,
-                didObserveStatusChange: false
+                initialStatus: .downloading
             )
         }
 

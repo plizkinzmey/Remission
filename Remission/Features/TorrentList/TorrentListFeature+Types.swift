@@ -15,9 +15,6 @@ struct TorrentListReducer: Reducer {
     struct InFlightCommand: Equatable {
         var command: TorrentCommand
         var initialStatus: Torrent.Status
-        /// Для некоторых команд (например, `verify`) статус может менятьcя не сразу,
-        /// и мы не хотим рано убирать "busy" состояние до первого наблюдаемого изменения статуса.
-        var didObserveStatusChange: Bool = false
     }
     enum Phase: Equatable {
         case idle

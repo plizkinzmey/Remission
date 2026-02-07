@@ -382,9 +382,6 @@ extension TorrentListReducer {
 
                     let currentIDs = Set(state.items.map(\.id))
                     state.removingTorrentIDs.formIntersection(currentIDs)
-                    // Keep "busy" flags stable for commands. In particular, `verify` can yield
-                    // intermediate statuses (e.g. downloadWaiting) before the torrent enters
-                    // checkWaiting/checking, and we don't want the button to flicker enabled.
                     var updatedInFlight: [Torrent.Identifier: InFlightCommand] = [:]
                     updatedInFlight.reserveCapacity(state.inFlightCommands.count)
                     for (id, inFlight0) in state.inFlightCommands {
@@ -400,29 +397,16 @@ extension TorrentListReducer {
                             }
 
                         case .verify:
-                            var inFlight = inFlight0
-                            if item.torrent.status != inFlight.initialStatus {
-                                inFlight.didObserveStatusChange = true
-                            }
-
-                            // Once the check actually starts, we can drop the in-flight command,
-                            // and rely on `status == .checkWaiting/.checking` for the busy UI.
+                            // Hard rule (matches UX expectation):
+                            // once user taps verify, keep the command "busy" until Transmission
+                            // reports that the check actually started.
                             if item.torrent.status == .checkWaiting
                                 || item.torrent.status == .checking
                             {
+                                // Drop in-flight; UI stays busy via status while checking runs.
                                 continue
                             }
-
-                            // If we already saw at least one status change, and we returned back
-                            // to the initial status without ever observing checking states, treat
-                            // the command as "effectively complete" (we likely missed a fast check).
-                            if inFlight.didObserveStatusChange,
-                                item.torrent.status == inFlight.initialStatus
-                            {
-                                continue
-                            }
-
-                            updatedInFlight[id] = inFlight
+                            updatedInFlight[id] = inFlight0
                         }
                     }
                     state.inFlightCommands = updatedInFlight
