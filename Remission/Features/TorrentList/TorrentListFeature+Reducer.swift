@@ -43,6 +43,7 @@ extension TorrentListReducer {
                     state.pendingRemoveTorrentID = nil
                     state.removingTorrentIDs.removeAll()
                     state.inFlightCommands.removeAll()
+                    state.verifyPendingIDs.removeAll()
                     state.isAwaitingConnection = false
                     updateVisibleItemsCache(state: &state)
                     return .merge(
@@ -63,6 +64,7 @@ extension TorrentListReducer {
                     state.pendingRemoveTorrentID = nil
                     state.removingTorrentIDs.removeAll()
                     state.inFlightCommands.removeAll()
+                    state.verifyPendingIDs.removeAll()
                     state.lastSnapshotAt = nil
                     state.isAwaitingConnection = true
                     state.itemsRevision += 1
@@ -120,6 +122,7 @@ extension TorrentListReducer {
                     return performCommand(.pause, torrentID: id, state: &state)
 
                 case .verifyTapped(let id):
+                    state.verifyPendingIDs.insert(id)
                     return performCommand(.verify, torrentID: id, state: &state)
 
                 case .removeTapped(let id):
@@ -164,6 +167,7 @@ extension TorrentListReducer {
                 case .commandResponse(let id, .failure(let error)):
                     state.inFlightCommands.removeValue(forKey: id)
                     state.removingTorrentIDs.remove(id)
+                    state.verifyPendingIDs.remove(id)
                     if var item = state.items[id: id] {
                         item.isRemoving = false
                         state.items[id: id] = item
@@ -382,6 +386,7 @@ extension TorrentListReducer {
 
                     let currentIDs = Set(state.items.map(\.id))
                     state.removingTorrentIDs.formIntersection(currentIDs)
+                    state.verifyPendingIDs.formIntersection(currentIDs)
                     var updatedInFlight: [Torrent.Identifier: InFlightCommand] = [:]
                     updatedInFlight.reserveCapacity(state.inFlightCommands.count)
                     for (id, inFlight0) in state.inFlightCommands {
@@ -410,6 +415,16 @@ extension TorrentListReducer {
                         }
                     }
                     state.inFlightCommands = updatedInFlight
+
+                    // Clear optimistic verify pending once the backend reports check start.
+                    for item in state.items {
+                        guard state.verifyPendingIDs.contains(item.id) else { continue }
+                        if item.torrent.status == .checkWaiting
+                            || item.torrent.status == .checking
+                        {
+                            state.verifyPendingIDs.remove(item.id)
+                        }
+                    }
                     if payload.isFromCache == false {
                         state.failedAttempts = 0
                         state.offlineState = nil

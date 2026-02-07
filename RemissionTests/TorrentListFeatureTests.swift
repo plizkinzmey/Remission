@@ -172,6 +172,7 @@ struct TorrentListFeatureTests {
         store.exhaustivity = .off
 
         await store.send(.verifyTapped(torrentID)) {
+            $0.verifyPendingIDs.insert(torrentID)
             $0.inFlightCommands[torrentID] = .init(
                 command: .verify,
                 initialStatus: .downloading
