@@ -86,18 +86,6 @@ This makes it easy to:
   - a fingerprint of connection parameters
   - RPC version (can influence mapping)
 
-## ATS & HTTP (Rationale)
-
-Remission supports user-configured server endpoints, including HTTP.
-
-- **macOS**: `Remission/Info-macOS.plist` sets `NSAppTransportSecurity.NSAllowsArbitraryLoads = true`.
-  - Rationale: the host list is dynamic (configured by the user), so a static allowlist is not practical.
-  - UX: the app shows an HTTP warning and lets users acknowledge it:
-    - Store: `Remission/Storage/HttpWarningPreferencesStore.swift`
-- **iOS**: there are no ATS exceptions in `Remission/Info-iOS.plist`.
-  - Implication: plain HTTP to remote hosts may be blocked by ATS depending on OS rules and network context.
-  - We treat this as an intentional constraint until we decide on an iOS strategy (e.g. dropping HTTP, or adding scoped exceptions).
-
 ## Testing Strategy (What Is Idiomatic Here)
 
 - Prefer TCA `TestStore` with dependency overrides.
@@ -119,3 +107,4 @@ When adding a dependency:
 1. Add a dependency key/client in `Remission/DependencyClients/`.
 2. Add live implementation in `Remission/DependencyClientLive/` (only if needed; some deps are live in the client itself).
 3. Decide default values in `DependencyValues+App.swift` and set them in `AppDependencies.*` if the dependency differs by environment.
+
