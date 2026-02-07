@@ -123,6 +123,16 @@ extension TorrentListReducer {
 
                 case .verifyTapped(let id):
                     state.verifyPendingIDs.insert(id)
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "verifyTapped",
+                            metadata: [
+                                "id": "\(id.rawValue)",
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)"
+                            ]
+                        )
+                    }
                     return performCommand(.verify, torrentID: id, state: &state)
 
                 case .removeTapped(let id):
@@ -168,6 +178,17 @@ extension TorrentListReducer {
                     state.inFlightCommands.removeValue(forKey: id)
                     state.removingTorrentIDs.remove(id)
                     state.verifyPendingIDs.remove(id)
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "commandResponse.failure",
+                            metadata: [
+                                "id": "\(id.rawValue)",
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)",
+                                "error": "\(error.message)"
+                            ]
+                        )
+                    }
                     if var item = state.items[id: id] {
                         item.isRemoving = false
                         state.items[id: id] = item
@@ -424,6 +445,15 @@ extension TorrentListReducer {
                         {
                             state.verifyPendingIDs.remove(item.id)
                         }
+                    }
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "torrentsResponse.verifyState",
+                            metadata: [
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)"
+                            ]
+                        )
                     }
                     if payload.isFromCache == false {
                         state.failedAttempts = 0
