@@ -97,7 +97,6 @@ Remission supports user-configured server endpoints, including HTTP.
 - **iOS**: there are no ATS exceptions in `Remission/Info-iOS.plist`.
   - Implication: plain HTTP to remote hosts may be blocked by ATS depending on OS rules and network context.
   - We treat this as an intentional constraint until we decide on an iOS strategy (e.g. dropping HTTP, or adding scoped exceptions).
-
 ## Testing Strategy (What Is Idiomatic Here)
 
 - Prefer TCA `TestStore` with dependency overrides.
