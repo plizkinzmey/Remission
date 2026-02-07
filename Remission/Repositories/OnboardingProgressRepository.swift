@@ -62,6 +62,9 @@ extension OnboardingProgressRepository {
 }
 
 private final class OnboardingProgressMemoryStore: @unchecked Sendable {
+    // Safety invariant:
+    // - Access is synchronized with `NSLock`, so concurrent reads/writes are safe.
+    // - The stored value is a trivial `Bool`, so there are no reference-sharing hazards.
     private let lock = NSLock()
     private var _completed: Bool = false
 
@@ -80,6 +83,9 @@ private final class OnboardingProgressMemoryStore: @unchecked Sendable {
 }
 
 private final class UserDefaultsBox: @unchecked Sendable {
+    // Safety invariant:
+    // - `UserDefaults` is thread-safe for concurrent access.
+    // - This wrapper is only used to share a single reference across Sendable closures.
     let defaults: UserDefaults
 
     init(defaults: UserDefaults) {
