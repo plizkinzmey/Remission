@@ -115,8 +115,11 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 path: config.baseURL.path
             )
 
-        guard let host = config.baseURL.host else {
-            preconditionFailure("TransmissionClientConfig.baseURL must contain host component")
+        // Defensive: `URL` can represent baseURLs without a host (e.g. file URLs).
+        // Treat this as an invalid configuration, but never crash the app for it.
+        let host: String = config.baseURL.host ?? ""
+        if host.isEmpty {
+            assertionFailure("TransmissionClientConfig.baseURL must contain host component")
         }
 
         let isSecure: Bool = config.baseURL.scheme?.lowercased() == "https"
