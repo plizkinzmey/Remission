@@ -58,7 +58,13 @@ extension NotificationClient: DependencyKey {
     }
 
     public static var testValue: NotificationClient {
-        NotificationClient()
+        // In tests we don't want "unimplemented" traps for optional UX features.
+        // Individual tests can still override these closures when assertions are needed.
+        NotificationClient(
+            requestAuthorization: { _ in false },
+            authorizationStatus: { .notDetermined },
+            sendNotification: { _, _, _ in }
+        )
     }
 
     public static var previewValue: NotificationClient {
