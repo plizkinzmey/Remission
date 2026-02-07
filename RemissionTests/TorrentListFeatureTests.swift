@@ -100,7 +100,7 @@ struct TorrentListFeatureTests {
         var torrentWithTag = torrents[0]
         torrentWithTag.tags.append("programs")
 
-        let payload = TorrentListReducer.State.FetchSuccess(
+        let payload = TorrentListReducer.FetchSuccess(
             torrents: [torrentWithTag, torrents[1], torrents[2]],
             isFromCache: false,
             snapshotDate: nil

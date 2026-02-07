@@ -52,7 +52,7 @@ struct TorrentListNotificationTests {
             }
             store.exhaustivity = .off
 
-            let payload = TorrentListReducer.State.FetchSuccess(
+            let payload = TorrentListReducer.FetchSuccess(
                 torrents: [newTorrent],
                 isFromCache: false,
                 snapshotDate: nil
@@ -111,7 +111,7 @@ struct TorrentListNotificationTests {
             }
             store.exhaustivity = .off
 
-            let payload = TorrentListReducer.State.FetchSuccess(
+            let payload = TorrentListReducer.FetchSuccess(
                 torrents: [newTorrent],
                 isFromCache: false,
                 snapshotDate: nil
@@ -147,7 +147,7 @@ struct TorrentListNotificationTests {
         }
         store.exhaustivity = .off
 
-        let payload = TorrentListReducer.State.FetchSuccess(
+        let payload = TorrentListReducer.FetchSuccess(
             torrents: [torrent],
             isFromCache: false,
             snapshotDate: nil

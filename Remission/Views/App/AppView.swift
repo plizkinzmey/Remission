@@ -75,6 +75,11 @@ struct AppView: View {
         #endif
         .background(AppBackgroundView())
         .appRootChrome()
+        .sheet(
+            store: store.scope(state: \.$trustPrompt, action: \.trustPrompt)
+        ) { promptStore in
+            TransmissionTrustPromptView(store: promptStore)
+        }
     }
 
     @ViewBuilder
