@@ -28,6 +28,8 @@ enum AppDependencies {
         dependencies.transmissionClient = .placeholder
         dependencies.credentialsRepository = .previewMock()
         dependencies.serverConnectionEnvironmentFactory = .previewValue
+        // Tests should not crash on notifications unless they assert against them.
+        dependencies.notificationClient = .previewValue
         dependencies.userPreferencesRepository = .testValue
         dependencies.offlineCacheRepository = .testValue
         return dependencies
