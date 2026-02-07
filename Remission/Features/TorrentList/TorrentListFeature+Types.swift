@@ -66,6 +66,10 @@ struct TorrentListReducer: Reducer {
         var pendingRemoveTorrentID: Torrent.Identifier?
         var removingTorrentIDs: Set<Torrent.Identifier> = []
         var inFlightCommands: [Torrent.Identifier: InFlightCommand] = [:]
+        /// UI-only optimistic state for verify:
+        /// - immediately disables the verify button and shows a spinner
+        /// - optionally overrides status to `checkWaiting` until backend reports check start
+        var verifyPendingIDs: Set<Torrent.Identifier> = []
         @Presents var removeConfirmation: ConfirmationDialogState<RemoveConfirmationAction>?
         var storageSummary: StorageSummary?
         var handshake: TransmissionHandshakeResult?

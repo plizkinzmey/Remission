@@ -43,6 +43,7 @@ extension TorrentListReducer {
                     state.pendingRemoveTorrentID = nil
                     state.removingTorrentIDs.removeAll()
                     state.inFlightCommands.removeAll()
+                    state.verifyPendingIDs.removeAll()
                     state.isAwaitingConnection = false
                     updateVisibleItemsCache(state: &state)
                     return .merge(
@@ -63,6 +64,7 @@ extension TorrentListReducer {
                     state.pendingRemoveTorrentID = nil
                     state.removingTorrentIDs.removeAll()
                     state.inFlightCommands.removeAll()
+                    state.verifyPendingIDs.removeAll()
                     state.lastSnapshotAt = nil
                     state.isAwaitingConnection = true
                     state.itemsRevision += 1
@@ -120,6 +122,17 @@ extension TorrentListReducer {
                     return performCommand(.pause, torrentID: id, state: &state)
 
                 case .verifyTapped(let id):
+                    state.verifyPendingIDs.insert(id)
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "verifyTapped",
+                            metadata: [
+                                "id": "\(id.rawValue)",
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)"
+                            ]
+                        )
+                    }
                     return performCommand(.verify, torrentID: id, state: &state)
 
                 case .removeTapped(let id):
@@ -164,6 +177,18 @@ extension TorrentListReducer {
                 case .commandResponse(let id, .failure(let error)):
                     state.inFlightCommands.removeValue(forKey: id)
                     state.removingTorrentIDs.remove(id)
+                    state.verifyPendingIDs.remove(id)
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "commandResponse.failure",
+                            metadata: [
+                                "id": "\(id.rawValue)",
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)",
+                                "error": "\(error.message)"
+                            ]
+                        )
+                    }
                     if var item = state.items[id: id] {
                         item.isRemoving = false
                         state.items[id: id] = item
@@ -382,10 +407,53 @@ extension TorrentListReducer {
 
                     let currentIDs = Set(state.items.map(\.id))
                     state.removingTorrentIDs.formIntersection(currentIDs)
-                    state.inFlightCommands = state.inFlightCommands.filter { id, inFlight in
-                        guard let item = state.items[id: id] else { return false }
-                        if case .remove = inFlight.command { return true }
-                        return item.torrent.status == inFlight.initialStatus
+                    state.verifyPendingIDs.formIntersection(currentIDs)
+                    var updatedInFlight: [Torrent.Identifier: InFlightCommand] = [:]
+                    updatedInFlight.reserveCapacity(state.inFlightCommands.count)
+                    for (id, inFlight0) in state.inFlightCommands {
+                        guard let item = state.items[id: id] else { continue }
+                        switch inFlight0.command {
+                        case .remove:
+                            updatedInFlight[id] = inFlight0
+
+                        case .start, .pause:
+                            // Old behavior: keep busy until status diverges from the one we started with.
+                            if item.torrent.status == inFlight0.initialStatus {
+                                updatedInFlight[id] = inFlight0
+                            }
+
+                        case .verify:
+                            // Hard rule (matches UX expectation):
+                            // once user taps verify, keep the command "busy" until Transmission
+                            // reports that the check actually started.
+                            if item.torrent.status == .checkWaiting
+                                || item.torrent.status == .checking
+                            {
+                                // Drop in-flight; UI stays busy via status while checking runs.
+                                continue
+                            }
+                            updatedInFlight[id] = inFlight0
+                        }
+                    }
+                    state.inFlightCommands = updatedInFlight
+
+                    // Clear optimistic verify pending once the backend reports check start.
+                    for item in state.items {
+                        guard state.verifyPendingIDs.contains(item.id) else { continue }
+                        if item.torrent.status == .checkWaiting
+                            || item.torrent.status == .checking
+                        {
+                            state.verifyPendingIDs.remove(item.id)
+                        }
+                    }
+                    if appLogger.isNoop == false {
+                        appLogger.withCategory("torrent-list").debug(
+                            "torrentsResponse.verifyState",
+                            metadata: [
+                                "pendingCount": "\(state.verifyPendingIDs.count)",
+                                "inFlightCount": "\(state.inFlightCommands.count)"
+                            ]
+                        )
                     }
                     if payload.isFromCache == false {
                         state.failedAttempts = 0

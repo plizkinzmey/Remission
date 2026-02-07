@@ -13,11 +13,23 @@ import SwiftUI
     }
 
     extension TorrentListReducer.State {
+        private mutating func primeVisibleItemsCacheForPreviews() {
+            visibleItemsCache = filteredVisibleItems()
+            visibleItemsSignature = .init(
+                query: normalizedSearchQuery,
+                filter: selectedFilter,
+                category: selectedCategory,
+                itemsRevision: itemsRevision,
+                metricsRevision: metricsRevision
+            )
+        }
+
         static func previewBase() -> Self {
             var state = Self()
             state.connectionEnvironment = ServerConnectionEnvironment.preview(
                 server: .previewLocalHTTP)
             state.phase = .loaded
+            state.primeVisibleItemsCacheForPreviews()
             return state
         }
 
@@ -52,12 +64,14 @@ import SwiftUI
                 totalBytes: 12_000_000_000,
                 freeBytes: 4_000_000_000
             )
+            state.primeVisibleItemsCacheForPreviews()
             return state
         }
 
         static func previewLoading() -> Self {
             var state = previewBase()
             state.phase = .loading
+            state.primeVisibleItemsCacheForPreviews()
             return state
         }
 
@@ -65,6 +79,7 @@ import SwiftUI
             var state = previewBase()
             state.phase = .loaded
             state.items = []
+            state.primeVisibleItemsCacheForPreviews()
             return state
         }
 
@@ -77,6 +92,7 @@ import SwiftUI
                 retry: .refresh
             )
             state.items = []
+            state.primeVisibleItemsCacheForPreviews()
             return state
         }
     }

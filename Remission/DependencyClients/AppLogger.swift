@@ -16,6 +16,11 @@ public enum AppLogLevel: String, Sendable, Codable {
 /// Обертка над механизмом логирования, пригодная для Dependency injection.
 /// Поддерживает категории и безопасные метаданные.
 public struct AppLogger: @unchecked Sendable {
+    // Safety invariant:
+    // - AppLogger is a value-type wrapper around swift-log's `Logger`.
+    // - Log handlers are expected to be thread-safe (swift-log's contract).
+    // - AppLogger instances are treated as immutable; we only create new values via `withCategory`/`withDiagnosticsSink`.
+    // - The optional `diagnosticsSink` is `@Sendable` and must be thread-safe by construction.
     enum Kind {
         case live
         case noop

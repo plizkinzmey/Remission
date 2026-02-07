@@ -94,6 +94,15 @@ extension TorrentDetailReducer {
             pendingListSync = false
         }
 
+        // Expose lock state as computed properties so SwiftUI can observe them.
+        // Avoid using `store.withState { ... }` in views, since it bypasses observation and can
+        // introduce UI delays (e.g. a command icon not switching to a spinner immediately).
+        var isStartLocked: Bool { isCommandCategoryLocked(.start) }
+        var isPauseLocked: Bool { isCommandCategoryLocked(.pause) }
+        var isVerifyLocked: Bool { isCommandCategoryLocked(.verify) }
+        var isRemoveLocked: Bool { isCommandCategoryLocked(.remove) }
+        var isPriorityLocked: Bool { isCommandCategoryLocked(.priority) }
+
         func isCommandCategoryLocked(_ category: TorrentDetailReducer.CommandCategory) -> Bool {
             if let activeCommand, activeCommand.category == category {
                 return true
@@ -158,8 +167,24 @@ extension TorrentDetailReducer.State {
             trackerStats = []
         }
 
-        if let pendingStatusChange, pendingStatusChange.initialStatus != status {
-            self.pendingStatusChange = nil
+        if let pendingStatusChange {
+            switch pendingStatusChange.command.category {
+            case .verify:
+                // For `torrent-verify`, Transmission may report intermediate statuses
+                // (e.g. downloadWaiting) before transitioning into checkWaiting/checking.
+                // We keep the command locked until the check actually starts.
+                if status == Torrent.Status.checkWaiting.rawValue
+                    || status == Torrent.Status.checking.rawValue
+                {
+                    self.pendingStatusChange = nil
+                }
+
+            default:
+                // For start/pause/etc, the first observable status change is enough to unlock.
+                if pendingStatusChange.initialStatus != status {
+                    self.pendingStatusChange = nil
+                }
+            }
         }
     }
 }

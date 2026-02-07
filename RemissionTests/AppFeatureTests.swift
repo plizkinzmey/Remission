@@ -7,6 +7,72 @@ import Testing
 @MainActor
 @Suite("AppFeature")
 struct AppFeatureTests {
+    @Test("trustPromptReceived presents trust prompt at app level")
+    func trustPromptReceivedPresentsSheet() async {
+        let challenge = TransmissionTrustChallenge(
+            identity: .init(host: "example.com", port: 443, isSecure: true),
+            reason: .untrustedCertificate,
+            certificate: .init(
+                commonName: "example.com",
+                organization: "Test Org",
+                validFrom: nil,
+                validUntil: nil,
+                sha256Fingerprint: Data([0x01, 0x02, 0x03])
+            )
+        )
+        let prompt = TransmissionTrustPrompt(challenge: challenge, resolver: { _ in })
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: AppReducer.State(),
+            reducer: AppReducer()
+        )
+
+        await store.send(.trustPromptReceived(prompt)) {
+            $0.trustPrompt = .init(prompt: prompt)
+            $0.trustPromptQueue = []
+        }
+    }
+
+    @Test("trustPromptReceived queues prompts when a prompt is already presented")
+    func trustPromptReceivedQueuesAdditionalPrompts() async {
+        let c1 = TransmissionTrustChallenge(
+            identity: .init(host: "one.example.com", port: 443, isSecure: true),
+            reason: .untrustedCertificate,
+            certificate: .init(
+                commonName: "one.example.com",
+                organization: "Test Org",
+                validFrom: nil,
+                validUntil: nil,
+                sha256Fingerprint: Data([0x0a])
+            )
+        )
+        let c2 = TransmissionTrustChallenge(
+            identity: .init(host: "two.example.com", port: 443, isSecure: true),
+            reason: .untrustedCertificate,
+            certificate: .init(
+                commonName: "two.example.com",
+                organization: "Test Org",
+                validFrom: nil,
+                validUntil: nil,
+                sha256Fingerprint: Data([0x0b])
+            )
+        )
+        let p1 = TransmissionTrustPrompt(challenge: c1, resolver: { _ in })
+        let p2 = TransmissionTrustPrompt(challenge: c2, resolver: { _ in })
+
+        var state = AppReducer.State()
+        state.trustPrompt = .init(prompt: p1)
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: state,
+            reducer: AppReducer()
+        )
+
+        await store.send(.trustPromptReceived(p2)) {
+            $0.trustPromptQueue = [p2]
+        }
+    }
+
     @Test("openTorrentFile игнорирует не-file URL")
     func openTorrentFileIgnoresNonFileURL() async {
         // Этот тест защищает от обработки внешних URL как локальных .torrent.

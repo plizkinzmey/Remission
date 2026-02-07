@@ -39,21 +39,33 @@ struct DiagnosticsLogStoreTests {
         #expect(entries.first?.level == .error)
     }
 
-    @Test("observe немедленно отдаёт snapshot и затем обновления")
-    func observeYieldsInitialSnapshotThenUpdates() async throws {
-        // Контракт observe: сразу yield текущего состояния,
-        // затем yield при каждом append/clear.
+    @Test("observe отдаёт события (appended/cleared) вместо полных snapshot-ов")
+    func observeYieldsEvents() async throws {
+        // Контракт observe: поток событий, чтобы UI мог обновляться инкрементально
+        // (без пересоздания всего массива записей при каждом append).
         let store = DiagnosticsLogStore.inMemory(maxEntries: 5)
         let stream = await store.observe(.init())
         var iterator = stream.makeAsyncIterator()
 
-        let initial = try #require(await iterator.next())
-        #expect(initial.isEmpty)
-
         await store.append(makeEntry(message: "first", level: .info))
 
-        let updated = try #require(await iterator.next())
-        #expect(updated.map(\.message) == ["first"])
+        let firstEvent = try #require(await iterator.next())
+        switch firstEvent {
+        case .appended(let entry):
+            #expect(entry.message == "first")
+        case .cleared, .dropped:
+            #expect(Bool(false))
+        }
+
+        try await store.clear()
+
+        let clearEvent = try #require(await iterator.next())
+        switch clearEvent {
+        case .cleared:
+            break
+        case .appended, .dropped:
+            #expect(Bool(false))
+        }
     }
 }
 

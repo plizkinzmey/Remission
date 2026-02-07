@@ -142,6 +142,78 @@ struct TorrentListFeatureTests {
 
     // MARK: - Commands & Removal
 
+    @Test("Verify command stays busy across intermediate statuses (no flicker)")
+    func testVerifyBusyDoesNotFlicker() async {
+        let torrentID = Torrent.previewDownloading.id
+        let torrent: Torrent = {
+            var torrent = Torrent.previewDownloading
+            torrent.id = torrentID
+            torrent.status = .downloading
+            return torrent
+        }()
+
+        var repository = TorrentRepository.testValue
+        repository.verifyClosure = { @Sendable ids in
+            #expect(ids == [torrentID])
+        }
+        repository.fetchListClosure = { @Sendable in [torrent] }
+
+        let environment = makeEnvironment(torrentRepository: repository)
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: environment,
+                phase: .loaded,
+                items: [TorrentListItem.State(torrent: torrent)]
+            ),
+            reducer: TorrentListReducer()
+        )
+        store.exhaustivity = .off
+
+        await store.send(.verifyTapped(torrentID)) {
+            $0.verifyPendingIDs.insert(torrentID)
+            $0.inFlightCommands[torrentID] = .init(
+                command: .verify,
+                initialStatus: .downloading
+            )
+        }
+
+        // Command succeeds and triggers a refresh; fetchListClosure returns `.downloading` (no change yet).
+        await store.receive(.commandResponse(torrentID, .success(true)))
+        await store.receive(.commandRefreshRequested)
+        await store.receive(\.torrentsResponse.success)
+
+        // Simulate an intermediate status before the recheck starts.
+        var intermediate = torrent
+        intermediate.status = .downloadWaiting
+        let intermediatePayload = TorrentListReducer.FetchSuccess(
+            torrents: [intermediate],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+        await store.send(.torrentsResponse(.success(intermediatePayload))) {
+            // Still busy due to in-flight verify.
+            #expect($0.inFlightCommands[torrentID]?.command == .verify)
+        }
+
+        // Now the actual check starts.
+        var checking = torrent
+        checking.status = .checkWaiting
+        let checkingPayload = TorrentListReducer.FetchSuccess(
+            torrents: [checking],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+        await store.send(.torrentsResponse(.success(checkingPayload))) {
+            // In-flight command is dropped; UI stays busy via status == checkWaiting/checking.
+            #expect($0.inFlightCommands[torrentID] == nil)
+        }
+
+        await store.send(.teardown)
+        await store.finish()
+    }
+
     @Test("Torrent removal with confirmation")
     func testRemovalFlow() async throws {
         let torrent = Torrent.sampleDownloading()

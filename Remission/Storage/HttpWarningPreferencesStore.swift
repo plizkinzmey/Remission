@@ -65,6 +65,9 @@ extension HttpWarningPreferencesStore {
 }
 
 private final class HttpWarningPreferencesMemoryStore: @unchecked Sendable {
+    // Safety invariant:
+    // - Access is synchronized with `NSLock`, so concurrent reads/writes are safe.
+    // - The stored values are trivial `Bool`s keyed by `String`, with no external sharing.
     private let lock = NSLock()
     private var storage: [String: Bool] = [:]
 
@@ -88,6 +91,9 @@ private final class HttpWarningPreferencesMemoryStore: @unchecked Sendable {
 }
 
 private final class UserDefaultsBox: @unchecked Sendable {
+    // Safety invariant:
+    // - `UserDefaults` is thread-safe for concurrent access.
+    // - This wrapper is only used to share a single reference across Sendable closures.
     let defaults: UserDefaults
 
     init(defaults: UserDefaults) {

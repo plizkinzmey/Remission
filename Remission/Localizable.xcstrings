@@ -65,9 +65,7 @@
         }
       }
     },
-    "" : {
-
-    },
+    "" : {},
     "%@, %@, %@, %@" : {
       "localizations" : {
         "en" : {
@@ -5316,6 +5314,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ожидает раздачу"
+          }
+        }
+      }
+    },
+    "diagnostics.newEntries.notice" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld new entries"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld новых записей"
+          }
+        }
+      }
+    },
+    "diagnostics.newEntries.jump" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump to latest"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "К последним"
           }
         }
       }

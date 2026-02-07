@@ -388,10 +388,11 @@ extension TorrentListView {
 
     @ViewBuilder
     private func torrentRow(_ item: TorrentListItem.State) -> some View {
-        let actions = rowActions(for: item)
-        let statusColor = TorrentStatusData(status: item.torrent.status).color
+        let displayItem = displayItem(for: item)
+        let actions = rowActions(for: displayItem)
+        let statusColor = TorrentStatusData(status: displayItem.torrent.status).color
         let row = TorrentRowView(
-            item: item,
+            item: displayItem,
             openRequested: { store.send(.rowTapped(item.id)) },
             actions: actions,
             longestStatusTitle: longestStatusTitle,
@@ -411,6 +412,18 @@ extension TorrentListView {
                 statusColor: statusColor
             )
         #endif
+    }
+
+    private func displayItem(for item: TorrentListItem.State) -> TorrentListItem.State {
+        guard store.verifyPendingIDs.contains(item.id) else { return item }
+        // Optimistically show "check waiting" in the UI until the backend reports check start.
+        // This avoids flicker when Transmission temporarily reports intermediate statuses.
+        guard item.torrent.status != .checking, item.torrent.status != .checkWaiting else {
+            return item
+        }
+        var copy = item
+        copy.torrent.status = .checkWaiting
+        return copy
     }
 
     #if os(iOS)
@@ -487,7 +500,10 @@ extension TorrentListView {
     #if os(macOS)
         private var torrentRowsMacOS: some View {
             LazyVStack(spacing: 10) {
-                ForEach(store.visibleItems) { item in
+                // On macOS we render from a cached `visibleItems` list for performance.
+                // Map through `displayItem(for:)` so optimistic verify state (checkWaiting + busy) is
+                // reflected immediately and consistently across platforms.
+                ForEach(store.visibleItems.map(displayItem(for:))) { item in
                     TorrentRowView(
                         item: item,
                         openRequested: { store.send(.rowTapped(item.id)) },
@@ -521,7 +537,8 @@ extension TorrentListView {
         let inFlightCommand = store.inFlightCommands[item.id]?.command
         let isChecking = item.torrent.status == .checking || item.torrent.status == .checkWaiting
         let isStartPauseBusy = inFlightCommand == (isActive ? .pause : .start)
-        let isVerifyBusy = inFlightCommand == .verify || isChecking
+        let isVerifyBusy =
+            store.verifyPendingIDs.contains(item.id) || inFlightCommand == .verify || isChecking
         let isRemoveBusy = item.isRemoving || isRemoveCommand(inFlightCommand)
 
         return TorrentRowView.RowActions(
