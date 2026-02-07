@@ -167,8 +167,24 @@ extension TorrentDetailReducer.State {
             trackerStats = []
         }
 
-        if let pendingStatusChange, pendingStatusChange.initialStatus != status {
-            self.pendingStatusChange = nil
+        if let pendingStatusChange {
+            switch pendingStatusChange.command.category {
+            case .verify:
+                // For `torrent-verify`, Transmission may report intermediate statuses
+                // (e.g. downloadWaiting) before transitioning into checkWaiting/checking.
+                // We keep the command locked until the check actually starts.
+                if status == Torrent.Status.checkWaiting.rawValue
+                    || status == Torrent.Status.checking.rawValue
+                {
+                    self.pendingStatusChange = nil
+                }
+
+            default:
+                // For start/pause/etc, the first observable status change is enough to unlock.
+                if pendingStatusChange.initialStatus != status {
+                    self.pendingStatusChange = nil
+                }
+            }
         }
     }
 }
