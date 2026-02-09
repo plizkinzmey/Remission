@@ -28,7 +28,15 @@ struct DiagnosticsView: View {
                             .buttonStyle(AppPrimaryButtonStyle())
                         }
                     }
-                    .frame(minWidth: 560, minHeight: 420)
+                    // Keep the diagnostics sheet compact enough for smaller displays / split view.
+                    .frame(
+                        minWidth: 560,
+                        idealWidth: 760,
+                        maxWidth: 980,
+                        minHeight: 360,
+                        idealHeight: 520,
+                        maxHeight: 680
+                    )
                 #else
                     windowContent
                         .navigationTitle(L10n.tr("diagnostics.title"))
@@ -73,7 +81,12 @@ extension DiagnosticsView {
             .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #if os(macOS)
+            // Avoid requesting infinite height on macOS sheets; it can cause the sheet to open too tall.
+            .frame(maxWidth: .infinity, alignment: .top)
+        #else
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #endif
         #if os(iOS)
             .appDismissKeyboardOnTap()
         #endif
@@ -115,9 +128,12 @@ extension DiagnosticsView {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         #if os(macOS)
-            .frame(minHeight: 260)
+            // Constrain the log viewport so the sheet doesn't open overly tall.
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 220, idealHeight: 340, maxHeight: 460)
+        #else
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         #endif
         .layoutPriority(1)
     }
