@@ -16,12 +16,6 @@ struct TorrentRowView: View, Equatable {
         return VStack(alignment: .leading, spacing: 6) {
             headerRow(status: status)
 
-            #if os(iOS)
-                if item.torrent.tags.isEmpty == false {
-                    tagsRow
-                }
-            #endif
-
             ProgressView(value: metrics.progressFraction)
                 .tint(status.color)
                 .frame(maxWidth: .infinity)
@@ -77,7 +71,16 @@ struct TorrentRowView: View, Equatable {
 // MARK: - Subviews
 extension TorrentRowView {
     private func headerRow(status: TorrentStatusData) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
+        let category = TorrentCategory.category(from: item.torrent.tags)
+
+        return HStack(alignment: .firstTextBaseline, spacing: 8) {
+            categoryBadge(category)
+                // `Image` has no baseline; align its bottom roughly with the title baseline.
+                .alignmentGuide(.firstTextBaseline) { dimensions in
+                    // Move the badge slightly down so it visually aligns with the title's first line.
+                    dimensions[.bottom] - 4
+                }
+
             nameLabel
                 .layoutPriority(1)
 
@@ -172,11 +175,6 @@ extension TorrentRowView {
                 .appMonospacedDigit()
                 .accessibilityIdentifier("torrent_row_ratio_\(item.torrent.id.rawValue)")
 
-            if item.torrent.tags.isEmpty == false {
-                tagsInlineRow
-                    .layoutPriority(0)
-            }
-
             Spacer(minLength: 6)
 
             Label(metrics.speedSummary, systemImage: "speedometer")
@@ -219,10 +217,6 @@ extension TorrentRowView {
             }
 
             HStack(spacing: 12) {
-                if item.torrent.tags.isEmpty == false {
-                    tagsInlineRow
-                }
-
                 Spacer(minLength: 0)
 
                 Label(metrics.speedSummary, systemImage: "speedometer")
@@ -246,7 +240,7 @@ extension TorrentRowView {
             )
 
             Divider()
-                .frame(height: 18)
+                .frame(height: 16)
 
             AppTorrentActionButton(
                 type: .verify,
@@ -256,7 +250,7 @@ extension TorrentRowView {
             )
 
             Divider()
-                .frame(height: 18)
+                .frame(height: 16)
 
             AppTorrentActionButton(
                 type: .remove,
@@ -266,38 +260,11 @@ extension TorrentRowView {
             )
         }
         .padding(.horizontal, 12)
-        .frame(height: 34)
+        // Match in-content control pills (filters/category picker) for visual consistency.
+        .frame(height: 30)
         .appInteractivePillSurface()
         .appMaterialize()
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
-    }
-
-    private var tagsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            LazyHStack(spacing: 6) {
-                ForEach(item.torrent.tags, id: \.self) { tag in
-                    AppTagView(text: displayTagLabel(tag))
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("torrent_row_tags_\(item.torrent.id.rawValue)")
-    }
-
-    private var tagsInlineRow: some View {
-        let maxInlineTags = 3
-        let tags = Array(item.torrent.tags.prefix(maxInlineTags))
-        let remaining = item.torrent.tags.count - tags.count
-
-        return HStack(spacing: 6) {
-            ForEach(tags, id: \.self) { tag in
-                AppTagView(text: displayTagLabel(tag))
-            }
-            if remaining > 0 {
-                AppTagView(text: "+\(remaining)")
-            }
-        }
-        .accessibilityIdentifier("torrent_row_tags_inline_\(item.torrent.id.rawValue)")
     }
 }
 
@@ -305,6 +272,20 @@ extension TorrentRowView {
 extension TorrentRowView {
     private var statusData: TorrentStatusData {
         TorrentStatusData(status: item.torrent.status)
+    }
+
+    private func categoryBadge(_ category: TorrentCategory) -> some View {
+        return ZStack {
+            Image(systemName: category.systemImageName)
+                .font(.caption.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
+        }
+        .frame(width: 22, height: 22)
+        .background(.secondary.opacity(0.12), in: Circle())
+        .overlay(Circle().strokeBorder(.quaternary))
+        .foregroundStyle(.secondary)
+        .accessibilityIdentifier("torrent_row_category_\(item.torrent.id.rawValue)")
+        .accessibilityLabel(category.title)
     }
 
     private func accessibilityLabelText(
@@ -332,10 +313,6 @@ extension TorrentRowView {
         .foregroundStyle(status.color)
         .accessibilityIdentifier("torrent_list_item_status_\(item.id.rawValue)")
         .accessibilityLabel(status.title)
-    }
-
-    private func displayTagLabel(_ tag: String) -> String {
-        TorrentCategory.localizedTitle(for: tag) ?? tag
     }
 }
 

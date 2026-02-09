@@ -60,8 +60,9 @@ struct ServerDetailFeatureNavigationTests {
 
     @Test("Импорт файла создаёт AddTorrent и пробрасывает событие")
     func testFileImportResultSuccess() async {
-        // Проверяем, что успешный выбор файла создаёт PendingTorrentInput
-        // и пробрасывает событие в дочерний reducer.
+        // Проверяем, что успешный выбор файла создаёт PendingTorrentInput.
+        // Если connectionEnvironment ещё нет, ввод сохраняется в pendingAddTorrentInput
+        // и будет обработан позже при успешном подключении.
         let server = ServerConfig.sample
         let url = URL(fileURLWithPath: "/tmp/test.torrent")
         let fileData = Data([0x01, 0x02])
@@ -79,20 +80,17 @@ struct ServerDetailFeatureNavigationTests {
             guard case .fileImportLoaded(.success) = $0 else { return false }
             return true
         } assert: {
-            $0.addTorrent = AddTorrentReducer.State(
-                pendingInput: PendingTorrentInput(
-                    payload: .torrentFile(data: fileData, fileName: url.lastPathComponent),
-                    sourceDescription: url.lastPathComponent
-                ),
-                connectionEnvironment: nil,
-                serverID: server.id
+            $0.pendingAddTorrentInput = PendingTorrentInput(
+                payload: .torrentFile(data: fileData, fileName: url.lastPathComponent),
+                sourceDescription: url.lastPathComponent
             )
         }
     }
 
     @Test("Обработка загруженного файла создаёт PendingTorrentInput")
     func testHandleFileImportLoadedSuccess() async {
-        // Проверяем, что готовые данные торрента создают состояние AddTorrent.
+        // Проверяем, что готовые данные торрента сохраняются в pending,
+        // если connectionEnvironment ещё нет.
         let server = ServerConfig.sample
         let input = PendingTorrentInput(
             payload: .torrentFile(data: Data([0x01, 0x02]), fileName: "file.torrent"),
@@ -105,8 +103,8 @@ struct ServerDetailFeatureNavigationTests {
             state: &state
         )
 
-        #expect(state.addTorrent?.pendingInput == input)
-        #expect(state.addTorrent?.serverID == server.id)
+        #expect(state.pendingAddTorrentInput == input)
+        #expect(state.addTorrent == nil)
     }
 
     @Test("Неверное расширение файла показывает alert")
