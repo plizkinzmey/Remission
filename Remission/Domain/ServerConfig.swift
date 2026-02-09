@@ -78,9 +78,19 @@ extension ServerConfig {
 
     /// Базовый URL `scheme://host:port/path`.
     func makeBaseURL() throws -> URL {
+        let host = connection.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard host.isEmpty == false else {
+            throw ServerConfigError.invalidBaseURL(
+                host: connection.host,
+                port: connection.port,
+                path: connection.path,
+                isSecure: isSecure
+            )
+        }
+
         var components = URLComponents()
         components.scheme = isSecure ? "https" : "http"
-        components.host = connection.host
+        components.host = host
         components.port = connection.port
         components.path = connection.path.hasPrefix("/") ? connection.path : "/\(connection.path)"
 
