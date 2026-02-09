@@ -2,7 +2,7 @@ import ComposableArchitecture
 import SwiftUI
 
 struct DiagnosticsLogListView: View {
-    let store: StoreOf<DiagnosticsReducer>
+    @Bindable var store: StoreOf<DiagnosticsReducer>
 
     var body: some View {
         VStack(spacing: 8) {
