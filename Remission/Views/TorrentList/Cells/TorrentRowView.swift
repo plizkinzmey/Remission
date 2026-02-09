@@ -240,7 +240,7 @@ extension TorrentRowView {
             )
 
             Divider()
-                .frame(height: 18)
+                .frame(height: 16)
 
             AppTorrentActionButton(
                 type: .verify,
@@ -250,7 +250,7 @@ extension TorrentRowView {
             )
 
             Divider()
-                .frame(height: 18)
+                .frame(height: 16)
 
             AppTorrentActionButton(
                 type: .remove,
@@ -260,7 +260,8 @@ extension TorrentRowView {
             )
         }
         .padding(.horizontal, 12)
-        .frame(height: 34)
+        // Match in-content control pills (filters/category picker) for visual consistency.
+        .frame(height: 30)
         .appInteractivePillSurface()
         .appMaterialize()
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
