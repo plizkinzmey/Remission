@@ -38,11 +38,11 @@
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
 		15F6B6D12F1A2B3C00A0A111 /* Exceptions for "Remission" folder in "Remission" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-				membershipExceptions = (
-					"Info-iOS.plist",
-					"Info-macOS.plist",
-					"Network/Transmission/TransmissionClientUsageExample.swift",
-				);
+			membershipExceptions = (
+				"Info-iOS.plist",
+				"Info-macOS.plist",
+				Network/Transmission/TransmissionClientUsageExample.swift,
+			);
 			target = 15AA8C3A2EA1C9360025EF81 /* Remission */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */

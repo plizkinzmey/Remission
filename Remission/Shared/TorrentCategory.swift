@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     case programs
@@ -30,6 +31,26 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
         case .other:
             return L10n.tr("torrentCategory.other")
         }
+    }
+
+    var systemImageName: String {
+        switch self {
+        case .programs:
+            return "terminal.fill"
+        case .movies:
+            return "film.fill"
+        case .series:
+            return "film.stack.fill"
+        case .books:
+            return "book.fill"
+        case .other:
+            return "tag.fill"
+        }
+    }
+
+    var tintColor: Color {
+        // Keep categories visually subtle; status colors already communicate the "state".
+        .secondary
     }
 
     static func category(from tags: [String]) -> TorrentCategory {
