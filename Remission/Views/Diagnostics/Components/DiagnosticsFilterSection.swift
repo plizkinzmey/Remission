@@ -5,7 +5,7 @@ struct DiagnosticsFilterSection: View {
     @Bindable var store: StoreOf<DiagnosticsReducer>
 
     var body: some View {
-        AppSectionCard(L10n.tr("diagnostics.level")) {
+        AppSectionCard("") {
             fieldRow(label: L10n.tr("diagnostics.level")) {
                 Picker(
                     "",
