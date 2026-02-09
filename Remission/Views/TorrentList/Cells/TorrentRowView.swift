@@ -274,7 +274,6 @@ extension TorrentRowView {
     }
 
     private func categoryBadge(_ category: TorrentCategory) -> some View {
-        let color = category.tintColor
         return ZStack {
             Image(systemName: category.systemImageName)
                 .font(.caption.weight(.semibold))
