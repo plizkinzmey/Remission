@@ -77,7 +77,8 @@ extension TorrentRowView {
             categoryBadge(category)
                 // `Image` has no baseline; align its bottom roughly with the title baseline.
                 .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[.bottom]
+                    // Move the badge slightly down so it visually aligns with the title's first line.
+                    dimensions[.bottom] - 6
                 }
 
             nameLabel
