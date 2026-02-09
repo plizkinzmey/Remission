@@ -9,14 +9,9 @@ struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
     @State private var searchText: String = ""
 
-    #if os(iOS)
-        // Match the iPad "status filters" capsule visual height.
-        private var controlsPillHeight: CGFloat { 30 }
-        private var controlsPillInnerPadding: CGFloat { 2 }
-    #else
-        private var controlsPillHeight: CGFloat { 34 }
-        private var controlsPillInnerPadding: CGFloat { 2 }
-    #endif
+    // Keep consistent sizing across iOS + macOS.
+    private var controlsPillHeight: CGFloat { 30 }
+    private var controlsPillInnerPadding: CGFloat { 2 }
 
     #if os(macOS)
         private var macOSCategoryPickerWidth: CGFloat { 170 }
@@ -179,7 +174,8 @@ struct TorrentListControlsView: View {
                         .font(.caption.weight(.semibold))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10)
+                .padding(controlsPillInnerPadding)
                 .frame(width: macOSCategoryPickerWidth, height: controlsPillHeight)
                 .contentShape(Rectangle())
                 .appInteractivePillSurface()
@@ -193,7 +189,8 @@ struct TorrentListControlsView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 10)
+                .padding(controlsPillInnerPadding)
                 .frame(height: controlsPillHeight)
                 .contentShape(Rectangle())
                 .appInteractivePillSurface()

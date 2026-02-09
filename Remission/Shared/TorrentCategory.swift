@@ -36,11 +36,11 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     var systemImageName: String {
         switch self {
         case .programs:
-            return "app.fill"
+            return "terminal.fill"
         case .movies:
             return "film.fill"
         case .series:
-            return "tv.fill"
+            return "rectangle.stack.fill"
         case .books:
             return "book.fill"
         case .other:
@@ -49,18 +49,8 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     }
 
     var tintColor: Color {
-        switch self {
-        case .programs:
-            return .teal
-        case .movies:
-            return .purple
-        case .series:
-            return .indigo
-        case .books:
-            return .brown
-        case .other:
-            return .secondary
-        }
+        // Keep categories visually subtle; status colors already communicate the "state".
+        .secondary
     }
 
     static func category(from tags: [String]) -> TorrentCategory {

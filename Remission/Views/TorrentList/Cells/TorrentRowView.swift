@@ -78,7 +78,7 @@ extension TorrentRowView {
                 // `Image` has no baseline; align its bottom roughly with the title baseline.
                 .alignmentGuide(.firstTextBaseline) { dimensions in
                     // Move the badge slightly down so it visually aligns with the title's first line.
-                    dimensions[.bottom] - 6
+                    dimensions[.bottom] - 4
                 }
 
             nameLabel
@@ -278,11 +278,12 @@ extension TorrentRowView {
         return ZStack {
             Image(systemName: category.systemImageName)
                 .font(.caption.weight(.semibold))
+                .symbolRenderingMode(.hierarchical)
         }
         .frame(width: 22, height: 22)
-        .background(color.opacity(0.15), in: Circle())
-        .overlay(Circle().strokeBorder(color.opacity(0.25)))
-        .foregroundStyle(color)
+        .background(.secondary.opacity(0.12), in: Circle())
+        .overlay(Circle().strokeBorder(.quaternary))
+        .foregroundStyle(.secondary)
         .accessibilityIdentifier("torrent_row_category_\(item.torrent.id.rawValue)")
         .accessibilityLabel(category.title)
     }
