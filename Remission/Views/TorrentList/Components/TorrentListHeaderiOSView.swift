@@ -18,7 +18,8 @@ struct TorrentListHeaderiOSView: View {
         }
         .padding(.horizontal, 8)
         .padding(.top, 12)
-        .padding(.bottom, 0)
+        // Give the category picker some breathing room so it doesn't sit on the fade-out edge of the sticky header.
+        .padding(.bottom, 12)
     }
 }
 
