@@ -1,71 +1,6 @@
 {
   "sourceLanguage" : "ru",
   "strings" : {
-    "torrentList.notification.completed.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Download completed"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Загрузка завершена"
-          }
-        }
-      }
-    },
-    "torrentList.notification.completed.body" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Torrent \"%@\" has finished downloading."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Торрент «%@» полностью скачан."
-          }
-        }
-      }
-    },
-    "torrentList.notification.error.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Torrent error"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ошибка торрента"
-          }
-        }
-      }
-    },
-    "torrentList.notification.error.body" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "An error occurred with torrent \"%@\"."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Произошла ошибка с торрентом «%@»."
-          }
-        }
-      }
-    },
-    "" : {},
     "%@, %@, %@, %@" : {
       "localizations" : {
         "en" : {
@@ -734,6 +669,38 @@
         }
       }
     },
+    "diagnostics.newEntries.jump" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump to latest"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "К последним"
+          }
+        }
+      }
+    },
+    "diagnostics.newEntries.notice" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld new entries"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld новых записей"
+          }
+        }
+      }
+    },
     "diagnostics.offline.badge" : {
       "localizations" : {
         "en" : {
@@ -844,57 +811,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не удалось добавить сервер"
-          }
-        }
-      }
-    },
-    "onboarding.connection.cancelled" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The connection check was cancelled. Try again."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Проверка подключения была отменена. Попробуйте ещё раз."
-          }
-        }
-      }
-    },
-    "onboarding.connection.timeout" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection timed out. Check your network or server and try again."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Истекло время ожидания подключения. Проверьте сеть или сервер и попробуйте снова."
-          }
-        }
-      }
-    },
-    "onboarding.error.validation.checkRequired" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "First, perform a connection test."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сначала выполните проверку соединения."
           }
         }
       }
@@ -1233,23 +1149,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Не удалось прочитать файл"
-          }
-        }
-      }
-    },
-    "serverDetail.alert.connectionFailed.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to connect"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не удалось подключиться"
           }
         }
       }
@@ -3053,23 +2952,6 @@
         }
       }
     },
-    "torrentDetail.actions.hint" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sends a command to Transmission"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Отправляет команду на Transmission"
-          }
-        }
-      }
-    },
     "torrentDetail.actions.pause" : {
       "localizations" : {
         "en" : {
@@ -4734,22 +4616,6 @@
         }
       }
     },
-    "torrentList.category.title" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Category"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Категория"
-          }
-        }
-      }
-    },
     "torrentList.empty.title" : {
       "localizations" : {
         "en" : {
@@ -4878,6 +4744,70 @@
         }
       }
     },
+    "torrentList.notification.completed.body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Torrent \"%@\" has finished downloading."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Торрент «%@» полностью скачан."
+          }
+        }
+      }
+    },
+    "torrentList.notification.completed.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Download completed"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загрузка завершена"
+          }
+        }
+      }
+    },
+    "torrentList.notification.error.body" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An error occurred with torrent \"%@\"."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Произошла ошибка с торрентом «%@»."
+          }
+        }
+      }
+    },
+    "torrentList.notification.error.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Torrent error"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ошибка торрента"
+          }
+        }
+      }
+    },
     "torrentList.peers" : {
       "comment" : "Label for the number of connected peers in the torrent list. Argument: peer count.",
       "localizations" : {
@@ -4973,91 +4903,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Торренты"
-          }
-        }
-      }
-    },
-    "torrentList.sort.eta" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ETA"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "ETA"
-          }
-        }
-      }
-    },
-    "torrentList.sort.name" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Name"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Имя"
-          }
-        }
-      }
-    },
-    "torrentList.sort.progress" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Progress"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Прогресс"
-          }
-        }
-      }
-    },
-    "torrentList.sort.speed" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Speed"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Скорость"
-          }
-        }
-      }
-    },
-    "torrentList.sort.title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sorting"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Сортировка"
           }
         }
       }
@@ -5314,38 +5159,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ожидает раздачу"
-          }
-        }
-      }
-    },
-    "diagnostics.newEntries.notice" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld new entries"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld новых записей"
-          }
-        }
-      }
-    },
-    "diagnostics.newEntries.jump" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jump to latest"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "К последним"
           }
         }
       }
