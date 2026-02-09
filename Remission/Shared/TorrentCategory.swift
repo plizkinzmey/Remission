@@ -40,7 +40,7 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
         case .movies:
             return "film.fill"
         case .series:
-            return "rectangle.stack.fill"
+            return "film.stack.fill"
         case .books:
             return "book.fill"
         case .other:
