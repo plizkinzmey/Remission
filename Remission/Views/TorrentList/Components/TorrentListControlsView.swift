@@ -9,13 +9,11 @@ struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
     @State private var searchText: String = ""
 
+    private var controlsPillHeight: CGFloat { 34 }
+    private var controlsPillInnerPadding: CGFloat { 2 }
+
     #if os(macOS)
         private var macOSCategoryPickerWidth: CGFloat { 170 }
-        private var macOSToolbarPillHeight: CGFloat { 34 }
-    #endif
-    #if os(iOS)
-        private var padFilterCapsuleHeight: CGFloat { 30 }
-        private var padFilterInnerPadding: CGFloat { 2 }
     #endif
 
     var body: some View {
@@ -47,11 +45,9 @@ struct TorrentListControlsView: View {
             #endif
 
             // Row 2: Category picker
-            HStack(spacing: 12) {
+            HStack {
+                Spacer(minLength: 0)
                 categoryPicker
-                    #if os(macOS)
-                        .labelsHidden()
-                    #endif
                 Spacer(minLength: 0)
             }
         }
@@ -93,8 +89,8 @@ struct TorrentListControlsView: View {
                     filterSegmentedControlPad
                     searchToggleButton
                 }
-                .padding(padFilterInnerPadding)
-                .frame(height: padFilterCapsuleHeight)
+                .padding(controlsPillInnerPadding)
+                .frame(height: controlsPillHeight)
                 .appInteractivePillSurface()
             }
             .frame(maxWidth: .infinity, alignment: .center)
@@ -124,7 +120,7 @@ struct TorrentListControlsView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .frame(height: padFilterCapsuleHeight)
+            .frame(height: controlsPillHeight)
             .appInteractivePillSurface()
         }
     #endif
@@ -159,14 +155,14 @@ struct TorrentListControlsView: View {
     #endif
 
     private var categoryPicker: some View {
-        #if os(macOS)
-            Menu {
-                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
-                    Button(category.title) {
-                        store.send(.categoryChanged(category))
-                    }
+        Menu {
+            ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
+                Button(category.title) {
+                    store.send(.categoryChanged(category))
                 }
-            } label: {
+            }
+        } label: {
+            #if os(macOS)
                 HStack(spacing: 8) {
                     Text(store.selectedCategory.title)
                         .lineLimit(1)
@@ -178,26 +174,27 @@ struct TorrentListControlsView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
-                .frame(width: macOSCategoryPickerWidth, height: macOSToolbarPillHeight)
+                .frame(width: macOSCategoryPickerWidth, height: controlsPillHeight)
                 .contentShape(Rectangle())
                 .appInteractivePillSurface()
-            }
-            .accessibilityIdentifier("torrentlist_category_picker")
-            .buttonStyle(.plain)
-        #else
-            Picker(
-                L10n.tr("torrentList.category.title"),
-                selection: Binding(
-                    get: { store.selectedCategory },
-                    set: { store.send(.categoryChanged($0)) }
-                )
-            ) {
-                ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
-                    Text(category.title).tag(category)
+            #else
+                HStack(spacing: 8) {
+                    Text(store.selectedCategory.title)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
+                        .foregroundStyle(.primary)
+                    Image(systemName: "chevron.down")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
                 }
-            }
-            .accessibilityIdentifier("torrentlist_category_picker")
-            .pickerStyle(.menu)
-        #endif
+                .padding(.horizontal, 12)
+                .frame(height: controlsPillHeight)
+                .contentShape(Rectangle())
+                .appInteractivePillSurface()
+                .fixedSize(horizontal: true, vertical: false)
+            #endif
+        }
+        .accessibilityIdentifier("torrentlist_category_picker")
+        .buttonStyle(.plain)
     }
 }

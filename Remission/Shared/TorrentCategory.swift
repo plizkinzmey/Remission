@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     case programs
@@ -29,6 +30,36 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
             return L10n.tr("torrentCategory.books")
         case .other:
             return L10n.tr("torrentCategory.other")
+        }
+    }
+
+    var systemImageName: String {
+        switch self {
+        case .programs:
+            return "app.fill"
+        case .movies:
+            return "film.fill"
+        case .series:
+            return "tv.fill"
+        case .books:
+            return "book.fill"
+        case .other:
+            return "tag.fill"
+        }
+    }
+
+    var tintColor: Color {
+        switch self {
+        case .programs:
+            return .teal
+        case .movies:
+            return .purple
+        case .series:
+            return .indigo
+        case .books:
+            return .brown
+        case .other:
+            return .secondary
         }
     }
 
