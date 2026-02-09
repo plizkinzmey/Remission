@@ -621,6 +621,22 @@
         }
       }
     },
+    "diagnostics.mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим"
+          }
+        }
+      }
+    },
     "diagnostics.mode.json" : {
       "localizations" : {
         "en" : {

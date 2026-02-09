@@ -26,7 +26,7 @@ struct DiagnosticsFilterSection: View {
 
             Divider()
 
-            fieldRow(label: "Mode") {
+            fieldRow(label: L10n.tr("diagnostics.mode")) {
                 Picker(
                     "",
                     selection: $store.viewMode.sending(\.viewModeChanged)
