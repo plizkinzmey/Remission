@@ -1,6 +1,10 @@
 import ComposableArchitecture
 import SwiftUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 struct DiagnosticsView: View {
     @Bindable var store: StoreOf<DiagnosticsReducer>
 
@@ -11,8 +15,8 @@ struct DiagnosticsView: View {
                     VStack(spacing: 12) {
                         AppWindowHeader(L10n.tr("diagnostics.title"))
                         windowContent
-                    }
-                    .safeAreaInset(edge: .bottom) {
+                            .frame(maxHeight: .infinity, alignment: .top)
+
                         AppWindowFooterBar(contentPadding: 6) {
                             Spacer(minLength: 0)
                             Button(L10n.tr("diagnostics.clear")) {
@@ -28,15 +32,10 @@ struct DiagnosticsView: View {
                             .buttonStyle(AppPrimaryButtonStyle())
                         }
                     }
-                    // Keep the diagnostics sheet compact enough for smaller displays / split view.
-                    .frame(
-                        minWidth: 560,
-                        idealWidth: 760,
-                        maxWidth: 980,
-                        minHeight: 360,
-                        idealHeight: 520,
-                        maxHeight: 680
-                    )
+                    // Keep the diagnostics sheet compact, but avoid forcing a fixed max height.
+                    // Fixed max heights can cause the sheet to clip content (header/footer) on smaller windows.
+                    .frame(minWidth: 560, idealWidth: 760, maxWidth: 980)
+                    .frame(minHeight: 360, idealHeight: macOSIdealHeight, maxHeight: macOSMaxHeight)
                 #else
                     windowContent
                         .navigationTitle(L10n.tr("diagnostics.title"))
@@ -129,15 +128,30 @@ extension DiagnosticsView {
             }
         }
         #if os(macOS)
-            // Constrain the log viewport so the sheet doesn't open overly tall.
+            // Let the log area expand/shrink within the sheet height, so header/footer remain visible.
             .frame(maxWidth: .infinity)
-            .frame(minHeight: 220, idealHeight: 340, maxHeight: 460)
+            .frame(minHeight: 220, idealHeight: 340, maxHeight: .infinity)
         #else
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         #endif
         .layoutPriority(1)
     }
 }
+
+#if os(macOS)
+    extension DiagnosticsView {
+        private var macOSMaxHeight: CGFloat {
+            let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
+            // Keep a safety margin so sheets don't open beyond the visible area (menu bar / dock / window chrome).
+            let capped = visibleHeight - 140
+            return max(520, min(capped, 760))
+        }
+
+        private var macOSIdealHeight: CGFloat {
+            min(680, macOSMaxHeight)
+        }
+    }
+#endif
 
 #Preview {
     DiagnosticsView(
