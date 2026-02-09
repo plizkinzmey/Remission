@@ -188,7 +188,7 @@ extension DiagnosticsView {
                         )
                     ]
                 ),
-                selectedLevel: nil,
+                selectedLevel: .info,
                 maxEntries: 2
             )
         ) {

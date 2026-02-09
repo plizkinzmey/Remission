@@ -8,7 +8,8 @@ struct DiagnosticsReducer {
         var entries: IdentifiedArrayOf<DiagnosticsLogEntry> = []
         var isLoading: Bool = false
         var query: String = ""
-        var selectedLevel: AppLogLevel?
+        // Default to Info for the initial diagnostics view.
+        var selectedLevel: AppLogLevel? = .info
         var maxEntries: Int?
         var pageSize: Int = 100
         var visibleCount: Int = 100
