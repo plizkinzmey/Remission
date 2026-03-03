@@ -38,7 +38,15 @@
       <TestPlans>
          <TestPlanReference
             reference = "container:Remission.xctestplan"
+            default = "NO">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:Remission.Unit.xctestplan"
             default = "YES">
+         </TestPlanReference>
+         <TestPlanReference
+            reference = "container:RemissionUITests.xctestplan"
+            default = "NO">
          </TestPlanReference>
       </TestPlans>
       <Testables>

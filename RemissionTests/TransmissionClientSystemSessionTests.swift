@@ -200,6 +200,7 @@ private func makeClient() -> TransmissionClient {
     let url = URL(string: "http://localhost:9091/transmission/rpc")!
     var config = TransmissionClientConfig(baseURL: url, maxRetries: 0, retryDelay: 0)
     config.enableLogging = false
+    config.rpcMode = .legacy
 
     let sessionConfiguration = URLSessionConfiguration.ephemeral
     sessionConfiguration.protocolClasses = [MockURLProtocol.self]

@@ -90,4 +90,67 @@ struct TransmissionDomainMapperTorrentTests {
             _ = try mapper.mapTorrentDetails(from: response)
         }
     }
+
+    @Test("mapTorrentList поддерживает snake_case ключи JSON-RPC 2.0")
+    func mapTorrentListSupportsSnakeCase() throws {
+        let mapper = TransmissionDomainMapper()
+        let response = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "torrents": .array([
+                    .object([
+                        "id": .int(42),
+                        "name": .string("Snake Torrent"),
+                        "status": .int(4),
+                        "error": .int(0),
+                        "error_string": .string(""),
+                        "percent_done": .double(0.5),
+                        "recheck_progress": .double(0),
+                        "total_size": .int(1000),
+                        "downloaded_ever": .int(500),
+                        "uploaded_ever": .int(200),
+                        "upload_ratio": .double(0.4),
+                        "eta": .int(120),
+                        "rate_download": .int(100),
+                        "rate_upload": .int(10),
+                        "download_limit": .int(0),
+                        "download_limited": .bool(false),
+                        "upload_limit": .int(0),
+                        "upload_limited": .bool(false),
+                        "peers_connected": .int(3),
+                        "peers_from": .object(["fromTracker": .int(3)])
+                    ])
+                ])
+            ])
+        )
+
+        let list = try mapper.mapTorrentList(from: response)
+        #expect(list.count == 1)
+        #expect(list[0].id.rawValue == 42)
+        #expect(list[0].summary.transfer.downloadRate == 100)
+        #expect(list[0].summary.peers.connected == 3)
+    }
+
+    @Test("mapTorrentList использует percent_complete как fallback прогресса")
+    func mapTorrentListSupportsPercentCompleteFallback() throws {
+        let mapper = TransmissionDomainMapper()
+        let response = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "torrents": .array([
+                    .object([
+                        "id": .int(77),
+                        "name": .string("Percent Complete Torrent"),
+                        "status": .int(4),
+                        "percent_complete": .double(0.25),
+                        "recheck_progress": .double(0)
+                    ])
+                ])
+            ])
+        )
+
+        let list = try mapper.mapTorrentList(from: response)
+        #expect(list.count == 1)
+        #expect(list[0].summary.progress.percentDone == 0.25)
+    }
 }

@@ -16,11 +16,10 @@ extension TransmissionDomainMapper {
         )
 
         let rpcInfo: SessionState.RPC = try makeRPCInfo(from: sessionArguments)
-        let downloadDirectory: String = try requireString(
-            "download-dir",
-            in: sessionArguments,
-            context: "session-get"
-        )
+        let downloadDirectory = stringValue(
+            aliases: ["download_dir", "download-dir"],
+            in: sessionArguments
+        ) ?? ""
 
         let speedLimits: SessionState.SpeedLimits = makeSpeedLimits(from: sessionArguments)
         let queue: SessionState.Queue = makeQueue(from: sessionArguments)
@@ -32,12 +31,12 @@ extension TransmissionDomainMapper {
 
         let cumulativeStats: SessionState.LifetimeStats = try mapLifetimeStats(
             from: statsArguments,
-            field: "cumulative-stats",
+            field: statsArguments["cumulative_stats"] == nil ? "cumulative-stats" : "cumulative_stats",
             context: "session-stats"
         )
         let currentStats: SessionState.LifetimeStats = try mapLifetimeStats(
             from: statsArguments,
-            field: "current-stats",
+            field: statsArguments["current_stats"] == nil ? "current-stats" : "current_stats",
             context: "session-stats"
         )
 
@@ -62,7 +61,7 @@ extension TransmissionDomainMapper {
             context: "free-space"
         )
         let value = try requireField(
-            "size-bytes",
+            arguments["size_bytes"] == nil ? "size-bytes" : "size_bytes",
             in: arguments,
             context: "free-space"
         )
@@ -85,32 +84,33 @@ extension TransmissionDomainMapper {
         SessionState.SpeedLimits(
             download: .init(
                 isEnabled: boolValue(
-                    "speed-limit-down-enabled",
+                    aliases: ["speed_limit_down_enabled", "speed-limit-down-enabled"],
                     in: dict
                 ) ?? false,
                 kilobytesPerSecond: intValue(
-                    "speed-limit-down",
+                    aliases: ["speed_limit_down", "speed-limit-down"],
                     in: dict
                 ) ?? 0
             ),
             upload: .init(
                 isEnabled: boolValue(
-                    "speed-limit-up-enabled",
+                    aliases: ["speed_limit_up_enabled", "speed-limit-up-enabled"],
                     in: dict
                 ) ?? false,
                 kilobytesPerSecond: intValue(
-                    "speed-limit-up",
+                    aliases: ["speed_limit_up", "speed-limit-up"],
                     in: dict
                 ) ?? 0
             ),
             alternative: .init(
-                isEnabled: boolValue("alt-speed-enabled", in: dict) ?? false,
+                isEnabled: boolValue(aliases: ["alt_speed_enabled", "alt-speed-enabled"], in: dict)
+                    ?? false,
                 downloadKilobytesPerSecond: intValue(
-                    "alt-speed-down",
+                    aliases: ["alt_speed_down", "alt-speed-down"],
                     in: dict
                 ) ?? 0,
                 uploadKilobytesPerSecond: intValue(
-                    "alt-speed-up",
+                    aliases: ["alt_speed_up", "alt-speed-up"],
                     in: dict
                 ) ?? 0
             )
@@ -123,30 +123,30 @@ extension TransmissionDomainMapper {
         SessionState.Queue(
             downloadLimit: .init(
                 isEnabled: boolValue(
-                    "download-queue-enabled",
+                    aliases: ["download_queue_enabled", "download-queue-enabled"],
                     in: dict
                 ) ?? false,
                 count: intValue(
-                    "download-queue-size",
+                    aliases: ["download_queue_size", "download-queue-size"],
                     in: dict
                 ) ?? 0
             ),
             seedLimit: .init(
                 isEnabled: boolValue(
-                    "seed-queue-enabled",
+                    aliases: ["seed_queue_enabled", "seed-queue-enabled"],
                     in: dict
                 ) ?? false,
                 count: intValue(
-                    "seed-queue-size",
+                    aliases: ["seed_queue_size", "seed-queue-size"],
                     in: dict
                 ) ?? 0
             ),
             considerStalled: boolValue(
-                "queue-stalled-enabled",
+                aliases: ["queue_stalled_enabled", "queue-stalled-enabled"],
                 in: dict
             ) ?? false,
             stalledMinutes: intValue(
-                "queue-stalled-minutes",
+                aliases: ["queue_stalled_minutes", "queue-stalled-minutes"],
                 in: dict
             ) ?? 0
         )
@@ -155,30 +155,33 @@ extension TransmissionDomainMapper {
     func makeSeedRatioLimit(
         from dict: [String: AnyCodable]
     ) -> SessionState.SeedRatioLimit {
-        let isEnabled = boolValue("seedRatioLimited", in: dict) ?? false
-        let value = doubleValue("seedRatioLimit", in: dict) ?? 0.0
+        let isEnabled = boolValue(aliases: ["seed_ratio_limited", "seedRatioLimited"], in: dict)
+            ?? false
+        let value = doubleValue(aliases: ["seed_ratio_limit", "seedRatioLimit"], in: dict) ?? 0.0
         return SessionState.SeedRatioLimit(isEnabled: isEnabled, value: value)
     }
 
     func makeRPCInfo(
         from dict: [String: AnyCodable]
     ) throws -> SessionState.RPC {
-        let version: String = try requireString(
-            "version",
-            in: dict,
-            context: "session-get"
+        let version = stringValue(aliases: ["version"], in: dict) ?? ""
+        let rpcVersion = intValue(
+            aliases: ["rpc_version", "rpc-version"],
+            in: dict
         )
+        let rpcVersionMinimum = intValue(
+            aliases: ["rpc_version_minimum", "rpc-version-minimum"],
+            in: dict
+        )
+        guard let rpcVersion, let rpcVersionMinimum else {
+            throw DomainMappingError.missingField(
+                field: "rpc_version|rpc-version",
+                context: "session-get"
+            )
+        }
         return SessionState.RPC(
-            rpcVersion: try requireInt(
-                "rpc-version",
-                in: dict,
-                context: "session-get"
-            ),
-            rpcVersionMinimum: try requireInt(
-                "rpc-version-minimum",
-                in: dict,
-                context: "session-get"
-            ),
+            rpcVersion: rpcVersion,
+            rpcVersionMinimum: rpcVersionMinimum,
             serverVersion: version
         )
     }
@@ -188,23 +191,23 @@ extension TransmissionDomainMapper {
     ) -> SessionState.Throughput {
         SessionState.Throughput(
             activeTorrentCount: intValue(
-                "activeTorrentCount",
+                aliases: ["active_torrent_count", "activeTorrentCount"],
                 in: dict
             ) ?? 0,
             pausedTorrentCount: intValue(
-                "pausedTorrentCount",
+                aliases: ["paused_torrent_count", "pausedTorrentCount"],
                 in: dict
             ) ?? 0,
             totalTorrentCount: intValue(
-                "torrentCount",
+                aliases: ["torrent_count", "torrentCount"],
                 in: dict
             ) ?? 0,
             downloadSpeed: intValue(
-                "downloadSpeed",
+                aliases: ["download_speed", "downloadSpeed"],
                 in: dict
             ) ?? 0,
             uploadSpeed: intValue(
-                "uploadSpeed",
+                aliases: ["upload_speed", "uploadSpeed"],
                 in: dict
             ) ?? 0
         )
@@ -228,11 +231,16 @@ extension TransmissionDomainMapper {
         }
 
         return SessionState.LifetimeStats(
-            filesAdded: intValue("filesAdded", in: statsDict) ?? 0,
-            downloadedBytes: int64Value("downloadedBytes", in: statsDict),
-            uploadedBytes: int64Value("uploadedBytes", in: statsDict),
-            sessionCount: intValue("sessionCount", in: statsDict) ?? 0,
-            secondsActive: intValue("secondsActive", in: statsDict) ?? 0
+            filesAdded: intValue(aliases: ["files_added", "filesAdded"], in: statsDict) ?? 0,
+            downloadedBytes: int64Value(
+                aliases: ["downloaded_bytes", "downloadedBytes"],
+                in: statsDict
+            ),
+            uploadedBytes: int64Value(aliases: ["uploaded_bytes", "uploadedBytes"], in: statsDict),
+            sessionCount: intValue(aliases: ["session_count", "sessionCount"], in: statsDict)
+                ?? 0,
+            secondsActive: intValue(aliases: ["seconds_active", "secondsActive"], in: statsDict)
+                ?? 0
         )
     }
 }

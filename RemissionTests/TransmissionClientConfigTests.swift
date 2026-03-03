@@ -19,6 +19,7 @@ struct TransmissionClientConfigTests {
         #expect(config.retryDelay == 1)
         #expect(config.serverID == nil)
         #expect(config.enableLogging == false)
+        #expect(config.rpcMode == .auto)
     }
 
     @Test("maskedForLogging не раскрывает пароль и корректно отображает username")

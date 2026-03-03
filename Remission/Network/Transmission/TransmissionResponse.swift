@@ -1,9 +1,12 @@
-/// Represents a Transmission RPC response.
+/// Represents a legacy Transmission RPC response payload.
 ///
-/// **Format**: Transmission RPC (NOT JSON-RPC 2.0)
+/// **Format**: Transmission RPC legacy envelope.
 /// - Uses `result`, `arguments`, and `tag` fields
-/// - Does NOT include `jsonrpc` field or JSON-RPC error codes
+/// - Does NOT include `jsonrpc`
 /// - The `result` field is always a string: `"success"` on success or an error message on failure
+///
+/// - Note: Remission supports both legacy and JSON-RPC 2.0 modes.
+///   This type is intentionally for the legacy envelope only.
 ///
 /// Success example:
 /// ```json

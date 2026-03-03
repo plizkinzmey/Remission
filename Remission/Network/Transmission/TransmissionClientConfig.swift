@@ -31,6 +31,9 @@ public struct TransmissionClientConfig: Sendable {
     /// По умолчанию используется NoOpTransmissionLogger (ничего не логирует).
     public var logger: TransmissionLogger
 
+    /// Предпочтительный RPC режим: auto (по умолчанию), legacy или JSON-RPC 2.0.
+    public var rpcMode: TransmissionRPCMode
+
     /// Инициализация конфигурации с основными параметрами.
     /// - Parameters:
     ///   - baseURL: URL сервера (например, "http://localhost:9091/transmission/rpc").
@@ -50,7 +53,8 @@ public struct TransmissionClientConfig: Sendable {
         retryDelay: TimeInterval = 1,
         serverID: UUID? = nil,
         enableLogging: Bool = false,
-        logger: TransmissionLogger = NoOpTransmissionLogger.shared
+        logger: TransmissionLogger = NoOpTransmissionLogger.shared,
+        rpcMode: TransmissionRPCMode = .auto
     ) {
         self.baseURL = baseURL
         self.username = username
@@ -61,6 +65,7 @@ public struct TransmissionClientConfig: Sendable {
         self.serverID = serverID
         self.enableLogging = enableLogging
         self.logger = logger
+        self.rpcMode = rpcMode
     }
 
     /// Маскированная версия конфигурации для логирования (без пароля).

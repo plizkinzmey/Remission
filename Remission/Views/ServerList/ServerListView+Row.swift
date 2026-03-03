@@ -221,8 +221,12 @@ extension ServerRowView {
                 format: ServerListStrings.rpcVersionTemplate,
                 Int64(handshake.rpcVersion)
             )
+            let protocolText = handshake.protocolSummaryText
             if description.isEmpty {
-                Text(rpcText)
+                HStack(spacing: 6) {
+                    Text(rpcText)
+                    Text(protocolText)
+                }
                     .font(.footnote)
                     .foregroundStyle(.primary)
             } else {
@@ -230,6 +234,7 @@ extension ServerRowView {
                     Text(ServerListStrings.transmissionVersionLabel)
                     Text(description)
                     Text(rpcText)
+                    Text(protocolText)
                 }
                 .font(.footnote)
                 .foregroundStyle(.primary)
@@ -303,4 +308,20 @@ enum ServerListStrings {
     static let transmissionVersionLabel = L10n.tr("serverList.transmissionVersionLabel")
     static let rpcVersionTemplate = L10n.tr("serverDetail.status.rpcVersion")
     static let storageSummaryTemplate = L10n.tr("storage.summary.short")
+}
+
+private extension TransmissionHandshakeResult {
+    var protocolSummaryText: String {
+        switch rpcMode {
+        case .jsonRpc2:
+            if let semver = rpcVersionSemver, semver.isEmpty == false {
+                return "JSON-RPC 2.0 (\(semver))"
+            }
+            return "JSON-RPC 2.0"
+        case .legacy:
+            return "Legacy RPC"
+        case .auto:
+            return "RPC auto"
+        }
+    }
 }

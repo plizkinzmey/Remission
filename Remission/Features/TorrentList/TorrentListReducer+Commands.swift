@@ -157,10 +157,17 @@ extension TorrentListReducer {
                 )
             } catch {
                 if appLogger.isNoop == false {
-                    appLogger.withCategory("torrent-list").warning(
-                        "fetchTorrents.failed",
-                        metadata: ["error": "\(error)"]
-                    )
+                    if isCancellationError(error) {
+                        appLogger.withCategory("torrent-list").debug(
+                            "fetchTorrents.cancelled",
+                            metadata: ["error": "\(error)"]
+                        )
+                    } else {
+                        appLogger.withCategory("torrent-list").warning(
+                            "fetchTorrents.failed",
+                            metadata: ["error": "\(error)"]
+                        )
+                    }
                 }
                 await send(.torrentsResponse(.failure(error)))
             }
@@ -204,4 +211,22 @@ extension TorrentListReducer {
     }
 
     // swiftlint:enable cyclomatic_complexity function_body_length
+
+    private func isCancellationError(_ error: Error) -> Bool {
+        if error is CancellationError {
+            return true
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return true
+        }
+        if let apiError = error as? APIError {
+            switch apiError {
+            case .unknown(let details):
+                return details.lowercased().contains("cancelled")
+            default:
+                return false
+            }
+        }
+        return false
+    }
 }

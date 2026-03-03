@@ -9,6 +9,7 @@ enum TorrentListFields {
         "errorString",
         "labels",
         "percentDone",
+        "percentComplete",
         "recheckProgress",
         "totalSize",
         "downloadedEver",

@@ -33,25 +33,39 @@ extension TransmissionClient {
         }
 
         guard let rpcVersionValue = dict["rpc-version"],
-            case .int(let rpcVersion) = rpcVersionValue
+            let rpcVersion = rpcVersionValue.intValue
         else {
-            throw APIError.decodingFailed(
-                underlyingError: "Missing or invalid rpc-version in session-get response"
-            )
+            guard
+                let rpcVersionValue = dict["rpc_version"] ?? dict["rpc-version"],
+                let rpcVersion = rpcVersionValue.intValue
+            else {
+                throw APIError.decodingFailed(
+                    underlyingError: "Missing or invalid rpc-version/rpc_version in session-get response"
+                )
+            }
+            return try await finalizeHandshake(dict: dict, rpcVersion: rpcVersion)
         }
 
-        let serverVersionString: String?
-        if case .string(let value)? = dict["version"] {
-            serverVersionString = value
+        return try await finalizeHandshake(dict: dict, rpcVersion: rpcVersion)
+    }
+
+    private func finalizeHandshake(
+        dict: [String: AnyCodable],
+        rpcVersion: Int
+    ) async throws -> TransmissionHandshakeResult {
+        let serverVersionString = dict["version"]?.stringValue
+        let rpcVersionSemver = (dict["rpc_version_semver"] ?? dict["rpc-version-semver"])?.stringValue
+        let rpcMode: TransmissionRPCMode
+        if config.rpcMode == .auto {
+            rpcMode = await rpcModeStore.load() ?? .legacy
         } else {
-            serverVersionString = nil
+            rpcMode = config.rpcMode
         }
-
         let isCompatible = rpcVersion >= minimumRpcVersion
 
         if config.enableLogging {
             let message =
-                "Server RPC version: \(rpcVersion), compatible: \(isCompatible) (minimum: \(minimumRpcVersion))"
+                "Server RPC version: \(rpcVersion), semver: \(rpcVersionSemver ?? "n/a"), mode: \(rpcMode.rawValue), compatible: \(isCompatible) (minimum: \(minimumRpcVersion))"
             config.logger.logResponse(
                 method: RPCMethod.sessionGet.rawValue,
                 statusCode: 200,
@@ -71,6 +85,8 @@ extension TransmissionClient {
             rpcVersion: rpcVersion,
             minimumSupportedRpcVersion: minimumRpcVersion,
             serverVersionDescription: serverVersionString,
+            rpcVersionSemver: rpcVersionSemver,
+            rpcMode: rpcMode,
             isCompatible: isCompatible
         )
     }
