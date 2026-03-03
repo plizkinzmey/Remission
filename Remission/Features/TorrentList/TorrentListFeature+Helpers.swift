@@ -395,7 +395,8 @@ extension TorrentListReducer {
         BackoffStrategy.delay(for: failures)
     }
 
-    var maxRetryAttempts: Int { 3 }
+    /// Maximum number of automatic reconnect attempts before switching to explicit user action.
+    var maxRetryAttempts: Int { 10 }
 
     func duration(from interval: TimeInterval) -> Duration {
         .milliseconds(Int(interval * 1_000))

@@ -505,10 +505,23 @@ extension TorrentListReducer {
                         retry: .refresh
                     )
                     guard state.isPollingEnabled,
-                        state.connectionEnvironment != nil,
-                        state.failedAttempts < maxRetryAttempts
+                        state.connectionEnvironment != nil
                     else {
                         return .cancel(id: CancelID.polling)
+                    }
+                    guard state.failedAttempts < maxRetryAttempts else {
+                        return .merge(
+                            .cancel(id: CancelID.polling),
+                            .send(
+                                .errorPresenter(
+                                    .showAlert(
+                                        title: L10n.tr("torrentList.state.noConnection.title"),
+                                        message: message,
+                                        retry: .refresh
+                                    )
+                                )
+                            )
+                        )
                     }
                     let retryEffect = schedulePolling(
                         after: backoffDelay(for: state.failedAttempts))
