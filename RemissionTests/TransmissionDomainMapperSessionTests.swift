@@ -22,6 +22,12 @@ struct TransmissionDomainMapperSessionTests {
         )
         #expect(try mapper.mapFreeSpaceBytes(from: doubleResponse) == 2_048)
 
+        let snakeCaseResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object(["size_bytes": .int(4_096)])
+        )
+        #expect(try mapper.mapFreeSpaceBytes(from: snakeCaseResponse) == 4_096)
+
         let invalidResponse = TransmissionResponse(
             result: "success",
             arguments: .object(["size-bytes": .string("a lot")])
@@ -125,5 +131,62 @@ struct TransmissionDomainMapperSessionTests {
 
         #expect(state.cumulativeStats.filesAdded == 10)
         #expect(state.currentStats.secondsActive == 600)
+    }
+
+    @Test("mapSessionState поддерживает snake_case ключи JSON-RPC 2.0")
+    func mapSessionStateSupportsSnakeCaseKeys() throws {
+        let mapper = TransmissionDomainMapper()
+
+        let sessionResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "rpc_version": .int(19),
+                "rpc_version_minimum": .int(14),
+                "version": .string("4.1.1"),
+                "download_dir": .string("/rpc2/downloads"),
+                "speed_limit_down_enabled": .bool(true),
+                "speed_limit_down": .int(1024),
+                "speed_limit_up_enabled": .bool(true),
+                "speed_limit_up": .int(256),
+                "seed_ratio_limited": .bool(true),
+                "seed_ratio_limit": .double(2.0)
+            ])
+        )
+        let statsResponse = TransmissionResponse(
+            result: "success",
+            arguments: .object([
+                "active_torrent_count": .int(4),
+                "paused_torrent_count": .int(2),
+                "torrent_count": .int(6),
+                "download_speed": .int(2000),
+                "upload_speed": .int(1000),
+                "cumulative_stats": .object([
+                    "files_added": .int(20),
+                    "downloaded_bytes": .int(9_000),
+                    "uploaded_bytes": .int(3_000),
+                    "session_count": .int(5),
+                    "seconds_active": .int(1200)
+                ]),
+                "current_stats": .object([
+                    "files_added": .int(3),
+                    "downloaded_bytes": .int(300),
+                    "uploaded_bytes": .int(100),
+                    "session_count": .int(1),
+                    "seconds_active": .int(60)
+                ])
+            ])
+        )
+
+        let state = try mapper.mapSessionState(
+            sessionResponse: sessionResponse,
+            statsResponse: statsResponse,
+            freeSpaceBytes: 1
+        )
+
+        #expect(state.rpc.rpcVersion == 19)
+        #expect(state.downloadDirectory == "/rpc2/downloads")
+        #expect(state.speedLimits.download.kilobytesPerSecond == 1024)
+        #expect(state.throughput.activeTorrentCount == 4)
+        #expect(state.cumulativeStats.filesAdded == 20)
     }
 }

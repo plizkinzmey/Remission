@@ -15,6 +15,27 @@ actor SessionStore {
     }
 }
 
+actor RPCModeStore {
+    private var selectedMode: TransmissionRPCMode?
+
+    func load() -> TransmissionRPCMode? {
+        selectedMode
+    }
+
+    func store(_ mode: TransmissionRPCMode) {
+        selectedMode = mode
+    }
+}
+
+actor JSONRPCIDStore {
+    private var currentID: Int = 0
+
+    func next() -> TransmissionTag {
+        currentID += 1
+        return .int(currentID)
+    }
+}
+
 /// Конкретная реализация TransmissionClientProtocol.
 /// Использует URLSession для отправки HTTP запросов к Transmission RPC API.
 /// Обрабатывает аутентификацию (Basic Auth + HTTP 409 session-id handshake),
@@ -28,6 +49,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
     /// Потокобезопасное хранилище session-id.
     let sessionStore: SessionStore = SessionStore()
+
+    /// Потокобезопасное хранилище выбранного RPC режима для текущей сессии.
+    let rpcModeStore: RPCModeStore = RPCModeStore()
+
+    /// Потокобезопасный генератор JSON-RPC id, чтобы не отправлять notifications.
+    let jsonrpcIDStore: JSONRPCIDStore = JSONRPCIDStore()
 
     /// URLSession для выполнения HTTP запросов.
     private let session: URLSession
@@ -202,20 +229,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         arguments: AnyCodable? = nil,
         tag: TransmissionTag? = nil
     ) async throws -> TransmissionResponse {
-        let request: TransmissionRequest = TransmissionRequest(
-            method: method,
-            arguments: arguments,
-            tag: tag
-        )
-        let jsonData: Data = try JSONEncoder().encode(request)
-
         var urlRequest: URLRequest = URLRequest(url: config.baseURL)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         urlRequest.timeoutInterval = config.requestTimeout
-
-        // Устанавливаем httpBody; httpBodyStream не используем, чтобы избежать опустошения stream в URLProtocol.
-        urlRequest.httpBody = jsonData
 
         await applyAuthenticationHeaders(to: &urlRequest)
 
@@ -229,7 +246,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         }
 
         // Отправляем запрос с retry логикой
-        return try await sendRequestWithRetry(urlRequest, method: method, bodyData: jsonData)
+        return try await sendRequestWithRetry(
+            urlRequest,
+            method: method,
+            arguments: arguments,
+            tag: tag
+        )
     }
 
     /// Отправить запрос с поддержкой HTTP 409 handshake и повторов.
@@ -243,14 +265,24 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private func sendRequestWithRetry(
         _ urlRequest: URLRequest,
         method: String,
-        bodyData: Data
+        arguments: AnyCodable?,
+        tag: TransmissionTag?
     ) async throws -> TransmissionResponse {
         var mutableRequest: URLRequest = urlRequest
         var remainingRetries: Int = max(config.maxRetries, 0)
         var retryAttempt = 0
         var handshakeAttempts = 0
+        let modesToTry = await initialModesToTry()
+        var modeIndex = 0
 
         while true {
+            let mode = modesToTry[modeIndex]
+            let bodyData = try await encodeRequestBody(
+                method: method,
+                arguments: arguments,
+                tag: tag,
+                mode: mode
+            )
             // Восстанавливаем тело запроса на каждой попытке, чтобы повторные отправки
             // (после 409 или ретраев) не уходили с пустым телом.
             mutableRequest.httpBody = bodyData
@@ -264,8 +296,12 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 let payload = ResponsePayload(
                     data: data, response: response, method: method, elapsedMs: elapsedMs)
                 if let transmissionResponse = try await handleResponse(
-                    payload, request: &mutableRequest, handshakeAttempts: &handshakeAttempts
+                    payload,
+                    request: &mutableRequest,
+                    handshakeAttempts: &handshakeAttempts,
+                    mode: mode
                 ) {
+                    await persistResolvedModeIfNeeded(mode)
                     return transmissionResponse
                 }
             } catch let urlError as URLError {
@@ -281,6 +317,20 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                 }
                 throw APIError.mapURLError(urlError)
             } catch let apiError as APIError {
+                if mode == .jsonRpc2,
+                    modeIndex + 1 < modesToTry.count,
+                    let fallbackReason = fallbackReasonFromJSONRPC(error: apiError)
+                {
+                    logProtocolEvent(
+                        level: .warning,
+                        method: method,
+                        message:
+                            "JSON-RPC fallback to legacy. reason=\(fallbackReason)"
+                    )
+                    modeIndex += 1
+                    handshakeAttempts = 0
+                    continue
+                }
                 logNetworkError(
                     method: method,
                     error: apiError,
@@ -330,6 +380,10 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         guard shouldRetry(urlError) else {
             return false
         }
+        guard remainingRetries > 0 else {
+            return false
+        }
+        remainingRetries -= 1
         let delay = retryDelay(for: retryAttempt)
         retryAttempt += 1
         try await clock.sleep(for: delay)
@@ -339,7 +393,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private func handleResponse(
         _ payload: ResponsePayload,
         request: inout URLRequest,
-        handshakeAttempts: inout Int
+        handshakeAttempts: inout Int,
+        mode: TransmissionRPCMode
     ) async throws -> TransmissionResponse? {
         let httpResponse: HTTPURLResponse = try requireHTTPResponse(payload.response)
 
@@ -367,7 +422,9 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
         try validateHTTPStatus(httpResponse)
         let transmissionResponse: TransmissionResponse = try decodeTransmissionResponse(
-            from: payload.data)
+            from: payload.data,
+            mode: mode
+        )
 
         if transmissionResponse.isError {
             let errorMessage: String = transmissionResponse.errorMessage ?? "Unknown RPC error"
@@ -464,6 +521,215 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         } catch {
             throw APIError.unknown(details: error.localizedDescription)
         }
+    }
+
+    private func decodeTransmissionResponse(
+        from data: Data,
+        mode: TransmissionRPCMode
+    ) throws -> TransmissionResponse {
+        switch mode {
+        case .legacy:
+            return try decodeTransmissionResponse(from: data)
+        case .jsonRpc2:
+            return try decodeJSONRPCResponse(from: data)
+        case .auto:
+            return try decodeTransmissionResponse(from: data)
+        }
+    }
+
+    private func decodeJSONRPCResponse(from data: Data) throws -> TransmissionResponse {
+        do {
+            let response = try JSONDecoder().decode(JSONRPCResponse.self, from: data)
+            if let jsonrpc = response.jsonrpc, jsonrpc != "2.0" {
+                throw APIError.decodingFailed(
+                    underlyingError: "Unsupported jsonrpc version: \(jsonrpc)"
+                )
+            }
+            if response.result != nil, response.error != nil {
+                throw APIError.decodingFailed(
+                    underlyingError: "Invalid JSON-RPC response: result and error are both present"
+                )
+            }
+            if let error = response.error {
+                let errorString = jsonRPCErrorString(from: error)
+                throw APIError.jsonRPC(
+                    code: error.code,
+                    message: error.message,
+                    errorString: errorString
+                )
+            }
+            guard let result = response.result else {
+                throw APIError.decodingFailed(
+                    underlyingError: "Missing result in JSON-RPC response"
+                )
+            }
+            let arguments: AnyCodable?
+            if case .object = result {
+                arguments = result
+            } else {
+                arguments = .object(["value": result])
+            }
+            return TransmissionResponse(result: "success", arguments: arguments, tag: response.id)
+        } catch let decodingError as DecodingError {
+            throw APIError.mapDecodingError(decodingError)
+        } catch let apiError as APIError {
+            throw apiError
+        } catch {
+            throw APIError.unknown(details: error.localizedDescription)
+        }
+    }
+
+    private func jsonRPCErrorString(from error: JSONRPCError) -> String? {
+        if let data = error.data?.objectValue,
+            let errorString = data["error_string"]?.stringValue,
+            errorString.isEmpty == false
+        {
+            return errorString
+        }
+        return nil
+    }
+
+    private func fallbackReasonFromJSONRPC(error: APIError) -> String? {
+        switch error {
+        case .decodingFailed(let details):
+            let lower = details.lowercased()
+            // Fallback only on explicit protocol-shape incompatibility.
+            let protocolMismatchSignals = [
+                "missing result in json-rpc response",
+                "missing or invalid rpc-version/rpc_version in session-get response",
+                "unsupported jsonrpc version",
+                "invalid json-rpc response"
+            ]
+            if protocolMismatchSignals.contains(where: { lower.contains($0) }) {
+                return details
+            }
+            return nil
+        case .unknown(let details):
+            let lower = details.lowercased()
+            if lower.contains("method not found") || lower.contains("json-rpc") {
+                return details
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    private func initialModesToTry() async -> [TransmissionRPCMode] {
+        if config.rpcMode != .auto {
+            return [config.rpcMode]
+        }
+        if let resolved = await rpcModeStore.load() {
+            return [resolved]
+        }
+        return [.jsonRpc2, .legacy]
+    }
+
+    private func persistResolvedModeIfNeeded(_ mode: TransmissionRPCMode) async {
+        if config.rpcMode == .auto {
+            await rpcModeStore.store(mode)
+            logProtocolEvent(
+                level: .info,
+                method: nil,
+                message: "RPC mode resolved: \(mode.rawValue)"
+            )
+        }
+    }
+
+    private func logProtocolEvent(
+        level: TransmissionLogLevel,
+        method: String?,
+        message: String
+    ) {
+        guard appLogger.isNoop == false else { return }
+        let methodInfo = method ?? "n/a"
+        let text = "[\(level.rawValue)] [Transmission] protocol method=\(methodInfo) \(message)"
+        let metadata = makeLogContext(method: methodInfo).metadata()
+        switch level {
+        case .debug:
+            appLogger.debug(text, metadata: metadata)
+        case .info:
+            appLogger.info(text, metadata: metadata)
+        case .warning:
+            appLogger.warning(text, metadata: metadata)
+        case .error:
+            appLogger.error(text, metadata: metadata)
+        }
+    }
+
+    private func encodeRequestBody(
+        method: String,
+        arguments: AnyCodable?,
+        tag: TransmissionTag?,
+        mode: TransmissionRPCMode
+    ) async throws -> Data {
+        switch mode {
+        case .legacy:
+            let request = TransmissionRequest(method: method, arguments: arguments, tag: tag)
+            return try JSONEncoder().encode(request)
+        case .jsonRpc2:
+            let jsonrpcMethod = toJSONRPCMethod(method)
+            // Some Transmission builds are stricter and expect params to be an object,
+            // even when method arguments are empty.
+            let jsonrpcParams = arguments.map { convertAnyCodableToJSONRPC($0) } ?? .object([:])
+            let jsonrpcID: TransmissionTag
+            if let tag {
+                jsonrpcID = tag
+            } else {
+                jsonrpcID = await jsonrpcIDStore.next()
+            }
+            let request = JSONRPCRequest(method: jsonrpcMethod, params: jsonrpcParams, id: jsonrpcID)
+            return try JSONEncoder().encode(request)
+        case .auto:
+            let request = TransmissionRequest(method: method, arguments: arguments, tag: tag)
+            return try JSONEncoder().encode(request)
+        }
+    }
+
+    private func toJSONRPCMethod(_ legacyMethod: String) -> String {
+        legacyMethod.replacingOccurrences(of: "-", with: "_")
+    }
+
+    private func convertAnyCodableToJSONRPC(_ value: AnyCodable) -> AnyCodable {
+        switch value {
+        case .object(let object):
+            let converted = object.reduce(into: [String: AnyCodable]()) { partial, pair in
+                let convertedKey = toSnakeCase(pair.key)
+                if convertedKey == "fields", case .array(let array) = pair.value {
+                    let convertedFields = array.map { element -> AnyCodable in
+                        if case .string(let fieldName) = element {
+                            return .string(toSnakeCase(fieldName))
+                        }
+                        return element
+                    }
+                    partial[convertedKey] = .array(convertedFields)
+                } else {
+                    partial[convertedKey] = convertAnyCodableToJSONRPC(pair.value)
+                }
+            }
+            return .object(converted)
+        case .array(let array):
+            return .array(array.map { convertAnyCodableToJSONRPC($0) })
+        case .string, .int, .double, .bool, .null:
+            return value
+        }
+    }
+
+    private func toSnakeCase(_ key: String) -> String {
+        if key.contains("_") {
+            return key
+        }
+        let withUnderscores = key.reduce(into: "") { partial, scalar in
+            if scalar.isUppercase {
+                partial.append("_")
+                partial.append(scalar.lowercased())
+            } else if scalar == "-" {
+                partial.append("_")
+            } else {
+                partial.append(scalar)
+            }
+        }
+        return withUnderscores
     }
 
     private func mapTrustError(_ error: TransmissionTrustError) -> APIError {

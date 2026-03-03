@@ -6,6 +6,8 @@ public struct TransmissionHandshakeResult: Equatable, Sendable {
     public let rpcVersion: Int
     public let minimumSupportedRpcVersion: Int
     public let serverVersionDescription: String?
+    public let rpcVersionSemver: String?
+    public let rpcMode: TransmissionRPCMode
     public let isCompatible: Bool
 
     public init(
@@ -13,12 +15,16 @@ public struct TransmissionHandshakeResult: Equatable, Sendable {
         rpcVersion: Int,
         minimumSupportedRpcVersion: Int,
         serverVersionDescription: String?,
+        rpcVersionSemver: String? = nil,
+        rpcMode: TransmissionRPCMode = .legacy,
         isCompatible: Bool
     ) {
         self.sessionID = sessionID
         self.rpcVersion = rpcVersion
         self.minimumSupportedRpcVersion = minimumSupportedRpcVersion
         self.serverVersionDescription = serverVersionDescription
+        self.rpcVersionSemver = rpcVersionSemver
+        self.rpcMode = rpcMode
         self.isCompatible = isCompatible
     }
 }

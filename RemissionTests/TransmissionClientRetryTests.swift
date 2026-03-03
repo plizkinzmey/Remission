@@ -84,23 +84,15 @@ struct TransmissionClientRetryTests {
     @Test("Exceeding max retries throws networkUnavailable for timeout")
     func testExceedMaxRetries() async throws {
         MockURLProtocol.reset()
-        let clock = TestClock()
 
         // Max retries = 2. Total attempts allowed = 3.
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
 
-        let client = makeClient(clock: clock, maxRetries: 2, retryDelay: 0.1)
-
-        let task = Task {
-            try await client.sessionGet()
-        }
-
-        await clock.advance(by: .milliseconds(500))
-
+        let client = makeClient(maxRetries: 2, retryDelay: 0)
         await #expect(throws: APIError.networkUnavailable) {
-            try await task.value
+            try await client.sessionGet()
         }
     }
 
@@ -182,6 +174,7 @@ private func makeClient(
         retryDelay: retryDelay
     )
     config.enableLogging = false
+    config.rpcMode = .legacy
 
     let sessionConfiguration = URLSessionConfiguration.ephemeral
     sessionConfiguration.protocolClasses = [MockURLProtocol.self]

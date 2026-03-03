@@ -16,11 +16,9 @@ extension SessionRepository {
             from: session,
             context: "session-get"
         )
-        let downloadDirectory = try mapper.requireString(
-            "download-dir",
-            in: sessionArguments,
-            context: "session-get"
-        )
+        let downloadDirectory =
+            mapper.stringValue(aliases: ["download_dir", "download-dir"], in: sessionArguments)
+            ?? ""
         let freeSpaceBytes: Int64
         do {
             let freeSpaceResponse = try await transmissionClient.freeSpace(downloadDirectory)

@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "A1B8C9D7-8E7F-4C2D-9D11-44D1AA112233",
+      "name" : "Unit Tests",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "isEnabled" : true,
+        "key" : "ENABLE_SWIFT_TESTING",
+        "value" : "YES"
+      }
+    ],
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:Remission.xcodeproj",
+      "identifier" : "15AA8C3A2EA1C9360025EF81",
+      "name" : "Remission"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:Remission.xcodeproj",
+        "identifier" : "15AA8C472EA1C9370025EF81",
+        "name" : "RemissionTests"
+      }
+    }
+  ],
+  "version" : 1
+}

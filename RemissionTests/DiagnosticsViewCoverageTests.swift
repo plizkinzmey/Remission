@@ -1,6 +1,11 @@
 import ComposableArchitecture
 import SwiftUI
 import Testing
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 @testable import Remission
 
@@ -35,9 +40,9 @@ struct DiagnosticsViewCoverageTests {
         let levelBadge = DiagnosticsLevelBadge(level: .warning)
         let offline = DiagnosticsNetworkBadge(isOffline: true, isNetworkIssue: false)
         let network = DiagnosticsNetworkBadge(isOffline: false, isNetworkIssue: true)
-        _ = levelBadge.body
-        _ = offline.body
-        _ = network.body
+        host(levelBadge)
+        host(offline)
+        host(network)
     }
 
     @Test
@@ -45,18 +50,30 @@ struct DiagnosticsViewCoverageTests {
         let entry = makeEntry()
         let row = DiagnosticsLogRowView(entry: entry, onCopy: {})
         let details = DiagnosticsLogDetailsSheet(entry: entry)
-        _ = row.body
-        _ = details.body
+        host(row)
+        host(details)
     }
 
     @Test
     func diagnosticsFilterListTextAndRootViewsRender() {
         let entry = makeEntry()
         let store = makeStore(entries: [entry])
-
-        _ = DiagnosticsFilterSection(store: store).body
-        _ = DiagnosticsLogListView(store: store).body
-        _ = DiagnosticsLogTextView(store: store).body
-        _ = DiagnosticsView(store: store).body
+        host(DiagnosticsFilterSection(store: store))
+        host(DiagnosticsLogListView(store: store))
+        host(DiagnosticsLogTextView(store: store))
+        host(DiagnosticsView(store: store))
     }
 }
+@MainActor
+private func host<V: View>(_ view: V) {
+#if canImport(UIKit)
+    let controller = UIHostingController(rootView: view)
+    _ = controller.view
+#elseif canImport(AppKit)
+    let controller = NSHostingController(rootView: view)
+    _ = controller.view
+#else
+    _ = view.body
+#endif
+}
+

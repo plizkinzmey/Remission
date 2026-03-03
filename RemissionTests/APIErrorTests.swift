@@ -69,4 +69,21 @@ struct APIErrorTests {
             Issue.record("Ожидали .tlsEvaluationFailed")
         }
     }
+
+    @Test
+    func jsonRPCErrorPreservesFields() {
+        let error = APIError.jsonRPC(
+            code: 7,
+            message: "HTTP error from backend service",
+            errorString: "Couldn't test port"
+        )
+
+        if case .jsonRPC(let code, let message, let errorString) = error {
+            #expect(code == 7)
+            #expect(message == "HTTP error from backend service")
+            #expect(errorString == "Couldn't test port")
+        } else {
+            Issue.record("Expected .jsonRPC")
+        }
+    }
 }

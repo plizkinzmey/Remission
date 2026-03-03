@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "ru",
   "strings" : {
+    "" : {
+
+    },
     "%@, %@, %@, %@" : {
       "localizations" : {
         "en" : {
@@ -617,6 +620,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Загрузить ещё..."
+          }
+        }
+      }
+    },
+    "diagnostics.mode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mode"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Режим"
           }
         }
       }

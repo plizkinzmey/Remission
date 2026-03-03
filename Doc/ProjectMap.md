@@ -66,9 +66,15 @@ This makes it easy to:
 
 ## Transmission RPC Notes
 
-- Request/response are *Transmission RPC* (not JSON-RPC 2.0):
+- Network layer supports dual-mode protocol selection:
+  - JSON-RPC 2.0 on compatible servers (Transmission 4.1+ API surface)
+  - legacy Transmission RPC fallback for older/legacy servers
+- Protocol decision and fallback live inside `TransmissionClient` (auto mode with per-session cache).
+- Legacy envelope models remain in:
   - `/Users/plizkinzmey/SRC/Remission/Remission/Network/Transmission/TransmissionRequest.swift`
   - `/Users/plizkinzmey/SRC/Remission/Remission/Network/Transmission/TransmissionResponse.swift`
+- JSON-RPC 2.0 envelope models are in:
+  - `/Users/plizkinzmey/SRC/Remission/Remission/Network/Transmission/TransmissionRPCProtocol.swift`
 - `TransmissionClient` implements:
   - Basic auth headers
   - 409 handshake (`X-Transmission-Session-Id`)

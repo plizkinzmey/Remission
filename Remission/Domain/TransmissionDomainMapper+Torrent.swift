@@ -2,11 +2,17 @@ import Foundation
 
 extension TransmissionDomainMapper {
     func mapTorrentList(from response: TransmissionResponse) throws -> [Torrent] {
+        guard response.isSuccess else {
+            throw DomainMappingError.rpcError(result: response.result, context: "torrent-get")
+        }
         let args = try decode(TorrentGetArguments.self, from: response.arguments)
         return try args.torrents.map { try map($0, includeDetails: false) }
     }
 
     func mapTorrentDetails(from response: TransmissionResponse) throws -> Torrent {
+        guard response.isSuccess else {
+            throw DomainMappingError.rpcError(result: response.result, context: "torrent-get")
+        }
         let args = try decode(TorrentGetArguments.self, from: response.arguments)
         guard let first = args.torrents.first else {
             throw DomainMappingError.emptyCollection(context: "torrent-get")
@@ -15,6 +21,9 @@ extension TransmissionDomainMapper {
     }
 
     func mapTorrentAdd(from response: TransmissionResponse) throws -> TorrentRepository.AddResult {
+        guard response.isSuccess else {
+            throw DomainMappingError.rpcError(result: response.result, context: "torrent-add")
+        }
         let args = try decode(TorrentAddArguments.self, from: response.arguments)
 
         if let added = args.torrentAdded {
@@ -69,7 +78,7 @@ extension TransmissionDomainMapper {
     }
 
     private func mapProgress(_ dto: TorrentObject) -> Torrent.Progress {
-        let rawPercent = dto.percentDone ?? 0.0
+        let rawPercent = dto.percentDone ?? dto.percentComplete ?? 0.0
         let percentDone = rawPercent > 1.0 ? rawPercent / 100.0 : rawPercent
 
         let rawRecheck = dto.recheckProgress ?? 0.0
@@ -178,11 +187,6 @@ struct TorrentGetArguments: Decodable {
 struct TorrentAddArguments: Decodable {
     let torrentAdded: TorrentAddObject?
     let torrentDuplicate: TorrentAddObject?
-
-    enum CodingKeys: String, CodingKey {
-        case torrentAdded = "torrent-added"
-        case torrentDuplicate = "torrent-duplicate"
-    }
 }
 
 struct TorrentAddObject: Decodable {
@@ -201,6 +205,7 @@ struct TorrentObject: Decodable {
 
     // Progress
     let percentDone: Double?
+    let percentComplete: Double?
     let recheckProgress: Double?
     let totalSize: Int?
     let downloadedEver: Int?

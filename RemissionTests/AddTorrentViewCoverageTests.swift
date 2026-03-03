@@ -1,5 +1,10 @@
 import ComposableArchitecture
 import SwiftUI
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 import Testing
 
 @testable import Remission
@@ -11,26 +16,26 @@ struct AddTorrentViewCoverageTests {
     func addTorrentViewsRenderForMagnetAndFileSources() {
         let magnetStore = makeAddTorrentStore(isMagnet: true)
         let magnetView = AddTorrentView(store: magnetStore)
-        _ = magnetView.body
+        host(magnetView)
 
         let magnetSourceView = AddTorrentSourceView(store: magnetStore)
-        _ = magnetSourceView.body
+        host(magnetSourceView)
 
         let magnetSourceSection = AddTorrentSourceSection(store: magnetStore)
-        _ = magnetSourceSection.body
+        host(magnetSourceSection)
 
         let magnetDestination = AddTorrentDestinationSection(store: magnetStore)
-        _ = magnetDestination.body
+        host(magnetDestination)
 
         let magnetOptions = AddTorrentOptionsSection(store: magnetStore)
-        _ = magnetOptions.body
+        host(magnetOptions)
 
         let fileStore = makeAddTorrentStore(isMagnet: false)
         let fileSourceView = AddTorrentSourceView(store: fileStore)
-        _ = fileSourceView.body
+        host(fileSourceView)
 
         let fileSourceSection = AddTorrentSourceSection(store: fileStore)
-        _ = fileSourceSection.body
+        host(fileSourceSection)
 
         #expect(magnetStore.withState { $0.source == .magnetLink })
         #expect(fileStore.withState { $0.source == .torrentFile })
@@ -78,3 +83,16 @@ private func makeAddTorrentStore(isMagnet: Bool) -> StoreOf<AddTorrentReducer> {
         $0 = AppDependencies.makeTestDefaults()
     }
 }
+@MainActor
+private func host<V: View>(_ view: V) {
+#if canImport(UIKit)
+    let controller = UIHostingController(rootView: view)
+    _ = controller.view
+#elseif canImport(AppKit)
+    let controller = NSHostingController(rootView: view)
+    _ = controller.view
+#else
+    _ = view.body
+#endif
+}
+

@@ -1,6 +1,11 @@
 import ComposableArchitecture
 import SwiftUI
 import Testing
+#if canImport(AppKit)
+import AppKit
+#elseif canImport(UIKit)
+import UIKit
+#endif
 
 @testable import Remission
 
@@ -11,13 +16,13 @@ struct TorrentDetailViewCoverageTests {
     func summarySectionRendersForActiveAndIdleStates() {
         let activeStore = makeDetailStore(torrent: makeTorrent(withDetails: true))
         let activeView = TorrentDetailSummarySection(store: activeStore)
-        _ = activeView.body
+        host(activeView)
 
         var idleTorrent = makeTorrent(withDetails: false)
         idleTorrent.status = .stopped
         let idleStore = makeDetailStore(torrent: idleTorrent)
         let idleView = TorrentDetailSummarySection(store: idleStore)
-        _ = idleView.body
+        host(idleView)
 
         #expect(activeStore.withState { $0.status == Torrent.Status.downloading.rawValue })
         #expect(idleStore.withState { $0.status == Torrent.Status.stopped.rawValue })
@@ -28,7 +33,7 @@ struct TorrentDetailViewCoverageTests {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))
 
         let infoView = TorrentDetailInfoSection(store: store)
-        _ = infoView.body
+        host(infoView)
 
         var filesExpanded = true
         var trackersExpanded = true
@@ -48,7 +53,7 @@ struct TorrentDetailViewCoverageTests {
                 set: { peersExpanded = $0 }
             )
         )
-        _ = advancedView.body
+        host(advancedView)
 
         #expect(store.withState { $0.hasLoadedMetadata })
     }
@@ -63,7 +68,7 @@ struct TorrentDetailViewCoverageTests {
             $0 = AppDependencies.makeTestDefaults()
         }
         let loadingView = TorrentDetailView(store: loadingStore)
-        _ = loadingView.body
+        host(loadingView)
 
         var fallbackState = TorrentDetailReducer.State(torrentID: .init(rawValue: 8))
         fallbackState.isLoading = false
@@ -75,7 +80,7 @@ struct TorrentDetailViewCoverageTests {
             $0 = AppDependencies.makeTestDefaults()
         }
         let fallbackView = TorrentDetailView(store: fallbackStore)
-        _ = fallbackView.body
+        host(fallbackView)
 
         #expect(loadingStore.withState { $0.isLoading })
         #expect(fallbackStore.withState { $0.errorPresenter.banner != nil })
@@ -86,16 +91,16 @@ struct TorrentDetailViewCoverageTests {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))
 
         let actions = TorrentActionsView(store: store)
-        _ = actions.body
+        host(actions)
 
         let statistics = TorrentStatisticsView(store: store)
-        _ = statistics.body
+        host(statistics)
 
         let files = TorrentFilesView(store: store, showsContainer: false)
-        _ = files.body
+        host(files)
 
         let trackers = TorrentTrackersView(store: store, showsContainer: false)
-        _ = trackers.body
+        host(trackers)
 
         let peers = TorrentPeersView(
             peers: IdentifiedArray(
@@ -106,16 +111,16 @@ struct TorrentDetailViewCoverageTests {
             ),
             showsContainer: false
         )
-        _ = peers.body
+        host(peers)
 
         let speedHistory = TorrentSpeedHistoryView(samples: makeSpeedSamples())
-        _ = speedHistory.body
+        host(speedHistory)
 
         let speedHistoryEmpty = TorrentSpeedHistoryView(samples: [])
-        _ = speedHistoryEmpty.body
+        host(speedHistoryEmpty)
 
         let mainInfo = TorrentMainInfoView(store: store)
-        _ = mainInfo.body
+        host(mainInfo)
 
         let compactMetric = SummaryMetricCompactRow(
             icon: "arrow.down",
@@ -127,15 +132,15 @@ struct TorrentDetailViewCoverageTests {
             title: "Upload",
             value: "1 MB/s"
         )
-        _ = compactMetric.body
-        _ = metric.body
+        host(compactMetric)
+        host(metric)
 
         let labelValue = TorrentDetailLabelValueRow(
             label: "Progress",
             value: "50%",
             monospacedValue: true
         )
-        _ = labelValue.body
+        host(labelValue)
     }
 
     @Test
@@ -155,7 +160,7 @@ struct TorrentDetailViewCoverageTests {
         ) {
             Text("Content")
         }
-        _ = emptySection.body
+        host(emptySection)
 
         var expandedContent = true
         let contentSection = TorrentDetailSection(
@@ -172,7 +177,7 @@ struct TorrentDetailViewCoverageTests {
         ) {
             Text("Trackers")
         }
-        _ = contentSection.body
+        host(contentSection)
     }
 
     @Test
@@ -269,4 +274,17 @@ private func makeSpeedSamples() -> [SpeedSample] {
             uploadRate: 280_000
         )
     ]
+}
+
+@MainActor
+private func host<V: View>(_ view: V) {
+#if canImport(UIKit)
+    let controller = UIHostingController(rootView: view)
+    _ = controller.view
+#elseif canImport(AppKit)
+    let controller = NSHostingController(rootView: view)
+    _ = controller.view
+#else
+    _ = view.body
+#endif
 }

@@ -42,6 +42,10 @@ public enum APIError: Error, Equatable {
     /// Associated value contains the decoding error details for debugging.
     case decodingFailed(underlyingError: String)
 
+    /// JSON-RPC 2.0 error envelope returned by server.
+    /// Keeps code/message and optional `error_string` from `error.data`.
+    case jsonRPC(code: Int, message: String, errorString: String?)
+
     /// An unknown or unexpected error occurred.
     /// This is a fallback for any error that doesn't fit into the categories above.
     /// Associated value contains the error description or HTTP status code for context.
@@ -71,6 +75,11 @@ extension APIError: LocalizedError {
             )
         case .decodingFailed:
             return L10n.tr("torrentDetail.api.decodingFailed")
+        case .jsonRPC(_, let message, let errorString):
+            if let errorString, errorString.isEmpty == false {
+                return errorString
+            }
+            return message
         case .unknown(let details):
             return String(
                 format: L10n.tr("torrentDetail.api.unknown"),
