@@ -158,4 +158,81 @@ struct TorrentListNotificationTests {
         // Give it a small time to run the effect
         try? await Task.sleep(for: .milliseconds(100))
     }
+
+    @Test("No notification on initial load even if torrents are completed or errored")
+    func testNotification_NoInitialLoadNotifications() async {
+        let clock = TestClock()
+        let completed = Torrent.previewCompleted
+        var errored = Torrent.previewDownloading
+        errored.error = 2
+        errored.errorString = "Disk full"
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                phase: .loading,
+                items: []
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.notificationClient.sendNotification = { @Sendable _, _, _ in
+                Issue.record("Notification should not be sent on initial load")
+            }
+        }
+        store.exhaustivity = .off
+
+        let payload = TorrentListReducer.FetchSuccess(
+            torrents: [completed, errored],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+
+        await store.send(.torrentsResponse(.success(payload)))
+        try? await Task.sleep(for: .milliseconds(100))
+    }
+
+    @Test("Send notification for new completed torrent after list is loaded")
+    func testNotification_NewTorrentAfterLoaded() async {
+        let clock = TestClock()
+        let existing = Torrent.previewDownloading
+        var newCompleted = Torrent.previewCompleted
+        newCompleted.id = Torrent.Identifier(rawValue: 777)
+        newCompleted.name = "New Download"
+
+        await confirmation("Notification sent") { confirm in
+            let store = TestStoreFactory.makeTestStore(
+                initialState: TorrentListReducer.State(
+                    serverID: serverID,
+                    phase: .loaded,
+                    items: [TorrentListItem.State(torrent: existing)]
+                ),
+                reducer: TorrentListReducer()
+            ) {
+                $0.appClock = .test(clock: clock)
+                $0.notificationClient.sendNotification = { @Sendable title, body, identifier in
+                    #expect(title == L10n.tr("torrentList.notification.completed.title"))
+                    #expect(
+                        body == L10n.tr("torrentList.notification.completed.body", "New Download"))
+                    #expect(identifier == "completed-777")
+                    confirm()
+                }
+            }
+            store.exhaustivity = .off
+
+            let payload = TorrentListReducer.FetchSuccess(
+                torrents: [existing, newCompleted],
+                isFromCache: false,
+                snapshotDate: nil
+            )
+
+            await store.send(.torrentsResponse(.success(payload)))
+
+            for _ in 0..<10 {
+                if Task.isCancelled { break }
+                try? await Task.sleep(for: .milliseconds(10))
+                await Task.yield()
+            }
+        }
+    }
 }
