@@ -21,7 +21,7 @@ struct ServerFormReducer {
     }
 
     @ObservableState
-    struct State: Equatable {
+    struct State: Equatable, Sendable {
         var mode: Mode
         var serverConfig: ServerConfigurationReducer.State
         var isSaving: Bool = false
@@ -46,7 +46,7 @@ struct ServerFormReducer {
         }
     }
 
-    enum Action: BindableAction, Equatable {
+    enum Action: BindableAction, Equatable, Sendable {
         case binding(BindingAction<State>)
         case serverConfig(ServerConfigurationReducer.Action)
         case saveButtonTapped

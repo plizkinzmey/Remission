@@ -72,7 +72,7 @@ extension ServerConnectionProbe {
                     requestTimeout: 20,
                     maxRetries: 0,
                     retryDelay: 0.5,
-                    enableLogging: false
+                    enableLogging: true
                 )
             )
 

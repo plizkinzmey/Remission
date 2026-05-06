@@ -32,6 +32,16 @@ extension TransmissionClient {
             )
         }
 
+        if config.enableLogging {
+            let keys = dict.keys.joined(separator: ", ")
+            config.logger.logResponse(
+                method: "handshake-debug",
+                statusCode: 200,
+                responseBody: Data("Received keys: \(keys)".utf8),
+                context: makeLogContext(method: "handshake-debug")
+            )
+        }
+
         guard let rpcVersionValue = dict["rpc-version"],
             let rpcVersion = rpcVersionValue.intValue
         else {

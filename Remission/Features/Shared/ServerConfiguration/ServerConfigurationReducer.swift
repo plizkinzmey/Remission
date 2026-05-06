@@ -4,7 +4,7 @@ import Foundation
 @Reducer
 struct ServerConfigurationReducer {
     @ObservableState
-    struct State: Equatable {
+    struct State: Equatable, Sendable {
         var form: ServerConnectionFormState = .init()
         var validationError: String?
         var connectionStatus: ServerConnectionStatus = .idle
@@ -15,7 +15,7 @@ struct ServerConfigurationReducer {
         }
     }
 
-    enum Action: BindableAction, Equatable {
+    enum Action: BindableAction, Equatable, Sendable {
         case binding(BindingAction<State>)
         case checkConnectionButtonTapped
         case connectionTestFinished(ServerConnectionTestResult)

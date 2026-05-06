@@ -37,16 +37,14 @@
       </EnvironmentVariables>
       <TestPlans>
          <TestPlanReference
-            reference = "container:Remission.xctestplan"
-            default = "NO">
+            reference = "container:Remission.xctestplan">
          </TestPlanReference>
          <TestPlanReference
             reference = "container:Remission.Unit.xctestplan"
             default = "YES">
          </TestPlanReference>
          <TestPlanReference
-            reference = "container:RemissionUITests.xctestplan"
-            default = "NO">
+            reference = "container:RemissionUITests.xctestplan">
          </TestPlanReference>
       </TestPlans>
       <Testables>

@@ -149,10 +149,12 @@ extension AnyCodable {
     /// }
     /// ```
     nonisolated public var intValue: Int? {
-        if case .int(let value) = self {
-            return value
+        switch self {
+        case .int(let value): return value
+        case .string(let value): return Int(value)
+        case .double(let value): return Int(value)
+        default: return nil
         }
-        return nil
     }
 
     /// Returns the double value if this is a `.double` case, otherwise nil.
@@ -165,10 +167,16 @@ extension AnyCodable {
 
     /// Returns the boolean value if this is a `.bool` case, otherwise nil.
     nonisolated public var boolValue: Bool? {
-        if case .bool(let value) = self {
-            return value
+        switch self {
+        case .bool(let value): return value
+        case .string(let value):
+            let lower = value.lowercased()
+            if lower == "true" || lower == "1" || lower == "yes" { return true }
+            if lower == "false" || lower == "0" || lower == "no" { return false }
+            return nil
+        case .int(let value): return value != 0
+        default: return nil
         }
-        return nil
     }
 
     /// Returns the array value if this is an `.array` case, otherwise nil.

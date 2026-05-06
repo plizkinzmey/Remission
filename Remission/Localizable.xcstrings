@@ -193,6 +193,7 @@
       }
     },
     "app.footer.version.debug" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -273,6 +274,7 @@
       }
     },
     "app.startup.version.debug" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
