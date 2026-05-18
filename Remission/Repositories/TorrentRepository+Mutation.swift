@@ -18,7 +18,23 @@ extension TorrentRepository {
                 paused: startPaused,
                 labels: labels
             )
-            return try mapper.mapTorrentAdd(from: response)
+            let addResult = try mapper.mapTorrentAdd(from: response)
+
+            // If the server is older (RPC < 17) and we have labels, set them via torrent-set
+            if let labels, labels.isEmpty == false {
+                let checkVersion = try await client.checkServerVersion()
+                if checkVersion.rpcVersion < 17 {
+                    let arguments: [String: AnyCodable] = [
+                        "labels": .array(labels.map { .string($0) })
+                    ]
+                    _ = try await client.torrentSet(
+                        [addResult.id.rawValue],
+                        .object(arguments)
+                    )
+                }
+            }
+
+            return addResult
         }
     }
 

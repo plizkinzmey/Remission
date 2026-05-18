@@ -227,8 +227,8 @@ extension ServerRowView {
                     Text(rpcText)
                     Text(protocolText)
                 }
-                    .font(.footnote)
-                    .foregroundStyle(.primary)
+                .font(.footnote)
+                .foregroundStyle(.primary)
             } else {
                 HStack(spacing: 6) {
                     Text(ServerListStrings.transmissionVersionLabel)
@@ -310,8 +310,8 @@ enum ServerListStrings {
     static let storageSummaryTemplate = L10n.tr("storage.summary.short")
 }
 
-private extension TransmissionHandshakeResult {
-    var protocolSummaryText: String {
+extension TransmissionHandshakeResult {
+    fileprivate var protocolSummaryText: String {
         switch rpcMode {
         case .jsonRpc2:
             if let semver = rpcVersionSemver, semver.isEmpty == false {

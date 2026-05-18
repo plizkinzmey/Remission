@@ -70,15 +70,18 @@ struct TransmissionClientRPCModeTests {
         #expect(payloads.count == 3)
         guard payloads.count >= 3 else { return }
 
-        let first = try #require(try JSONSerialization.jsonObject(with: payloads[0]) as? [String: Any])
+        let first = try #require(
+            try JSONSerialization.jsonObject(with: payloads[0]) as? [String: Any])
         #expect(first["jsonrpc"] as? String == "2.0")
         #expect(first["method"] as? String == "session_get")
 
-        let second = try #require(try JSONSerialization.jsonObject(with: payloads[1]) as? [String: Any])
+        let second = try #require(
+            try JSONSerialization.jsonObject(with: payloads[1]) as? [String: Any])
         #expect(second["jsonrpc"] == nil)
         #expect(second["method"] as? String == "session-get")
 
-        let third = try #require(try JSONSerialization.jsonObject(with: payloads[2]) as? [String: Any])
+        let third = try #require(
+            try JSONSerialization.jsonObject(with: payloads[2]) as? [String: Any])
         #expect(third["jsonrpc"] == nil)
         #expect(third["method"] as? String == "session-get")
     }
@@ -318,8 +321,8 @@ struct TransmissionClientRPCModeTests {
 
         MockURLProtocol.enqueue { request in
             let raw = """
-            {"jsonrpc":"1.0","result":{"rpc_version":19},"id":1}
-            """
+                {"jsonrpc":"1.0","result":{"rpc_version":19},"id":1}
+                """
             return (httpResponse(for: request, statusCode: 200), Data(raw.utf8))
         }
 

@@ -44,11 +44,15 @@ extension SessionRepository {
         if let speedLimits = update.speedLimits {
             if let download = speedLimits.download {
                 dict["speed-limit-down-enabled"] = .bool(download.isEnabled)
-                dict["speed-limit-down"] = .int(download.kilobytesPerSecond)
+                if download.isEnabled {
+                    dict["speed-limit-down"] = .int(download.kilobytesPerSecond)
+                }
             }
             if let upload = speedLimits.upload {
                 dict["speed-limit-up-enabled"] = .bool(upload.isEnabled)
-                dict["speed-limit-up"] = .int(upload.kilobytesPerSecond)
+                if upload.isEnabled {
+                    dict["speed-limit-up"] = .int(upload.kilobytesPerSecond)
+                }
             }
             if let alt = speedLimits.alternative {
                 dict["alt-speed-enabled"] = .bool(alt.isEnabled)

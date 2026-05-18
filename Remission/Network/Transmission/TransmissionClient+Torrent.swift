@@ -40,7 +40,9 @@ extension TransmissionClient {
         if let paused {
             arguments["paused"] = .bool(paused)
         }
-        if let labels {
+
+        let rpcVersion = await rpcVersionStore.load() ?? minimumRpcVersion
+        if let labels, rpcVersion >= 17 {
             arguments["labels"] = .array(labels.map { .string($0) })
         }
 

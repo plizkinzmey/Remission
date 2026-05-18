@@ -27,6 +27,18 @@ actor RPCModeStore {
     }
 }
 
+actor RPCVersionStore {
+    private var version: Int?
+
+    func load() -> Int? {
+        version
+    }
+
+    func store(_ newValue: Int) {
+        version = newValue
+    }
+}
+
 actor JSONRPCIDStore {
     private var currentID: Int = 0
 
@@ -52,6 +64,9 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
 
     /// Потокобезопасное хранилище выбранного RPC режима для текущей сессии.
     let rpcModeStore: RPCModeStore = RPCModeStore()
+
+    /// Потокобезопасное хранилище версии RPC для текущей сессии.
+    let rpcVersionStore: RPCVersionStore = RPCVersionStore()
 
     /// Потокобезопасный генератор JSON-RPC id, чтобы не отправлять notifications.
     let jsonrpcIDStore: JSONRPCIDStore = JSONRPCIDStore()
@@ -678,7 +693,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
             } else {
                 jsonrpcID = await jsonrpcIDStore.next()
             }
-            let request = JSONRPCRequest(method: jsonrpcMethod, params: jsonrpcParams, id: jsonrpcID)
+            let request = JSONRPCRequest(
+                method: jsonrpcMethod, params: jsonrpcParams, id: jsonrpcID)
             return try JSONEncoder().encode(request)
         case .auto:
             let request = TransmissionRequest(method: method, arguments: arguments, tag: tag)

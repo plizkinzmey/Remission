@@ -83,6 +83,13 @@ extension ServerDetailReducer {
             return .none
         }
         state.lastAppliedDefaultSpeedLimits = limits
+
+        // If download and upload speed limits are not configured, don't send any session-set commands
+        guard limits.downloadKilobytesPerSecond != nil || limits.uploadKilobytesPerSecond != nil
+        else {
+            return .none
+        }
+
         return applyDefaultSpeedLimits(
             limits: limits,
             environment: environment

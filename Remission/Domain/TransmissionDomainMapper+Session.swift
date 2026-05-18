@@ -16,10 +16,11 @@ extension TransmissionDomainMapper {
         )
 
         let rpcInfo: SessionState.RPC = try makeRPCInfo(from: sessionArguments)
-        let downloadDirectory = stringValue(
-            aliases: ["download_dir", "download-dir"],
-            in: sessionArguments
-        ) ?? ""
+        let downloadDirectory =
+            stringValue(
+                aliases: ["download_dir", "download-dir"],
+                in: sessionArguments
+            ) ?? ""
 
         let speedLimits: SessionState.SpeedLimits = makeSpeedLimits(from: sessionArguments)
         let queue: SessionState.Queue = makeQueue(from: sessionArguments)
@@ -31,7 +32,8 @@ extension TransmissionDomainMapper {
 
         let cumulativeStats: SessionState.LifetimeStats = try mapLifetimeStats(
             from: statsArguments,
-            field: statsArguments["cumulative_stats"] == nil ? "cumulative-stats" : "cumulative_stats",
+            field: statsArguments["cumulative_stats"] == nil
+                ? "cumulative-stats" : "cumulative_stats",
             context: "session-stats"
         )
         let currentStats: SessionState.LifetimeStats = try mapLifetimeStats(
@@ -155,7 +157,8 @@ extension TransmissionDomainMapper {
     func makeSeedRatioLimit(
         from dict: [String: AnyCodable]
     ) -> SessionState.SeedRatioLimit {
-        let isEnabled = boolValue(aliases: ["seed_ratio_limited", "seedRatioLimited"], in: dict)
+        let isEnabled =
+            boolValue(aliases: ["seed_ratio_limited", "seedRatioLimited"], in: dict)
             ?? false
         let value = doubleValue(aliases: ["seed_ratio_limit", "seedRatioLimit"], in: dict) ?? 0.0
         return SessionState.SeedRatioLimit(isEnabled: isEnabled, value: value)

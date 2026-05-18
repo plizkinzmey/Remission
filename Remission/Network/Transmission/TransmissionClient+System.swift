@@ -11,6 +11,9 @@ extension TransmissionClient {
 
     /// Проверяет версию сервера на совместимость.
     public func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int) {
+        if let cachedVersion = await rpcVersionStore.load() {
+            return (cachedVersion >= minimumRpcVersion, cachedVersion)
+        }
         // Reuse performHandshake logic which does session-get and version parsing
         let handshake = try await performHandshake()
         return (handshake.isCompatible, handshake.rpcVersion)
@@ -50,7 +53,8 @@ extension TransmissionClient {
                 let rpcVersion = rpcVersionValue.intValue
             else {
                 throw APIError.decodingFailed(
-                    underlyingError: "Missing or invalid rpc-version/rpc_version in session-get response"
+                    underlyingError:
+                        "Missing or invalid rpc-version/rpc_version in session-get response"
                 )
             }
             return try await finalizeHandshake(dict: dict, rpcVersion: rpcVersion)
@@ -64,7 +68,8 @@ extension TransmissionClient {
         rpcVersion: Int
     ) async throws -> TransmissionHandshakeResult {
         let serverVersionString = dict["version"]?.stringValue
-        let rpcVersionSemver = (dict["rpc_version_semver"] ?? dict["rpc-version-semver"])?.stringValue
+        let rpcVersionSemver = (dict["rpc_version_semver"] ?? dict["rpc-version-semver"])?
+            .stringValue
         let rpcMode: TransmissionRPCMode
         if config.rpcMode == .auto {
             rpcMode = await rpcModeStore.load() ?? .legacy
@@ -89,6 +94,8 @@ extension TransmissionClient {
                 version: serverVersionString ?? "RPC v\(rpcVersion)"
             )
         }
+
+        await rpcVersionStore.store(rpcVersion)
 
         return TransmissionHandshakeResult(
             sessionID: await sessionStore.load(),

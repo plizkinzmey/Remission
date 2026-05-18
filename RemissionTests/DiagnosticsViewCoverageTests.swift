@@ -1,13 +1,14 @@
 import ComposableArchitecture
 import SwiftUI
 import Testing
-#if canImport(AppKit)
-import AppKit
-#elseif canImport(UIKit)
-import UIKit
-#endif
 
 @testable import Remission
+
+#if canImport(AppKit)
+    import AppKit
+#elseif canImport(UIKit)
+    import UIKit
+#endif
 
 @Suite("Diagnostics View Coverage")
 @MainActor
@@ -66,14 +67,13 @@ struct DiagnosticsViewCoverageTests {
 }
 @MainActor
 private func host<V: View>(_ view: V) {
-#if canImport(UIKit)
-    let controller = UIHostingController(rootView: view)
-    _ = controller.view
-#elseif canImport(AppKit)
-    let controller = NSHostingController(rootView: view)
-    _ = controller.view
-#else
-    _ = view.body
-#endif
+    #if canImport(UIKit)
+        let controller = UIHostingController(rootView: view)
+        _ = controller.view
+    #elseif canImport(AppKit)
+        let controller = NSHostingController(rootView: view)
+        _ = controller.view
+    #else
+        _ = view.body
+    #endif
 }
-
