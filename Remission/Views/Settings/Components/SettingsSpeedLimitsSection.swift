@@ -5,80 +5,47 @@ struct SettingsSpeedLimitsSection: View {
     @Bindable var store: StoreOf<SettingsReducer>
 
     var body: some View {
-        AppSectionCard(L10n.tr("settings.speed.section")) {
-            AppFormField(L10n.tr("settings.speed.download")) {
+        Section(
+            header: Text(L10n.tr("settings.speed.section")),
+            footer: Text(L10n.tr("settings.speed.note"))
+        ) {
+            LabeledContent(L10n.tr("settings.speed.download")) {
+                TextField(
+                    "",
+                    text: Binding(
+                        get: {
+                            limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
+                        },
+                        set: { store.send(.downloadLimitChanged($0)) }
+                    )
+                )
+                .accessibilityIdentifier("settings_download_limit_field")
+                .multilineTextAlignment(.trailing)
                 #if os(iOS)
-                    LeadingCursorTextField(
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
-                        ),
-                        keyboardType: .decimalPad,
-                        textAlignment: .right
-                    )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .appInteractivePillSurface()
-                #else
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.downloadKilobytesPerSecond)
-                            },
-                            set: { store.send(.downloadLimitChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("settings_download_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.appFormField)
-                    .frame(maxWidth: 160, alignment: .trailing)
+                    .keyboardType(.decimalPad)
                 #endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 160)
             }
 
-            Divider()
-
-            AppFormField(L10n.tr("settings.speed.upload")) {
+            LabeledContent(L10n.tr("settings.speed.upload")) {
+                TextField(
+                    "",
+                    text: Binding(
+                        get: {
+                            limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
+                        },
+                        set: { store.send(.uploadLimitChanged($0)) }
+                    )
+                )
+                .accessibilityIdentifier("settings_upload_limit_field")
+                .multilineTextAlignment(.trailing)
                 #if os(iOS)
-                    LeadingCursorTextField(
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
-                        ),
-                        keyboardType: .decimalPad,
-                        textAlignment: .right
-                    )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .padding(.horizontal, 10)
-                    .frame(height: 32)
-                    .frame(maxWidth: 160, alignment: .trailing)
-                    .appInteractivePillSurface()
-                #else
-                    TextField(
-                        "",
-                        text: Binding(
-                            get: {
-                                limitText(store.defaultSpeedLimits.uploadKilobytesPerSecond)
-                            },
-                            set: { store.send(.uploadLimitChanged($0)) }
-                        )
-                    )
-                    .accessibilityIdentifier("settings_upload_limit_field")
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.appFormField)
-                    .frame(maxWidth: 160, alignment: .trailing)
+                    .keyboardType(.decimalPad)
                 #endif
+                .textFieldStyle(.roundedBorder)
+                .frame(maxWidth: 160)
             }
-
-            Text(L10n.tr("settings.speed.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
         }
     }
 

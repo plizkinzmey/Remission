@@ -50,7 +50,17 @@ struct ServerConfigurationView: View {
             }
         }
         .disabled(store.isCheckButtonDisabled || store.form.isFormValid == false)
-        .buttonStyle(AppFooterButtonStyle(variant: store.checkConnectionButtonVariant))
+        .buttonStyle(.bordered)
+        .tint(checkConnectionTint)
+    }
+
+    private var checkConnectionTint: Color? {
+        switch store.checkConnectionButtonVariant {
+        case .accent: return .accentColor
+        case .success: return .green
+        case .error: return .red
+        case .neutral: return nil
+        }
     }
 
     @ViewBuilder

@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Detail Feature Tests")
 @MainActor
-struct ServerDetailFeatureTests {
-
-    @Test("Task starts connection and loads preferences")
+final class ServerDetailFeatureTests: XCTestCase {
     func testTask_StartsConnection() async {
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
@@ -61,8 +58,6 @@ struct ServerDetailFeatureTests {
             $0.preferences = .default
         }
     }
-
-    @Test("Settings button tapped presents settings")
     func testSettingsButtonTapped() async {
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.previewValue

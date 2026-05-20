@@ -43,28 +43,18 @@ extension ServerListView {
     }
 
     var emptyState: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "tray")
-                .imageScale(.large)
-                .font(.system(size: 48))
-                .foregroundStyle(.primary)
-            Text(ServerListStrings.emptyTitle)
-                .font(.title3)
+        ContentUnavailableView {
+            Label(ServerListStrings.emptyTitle, systemImage: "tray")
                 .accessibilityIdentifier("server_list_empty_title")
+        } description: {
             Text(ServerListStrings.emptyMessage)
-                .font(.body)
-                .foregroundStyle(.primary)
-            Button {
+        } actions: {
+            Button(ServerListStrings.addServer) {
                 store.send(.addButtonTapped)
-            } label: {
-                Text(ServerListStrings.addServer)
             }
-            .buttonStyle(AppPrimaryButtonStyle())
+            .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("server_list_add_button")
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .multilineTextAlignment(.center)
-        .padding()
     }
 
     var loadingState: some View {

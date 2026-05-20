@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Management Tests")
 @MainActor
-struct ServerListManagementTests {
-
-    @Test("Add button открывает форму добавления")
+final class ServerListManagementTests: XCTestCase {
     func testAddButtonTapped() async {
         // Проверяем, что addButtonTapped открывает форму и помечает onboarding показанным.
         let store = TestStore(initialState: ServerListReducer.State()) {
@@ -20,8 +17,6 @@ struct ServerListManagementTests {
             $0.serverForm = ServerFormReducer.State(mode: .add)
         }
     }
-
-    @Test("Edit button открывает форму редактирования")
     func testEditButtonTapped() async {
         // Проверяем, что editButtonTapped открывает форму редактирования выбранного сервера.
         let server = ServerConfig.previewLocalHTTP
@@ -36,8 +31,6 @@ struct ServerListManagementTests {
             $0.serverForm = ServerFormReducer.State(mode: .edit(server))
         }
     }
-
-    @Test("Удаление сервера отправляет запрос в репозиторий")
     func testDeleteServerFlow() async {
         // Проверяем полный сценарий: подтверждение удаления -> вызов репозитория -> обновление списка.
         let server = ServerConfig.previewLocalHTTP
@@ -76,8 +69,6 @@ struct ServerListManagementTests {
             $0.servers = []
         }
     }
-
-    @Test("Создание сервера добавляет в список и запускает probe")
     func testServerFormDidCreate() async {
         // Проверяем, что didCreate добавляет сервер и запускает connectionProbe.
         var serverConfig = ServerConfig.previewLocalHTTP

@@ -11,49 +11,48 @@ struct SettingsView: View {
         NavigationStack {
             Group {
                 #if os(macOS)
-                    VStack(spacing: 12) {
-                        AppWindowHeader(L10n.tr("settings.title"))
+                    VStack(spacing: 0) {
                         windowContent
                     }
                     .safeAreaInset(edge: .bottom) {
-                        AppWindowFooterBar(contentPadding: 6) {
-                            Spacer(minLength: 0)
+                        HStack {
+                            Spacer()
                             Button(L10n.tr("common.cancel")) {
                                 store.send(.cancelButtonTapped)
                             }
                             .accessibilityIdentifier("settings_cancel_button")
-                            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+                            .buttonStyle(.bordered)
                             Button(L10n.tr("common.save")) {
                                 store.send(.saveButtonTapped)
                             }
                             .accessibilityIdentifier("settings_save_button")
-                            .buttonStyle(AppPrimaryButtonStyle())
+                            .buttonStyle(.borderedProminent)
                             .disabled(isSaveDisabled)
                         }
+                        .padding(12)
+                        .background(.bar)
                     }
                     .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
                 #else
-                    ScrollView {
-                        windowContent
-                    }
-                    .scrollDismissesKeyboard(.interactively)
-                    .appDismissKeyboardOnTap()
-                    .navigationTitle(L10n.tr("settings.title"))
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(L10n.tr("common.cancel")) {
-                                store.send(.cancelButtonTapped)
+                    windowContent
+                        .scrollDismissesKeyboard(.interactively)
+                        .appDismissKeyboardOnTap()
+                        .navigationTitle(L10n.tr("settings.title"))
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(L10n.tr("common.cancel")) {
+                                    store.send(.cancelButtonTapped)
+                                }
+                                .accessibilityIdentifier("settings_cancel_button")
                             }
-                            .accessibilityIdentifier("settings_cancel_button")
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("common.save")) {
-                                store.send(.saveButtonTapped)
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button(L10n.tr("common.save")) {
+                                    store.send(.saveButtonTapped)
+                                }
+                                .accessibilityIdentifier("settings_save_button")
+                                .disabled(isSaveDisabled)
                             }
-                            .accessibilityIdentifier("settings_save_button")
-                            .disabled(isSaveDisabled)
                         }
-                    }
                 #endif
             }
             .task { await store.send(.task).finish() }
@@ -88,7 +87,7 @@ struct SettingsView: View {
                 }
             }
         } else {
-            VStack(alignment: .leading, spacing: 16) {
+            Form {
                 SettingsAutoRefreshSection(store: store)
                 if isUITesting {
                     SettingsTelemetrySection(store: store, isUITesting: isUITesting)
@@ -97,9 +96,9 @@ struct SettingsView: View {
                 SettingsSpeedLimitsSection(store: store)
                 SettingsSeedRatioSection(store: store)
             }
-            .padding(12)
-            .appCardSurface(cornerRadius: 16)
-            .padding(.horizontal, 12)
+            #if os(macOS)
+                .formStyle(.grouped)
+            #endif
         }
     }
 

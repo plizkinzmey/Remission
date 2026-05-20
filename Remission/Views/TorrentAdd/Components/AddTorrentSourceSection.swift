@@ -6,7 +6,7 @@ struct AddTorrentSourceSection: View {
     @Bindable var store: StoreOf<AddTorrentReducer>
 
     var body: some View {
-        AppSectionCard(L10n.tr("torrentAdd.section.source"), style: .card) {
+        Section(header: Text(L10n.tr("torrentAdd.section.source"))) {
             VStack(alignment: .leading, spacing: 12) {
                 Picker(
                     L10n.tr("torrentAdd.source.picker.title"),
@@ -33,11 +33,7 @@ struct AddTorrentSourceSection: View {
                         Button(L10n.tr("torrentAdd.source.chooseFile")) {
                             store.send(.chooseFileTapped)
                         }
-                        .buttonStyle(.plain)
-                        .padding(.horizontal, 12)
-                        .frame(height: 34)
-                        .appInteractivePillSurface()
-                        .foregroundStyle(.tint)
+                        .buttonStyle(.bordered)
                         .accessibilityIdentifier("torrent_add_choose_file_button")
 
                         if let fileName = store.selectedFileName {
@@ -45,8 +41,6 @@ struct AddTorrentSourceSection: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
-                        } else {
-                            Spacer(minLength: 0)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -58,10 +52,7 @@ struct AddTorrentSourceSection: View {
                             set: { store.send(.magnetTextChanged($0)) }
                         )
                     )
-                    .textFieldStyle(.plain)
-                    .padding(.horizontal, 12)
-                    .frame(height: 34)
-                    .appInteractivePillSurface()
+                    .textFieldStyle(.roundedBorder)
                     #if os(iOS)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -69,6 +60,7 @@ struct AddTorrentSourceSection: View {
                     .accessibilityIdentifier("torrent_add_magnet_field")
                 }
             }
+            .padding(.vertical, 4)
         }
     }
 }

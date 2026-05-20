@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Detail Connection & Management Tests")
 @MainActor
-struct ServerDetailFeatureConnectionTests {
-
-    @Test("Успешное подключение обновляет состояние и окружение")
+final class ServerDetailFeatureConnectionTests: XCTestCase {
     func testConnectionResponseSuccess() async {
         // Проверяем, что успешный handshake обновляет состояние подключения и
         // прокидывает окружение в список торрентов без очистки уже загруженных данных.
@@ -50,8 +47,6 @@ struct ServerDetailFeatureConnectionTests {
             $0.torrentList.isAwaitingConnection = false
         }
     }
-
-    @Test("Ошибка подключения переводит экран в offline и очищает список")
     func testConnectionResponseFailure() async {
         // Проверяем, что ошибка подключения очищает связанные состояния и переводит
         // экран в offline-режим с увеличением счётчика попыток.
@@ -104,8 +99,6 @@ struct ServerDetailFeatureConnectionTests {
             )
         }
     }
-
-    @Test("Подтверждение удаления сервера запускает удаление и делегат")
     func testDeleteServerFlow() async {
         // Проверяем полный сценарий: подтверждение удаления -> флаг удаления -> успех -> делегат.
         let server = ServerConfig.sample
@@ -142,8 +135,6 @@ struct ServerDetailFeatureConnectionTests {
 
         await store.receive(.delegate(.serverDeleted(server.id)))
     }
-
-    @Test("Изменение параметров сервера запускает переподключение")
     func testEditorUpdateTriggersReconnect() async {
         // Проверяем, что изменение fingerprint приводит к очистке окружения,
         // сбросу списка и повторному подключению.

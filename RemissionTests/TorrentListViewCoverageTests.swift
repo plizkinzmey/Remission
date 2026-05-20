@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Torrent List View Coverage")
 @MainActor
-struct TorrentListViewCoverageTests {
-    @Test
-    func torrentListViewRendersLoadedAndEmptyStates() {
+final class TorrentListViewCoverageTests: XCTestCase {
+    func testTorrentListViewRendersLoadedAndEmptyStates() {
         var loadedState = TorrentListReducer.State.previewLoaded()
         loadedState.isRefreshing = true
         loadedState.errorPresenter.banner = .init(
@@ -35,12 +33,10 @@ struct TorrentListViewCoverageTests {
         let emptyView = TorrentListView(store: emptyStore)
         _ = emptyView.body
 
-        #expect(loadedStore.withState { !$0.visibleItems.isEmpty })
-        #expect(emptyStore.withState { $0.visibleItems.isEmpty })
+        XCTAssertTrue(loadedStore.withState { !$0.visibleItems.isEmpty })
+        XCTAssertTrue(emptyStore.withState { $0.visibleItems.isEmpty })
     }
-
-    @Test
-    func torrentListViewRendersLoadingOfflineAndErrorStates() {
+    func testTorrentListViewRendersLoadingOfflineAndErrorStates() {
         var loadingState = TorrentListReducer.State.previewLoading()
         loadingState.isRefreshing = false
         let loadingStore = Store(initialState: loadingState) {
@@ -77,11 +73,9 @@ struct TorrentListViewCoverageTests {
         let errorView = TorrentListView(store: errorStore)
         _ = errorView.body
 
-        #expect(errorStore.withState { $0.phase == .error("Boom") })
+        XCTAssertTrue(errorStore.withState { $0.phase == .error("Boom") })
     }
-
-    @Test
-    func torrentListComponentsRender() {
+    func testTorrentListComponentsRender() {
         let header = TorrentListHeaderView(title: "Header")
         _ = header.body
 
@@ -107,9 +101,7 @@ struct TorrentListViewCoverageTests {
         let skeleton = TorrentRowSkeletonView(index: 3)
         _ = skeleton.body
     }
-
-    @Test
-    func torrentRowViewRendersWithActions() {
+    func testTorrentRowViewRendersWithActions() {
         let torrent = Torrent.sampleDownloading()
         let item = TorrentListItem.State(torrent: torrent)
         let actions = TorrentRowView.RowActions(
@@ -131,11 +123,9 @@ struct TorrentListViewCoverageTests {
         )
         _ = view.body
 
-        #expect(item.torrent.name.isEmpty == false)
+        XCTAssertTrue(item.torrent.name.isEmpty == false)
     }
-
-    @Test
-    func torrentListToolbarControlsRender() {
+    func testTorrentListToolbarControlsRender() {
         var state = TorrentListReducer.State.previewLoaded()
         state.searchQuery = "Ubuntu"
         let store = Store(initialState: state) {
@@ -149,11 +139,9 @@ struct TorrentListViewCoverageTests {
             _ = view.macOSToolbarControls
         #endif
 
-        #expect(store.withState { $0.searchQuery == "Ubuntu" })
+        XCTAssertTrue(store.withState { $0.searchQuery == "Ubuntu" })
     }
-
-    @Test
-    func torrentListPreviewHelpersAreCallable() {
+    func testTorrentListPreviewHelpersAreCallable() {
         _ = TorrentListReducer.State.previewBase()
         _ = TorrentListReducer.State.previewLoaded()
         _ = TorrentListReducer.State.previewLoading()

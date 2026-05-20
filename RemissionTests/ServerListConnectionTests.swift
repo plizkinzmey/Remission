@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Connection Tests")
 @MainActor
-struct ServerListConnectionTests {
-
-    @Test("Успешный probe обновляет статус и запрашивает storage")
+final class ServerListConnectionTests: XCTestCase {
     func testConnectionProbeSuccess() async {
         // Проверяем, что успешный probe переводит сервер в connected и запускает загрузку storage.
         let server = ServerConfig.previewLocalHTTP
@@ -47,8 +44,6 @@ struct ServerListConnectionTests {
 
         await store.receive(.storageRequested(server.id))
     }
-
-    @Test("Ошибка probe записывает статус failed")
     func testConnectionProbeFailure() async {
         // Проверяем, что ошибка probe переводит статус в failed.
         let server = ServerConfig.previewLocalHTTP
@@ -78,8 +73,6 @@ struct ServerListConnectionTests {
             $0.connectionStatuses[server.id] = .init(phase: .failed(error.message))
         }
     }
-
-    @Test("Отсутствующие credentials переводят probe в failed")
     func testConnectionProbeMissingCredentials() async {
         // Проверяем, что при отсутствии credentials probe возвращает ошибку и статус failed.
         let server = ServerConfig.previewLocalHTTP

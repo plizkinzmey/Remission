@@ -260,67 +260,7 @@
 				"$(TEMP_DIR)/SwiftLintDone",
 			);
 			shellPath = /bin/sh;
-			shellScript = (
-				"if [[ \"$(uname -m)\" == arm64 ]]",
-				"then",
-				"    export PATH=\"/opt/homebrew/bin:$PATH\"",
-				"fi",
-				"if command -v swiftlint >/dev/null 2>&1",
-				"then",
-				"    cd \"${SRCROOT}\"",
-				"    export SWIFTLINT_CACHE_PATH=\"${TEMP_DIR}/SwiftLintCache\"",
-				"    mkdir -p \"${SWIFTLINT_CACHE_PATH}\"",
-				"    swiftlint lint --reporter xcode || true",
-				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
-				"else",
-				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
-				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
-				"fi",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-			);
+			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\nif command -v swiftlint >/dev/null 2>&1\nthen\n    cd \"${SRCROOT}\"\n    export SWIFTLINT_CACHE_PATH=\"${TEMP_DIR}/SwiftLintCache\"\n    mkdir -p \"${SWIFTLINT_CACHE_PATH}\"\n    swiftlint lint --reporter xcode || true\n    touch \"${TEMP_DIR}/SwiftLintDone\"\nelse\n    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"\n    touch \"${TEMP_DIR}/SwiftLintDone\"\nfi\n";
 		};
 		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -334,16 +274,7 @@
 				"$(DERIVED_FILE_DIR)/LocalizationsCheckDone",
 			);
 			shellPath = /bin/sh;
-			shellScript = (
-				"cd \"${SRCROOT}\"",
-				"Scripts/check-localizations.sh",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-			);
+			shellScript = "cd \"${SRCROOT}\"\nScripts/check-localizations.sh\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

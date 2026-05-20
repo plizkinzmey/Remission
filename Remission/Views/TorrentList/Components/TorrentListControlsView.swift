@@ -92,7 +92,11 @@ struct TorrentListControlsView: View {
                 }
                 .padding(controlsPillInnerPadding)
                 .frame(height: controlsPillHeight)
-                .appInteractivePillSurface()
+                .background(.thinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(.quaternary)
+                )
             }
             .frame(maxWidth: .infinity, alignment: .center)
         }
@@ -122,7 +126,11 @@ struct TorrentListControlsView: View {
             }
             .padding(.horizontal, 10)
             .frame(height: controlsPillHeight)
-            .appInteractivePillSurface()
+            .background(.thinMaterial, in: Capsule())
+            .overlay(
+                Capsule()
+                    .strokeBorder(.quaternary)
+            )
         }
     #endif
 
@@ -178,7 +186,11 @@ struct TorrentListControlsView: View {
                 .padding(controlsPillInnerPadding)
                 .frame(width: macOSCategoryPickerWidth, height: controlsPillHeight)
                 .contentShape(Rectangle())
-                .appInteractivePillSurface()
+                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.quaternary)
+                )
             #else
                 HStack(spacing: 8) {
                     Text(store.selectedCategory.title)
@@ -193,7 +205,11 @@ struct TorrentListControlsView: View {
                 .padding(controlsPillInnerPadding)
                 .frame(height: controlsPillHeight)
                 .contentShape(Rectangle())
-                .appInteractivePillSurface()
+                .background(.thinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(.quaternary)
+                )
                 .fixedSize(horizontal: true, vertical: false)
             #endif
         }

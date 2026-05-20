@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Diagnostics Feature Tests")
 @MainActor
-struct DiagnosticsFeatureTests {
-
-    @Test("Task загружает логи и настраивает пагинацию")
+final class DiagnosticsFeatureTests: XCTestCase {
     func testTaskLoadsLogs() async {
         // Проверяем, что task загружает логи и выставляет visibleCount.
         let entries = [
@@ -44,8 +41,6 @@ struct DiagnosticsFeatureTests {
             $0.visibleCount = 1
         }
     }
-
-    @Test("QueryChanged перезапускает загрузку")
     func testQueryChangedReloads() async {
         // Проверяем, что смена query вызывает загрузку и обновляет entries.
         let entries = [
@@ -77,8 +72,6 @@ struct DiagnosticsFeatureTests {
             $0.visibleCount = 1
         }
     }
-
-    @Test("Ошибка загрузки показывает alert")
     func testLogsResponseFailureShowsAlert() async {
         // Проверяем, что ошибка загрузки формирует alert.
         let error = TestError(message: "Ошибка")
@@ -99,8 +92,6 @@ struct DiagnosticsFeatureTests {
             }
         }
     }
-
-    @Test("ToggleLive выключает live режим")
     func testToggleLiveDisablesLive() async {
         // Проверяем, что toggleLive меняет флаг и останавливает стрим.
         var state = DiagnosticsReducer.State()
@@ -114,8 +105,6 @@ struct DiagnosticsFeatureTests {
             $0.isLive = false
         }
     }
-
-    @Test("CopyEntry пишет в clipboard")
     func testCopyEntryCopiesToClipboard() async {
         // Проверяем, что copyEntry отправляет форматированный текст в clipboard.
         let recorder = ClipboardRecorder()
@@ -137,7 +126,7 @@ struct DiagnosticsFeatureTests {
         await store.send(.copyEntry(entry))
 
         let copied = await recorder.waitForText()
-        #expect(copied.contains("Ping"))
+        XCTAssertTrue(copied.contains("Ping"))
     }
 }
 

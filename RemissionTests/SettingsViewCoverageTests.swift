@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Settings View Coverage")
 @MainActor
-struct SettingsViewCoverageTests {
-    @Test
-    func settingsViewRendersLoadingAndLoadedStates() {
+final class SettingsViewCoverageTests: XCTestCase {
+    func testSettingsViewRendersLoadingAndLoadedStates() {
         let loadingStore = makeSettingsStore(isLoaded: false)
         let loadingView = SettingsView(store: loadingStore)
         _ = loadingView.body
@@ -17,12 +15,10 @@ struct SettingsViewCoverageTests {
         let loadedView = SettingsView(store: loadedStore)
         _ = loadedView.body
 
-        #expect(loadedStore.withState { $0.persistedPreferences != nil })
-        #expect(loadingStore.withState { $0.persistedPreferences == nil })
+        XCTAssertTrue(loadedStore.withState { $0.persistedPreferences != nil })
+        XCTAssertTrue(loadingStore.withState { $0.persistedPreferences == nil })
     }
-
-    @Test
-    func settingsSectionsRender() {
+    func testSettingsSectionsRender() {
         let store = makeSettingsStore(isLoaded: true)
 
         let autoRefresh = SettingsAutoRefreshSection(store: store)

@@ -171,7 +171,14 @@ extension ServerConfigurationReducer.State {
         }
     }
 
-    var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
+    enum ConnectionButtonVariant: Sendable, Equatable {
+        case neutral
+        case success
+        case error
+        case accent
+    }
+
+    var checkConnectionButtonVariant: ConnectionButtonVariant {
         switch connectionStatus {
         case .success:
             return .success

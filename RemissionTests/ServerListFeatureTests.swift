@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Feature Tests")
 @MainActor
-struct ServerListFeatureTests {
-
-    @Test("Initial load with no servers")
+final class ServerListFeatureTests: XCTestCase {
     func testTask_InitialLoad_Empty() async {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
@@ -26,8 +23,6 @@ struct ServerListFeatureTests {
             $0.servers = []
         }
     }
-
-    @Test("Initial load with servers and auto-selection")
     func testTask_InitialLoad_WithServers() async {
         let server = ServerConfig.sample
         let handshake = TransmissionHandshakeResult(
@@ -75,8 +70,6 @@ struct ServerListFeatureTests {
 
         await store.receive(ServerListReducer.Action.storageRequested(server.id))
     }
-
-    @Test("Add button tapped")
     func testAddButtonTapped() async {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
@@ -87,8 +80,6 @@ struct ServerListFeatureTests {
             $0.serverForm = ServerFormReducer.State(mode: .add)
         }
     }
-
-    @Test("Delete server flow")
     func testDeleteServerFlow() async {
         let server = ServerConfig.sample
         let store = TestStore(
