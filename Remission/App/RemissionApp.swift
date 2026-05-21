@@ -87,7 +87,7 @@ struct RemissionApp: App {
         // Минимальный размер окна, чтобы таблицы и панели не схлопывались.
         // Reduced to support macOS Split View (half-screen snapping).
         // Previous value (1100) prevented snapping on standard displays.
-        static let minimumSize = NSSize(width: 600, height: 450)
+        static let minimumSize = NSSize(width: 680, height: 500)
     }
 
     @MainActor

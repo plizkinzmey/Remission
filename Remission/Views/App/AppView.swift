@@ -47,10 +47,10 @@ struct AppView: View {
                 .task { await store.send(.task).finish() }
                 #if os(macOS)
                     .frame(
-                        minWidth: 600,
-                        idealWidth: store.serverList.servers.isEmpty ? 600 : nil,
-                        maxWidth: store.serverList.servers.isEmpty ? 600 : .infinity,
-                        minHeight: store.serverList.servers.isEmpty ? 520 : 450,
+                        minWidth: 680,
+                        idealWidth: store.serverList.servers.isEmpty ? 680 : nil,
+                        maxWidth: store.serverList.servers.isEmpty ? 680 : .infinity,
+                        minHeight: store.serverList.servers.isEmpty ? 520 : 500,
                         idealHeight: store.serverList.servers.isEmpty ? 520 : nil,
                         maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
                     )
@@ -62,12 +62,12 @@ struct AppView: View {
                                     window.styleMask.remove(.resizable)
                                 }
                                 window.standardWindowButton(.zoomButton)?.isEnabled = false
-                                let targetSize = NSSize(width: 600, height: 520)
+                                let targetSize = NSSize(width: 680, height: 520)
                                 window.minSize = targetSize
                                 window.maxSize = targetSize
 
                                 var frame = window.frame
-                                if frame.size.width != 600 || frame.size.height != 520 {
+                                if frame.size.width != 680 || frame.size.height != 520 {
                                     frame.size = targetSize
                                     window.setFrame(frame, display: true, animate: true)
                                 }
@@ -76,7 +76,7 @@ struct AppView: View {
                                     window.styleMask.insert(.resizable)
                                 }
                                 window.standardWindowButton(.zoomButton)?.isEnabled = true
-                                window.minSize = NSSize(width: 600, height: 450)
+                                window.minSize = NSSize(width: 680, height: 500)
                                 window.maxSize = NSSize(
                                     width: CGFloat.greatestFiniteMagnitude,
                                     height: CGFloat.greatestFiniteMagnitude)
