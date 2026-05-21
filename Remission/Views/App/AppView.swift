@@ -55,12 +55,12 @@ struct AppView: View {
                         maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
                     )
                     .background(
-                        MacWindowConfigurator { window in
-                            let isFixed = store.serverList.servers.isEmpty
+                        MacWindowConfigurator(isFixedSize: store.serverList.servers.isEmpty) { window, isFixed in
                             if isFixed {
                                 if window.styleMask.contains(.resizable) {
                                     window.styleMask.remove(.resizable)
                                 }
+                                window.standardWindowButton(.zoomButton)?.isEnabled = false
                                 let targetSize = NSSize(width: 600, height: 520)
                                 window.minSize = targetSize
                                 window.maxSize = targetSize
@@ -74,6 +74,7 @@ struct AppView: View {
                                 if !window.styleMask.contains(.resizable) {
                                     window.styleMask.insert(.resizable)
                                 }
+                                window.standardWindowButton(.zoomButton)?.isEnabled = true
                                 window.minSize = NSSize(width: 600, height: 450)
                                 window.maxSize = NSSize(
                                     width: CGFloat.greatestFiniteMagnitude,

@@ -23,8 +23,7 @@ struct ServerConnectionFormFields: View {
                         .fixedSize(horizontal: true, vertical: false)
 
                     Picker("", selection: $form.transport) {
-                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) {
-                            transport in
+                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                             Text(transport.title).tag(transport)
                         }
                     }
@@ -42,7 +41,7 @@ struct ServerConnectionFormFields: View {
 
                     TextField(
                         L10n.tr("serverForm.placeholder.name"),
-                        text: $form.name
+                        text: $form.name.filtered(allowed: .serverNameCharacters)
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -58,7 +57,7 @@ struct ServerConnectionFormFields: View {
 
                     TextField(
                         L10n.tr("serverForm.placeholder.host"),
-                        text: $form.host
+                        text: $form.host.filteredASCII(allowed: .hostCharacters)
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -74,7 +73,7 @@ struct ServerConnectionFormFields: View {
 
                     TextField(
                         L10n.tr("serverForm.placeholder.port"),
-                        text: $form.port
+                        text: $form.port.filtered(allowed: .decimalDigits).limited(to: 5)
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -90,7 +89,7 @@ struct ServerConnectionFormFields: View {
 
                     TextField(
                         L10n.tr("serverForm.placeholder.path"),
-                        text: $form.path
+                        text: $form.path.filteredASCII(allowed: .pathCharacters)
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -115,7 +114,7 @@ struct ServerConnectionFormFields: View {
 
                     TextField(
                         L10n.tr("serverForm.placeholder.username"),
-                        text: $form.username
+                        text: $form.username.filtered(allowed: .usernameCharacters)
                     )
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -134,12 +133,12 @@ struct ServerConnectionFormFields: View {
                             if isPasswordVisible {
                                 TextField(
                                     L10n.tr("serverForm.placeholder.password"),
-                                    text: $form.password
+                                    text: $form.password.filtered(allowed: .passwordCharacters)
                                 )
                             } else {
                                 SecureField(
                                     L10n.tr("serverForm.placeholder.password"),
-                                    text: $form.password
+                                    text: $form.password.filtered(allowed: .passwordCharacters)
                                 )
                             }
                         }
@@ -169,8 +168,7 @@ struct ServerConnectionFormFields: View {
             Group {
                 Section(header: Text(L10n.tr("serverForm.section.connection")).lineLimit(1)) {
                     Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
-                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) {
-                            transport in
+                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                             Text(transport.title).tag(transport)
                         }
                     }
@@ -180,7 +178,7 @@ struct ServerConnectionFormFields: View {
                     LabeledContent(L10n.tr("serverForm.placeholder.name")) {
                         TextField(
                             L10n.tr("serverForm.placeholder.name"),
-                            text: $form.name
+                            text: $form.name.filtered(allowed: .serverNameCharacters)
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -191,7 +189,7 @@ struct ServerConnectionFormFields: View {
                     LabeledContent(L10n.tr("serverForm.placeholder.host")) {
                         TextField(
                             L10n.tr("serverForm.placeholder.host"),
-                            text: $form.host
+                            text: $form.host.filteredASCII(allowed: .hostCharacters)
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -205,7 +203,7 @@ struct ServerConnectionFormFields: View {
                     LabeledContent(L10n.tr("serverForm.placeholder.port")) {
                         TextField(
                             L10n.tr("serverForm.placeholder.port"),
-                            text: $form.port
+                            text: $form.port.filtered(allowed: .decimalDigits).limited(to: 5)
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -217,7 +215,7 @@ struct ServerConnectionFormFields: View {
                     LabeledContent(L10n.tr("serverForm.placeholder.path")) {
                         TextField(
                             L10n.tr("serverForm.placeholder.path"),
-                            text: $form.path
+                            text: $form.path.filteredASCII(allowed: .pathCharacters)
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -232,7 +230,7 @@ struct ServerConnectionFormFields: View {
                     LabeledContent(L10n.tr("serverForm.placeholder.username")) {
                         TextField(
                             L10n.tr("serverForm.placeholder.username"),
-                            text: $form.username
+                            text: $form.username.filtered(allowed: .usernameCharacters)
                         )
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -248,12 +246,12 @@ struct ServerConnectionFormFields: View {
                                 if isPasswordVisible {
                                     TextField(
                                         L10n.tr("serverForm.placeholder.password"),
-                                        text: $form.password
+                                        text: $form.password.filtered(allowed: .passwordCharacters)
                                     )
                                 } else {
                                     SecureField(
                                         L10n.tr("serverForm.placeholder.password"),
-                                        text: $form.password
+                                        text: $form.password.filtered(allowed: .passwordCharacters)
                                     )
                                 }
                             }

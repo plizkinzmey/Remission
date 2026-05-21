@@ -24,8 +24,7 @@ struct ServerListView: View {
                 mainContent
             } else {
                 mainContent
-                    .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) {
-                        formStore in
+                    .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
                         ServerFormView(store: formStore)
                     }
             }

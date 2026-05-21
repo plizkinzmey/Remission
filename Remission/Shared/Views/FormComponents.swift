@@ -94,4 +94,18 @@ extension Binding where Value == String {
             set: { self.wrappedValue = $0.filteredASCII(allowed: allowed) }
         )
     }
+
+    /// Ограничивает длину строки максимальным количеством символов.
+    func limited(to maxLength: Int) -> Binding<String> {
+        Binding(
+            get: { self.wrappedValue },
+            set: {
+                if $0.count > maxLength {
+                    self.wrappedValue = String($0.prefix(maxLength))
+                } else {
+                    self.wrappedValue = $0
+                }
+            }
+        )
+    }
 }
