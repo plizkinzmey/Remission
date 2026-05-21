@@ -331,6 +331,72 @@ struct TransmissionClientRPCModeTests {
             _ = try await client.sessionGet()
         }
     }
+
+    @Test(
+        "auto mode correctly resolves and caches legacy mode for Transmission 3.0 (which returns legacy error envelope to JSON-RPC)"
+    )
+    func autoModeCorrectlyResolvesAndCachesLegacyForTransmission3() async throws {
+        MockURLProtocol.reset()
+        let inspector = RequestBodyInspector()
+
+        // 1. JSON-RPC query: server returns legacy envelope saying "no method name" because it doesn't know "session_get"
+        MockURLProtocol.enqueue { request in
+            inspector.append(requestBodyData(from: request))
+            let response = """
+                {"arguments":{},"result":"no method name 'session_get'"}
+                """
+            return (httpResponse(for: request, statusCode: 200), Data(response.utf8))
+        }
+
+        // 2. Fallback to legacy: server returns successful legacy handshake
+        MockURLProtocol.enqueue { request in
+            inspector.append(requestBodyData(from: request))
+            let success = TransmissionResponse(
+                result: "success",
+                arguments: .object(["rpc-version": .int(15), "version": .string("3.00")])
+            )
+            return (httpResponse(for: request, statusCode: 200), try JSONEncoder().encode(success))
+        }
+
+        // 3. Subsequent request uses cached legacy mode immediately
+        MockURLProtocol.enqueue { request in
+            inspector.append(requestBodyData(from: request))
+            let success = TransmissionResponse(
+                result: "success",
+                arguments: .object(["rpc-version": .int(15), "version": .string("3.00")])
+            )
+            return (httpResponse(for: request, statusCode: 200), try JSONEncoder().encode(success))
+        }
+
+        let client = makeClient(mode: .auto)
+        let handshake = try await client.performHandshake()
+        #expect(handshake.rpcMode == .legacy)
+        #expect(handshake.rpcVersion == 15)
+
+        _ = try await client.sessionGet()
+
+        let payloads = inspector.values
+        #expect(payloads.count == 3)
+        guard payloads.count >= 3 else { return }
+
+        // First was JSON-RPC
+        let first = try #require(
+            try JSONSerialization.jsonObject(with: payloads[0]) as? [String: Any])
+        #expect(first["jsonrpc"] as? String == "2.0")
+        #expect(first["method"] as? String == "session_get")
+
+        // Second was Legacy
+        let second = try #require(
+            try JSONSerialization.jsonObject(with: payloads[1]) as? [String: Any])
+        #expect(second["jsonrpc"] == nil)
+        #expect(second["method"] as? String == "session-get")
+
+        // Third was Legacy cached
+        let third = try #require(
+            try JSONSerialization.jsonObject(with: payloads[2]) as? [String: Any])
+        #expect(third["jsonrpc"] == nil)
+        #expect(third["method"] as? String == "session-get")
+    }
 }
 
 private func makeClient(mode: TransmissionRPCMode) -> TransmissionClient {

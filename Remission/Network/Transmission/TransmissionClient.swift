@@ -557,9 +557,9 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private func decodeJSONRPCResponse(from data: Data) throws -> TransmissionResponse {
         do {
             let response = try JSONDecoder().decode(JSONRPCResponse.self, from: data)
-            if let jsonrpc = response.jsonrpc, jsonrpc != "2.0" {
+            guard let jsonrpc = response.jsonrpc, jsonrpc == "2.0" else {
                 throw APIError.decodingFailed(
-                    underlyingError: "Unsupported jsonrpc version: \(jsonrpc)"
+                    underlyingError: "Unsupported jsonrpc version: \(response.jsonrpc ?? "null")"
                 )
             }
             if response.result != nil, response.error != nil {
