@@ -32,7 +32,7 @@ struct SettingsView: View {
                         .padding(12)
                         .background(.bar)
                     }
-                    .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
+                    .frame(width: 520, height: 500)
                 #else
                     windowContent
                         .scrollDismissesKeyboard(.interactively)
