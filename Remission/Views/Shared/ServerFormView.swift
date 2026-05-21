@@ -42,7 +42,7 @@ struct ServerFormView: View {
                     .padding(12)
                     .background(.bar)
                 }
-                .frame(width: 480)
+                .frame(width: 480, height: 500)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             #else
                 windowContent

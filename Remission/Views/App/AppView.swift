@@ -2,6 +2,10 @@ import ComposableArchitecture
 import Dependencies
 import SwiftUI
 
+#if os(macOS)
+    import AppKit
+#endif
+
 struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
     @State var isStartupTextVisible: Bool = false
@@ -46,9 +50,36 @@ struct AppView: View {
                         minWidth: 600,
                         idealWidth: store.serverList.servers.isEmpty ? 600 : nil,
                         maxWidth: store.serverList.servers.isEmpty ? 600 : .infinity,
-                        minHeight: 450,
-                        idealHeight: store.serverList.servers.isEmpty ? 450 : nil,
-                        maxHeight: store.serverList.servers.isEmpty ? 450 : .infinity
+                        minHeight: store.serverList.servers.isEmpty ? 520 : 450,
+                        idealHeight: store.serverList.servers.isEmpty ? 520 : nil,
+                        maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
+                    )
+                    .background(
+                        MacWindowConfigurator { window in
+                            let isFixed = store.serverList.servers.isEmpty
+                            if isFixed {
+                                if window.styleMask.contains(.resizable) {
+                                    window.styleMask.remove(.resizable)
+                                }
+                                let targetSize = NSSize(width: 600, height: 520)
+                                window.minSize = targetSize
+                                window.maxSize = targetSize
+
+                                var frame = window.frame
+                                if frame.size.width != 600 || frame.size.height != 520 {
+                                    frame.size = targetSize
+                                    window.setFrame(frame, display: true, animate: true)
+                                }
+                            } else {
+                                if !window.styleMask.contains(.resizable) {
+                                    window.styleMask.insert(.resizable)
+                                }
+                                window.minSize = NSSize(width: 600, height: 450)
+                                window.maxSize = NSSize(
+                                    width: CGFloat.greatestFiniteMagnitude,
+                                    height: CGFloat.greatestFiniteMagnitude)
+                            }
+                        }
                     )
                 #endif
         #endif

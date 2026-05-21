@@ -59,11 +59,12 @@ struct RemissionApp: App {
                             ? WindowConstants.minimumSize.width : nil,
                         maxWidth: store.serverList.servers.isEmpty
                             ? WindowConstants.minimumSize.width : .infinity,
-                        minHeight: WindowConstants.minimumSize.height,
+                        minHeight: store.serverList.servers.isEmpty
+                            ? 520 : WindowConstants.minimumSize.height,
                         idealHeight: store.serverList.servers.isEmpty
-                            ? WindowConstants.minimumSize.height : nil,
+                            ? 520 : nil,
                         maxHeight: store.serverList.servers.isEmpty
-                            ? WindowConstants.minimumSize.height : .infinity
+                            ? 520 : .infinity
                     )
                 #endif
         }

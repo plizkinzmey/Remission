@@ -54,8 +54,9 @@ struct ServerListView: View {
                             state: \.serverForm, action: \.serverForm.presented)
                         {
                             ServerFormView(store: formStore)
-                                .frame(maxWidth: 450)
-                                .frame(maxHeight: .infinity)
+                                .frame(
+                                    maxWidth: .infinity, maxHeight: .infinity, alignment: .center
+                                )
                                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                         } else {
                             emptyState
