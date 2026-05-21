@@ -289,7 +289,7 @@ struct AppReducer {
         }
     }
 
-    @Reducer(state: .equatable, action: .equatable)
+    @Reducer
     enum Path {
         case serverDetail(ServerDetailReducer)
         case serverForm(ServerFormReducer)
@@ -356,6 +356,9 @@ struct AppReducer {
             .path(.element(id: targetID, action: .serverDetail(.fileImportResult(.success(url))))))
     }
 }
+
+extension AppReducer.Path.State: Equatable {}
+extension AppReducer.Path.Action: Equatable {}
 
 #if os(iOS)
     struct StartupState: Equatable {
