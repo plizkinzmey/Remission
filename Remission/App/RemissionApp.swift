@@ -15,9 +15,15 @@ struct RemissionApp: App {
     init() {
         NotificationClient.configure()
         let arguments = ProcessInfo.processInfo.arguments
+        let environment = ProcessInfo.processInfo.environment
+        let namespace = AppStorageNamespace.live(environment: environment)
         let scenario = AppBootstrap.parseUITestScenario(arguments: arguments)
         let fixture = AppBootstrap.parseUITestFixture(arguments: arguments)
-        let initialState = AppBootstrap.makeInitialState(arguments: arguments)
+        let initialState = AppBootstrap.makeInitialState(
+            arguments: arguments,
+            environment: environment,
+            storageFileURL: ServerConfigStoragePaths.defaultURL(namespace: namespace)
+        )
 
         let store = Store(initialState: initialState) {
             AppReducer()
@@ -26,10 +32,10 @@ struct RemissionApp: App {
                 dependencies = AppDependencies.makeUITest(
                     fixture: fixture,
                     scenario: scenario,
-                    environment: ProcessInfo.processInfo.environment
+                    environment: environment
                 )
             } else {
-                dependencies = AppDependencies.makeLive()
+                dependencies = AppDependencies.makeLive(namespace: namespace)
             }
         }
 

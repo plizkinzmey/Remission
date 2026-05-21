@@ -137,7 +137,11 @@ struct DiagnosticsLogListView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
-        .appInteractivePillSurface()
+        .background(Color.controlBackgroundColor, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(.quaternary)
+        )
         .accessibilityIdentifier("diagnostics_pending_banner")
     }
 

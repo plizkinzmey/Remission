@@ -90,7 +90,26 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
         @Dependency(\.appLogger) var appLogger
         @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
-        return Self { server in
+        return .live(
+            credentialsRepository: credentialsRepository,
+            appClock: appClock,
+            trustPromptCenter: trustPromptCenter,
+            appLogger: appLogger,
+            offlineCacheRepository: offlineCacheRepository,
+            trustStore: TransmissionTrustStore(
+                serviceIdentifier: AppStorageNamespace.live().trustKeychainServiceIdentifier)
+        )
+    }
+
+    static func live(
+        credentialsRepository: CredentialsRepository,
+        appClock: AppClockDependency,
+        trustPromptCenter: TransmissionTrustPromptCenter,
+        appLogger: AppLogger,
+        offlineCacheRepository: OfflineCacheRepository,
+        trustStore: TransmissionTrustStore = TransmissionTrustStore()
+    ) -> Self {
+        Self { server in
             let password = try await loadPassword(
                 server: server,
                 credentialsRepository: credentialsRepository
@@ -113,7 +132,8 @@ extension ServerConnectionEnvironmentFactory: DependencyKey {
                 config: config,
                 clock: appClock.clock(),
                 appLogger: appLogger,
-                category: "transmission"
+                category: "transmission",
+                trustStore: trustStore
             )
 
             client.setTrustDecisionHandler(trustPromptCenter.makeHandler())

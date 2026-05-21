@@ -7,6 +7,8 @@ struct ServerRowView: View, Equatable {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    @State private var pulseScale: CGFloat = 1.0
+
     var body: some View {
         #if os(iOS)
             serverRowIOS
@@ -22,45 +24,137 @@ struct ServerRowView: View, Equatable {
 }
 
 extension ServerRowView {
+    private var hasAdditionalInfo: Bool {
+        switch status.phase {
+        case .connected, .failed:
+            return true
+        default:
+            return false
+        }
+    }
+
+    private var statusBorderColor: Color {
+        switch status.phase {
+        case .connected:
+            return .green.opacity(0.15)
+        case .failed:
+            return .red.opacity(0.15)
+        case .idle, .probing:
+            return .blue.opacity(0.1)
+        }
+    }
+
+    private var cardBackgroundColor: Color {
+        #if os(iOS)
+            return Color(uiColor: .secondarySystemGroupedBackground)
+        #else
+            return Color.clear
+        #endif
+    }
+
+    private var connectionStatusIndicator: some View {
+        let tint = ConnectionStatusChipDescriptor(phase: status.phase).tint
+        let isConnecting = status.phase == .idle || status.phase == .probing
+
+        return ZStack {
+            if isConnecting {
+                Circle()
+                    .stroke(tint.opacity(0.3), lineWidth: 3)
+                    .frame(width: 12, height: 12)
+                    .scaleEffect(pulseScale)
+                    .opacity(2.0 - pulseScale)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false))
+                        {
+                            pulseScale = 2.0
+                        }
+                    }
+            }
+
+            Circle()
+                .fill(tint)
+                .frame(width: 8, height: 8)
+                .shadow(color: tint.opacity(0.4), radius: 2)
+        }
+    }
+
     fileprivate var serverRowIOS: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center, spacing: 12) {
-                Button(action: onTap) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(server.name)
-                            .font(.headline)
-                            .lineLimit(1)
-                        Text(server.displayAddress)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
+        VStack(spacing: 12) {
+            Button(action: onTap) {
+                VStack(alignment: .leading, spacing: 12) {
+                    // Header Row: Icon + Server Name + Security Badge
+                    HStack(alignment: .center, spacing: 10) {
+                        connectionStatusIndicator
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(server.name)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+
+                            Text(server.displayAddress)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+
+                        Spacer()
+
+                        securityBadge
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
 
-                HStack(spacing: 8) {
+                    // Version Summary (only if connected or failed)
+                    if hasAdditionalInfo {
+                        Divider()
+                            .background(Color.secondary.opacity(0.2))
+
+                        versionSummary
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+
+            // Storage Summary & Actions Row
+            HStack(alignment: .center) {
+                if status.storageSummary != nil {
+                    storageSummaryChip
+                } else {
+                    connectionStatusChip
+                }
+
+                Spacer()
+
+                HStack(spacing: 12) {
                     editButton
                     deleteButton
                 }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .appTintedCardSurface(color: .accentColor, opacity: 0.05)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(cardBackgroundColor)
+                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(statusBorderColor, lineWidth: 1.5)
+        )
     }
 
     fileprivate var serverRowMac: some View {
-        VStack(spacing: 12) {
-            ViewThatFits(in: .horizontal) {
-                serverRowMacWide
-                serverRowMacCompact
+        GroupBox {
+            VStack(spacing: 12) {
+                ViewThatFits(in: .horizontal) {
+                    serverRowMacWide
+                    serverRowMacCompact
+                }
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .appTintedCardSurface(color: .accentColor, opacity: 0.05)
     }
 
     fileprivate var serverRowMacWide: some View {
@@ -130,7 +224,7 @@ extension ServerRowView {
             badgeLabel(
                 text: ServerListStrings.badgeHTTPS,
                 systemImage: "lock.shield.fill",
-                fill: .blue.opacity(0.12),
+                fill: .blue.opacity(0.15),
                 foreground: .blue
             )
             .accessibilityLabel(ServerListStrings.accessibilitySecure)
@@ -138,7 +232,7 @@ extension ServerRowView {
             badgeLabel(
                 text: ServerListStrings.badgeHTTP,
                 systemImage: "globe",
-                fill: .orange.opacity(0.12),
+                fill: .orange.opacity(0.15),
                 foreground: .orange
             )
             .accessibilityLabel(ServerListStrings.accessibilityInsecure)
@@ -149,32 +243,19 @@ extension ServerRowView {
         Button(action: onDelete) {
             Image(systemName: "trash")
                 .font(.system(size: 14, weight: .semibold))
-                .frame(width: 24, height: 24)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .frame(height: macOSToolbarPillHeight)
-                .appInteractivePillSurface()
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.primary)
+        .buttonStyle(.bordered)
+        .tint(.red)
         .accessibilityLabel(ServerListStrings.actionDelete)
-        .contentShape(Rectangle())
     }
 
     fileprivate var editButton: some View {
         Button(action: onEdit) {
             Image(systemName: "pencil")
                 .font(.system(size: 14, weight: .semibold))
-                .frame(width: 24, height: 24)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .frame(height: macOSToolbarPillHeight)
-                .appInteractivePillSurface()
         }
-        .buttonStyle(.plain)
-        .foregroundStyle(.primary)
+        .buttonStyle(.bordered)
         .accessibilityLabel(ServerListStrings.actionEdit)
-        .contentShape(Rectangle())
     }
 
     fileprivate var connectionStatusChip: some View {
@@ -183,8 +264,8 @@ extension ServerRowView {
         return Label(descriptor.label, systemImage: descriptor.systemImage)
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
-            .frame(height: macOSToolbarPillHeight)
-            .appTintedPillSurface(color: descriptor.tint)
+            .padding(.vertical, 6)
+            .background(descriptor.tint.opacity(0.15), in: Capsule())
             .foregroundStyle(descriptor.tint)
     }
 
@@ -203,9 +284,9 @@ extension ServerRowView {
             .minimumScaleFactor(0.85)
             .allowsTightening(true)
             .padding(.horizontal, 10)
-            .frame(height: macOSToolbarPillHeight)
-            .appPillSurface()
-            .foregroundStyle(.primary)
+            .padding(.vertical, 6)
+            .background(Color.secondary.opacity(0.15), in: Capsule())
+            .foregroundStyle(.secondary)
             .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
         } else {
             EmptyView()
@@ -258,12 +339,10 @@ extension ServerRowView {
         Label(text, systemImage: systemImage)
             .font(.subheadline.weight(.semibold))
             .padding(.horizontal, 10)
-            .frame(height: macOSToolbarPillHeight)
-            .appTintedPillSurface(color: foreground)
+            .padding(.vertical, 6)
+            .background(fill, in: Capsule())
             .foregroundStyle(foreground)
     }
-
-    fileprivate var macOSToolbarPillHeight: CGFloat { 34 }
 }
 
 struct ConnectionStatusChipDescriptor {

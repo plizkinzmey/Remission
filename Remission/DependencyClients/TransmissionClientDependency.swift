@@ -74,7 +74,7 @@
         )
     }
 
-    enum TransmissionClientDependencyError: Error, LocalizedError, Sendable {
+    enum TransmissionClientDependencyError: Error, LocalizedError, Sendable, Equatable {
         case notConfigured(String)
 
         var errorDescription: String? {

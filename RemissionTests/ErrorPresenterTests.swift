@@ -1,31 +1,31 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
 @MainActor
-struct ErrorPresenterTests {
+final class ErrorPresenterTests: XCTestCase {
     private enum Retry: Equatable, Sendable {
         case reload
         case reconnect
     }
 
     // Проверяет, что показ баннера заполняет состояние баннера сообщением и retry-действием.
-    @Test
-    func showBannerSetsBannerState() async {
-        let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
-            ErrorPresenter<Retry>()
-        }
+    func testShowBannerSetsBannerState() async {
+        await withMainSerialExecutor {
+            let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
+                ErrorPresenter<Retry>()
+            }
 
-        await store.send(.showBanner(message: "Ошибка сети", retry: .reload)) {
-            $0.banner = .init(message: "Ошибка сети", retry: .reload)
+            await store.send(.showBanner(message: "Ошибка сети", retry: .reload)) {
+                $0.banner = .init(message: "Ошибка сети", retry: .reload)
+            }
         }
     }
 
     // Проверяет, что ручное закрытие баннера очищает его из состояния.
-    @Test
-    func bannerDismissedClearsBanner() async {
+    func testBannerDismissedClearsBanner() async {
         let store = TestStore(
             initialState: ErrorPresenter<Retry>.State(
                 banner: .init(message: "Ошибка", retry: .reload)
@@ -40,8 +40,7 @@ struct ErrorPresenterTests {
     }
 
     // Проверяет, что нажатие retry в баннере отправляет retryRequested и очищает баннер.
-    @Test
-    func bannerRetryTappedWithRetryEmitsRetryRequested() async {
+    func testBannerRetryTappedWithRetryEmitsRetryRequested() async {
         let store = TestStore(
             initialState: ErrorPresenter<Retry>.State(
                 banner: .init(message: "Ошибка", retry: .reload)
@@ -57,8 +56,7 @@ struct ErrorPresenterTests {
     }
 
     // Проверяет, что если retry отсутствует, баннер просто скрывается без побочных эффектов.
-    @Test
-    func bannerRetryTappedWithoutRetryOnlyClearsBanner() async {
+    func testBannerRetryTappedWithoutRetryOnlyClearsBanner() async {
         let store = TestStore(
             initialState: ErrorPresenter<Retry>.State(
                 banner: .init(message: "Ошибка", retry: nil)
@@ -73,48 +71,62 @@ struct ErrorPresenterTests {
     }
 
     // Проверяет, что showAlert с retry сохраняет pendingRetry и добавляет кнопку retry в алерт.
-    @Test
-    func showAlertWithRetryConfiguresAlertAndPendingRetry() {
-        var state = ErrorPresenter<Retry>.State()
-        let reducer = ErrorPresenter<Retry>()
+    func testShowAlertWithRetryConfiguresAlertAndPendingRetry() async {
+        let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
+            ErrorPresenter<Retry>()
+        }
 
-        _ = reducer.reduce(
-            into: &state,
-            action: .showAlert(
+        await store.send(
+            .showAlert(
                 title: "Ошибка",
                 message: "Попробовать снова?",
                 retry: .reconnect
             )
-        )
-
-        #expect(state.pendingRetry == .reconnect)
-        #expect(state.alert != nil)
-        #expect(state.alert?.buttons.count == 2)
+        ) {
+            $0.pendingRetry = .reconnect
+            $0.alert = AlertState {
+                TextState("Ошибка")
+            } actions: {
+                ButtonState(action: .retry) {
+                    TextState(L10n.tr("common.retry"))
+                }
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState(L10n.tr("common.ok"))
+                }
+            } message: {
+                TextState("Попробовать снова?")
+            }
+        }
     }
 
     // Проверяет, что showAlert без retry не сохраняет pendingRetry и показывает только кнопку закрытия.
-    @Test
-    func showAlertWithoutRetryShowsOnlyDismissButton() {
-        var state = ErrorPresenter<Retry>.State()
-        let reducer = ErrorPresenter<Retry>()
+    func testShowAlertWithoutRetryShowsOnlyDismissButton() async {
+        let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
+            ErrorPresenter<Retry>()
+        }
 
-        _ = reducer.reduce(
-            into: &state,
-            action: .showAlert(
+        await store.send(
+            .showAlert(
                 title: "Ошибка",
                 message: "Без повторной попытки",
                 retry: nil
             )
-        )
-
-        #expect(state.pendingRetry == nil)
-        #expect(state.alert != nil)
-        #expect(state.alert?.buttons.count == 1)
+        ) {
+            $0.pendingRetry = nil
+            $0.alert = AlertState {
+                TextState("Ошибка")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState(L10n.tr("common.ok"))
+                }
+            } message: {
+                TextState("Без повторной попытки")
+            }
+        }
     }
 
     // Проверяет, что нажатие retry в алерте отправляет retryRequested и очищает alert/pendingRetry.
-    @Test
-    func alertRetryPresentedEmitsRetryRequestedAndClearsState() async {
+    func testAlertRetryPresentedEmitsRetryRequestedAndClearsState() async {
         let initialAlert = AlertState<ErrorPresenter<Retry>.AlertAction> {
             TextState("Ошибка")
         }
@@ -137,8 +149,7 @@ struct ErrorPresenterTests {
     }
 
     // Проверяет, что retry в алерте без pendingRetry просто закрывает алерт.
-    @Test
-    func alertRetryPresentedWithoutPendingRetryOnlyDismissesAlert() async {
+    func testAlertRetryPresentedWithoutPendingRetryOnlyDismissesAlert() async {
         let initialAlert = AlertState<ErrorPresenter<Retry>.AlertAction> {
             TextState("Ошибка")
         }
@@ -155,8 +166,7 @@ struct ErrorPresenterTests {
     }
 
     // Проверяет, что dismiss в алерте очищает и alert, и pendingRetry.
-    @Test
-    func alertDismissPresentedClearsAlertAndPendingRetry() async {
+    func testAlertDismissPresentedClearsAlertAndPendingRetry() async {
         let initialAlert = AlertState<ErrorPresenter<Retry>.AlertAction> {
             TextState("Ошибка")
         }

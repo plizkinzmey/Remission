@@ -8,31 +8,23 @@ import SwiftUI
 extension TorrentListView {
     #if os(macOS)
         var macOSToolbarControls: some View {
-            // Используем контейнер для управления эффектами Liquid Glass на OS 26+
-            GlassEffectContainer(spacing: AppTheme.Spacing.small) {
-                HStack(spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .imageScale(.medium)
-                            .foregroundStyle(.secondary)
-                        TextField(
-                            L10n.tr("torrentList.search.prompt"),
-                            text: .init(
-                                get: { store.searchQuery },
-                                set: { store.send(.searchQueryChanged($0)) }
-                            )
-                        )
-                        .textFieldStyle(.plain)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    }
-                    .accessibilityIdentifier("torrentlist_search_field")
-                }
-                .padding(.horizontal, 10)
-                .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
-                .frame(height: 34)
-                .appToolbarPillSurface()
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .imageScale(.medium)
+                    .foregroundStyle(.secondary)
+                TextField(
+                    L10n.tr("torrentList.search.prompt"),
+                    text: .init(
+                        get: { store.searchQuery },
+                        set: { store.send(.searchQueryChanged($0)) }
+                    )
+                )
+                .textFieldStyle(.roundedBorder)
+                .font(.body)
+                .foregroundStyle(.primary)
             }
+            .accessibilityIdentifier("torrentlist_search_field")
+            .frame(minWidth: 300, idealWidth: 420, maxWidth: 520)
         }
     #endif
 

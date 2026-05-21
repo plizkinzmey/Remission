@@ -60,7 +60,6 @@ struct TorrentListView: View {
                     try? await Task.sleep(for: .milliseconds(200))
                 }
             }
-            .background(AppBackgroundView())
             .alert(
                 $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )
@@ -72,45 +71,44 @@ extension TorrentListView {
     @ViewBuilder
     private var container: some View {
         #if os(macOS)
-            AppFooterLayout {
-                VStack(alignment: .leading, spacing: 12) {
-                    TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
+            VStack(alignment: .leading, spacing: 12) {
+                TorrentListHeaderView(title: L10n.tr("torrentList.section.title"))
 
-                    if store.isRefreshing && store.isAwaitingConnection == false {
-                        refreshIndicator
-                            .padding(.vertical, 2)
-                    }
-
-                    if let banner = store.errorPresenter.banner {
-                        ErrorBannerView(
-                            message: banner.message,
-                            onRetry: banner.retry == nil
-                                ? nil
-                                : { store.send(.errorPresenter(.bannerRetryTapped)) },
-                            onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
-                        )
-                        .padding(.bottom, 6)
-                    }
-
-                    if let offline = store.offlineState {
-                        offlineBanner(offline)
-                            .padding(Edge.Set.bottom, 4)
-                    }
-
-                    TorrentListControlsView(store: store)
-
-                    macOSScrollableContent
-                        .frame(maxWidth: .infinity, alignment: .top)
-
-                    if store.connectionEnvironment != nil && store.isPollingEnabled == false {
-                        Text(L10n.tr("torrentList.autorefresh.disabled"))
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier("torrentlist_autorefresh_disabled")
-                    }
+                if store.isRefreshing && store.isAwaitingConnection == false {
+                    refreshIndicator
+                        .padding(.vertical, 2)
                 }
-                .frame(maxWidth: .infinity, alignment: .top)
-            } footer: {
+
+                if let banner = store.errorPresenter.banner {
+                    ErrorBannerView(
+                        message: banner.message,
+                        onRetry: banner.retry == nil
+                            ? nil
+                            : { store.send(.errorPresenter(.bannerRetryTapped)) },
+                        onDismiss: { store.send(.errorPresenter(.bannerDismissed)) }
+                    )
+                    .padding(.bottom, 6)
+                }
+
+                if let offline = store.offlineState {
+                    offlineBanner(offline)
+                        .padding(Edge.Set.bottom, 4)
+                }
+
+                TorrentListControlsView(store: store)
+
+                macOSScrollableContent
+                    .frame(maxWidth: .infinity, alignment: .top)
+
+                if store.connectionEnvironment != nil && store.isPollingEnabled == false {
+                    Text(L10n.tr("torrentList.autorefresh.disabled"))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .accessibilityIdentifier("torrentlist_autorefresh_disabled")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .top)
+            .safeAreaInset(edge: .bottom) {
                 footerBar
             }
         #else
@@ -190,7 +188,14 @@ extension TorrentListView {
                                 ForEach(0..<6, id: \.self) { index in
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.vertical, 10)
-                                        .appCardSurface(cornerRadius: 14)
+                                        .background(
+                                            Color.controlBackgroundColor,
+                                            in: RoundedRectangle(cornerRadius: 14)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .strokeBorder(.quaternary)
+                                        )
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -208,7 +213,14 @@ extension TorrentListView {
                                 ForEach(0..<6, id: \.self) { index in
                                     TorrentRowSkeletonView(index: index)
                                         .padding(.vertical, 10)
-                                        .appCardSurface(cornerRadius: 14)
+                                        .background(
+                                            Color.controlBackgroundColor,
+                                            in: RoundedRectangle(cornerRadius: 14)
+                                        )
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14)
+                                                .strokeBorder(.quaternary)
+                                        )
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -331,11 +343,28 @@ extension TorrentListView {
     }
 
     private var footerBar: some View {
-        AppFooterInfoBar(
-            leftText: storageSummaryText,
-            centerText: AppVersion.footerText,
-            rightText: transmissionVersionText
-        )
+        HStack(spacing: 12) {
+            Text(storageSummaryText ?? " ")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(AppVersion.footerText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            Text(transmissionVersionText ?? " ")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(.bar)
         .accessibilityIdentifier("torrent_list_footer")
     }
 
@@ -442,7 +471,11 @@ extension TorrentListView {
                 .disabled(item.isRemoving)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 10)
-                .appListRowSurface(color: statusColor)
+                .background(statusColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(statusColor.opacity(0.25))
+                )
                 .contentShape(
                     .contextMenuPreview,
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -491,7 +524,11 @@ extension TorrentListView {
                 .opacity(item.isRemoving ? 0.6 : 1)
                 .disabled(item.isRemoving)
                 .padding(.vertical, 10)
-                .appListRowSurface(color: statusColor)
+                .background(statusColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .strokeBorder(statusColor.opacity(0.25))
+                )
                 .listRowInsets(.init(top: 6, leading: 0, bottom: 6, trailing: 0))
                 .listRowBackground(rowBackground(for: item))
         }
@@ -514,8 +551,14 @@ extension TorrentListView {
                     .equatable()
                     .transaction { $0.animation = nil }
                     .padding(.vertical, 10)
-                    .appListRowSurface(
-                        color: TorrentStatusData(status: item.torrent.status).color
+                    .background(
+                        TorrentStatusData(status: item.torrent.status).color.opacity(0.1),
+                        in: RoundedRectangle(cornerRadius: 14)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(
+                                TorrentStatusData(status: item.torrent.status).color.opacity(0.25))
                     )
                     .opacity(item.isRemoving ? 0.6 : 1)
                     .disabled(item.isRemoving)

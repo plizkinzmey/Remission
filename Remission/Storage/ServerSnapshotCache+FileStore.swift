@@ -174,21 +174,14 @@ actor OfflineCacheFileStore {
 }
 
 enum ServerSnapshotStoragePaths {
-    static func defaultDirectory(fileManager: FileManager = .default) -> URL {
-        let baseDirectory: URL
-        if let appSupport = fileManager.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first {
-            baseDirectory = appSupport.appendingPathComponent(
-                "Remission/Snapshots", isDirectory: true)
-        } else {
-            baseDirectory =
-                fileManager.urls(for: .documentDirectory, in: .userDomainMask)
-                .first?
-                .appendingPathComponent("Remission/Snapshots", isDirectory: true)
-                ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        }
-        return baseDirectory
+    static func defaultDirectory(
+        fileManager: FileManager = .default,
+        namespace: AppStorageNamespace = .release
+    ) -> URL {
+        ServerConfigStoragePaths.applicationSupportDirectory(
+            fileManager: fileManager,
+            namespace: namespace
+        )
+        .appendingPathComponent("Snapshots", isDirectory: true)
     }
 }

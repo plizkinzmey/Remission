@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Storage Tests")
 @MainActor
-struct ServerListStorageTests {
-
-    @Test("StorageRequested загружает summary")
+final class ServerListStorageTests: XCTestCase {
     func testStorageRequestedSuccess() async {
         // Проверяем, что storageRequested вызывает расчёт StorageSummary и снимает флаг загрузки.
         let server = ServerConfig.previewLocalHTTP
@@ -49,8 +46,6 @@ struct ServerListStorageTests {
             $0.connectionStatuses[server.id]?.isLoadingStorage = false
         }
     }
-
-    @Test("StorageRequested обрабатывает ошибку")
     func testStorageRequestedFailure() async {
         // Проверяем, что ошибка при загрузке storage сбрасывает флаг загрузки.
         let server = ServerConfig.previewLocalHTTP

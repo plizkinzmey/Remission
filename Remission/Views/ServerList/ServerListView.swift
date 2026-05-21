@@ -19,67 +19,47 @@ struct ServerListView: View {
     }
 
     var body: some View {
-        Group {
-            #if os(macOS)
-                AppFooterLayout {
-                    Group {
-                        if store.servers.isEmpty {
-                            if store.isLoading {
-                                if showsLoadingState {
-                                    loadingState
-                                } else {
-                                    Color.clear
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                }
-                            } else {
-                                emptyState
-                            }
-                        } else {
-                            VStack(alignment: .center, spacing: 12) {
-                                Text(ServerListStrings.serversTitle)
-                                    .font(.title3.bold())
-                                Text(ServerListStrings.serversSubtitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(.primary)
-                                    .multilineTextAlignment(.center)
-                                serverList
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                } footer: {
-                    AppFooterInfoBar(centerText: AppVersion.footerText)
-                        .accessibilityIdentifier("server_list_footer")
-                }
-            #else
-                Group {
-                    if store.servers.isEmpty {
-                        if store.isLoading {
-                            if showsLoadingState {
-                                loadingState
-                            } else {
-                                Color.clear
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
-                        } else {
-                            emptyState
-                        }
+        VStack(spacing: 0) {
+            if store.servers.isEmpty {
+                if store.isLoading {
+                    if showsLoadingState {
+                        loadingState
                     } else {
-                        VStack(alignment: .center, spacing: 12) {
-                            Text(ServerListStrings.serversTitle)
-                                .font(.title3.bold())
-                            Text(ServerListStrings.serversSubtitle)
-                                .font(.footnote)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
-                            serverList
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 12)
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                } else {
+                    emptyState
                 }
-            #endif
+            } else {
+                VStack(alignment: .center, spacing: 12) {
+                    Text(ServerListStrings.serversTitle)
+                        .font(.title3.bold())
+                    Text(ServerListStrings.serversSubtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    serverList
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 8)
+                .padding(.top, 12)
+            }
+        }
+        .safeAreaInset(edge: .bottom) {
+            if !store.servers.isEmpty {
+                HStack {
+                    Spacer()
+                    Text(AppVersion.footerText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .background(.bar)
+                .accessibilityIdentifier("server_list_footer")
+            }
         }
         .alert(
             $store.scope(state: \.alert, action: \.alert)
@@ -90,8 +70,5 @@ struct ServerListView: View {
         .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
             ServerFormView(store: formStore)
         }
-        #if os(iOS)
-            .background(AppBackgroundView())
-        #endif
     }
 }

@@ -256,7 +256,11 @@ private func makeClient(
             String?, Data?, String?, Bool?, [String]?
         ) async throws -> TransmissionResponse = { _, _, _, _, _ in fatalError("unused in tests") },
     torrentSet: @escaping @Sendable ([Int], AnyCodable) async throws -> TransmissionResponse =
-        { _, _ in fatalError("unused in tests") }
+        { _, _ in fatalError("unused in tests") },
+    checkServerVersion: @escaping @Sendable () async throws -> (compatible: Bool, rpcVersion: Int) =
+        {
+            (true, 17)
+        }
 ) -> TransmissionClientDependency {
     TransmissionClientDependency(
         sessionGet: { fatalError("unused in tests") },
@@ -270,7 +274,7 @@ private func makeClient(
         torrentRemove: { _, _ in fatalError("unused in tests") },
         torrentSet: torrentSet,
         torrentVerify: { _ in fatalError("unused in tests") },
-        checkServerVersion: { fatalError("unused in tests") },
+        checkServerVersion: checkServerVersion,
         performHandshake: { fatalError("unused in tests") },
         setTrustDecisionHandler: { _ in }
     )

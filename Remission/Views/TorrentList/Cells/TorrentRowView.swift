@@ -262,8 +262,11 @@ extension TorrentRowView {
         .padding(.horizontal, 12)
         // Match in-content control pills (filters/category picker) for visual consistency.
         .frame(height: 30)
-        .appInteractivePillSurface()
-        .appMaterialize()
+        .background(.thinMaterial, in: Capsule())
+        .overlay(
+            Capsule()
+                .strokeBorder(.quaternary)
+        )
         .accessibilityIdentifier("torrent_row_actions_\(item.id.rawValue)")
     }
 }

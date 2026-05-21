@@ -27,8 +27,9 @@ struct ServerDetailView: View {
             .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
                 ServerFormView(store: editorStore)
             }
-            .sheet(item: $store.scope(state: \.torrentDetail, action: \.torrentDetail)) {
-                detailStore in
+            .sheet(
+                item: $store.scope(state: \.torrentDetail, action: \.torrentDetail)
+            ) { detailStore in
                 NavigationStack {
                     TorrentDetailView(store: detailStore)
                         #if os(macOS)
@@ -62,8 +63,9 @@ struct ServerDetailView: View {
             .sheet(item: $store.scope(state: \.settings, action: \.settings)) { settingsStore in
                 SettingsView(store: settingsStore)
             }
-            .sheet(item: $store.scope(state: \.diagnostics, action: \.diagnostics)) {
-                diagnosticsStore in
+            .sheet(
+                item: $store.scope(state: \.diagnostics, action: \.diagnostics)
+            ) { diagnosticsStore in
                 DiagnosticsView(store: diagnosticsStore)
                     .appRootChrome()
             }

@@ -3,23 +3,10 @@ import SwiftUI
 struct ServerConnectionFormFields: View {
     @Binding var form: ServerConnectionFormState
     @State private var isPasswordVisible: Bool = false
-    @State private var labelWidth: CGFloat?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            connectionSection
-            credentialsSection
-        }
-        .onPreferenceChange(LabelWidthPreferenceKey.self) { widths in
-            if let max = widths.max(), max != labelWidth {
-                labelWidth = max
-            }
-        }
-    }
-
-    private var connectionSection: some View {
-        AppSectionCard(L10n.tr("serverForm.section.connection")) {
-            VStack(alignment: .leading, spacing: 10) {
+        Group {
+            Section(header: Text(L10n.tr("serverForm.section.connection"))) {
                 Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
                     ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) { transport in
                         Text(transport.title).tag(transport)
@@ -32,76 +19,62 @@ struct ServerConnectionFormFields: View {
                     .tint(.blue)
                 #endif
 
-                Divider()
+                LabeledContent(L10n.tr("serverForm.placeholder.name")) {
+                    TextField(
+                        L10n.tr("serverForm.placeholder.name"),
+                        text: $form.name
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("server_form_name_field")
+                }
 
-                VStack(spacing: 10) {
-                    AppFormField(L10n.tr("serverForm.placeholder.name"), labelWidth: labelWidth) {
-                        TextField(
-                            L10n.tr("serverForm.placeholder.name"),
-                            text: $form.name
-                        )
-                        .textFieldStyle(.appFormField)
-                        .accessibilityIdentifier("server_form_name_field")
-                    }
+                LabeledContent(L10n.tr("serverForm.placeholder.host")) {
+                    TextField(
+                        L10n.tr("serverForm.placeholder.host"),
+                        text: $form.host
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    .textContentType(.URL)
+                    #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    #endif
+                    .accessibilityIdentifier("server_form_host_field")
+                }
 
-                    Divider()
+                LabeledContent(L10n.tr("serverForm.placeholder.port")) {
+                    TextField(
+                        L10n.tr("serverForm.placeholder.port"),
+                        text: $form.port
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    #if os(iOS)
+                        .keyboardType(.numberPad)
+                    #endif
+                    .accessibilityIdentifier("server_form_port_field")
+                }
 
-                    AppFormField(L10n.tr("serverForm.placeholder.host"), labelWidth: labelWidth) {
-                        TextField(
-                            L10n.tr("serverForm.placeholder.host"),
-                            text: $form.host
-                        )
-                        .textFieldStyle(.appFormField)
-                        .textContentType(.URL)
-                        #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        #endif
-                        .accessibilityIdentifier("server_form_host_field")
-                    }
-
-                    Divider()
-
-                    AppFormField(L10n.tr("serverForm.placeholder.port"), labelWidth: labelWidth) {
-                        TextField(
-                            L10n.tr("serverForm.placeholder.port"),
-                            text: $form.port
-                        )
-                        .textFieldStyle(.appFormField)
-                        #if os(iOS)
-                            .keyboardType(.numberPad)
-                        #endif
-                        .accessibilityIdentifier("server_form_port_field")
-                    }
-
-                    Divider()
-
-                    AppFormField(L10n.tr("serverForm.placeholder.path"), labelWidth: labelWidth) {
-                        TextField(
-                            L10n.tr("serverForm.placeholder.path"),
-                            text: $form.path
-                        )
-                        .textFieldStyle(.appFormField)
-                        #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        #endif
-                        .accessibilityIdentifier("server_form_path_field")
-                    }
+                LabeledContent(L10n.tr("serverForm.placeholder.path")) {
+                    TextField(
+                        L10n.tr("serverForm.placeholder.path"),
+                        text: $form.path
+                    )
+                    .textFieldStyle(.roundedBorder)
+                    #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    #endif
+                    .accessibilityIdentifier("server_form_path_field")
                 }
             }
-        }
-    }
 
-    private var credentialsSection: some View {
-        AppSectionCard(L10n.tr("serverForm.section.credentials")) {
-            VStack(spacing: 10) {
-                AppFormField(L10n.tr("serverForm.placeholder.username"), labelWidth: labelWidth) {
+            Section(header: Text(L10n.tr("serverForm.section.credentials"))) {
+                LabeledContent(L10n.tr("serverForm.placeholder.username")) {
                     TextField(
                         L10n.tr("serverForm.placeholder.username"),
                         text: $form.username
                     )
-                    .textFieldStyle(.appFormField)
+                    .textFieldStyle(.roundedBorder)
                     #if os(iOS)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -109,9 +82,7 @@ struct ServerConnectionFormFields: View {
                     .accessibilityIdentifier("server_form_username_field")
                 }
 
-                Divider()
-
-                AppFormField(L10n.tr("serverForm.placeholder.password"), labelWidth: labelWidth) {
+                LabeledContent(L10n.tr("serverForm.placeholder.password")) {
                     HStack(spacing: 6) {
                         Group {
                             if isPasswordVisible {
@@ -126,18 +97,15 @@ struct ServerConnectionFormFields: View {
                                 )
                             }
                         }
-                        .textFieldStyle(.appFormField)
+                        .textFieldStyle(.roundedBorder)
                         .accessibilityIdentifier("server_form_password_field")
 
                         Button {
                             isPasswordVisible.toggle()
                         } label: {
                             Image(systemName: isPasswordVisible ? "eye.slash" : "eye")
-                                .font(.system(size: 14, weight: .semibold))
-                                .frame(width: 26, height: 26)
                         }
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                        .buttonStyle(.bordered)
                         .accessibilityIdentifier("server_form_password_toggle")
                         .accessibilityLabel(
                             isPasswordVisible

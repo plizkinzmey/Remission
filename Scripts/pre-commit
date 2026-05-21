@@ -60,7 +60,7 @@ echo ""
 echo -e "${BLUE}2️⃣  Checking code style with SwiftLint...${NC}"
 
 if command -v swiftlint &> /dev/null; then
-    if swiftlint lint --reporter xcode; then
+    if swiftlint lint --reporter xcode Remission RemissionTests RemissionUITests; then
         echo -e "${GREEN}   ✅ SwiftLint check passed${NC}"
     else
         echo -e "${RED}   ❌ SwiftLint check failed${NC}"
@@ -78,7 +78,40 @@ fi
 echo ""
 
 # ============================================================================
-# 3. Final result
+# 3. SwiftUI Previews check
+# ============================================================================
+if [ -f "Scripts/validate-swiftui-previews.sh" ]; then
+    if ! ./Scripts/validate-swiftui-previews.sh; then
+        CHECKS_FAILED=1
+    fi
+fi
+
+echo ""
+
+# ============================================================================
+# 4. Concurrency Safety check
+# ============================================================================
+if [ -f "Scripts/validate-concurrency-safety.sh" ]; then
+    if ! ./Scripts/validate-concurrency-safety.sh; then
+        CHECKS_FAILED=1
+    fi
+fi
+
+echo ""
+
+# ============================================================================
+# 5. Dead-code and cleanup gate
+# ============================================================================
+if [ -f "Scripts/validate-dead-code.sh" ]; then
+    if ! ./Scripts/validate-dead-code.sh; then
+        CHECKS_FAILED=1
+    fi
+fi
+
+echo ""
+
+# ============================================================================
+# 6. Final result
 # ============================================================================
 if [ $CHECKS_FAILED -eq 0 ]; then
     echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

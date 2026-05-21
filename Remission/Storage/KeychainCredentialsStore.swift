@@ -56,14 +56,17 @@ private struct TransmissionCredentialsMetadata: Codable, Equatable {
 
 /// Обертка над Keychain для хранения учетных данных Transmission.
 struct KeychainCredentialsStore: Sendable {
-    private enum Constants {
-        static let serviceIdentifier: String = "com.remission.transmission"
-    }
+    static let defaultServiceIdentifier: String = "com.remission.transmission"
 
     private let interface: KeychainItemInterface
+    private let serviceIdentifier: String
 
-    init(interface: KeychainItemInterface = .live) {
+    init(
+        interface: KeychainItemInterface = .live,
+        serviceIdentifier: String = Self.defaultServiceIdentifier
+    ) {
         self.interface = interface
+        self.serviceIdentifier = serviceIdentifier
     }
 
     /// Сохранение или обновление учетных данных.
@@ -177,7 +180,7 @@ struct KeychainCredentialsStore: Sendable {
     private func baseQuery(for key: TransmissionServerCredentialsKey) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.serviceIdentifier,
+            kSecAttrService as String: serviceIdentifier,
             kSecAttrAccount as String: key.accountIdentifier,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
             kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean

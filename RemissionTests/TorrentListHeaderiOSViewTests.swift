@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Torrent List Header iOS View Tests")
 @MainActor
-struct TorrentListHeaderiOSViewTests {
-    @Test
-    func headerRendersWithDifferentFilters() {
+final class TorrentListHeaderiOSViewTests: XCTestCase {
+    func testHeaderRendersWithDifferentFilters() {
         for filter in TorrentListReducer.Filter.allCases {
             let store = Store(
                 initialState: TorrentListReducer.State(
@@ -24,8 +22,7 @@ struct TorrentListHeaderiOSViewTests {
         }
     }
 
-    @Test
-    func headerRendersWithDifferentCategories() {
+    func testHeaderRendersWithDifferentCategories() {
         for category in TorrentListReducer.CategoryFilter.allCases {
             let store = Store(
                 initialState: TorrentListReducer.State(
@@ -40,8 +37,7 @@ struct TorrentListHeaderiOSViewTests {
         }
     }
 
-    @Test
-    func headerRendersWithoutStorageSummary() {
+    func testHeaderRendersWithoutStorageSummary() {
         let store = Store(
             initialState: TorrentListReducer.State(
                 storageSummary: nil

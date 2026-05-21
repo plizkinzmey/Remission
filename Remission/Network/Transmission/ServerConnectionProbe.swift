@@ -32,7 +32,11 @@ struct ServerConnectionProbe: Sendable {
     extension ServerConnectionProbe: DependencyKey {
         static var liveValue: ServerConnectionProbe {
             @Dependency(\.appLogger) var appLogger
-            return .live(appLogger: appLogger)
+            return .live(
+                appLogger: appLogger,
+                trustStore: TransmissionTrustStore(
+                    serviceIdentifier: AppStorageNamespace.live().trustKeychainServiceIdentifier)
+            )
         }
         static let previewValue: ServerConnectionProbe = .placeholder
         static let testValue: ServerConnectionProbe = .placeholder
@@ -63,7 +67,8 @@ extension ServerConnectionProbe {
         appLogger: AppLogger = .noop,
         maxAttempts: Int = 3,
         initialDelay: Duration = .seconds(1),
-        sessionConfiguration: URLSessionConfiguration? = nil
+        sessionConfiguration: URLSessionConfiguration? = nil,
+        trustStore: TransmissionTrustStore = TransmissionTrustStore()
     ) -> ServerConnectionProbe {
         ServerConnectionProbe { request, trustHandler in
             let config = try request.server.makeTransmissionClientConfig(
@@ -81,7 +86,8 @@ extension ServerConnectionProbe {
                 clock: clock,
                 appLogger: appLogger,
                 category: "connection.probe",
-                sessionConfiguration: sessionConfiguration
+                sessionConfiguration: sessionConfiguration,
+                trustStore: trustStore
             )
 
             if let trustHandler {

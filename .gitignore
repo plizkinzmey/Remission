@@ -10,7 +10,9 @@
 .xcworkspace/xcuserdata/
 
 # Build products
+Build/
 build/
+build_ios/
 DerivedData/
 
 # Index
@@ -71,6 +73,8 @@ Icon?
 build.log
 
 .gemini/
+.antigravitycli/
+test_output.txt
 gha-creds-*.json
 .github
 .swiftlint-cache/

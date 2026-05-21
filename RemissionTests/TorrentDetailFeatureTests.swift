@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Torrent Detail Feature Tests")
 @MainActor
-struct TorrentDetailFeatureTests {
-
-    @Test("Initial load success")
+final class TorrentDetailFeatureTests: XCTestCase {
     func testTask_InitialLoad_Success() async {
         let torrentID = Torrent.Identifier(rawValue: 1)
         let torrent = Torrent.previewDownloading
@@ -40,8 +37,6 @@ struct TorrentDetailFeatureTests {
             $0.apply(torrent)
         }
     }
-
-    @Test("Start command execution")
     func testStartTapped() async {
         let torrentID = Torrent.Identifier(rawValue: 1)
         var torrentRepo = TorrentRepository.placeholder
@@ -76,8 +71,6 @@ struct TorrentDetailFeatureTests {
 
         await store.receive(TorrentDetailReducer.Action.refreshRequested)
     }
-
-    @Test("Verify stays locked through intermediate status changes until check starts (no flicker)")
     func testVerifyLockDoesNotClearOnIntermediateStatuses() async {
         let torrentID = Torrent.Identifier(rawValue: 1)
 
@@ -90,7 +83,7 @@ struct TorrentDetailFeatureTests {
 
         var torrentRepo = TorrentRepository.testValue
         torrentRepo.verifyClosure = { @Sendable ids in
-            #expect(ids == [torrentID])
+            XCTAssertTrue(ids == [torrentID])
         }
         torrentRepo.fetchDetailsClosure = { @Sendable _ in initialTorrent }
 
@@ -133,8 +126,8 @@ struct TorrentDetailFeatureTests {
                 .success(.init(torrent: intermediate, timestamp: Date()))
             )
         ) {
-            #expect($0.pendingStatusChange != nil)
-            #expect($0.isVerifyLocked == true)
+            XCTAssertTrue($0.pendingStatusChange != nil)
+            XCTAssertTrue($0.isVerifyLocked == true)
         }
 
         // Then it goes back to downloading: still locked (we haven't started checking yet).
@@ -145,8 +138,8 @@ struct TorrentDetailFeatureTests {
                 .success(.init(torrent: back, timestamp: Date()))
             )
         ) {
-            #expect($0.pendingStatusChange != nil)
-            #expect($0.isVerifyLocked == true)
+            XCTAssertTrue($0.pendingStatusChange != nil)
+            XCTAssertTrue($0.isVerifyLocked == true)
         }
 
         // Once check starts, the pending status change is cleared, but lock remains via status.
@@ -157,8 +150,8 @@ struct TorrentDetailFeatureTests {
                 .success(.init(torrent: checking, timestamp: Date()))
             )
         ) {
-            #expect($0.pendingStatusChange == nil)
-            #expect($0.isVerifyLocked == true)
+            XCTAssertTrue($0.pendingStatusChange == nil)
+            XCTAssertTrue($0.isVerifyLocked == true)
         }
     }
 }

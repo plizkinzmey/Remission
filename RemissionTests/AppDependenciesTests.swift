@@ -1,50 +1,39 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("AppDependencies")
-struct AppDependenciesTests {
-    @Test("appPreview использует noop logger и preview credentials")
-    func appPreviewUsesNoopLoggerAndPreviewCredentials() async throws {
+final class AppDependenciesTests: XCTestCase {
+    func testAppPreviewUsesNoopLoggerAndPreviewCredentials() async throws {
         // Проверяем, что preview окружение не пишет реальные логи
         // и использует предсказуемые креды.
         let dependencies = AppDependencies.makePreview()
-        #expect(dependencies.appLogger.isNoop)
+        XCTAssertTrue(dependencies.appLogger.isNoop)
 
         let credentials = try await dependencies.credentialsRepository.load(key: .preview)
-        #expect(credentials?.password == "preview-password")
+        XCTAssertEqual(credentials?.password, "preview-password")
     }
 
-    @Test("appTest использует noop logger и inMemory diagnostics log")
-    func appTestUsesNoopLogger() async throws {
+    func testAppTestUsesNoopLogger() async throws {
         // Тестовое окружение должно быть максимально безопасным и детерминированным.
         let dependencies = AppDependencies.makeTestDefaults()
-        #expect(dependencies.appLogger.isNoop)
+        XCTAssertTrue(dependencies.appLogger.isNoop)
 
         let entries = try await dependencies.diagnosticsLogStore.load(.init())
-        #expect(entries.isEmpty)
+        XCTAssertTrue(entries.isEmpty)
     }
 
-    @Test("makeLive оставляет transmissionClient placeholder")
-    func makeLiveLeavesTransmissionClientPlaceholder() async {
-        // В live-окружении мы оставляем placeholder и настраиваем его позже.
-        let dependencies = AppDependencies.makeLive()
+    func testMakeLiveBuildsIsolatedEnvironment() async throws {
+        let namespace = AppStorageNamespace.unitTesting(id: UUID())
+        let dependencies = AppDependencies.makeLive(namespace: namespace)
+        let servers = try await dependencies.serverConfigRepository.load()
 
-        do {
-            _ = try await dependencies.transmissionClient.sessionGet()
-            Issue.record("Ожидали placeholder ошибку, но sessionGet прошёл")
-        } catch {
-            #expect(
-                error.localizedDescription
-                    == "TransmissionClientDependency.sessionGet is not configured for this environment."
-            )
-        }
+        XCTAssertTrue(servers.isEmpty)
+        XCTAssertTrue(namespace.applicationSupportDirectoryName.hasPrefix("Remission-Test-"))
     }
 
-    @Test("makeUITest для serverListSample подставляет серверы")
-    func makeUITestServerListScenarioSeedsServers() async throws {
+    func testMakeUITestServerListScenarioSeedsServers() async throws {
         // Сценарий serverListSample должен заполнить repository серверами из фикстуры.
         let dependencies = AppDependencies.makeUITest(
             fixture: .serverListSample,
@@ -53,12 +42,11 @@ struct AppDependenciesTests {
         )
 
         let servers = try await dependencies.serverConfigRepository.load()
-        #expect(servers.count == 2)
-        #expect(servers[0].name == "UI Test NAS")
+        XCTAssertEqual(servers.count, 2)
+        XCTAssertEqual(servers[0].name, "UI Test NAS")
     }
 
-    @Test("makeUITest torrentListOffline возвращает ошибку на fetchList")
-    func makeUITestTorrentListOfflineThrowsOnFetchList() async {
+    func testMakeUITestTorrentListOfflineThrowsOnFetchList() async {
         // В offline-сценарии репозиторий торрентов должен возвращать сетевую ошибку.
         let dependencies = AppDependencies.makeUITest(
             fixture: nil,
@@ -68,11 +56,76 @@ struct AppDependenciesTests {
 
         do {
             _ = try await dependencies.torrentRepository.fetchList()
-            Issue.record("Ожидали APIError.networkUnavailable, но fetchList прошёл")
+            XCTFail("Ожидали APIError.networkUnavailable, но fetchList прошёл")
         } catch let error as APIError {
-            #expect(error == .networkUnavailable)
+            XCTAssertEqual(error, .networkUnavailable)
         } catch {
-            Issue.record("Получили неожиданный тип ошибки: \(error)")
+            XCTFail("Получили неожиданный тип ошибки: \(error)")
+        }
+    }
+
+    func testStorageNamespaceSeparatesReleaseAndDevelopment() {
+        let release = AppStorageNamespace.release
+        let development = AppStorageNamespace.development
+
+        XCTAssertEqual(release.applicationSupportDirectoryName, "Remission")
+        XCTAssertEqual(development.applicationSupportDirectoryName, "Remission-Dev")
+        XCTAssertNil(release.userDefaultsSuiteName)
+        XCTAssertEqual(development.userDefaultsSuiteName, "com.remission.dev")
+        XCTAssertEqual(release.credentialsKeychainServiceIdentifier, "com.remission.transmission")
+        XCTAssertEqual(
+            development.credentialsKeychainServiceIdentifier,
+            "com.remission.transmission.dev"
+        )
+        XCTAssertEqual(release.trustKeychainServiceIdentifier, "com.remission.transmission.trust")
+        XCTAssertEqual(
+            development.trustKeychainServiceIdentifier,
+            "com.remission.transmission.trust.dev"
+        )
+    }
+
+    func testStoragePathsUseNamespace() {
+        let releaseServers = ServerConfigStoragePaths.defaultURL(namespace: .release)
+        let developmentServers = ServerConfigStoragePaths.defaultURL(namespace: .development)
+        let releaseSnapshots = ServerSnapshotStoragePaths.defaultDirectory(namespace: .release)
+        let developmentSnapshots = ServerSnapshotStoragePaths.defaultDirectory(
+            namespace: .development)
+
+        XCTAssertTrue(releaseServers.path.contains("Remission/servers.json"))
+        XCTAssertTrue(developmentServers.path.contains("Remission-Dev/servers.json"))
+        XCTAssertTrue(releaseSnapshots.path.contains("Remission/Snapshots"))
+        XCTAssertTrue(developmentSnapshots.path.contains("Remission-Dev/Snapshots"))
+    }
+
+    func testEnvironmentOverrideCanForceReleaseNamespace() {
+        let namespace = AppStorageNamespace.live(environment: [
+            "REMISSION_STORAGE_NAMESPACE": "release"
+        ])
+
+        XCTAssertEqual(namespace, .release)
+    }
+
+    func testDebugBuildDefaultsToDevelopmentEvenWithReleaseBundleID() {
+        let namespace = AppStorageNamespace.live(
+            environment: [:],
+            bundleIdentifier: "cryptolin.Remission"
+        )
+
+        #if DEBUG
+            XCTAssertEqual(namespace, .development)
+        #else
+            XCTAssertEqual(namespace, .release)
+        #endif
+    }
+
+    func testLiveDetectsUnitTesting() {
+        let namespace = AppStorageNamespace.live(environment: [
+            "XCTestConfigurationFilePath": "/path/to/config"
+        ])
+
+        guard case .unitTesting = namespace else {
+            XCTFail("Ожидали .unitTesting, получили \(namespace)")
+            return
         }
     }
 }

@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Configuration Reducer Tests")
 @MainActor
-struct ServerConfigurationReducerTests {
-
-    @Test("Binding фильтрует значения формы")
+final class ServerConfigurationReducerTests: XCTestCase {
     func testBindingFiltersInputs() async {
         // Проверяем, что binding удаляет символы, не подходящие под правила ввода.
         let store = TestStore(initialState: ServerConfigurationReducer.State()) {
@@ -40,8 +37,6 @@ struct ServerConfigurationReducerTests {
             $0.form.password = "pass"
         }
     }
-
-    @Test("Проверка соединения без валидной формы даёт ошибку")
     func testCheckConnectionInvalidForm() async {
         // Проверяем, что при пустом host выставляется validationError и не запускается probe.
         var state = ServerConfigurationReducer.State()
@@ -56,8 +51,6 @@ struct ServerConfigurationReducerTests {
             $0.validationError = L10n.tr("onboarding.error.validation.hostPort")
         }
     }
-
-    @Test("UI тест обхода соединения возвращает verifiedSubmission")
     func testUiTestBypassConnection() async {
         // Проверяем, что uiTestBypassConnection помечает соединение успешным и сообщает delegate.
         var state = ServerConfigurationReducer.State()
@@ -83,8 +76,6 @@ struct ServerConfigurationReducerTests {
 
         await store.receive(.delegate(.connectionVerified(expectedContext)))
     }
-
-    @Test("Успешная проверка соединения сообщает delegate")
     func testConnectionTestFinishedSuccess() async {
         // Проверяем, что успешный результат пробрасывает verifiedSubmission в delegate.
         let server = ServerConfig.previewLocalHTTP
@@ -111,8 +102,6 @@ struct ServerConfigurationReducerTests {
 
         await store.receive(.delegate(.connectionVerified(context)))
     }
-
-    @Test("Неуспешная проверка соединения очищает verifiedSubmission")
     func testConnectionTestFinishedFailure() async {
         // Проверяем, что ошибка сбрасывает verifiedSubmission и фиксируется в статусе.
         let server = ServerConfig.previewLocalHTTP

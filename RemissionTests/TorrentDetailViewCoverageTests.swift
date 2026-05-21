@@ -1,6 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
@@ -10,11 +10,9 @@ import Testing
     import UIKit
 #endif
 
-@Suite("Torrent Detail View Coverage")
 @MainActor
-struct TorrentDetailViewCoverageTests {
-    @Test
-    func summarySectionRendersForActiveAndIdleStates() {
+final class TorrentDetailViewCoverageTests: XCTestCase {
+    func testSummarySectionRendersForActiveAndIdleStates() {
         let activeStore = makeDetailStore(torrent: makeTorrent(withDetails: true))
         let activeView = TorrentDetailSummarySection(store: activeStore)
         host(activeView)
@@ -25,12 +23,10 @@ struct TorrentDetailViewCoverageTests {
         let idleView = TorrentDetailSummarySection(store: idleStore)
         host(idleView)
 
-        #expect(activeStore.withState { $0.status == Torrent.Status.downloading.rawValue })
-        #expect(idleStore.withState { $0.status == Torrent.Status.stopped.rawValue })
+        XCTAssertTrue(activeStore.state.status == Torrent.Status.downloading.rawValue)
+        XCTAssertTrue(idleStore.state.status == Torrent.Status.stopped.rawValue)
     }
-
-    @Test
-    func infoAndAdvancedSectionsRenderWithMetadata() {
+    func testInfoAndAdvancedSectionsRenderWithMetadata() {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))
 
         let infoView = TorrentDetailInfoSection(store: store)
@@ -56,11 +52,9 @@ struct TorrentDetailViewCoverageTests {
         )
         host(advancedView)
 
-        #expect(store.withState { $0.hasLoadedMetadata })
+        XCTAssertTrue(store.state.hasLoadedMetadata)
     }
-
-    @Test
-    func detailViewRendersPlaceholdersAndErrors() {
+    func testDetailViewRendersPlaceholdersAndErrors() {
         var loadingState = TorrentDetailReducer.State(torrentID: .init(rawValue: 7))
         loadingState.isLoading = true
         let loadingStore = Store(initialState: loadingState) {
@@ -83,12 +77,10 @@ struct TorrentDetailViewCoverageTests {
         let fallbackView = TorrentDetailView(store: fallbackStore)
         host(fallbackView)
 
-        #expect(loadingStore.withState { $0.isLoading })
-        #expect(fallbackStore.withState { $0.errorPresenter.banner != nil })
+        XCTAssertTrue(loadingStore.state.isLoading)
+        XCTAssertTrue(fallbackStore.state.errorPresenter.banner != nil)
     }
-
-    @Test
-    func detailSubviewsRender() {
+    func testDetailSubviewsRender() {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))
 
         let actions = TorrentActionsView(store: store)
@@ -143,9 +135,7 @@ struct TorrentDetailViewCoverageTests {
         )
         host(labelValue)
     }
-
-    @Test
-    func detailSectionRendersEmptyAndContentStates() {
+    func testDetailSectionRendersEmptyAndContentStates() {
         var expanded = true
         let emptySection = TorrentDetailSection(
             title: "Files",
@@ -180,11 +170,9 @@ struct TorrentDetailViewCoverageTests {
         }
         host(contentSection)
     }
-
-    @Test
-    func previewStateIsCallable() {
+    func testPreviewStateIsCallable() {
         let state = TorrentDetailReducer.State.preview()
-        #expect(state.name.isEmpty == false)
+        XCTAssertTrue(state.name.isEmpty == false)
     }
 }
 

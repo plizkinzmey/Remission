@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Row Coverage")
 @MainActor
-struct ServerListRowCoverageTests {
-    @Test
-    func serverRowRendersConnectedAndFailedStates() {
+final class ServerListRowCoverageTests: XCTestCase {
+    func testServerRowRendersConnectedAndFailedStates() {
         let handshake = TransmissionHandshakeResult(
             sessionID: "session",
             rpcVersion: 17,
@@ -39,9 +37,7 @@ struct ServerListRowCoverageTests {
             onDelete: {}
         )
     }
-
-    @Test
-    func connectionStatusChipDescriptorCoversAllPhases() {
+    func testConnectionStatusChipDescriptorCoversAllPhases() {
         _ = ConnectionStatusChipDescriptor(phase: .idle)
         _ = ConnectionStatusChipDescriptor(phase: .probing)
         _ = ConnectionStatusChipDescriptor(

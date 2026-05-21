@@ -60,11 +60,11 @@ struct ServerListReducer {
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
-            .merge(
-                connectionReducer(state: &state, action: action),
-                managementReducer(state: &state, action: action),
-                storageReducer(state: &state, action: action)
-            )
+            var effects: [Effect<Action>] = []
+            effects.append(connectionReducer(state: &state, action: action))
+            effects.append(managementReducer(state: &state, action: action))
+            effects.append(storageReducer(state: &state, action: action))
+            return .merge(effects)
         }
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$deleteConfirmation, action: \.deleteConfirmation)

@@ -277,49 +277,6 @@
 				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
 				"fi",
 				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
 			);
 		};
 		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
@@ -337,11 +294,6 @@
 			shellScript = (
 				"cd \"${SRCROOT}\"",
 				"Scripts/check-localizations.sh",
-				"",
-				"",
-				"",
-				"",
-				"",
 				"",
 			);
 		};
@@ -512,7 +464,7 @@
 				CURRENT_PROJECT_VERSION = 645;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -541,8 +493,9 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.12.3;
-				PRODUCT_BUNDLE_IDENTIFIER = cryptolin.Remission;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = cryptolin.Remission.dev;
+				PRODUCT_NAME = "Remission Dev";
+				PRODUCT_MODULE_NAME = Remission;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -652,7 +605,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Remission.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Remission";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Remission Dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Remission Dev";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;

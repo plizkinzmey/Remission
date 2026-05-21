@@ -31,16 +31,6 @@
         "identifier" : "15AA8C472EA1C9370025EF81",
         "name" : "RemissionTests"
       }
-    },
-    {
-      "skippedTests" : [
-        "RemissionUITests\/testShowsEmptyStateOnFirstLaunch()"
-      ],
-      "target" : {
-        "containerPath" : "container:Remission.xcodeproj",
-        "identifier" : "15AA8C512EA1C9370025EF81",
-        "name" : "RemissionUITests"
-      }
     }
   ],
   "version" : 1

@@ -10,7 +10,9 @@ struct TransmissionTrustStoreClient: Sendable {
 
 #if canImport(ComposableArchitecture)
     extension TransmissionTrustStoreClient: DependencyKey {
-        static let liveValue: TransmissionTrustStoreClient = .live()
+        static var liveValue: TransmissionTrustStoreClient {
+            .live(serviceIdentifier: AppStorageNamespace.live().trustKeychainServiceIdentifier)
+        }
         static let previewValue: TransmissionTrustStoreClient = .placeholder
         static let testValue: TransmissionTrustStoreClient = .placeholder
     }
@@ -32,5 +34,11 @@ extension TransmissionTrustStoreClient {
         TransmissionTrustStoreClient { identity in
             try store.deleteFingerprint(for: identity)
         }
+    }
+
+    static func live(
+        serviceIdentifier: String
+    ) -> TransmissionTrustStoreClient {
+        live(store: TransmissionTrustStore(serviceIdentifier: serviceIdentifier))
     }
 }
