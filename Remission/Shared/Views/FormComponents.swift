@@ -109,3 +109,47 @@ extension Binding where Value == String {
         )
     }
 }
+
+/// Текстовое поле с двусторонней синхронизацией, гарантирующее мгновенное
+/// визуальное удаление недопустимых символов (например, кириллицы), которые
+/// отфильтровываются моделью.
+@MainActor
+struct SanitizedTextField: View {
+    let title: String
+    @Binding var text: String
+    var isSecure: Bool = false
+
+    init(_ title: String, text: Binding<String>, isSecure: Bool = false) {
+        self.title = title
+        self._text = text
+        self.isSecure = isSecure
+    }
+
+    @State private var localText: String = ""
+
+    var body: some View {
+        Group {
+            if isSecure {
+                SecureField(title, text: $localText)
+            } else {
+                TextField(title, text: $localText)
+            }
+        }
+        .onAppear {
+            localText = text
+        }
+        .onChange(of: text) { _, newValue in
+            if localText != newValue {
+                localText = newValue
+            }
+        }
+        .onChange(of: localText) { _, newValue in
+            if text != newValue {
+                text = newValue
+            }
+            if localText != text {
+                localText = text
+            }
+        }
+    }
+}

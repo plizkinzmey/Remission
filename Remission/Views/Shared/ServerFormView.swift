@@ -43,7 +43,6 @@ struct ServerFormView: View {
                     .background(.bar)
                 }
                 .frame(width: 480, height: 500)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             #else
                 windowContent
                     .navigationTitle(store.mode.title)

@@ -29,7 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Remission Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
@@ -103,7 +103,7 @@
 		15AA8C3C2EA1C9360025EF81 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				15AA8C3B2EA1C9360025EF81 /* Remission.app */,
+				15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */,
 				15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */,
 				15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */,
 			);
@@ -134,7 +134,7 @@
 				15B1A0002F0B7B2E00E3D111 /* Logging */,
 			);
 			productName = Remission;
-			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
+			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 		15AA8C472EA1C9370025EF81 /* RemissionTests */ = {
@@ -494,8 +494,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.12.3;
 				PRODUCT_BUNDLE_IDENTIFIER = cryptolin.Remission.dev;
-				PRODUCT_NAME = "Remission Dev";
 				PRODUCT_MODULE_NAME = Remission;
+				PRODUCT_NAME = "Remission Dev";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;

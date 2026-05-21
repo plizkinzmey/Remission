@@ -55,7 +55,8 @@ struct AppView: View {
                         maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
                     )
                     .background(
-                        MacWindowConfigurator(isFixedSize: store.serverList.servers.isEmpty) { window, isFixed in
+                        MacWindowConfigurator(isFixedSize: store.serverList.servers.isEmpty) {
+                            window, isFixed in
                             if isFixed {
                                 if window.styleMask.contains(.resizable) {
                                     window.styleMask.remove(.resizable)
