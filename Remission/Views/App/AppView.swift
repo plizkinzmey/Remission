@@ -47,10 +47,10 @@ struct AppView: View {
                 .task { await store.send(.task).finish() }
                 #if os(macOS)
                     .frame(
-                        minWidth: 680,
+                        minWidth: store.serverList.servers.isEmpty ? 680 : 800,
                         idealWidth: store.serverList.servers.isEmpty ? 680 : nil,
                         maxWidth: store.serverList.servers.isEmpty ? 680 : .infinity,
-                        minHeight: store.serverList.servers.isEmpty ? 520 : 500,
+                        minHeight: store.serverList.servers.isEmpty ? 520 : 600,
                         idealHeight: store.serverList.servers.isEmpty ? 520 : nil,
                         maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
                     )
@@ -76,15 +76,15 @@ struct AppView: View {
                                     window.styleMask.insert(.resizable)
                                 }
                                 window.standardWindowButton(.zoomButton)?.isEnabled = true
-                                window.minSize = NSSize(width: 680, height: 500)
+                                window.minSize = NSSize(width: 800, height: 600)
                                 window.maxSize = NSSize(
                                     width: CGFloat.greatestFiniteMagnitude,
                                     height: CGFloat.greatestFiniteMagnitude)
 
                                 var frame = window.frame
-                                if frame.size.width < 680 || frame.size.height < 500 {
-                                    frame.size.width = max(frame.size.width, 680)
-                                    frame.size.height = max(frame.size.height, 500)
+                                if frame.size.width < 800 || frame.size.height < 600 {
+                                    frame.size.width = max(frame.size.width, 800)
+                                    frame.size.height = max(frame.size.height, 600)
                                     window.setFrame(frame, display: true, animate: true)
                                 }
                             }
