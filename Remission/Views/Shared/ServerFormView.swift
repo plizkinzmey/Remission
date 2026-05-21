@@ -5,45 +5,46 @@ struct ServerFormView: View {
     @Bindable var store: StoreOf<ServerFormReducer>
 
     var body: some View {
-        NavigationStack {
-            #if os(macOS)
-                VStack(spacing: 0) {
-                    windowContent
-                }
-                .safeAreaInset(edge: .bottom) {
-                    HStack {
-                        Button(store.serverConfig.checkConnectionButtonTitle) {
-                            if OnboardingViewEnvironment.isOnboardingUITest {
-                                store.send(.serverConfig(.uiTestBypassConnection))
-                            } else {
-                                store.send(.serverConfig(.checkConnectionButtonTapped))
-                            }
+        #if os(macOS)
+            VStack(spacing: 0) {
+                windowContent
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack {
+                    Button(store.serverConfig.checkConnectionButtonTitle) {
+                        if OnboardingViewEnvironment.isOnboardingUITest {
+                            store.send(.serverConfig(.uiTestBypassConnection))
+                        } else {
+                            store.send(.serverConfig(.checkConnectionButtonTapped))
                         }
-                        .disabled(
-                            store.serverConfig.connectionStatus == .testing
-                                || store.serverConfig.form.isFormValid == false
-                        )
-                        .buttonStyle(.bordered)
-                        .tint(checkConnectionTint)
-
-                        Spacer(minLength: 0)
-
-                        Button(L10n.tr("common.cancel")) {
-                            store.send(.delegate(.cancelled))
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button(L10n.tr("common.save")) {
-                            store.send(.saveButtonTapped)
-                        }
-                        .disabled(store.isSaveButtonDisabled)
-                        .buttonStyle(.borderedProminent)
                     }
-                    .padding(12)
-                    .background(.bar)
+                    .disabled(
+                        store.serverConfig.connectionStatus == .testing
+                            || store.serverConfig.form.isFormValid == false
+                    )
+                    .buttonStyle(.bordered)
+                    .tint(checkConnectionTint)
+
+                    Spacer(minLength: 0)
+
+                    Button(L10n.tr("common.cancel")) {
+                        store.send(.delegate(.cancelled))
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(L10n.tr("common.save")) {
+                        store.send(.saveButtonTapped)
+                    }
+                    .disabled(store.isSaveButtonDisabled)
+                    .buttonStyle(.borderedProminent)
                 }
-                .frame(width: 480, height: 500)
-            #else
+                .padding(12)
+                .background(.bar)
+            }
+            .frame(width: 480, height: 500)
+            .alert($store.scope(state: \.alert, action: \.alert))
+        #else
+            NavigationStack {
                 windowContent
                     .navigationTitle(store.mode.title)
                     .toolbar {
@@ -59,9 +60,9 @@ struct ServerFormView: View {
                             .disabled(store.isSaveButtonDisabled)
                         }
                     }
-            #endif
-        }
-        .alert($store.scope(state: \.alert, action: \.alert))
+            }
+            .alert($store.scope(state: \.alert, action: \.alert))
+        #endif
     }
 
     private var windowContent: some View {

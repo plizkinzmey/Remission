@@ -31,11 +31,13 @@ struct ServerConfigurationView: View {
             #endif
         }
         .disabled(isSubmitting)
+        .blur(radius: isSubmitting ? 2 : 0)
         .overlay {
             if isSubmitting {
                 submissionOverlay
             }
         }
+        .animation(.easeInOut(duration: 0.25), value: isSubmitting)
     }
 
     private func errorText(_ message: String) -> some View {
@@ -71,16 +73,14 @@ struct ServerConfigurationView: View {
 
     @ViewBuilder
     private var submissionOverlay: some View {
-        ZStack {
-            Color.secondary.opacity(0.2)
-                .ignoresSafeArea()
-            ProgressView(submissionLabel)
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: AppTheme.Radius.card)
-                        .fill(.ultraThinMaterial)
-                )
-        }
+        ProgressView(submissionLabel)
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
+            )
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 }
 
