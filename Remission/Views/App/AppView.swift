@@ -47,41 +47,30 @@ struct AppView: View {
                 .task { await store.send(.task).finish() }
                 #if os(macOS)
                     .frame(
-                        minWidth: 600,
-                        idealWidth: store.serverList.servers.isEmpty ? 600 : nil,
-                        maxWidth: store.serverList.servers.isEmpty ? 600 : .infinity,
-                        minHeight: store.serverList.servers.isEmpty ? 520 : 450,
-                        idealHeight: store.serverList.servers.isEmpty ? 520 : nil,
-                        maxHeight: store.serverList.servers.isEmpty ? 520 : .infinity
+                        minWidth: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.width
+                            : AppWindowMetrics.mainMinimumSize.width,
+                        idealWidth: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.width
+                            : nil,
+                        maxWidth: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.width
+                            : .infinity,
+                        minHeight: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.height
+                            : AppWindowMetrics.mainMinimumSize.height,
+                        idealHeight: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.height
+                            : nil,
+                        maxHeight: isFirstLaunchWindow
+                            ? AppWindowMetrics.firstLaunchSize.height
+                            : .infinity
                     )
                     .background(
-                        MacWindowConfigurator(isFixedSize: store.serverList.servers.isEmpty) {
-                            window, isFixed in
-                            if isFixed {
-                                if window.styleMask.contains(.resizable) {
-                                    window.styleMask.remove(.resizable)
-                                }
-                                window.standardWindowButton(.zoomButton)?.isEnabled = false
-                                let targetSize = NSSize(width: 600, height: 520)
-                                window.minSize = targetSize
-                                window.maxSize = targetSize
-
-                                var frame = window.frame
-                                if frame.size.width != 600 || frame.size.height != 520 {
-                                    frame.size = targetSize
-                                    window.setFrame(frame, display: true, animate: true)
-                                }
-                            } else {
-                                if !window.styleMask.contains(.resizable) {
-                                    window.styleMask.insert(.resizable)
-                                }
-                                window.standardWindowButton(.zoomButton)?.isEnabled = true
-                                window.minSize = NSSize(width: 600, height: 450)
-                                window.maxSize = NSSize(
-                                    width: CGFloat.greatestFiniteMagnitude,
-                                    height: CGFloat.greatestFiniteMagnitude)
-                            }
-                        }
+                        MacWindowConfigurator(
+                            isFixedSize: isFirstLaunchWindow,
+                            configure: configureMacWindow
+                        )
                     )
                 #endif
         #endif
@@ -162,6 +151,43 @@ struct AppView: View {
     }
 
     #if os(macOS)
+        private func configureMacWindow(_ window: NSWindow, isFixed: Bool) {
+            if isFixed {
+                if window.styleMask.contains(.resizable) {
+                    window.styleMask.remove(.resizable)
+                }
+                window.standardWindowButton(.zoomButton)?.isEnabled = false
+                let targetSize = AppWindowMetrics.firstLaunchSize
+                window.minSize = targetSize
+                window.maxSize = targetSize
+
+                var frame = window.frame
+                if frame.size != targetSize {
+                    frame.size = targetSize
+                    window.setFrame(frame, display: true, animate: true)
+                }
+            } else {
+                if !window.styleMask.contains(.resizable) {
+                    window.styleMask.insert(.resizable)
+                }
+                window.standardWindowButton(.zoomButton)?.isEnabled = true
+                let minimumSize = AppWindowMetrics.mainMinimumSize
+                window.minSize = minimumSize
+                window.maxSize = NSSize(
+                    width: CGFloat.greatestFiniteMagnitude,
+                    height: CGFloat.greatestFiniteMagnitude)
+
+                var frame = window.frame
+                if frame.size.width < minimumSize.width
+                    || frame.size.height < minimumSize.height
+                {
+                    frame.size.width = max(frame.size.width, minimumSize.width)
+                    frame.size.height = max(frame.size.height, minimumSize.height)
+                    window.setFrame(frame, display: true, animate: true)
+                }
+            }
+        }
+
         private var macOSToolbarPill: some View {
             HStack(spacing: 10) {
                 if shouldShowAddServerToolbarButton {
@@ -201,7 +227,11 @@ struct AppView: View {
     #endif
 
     private var shouldShowAddServerToolbarButton: Bool {
-        store.serverList.servers.isEmpty == false
+        isFirstLaunchWindow == false
+    }
+
+    private var isFirstLaunchWindow: Bool {
+        store.serverList.servers.isEmpty
     }
 
     private var shouldShowServerList: Bool {
@@ -209,7 +239,7 @@ struct AppView: View {
             return true
         }
         // Если серверы уже есть (например, из кэша или фикстуры)
-        if store.serverList.servers.isEmpty == false {
+        if isFirstLaunchWindow == false {
             return true
         }
         // Если загрузка еще идет и список пуст, не показываем список (показываем сплэш или пустоту)
@@ -221,6 +251,13 @@ struct AppView: View {
     }
 
 }
+
+#if os(macOS)
+    private enum AppWindowMetrics {
+        static let firstLaunchSize = NSSize(width: 680, height: 520)
+        static let mainMinimumSize = NSSize(width: 920, height: 680)
+    }
+#endif
 
 #Preview("AppView Empty") {
     AppView(
