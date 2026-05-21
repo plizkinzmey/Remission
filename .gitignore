@@ -6,6 +6,7 @@
 .xcuserdata/
 
 # Scheme management
+**/xcuserdata/
 .xcodeproj/xcuserdata/
 .xcworkspace/xcuserdata/
 
@@ -13,6 +14,7 @@
 Build/
 build/
 build_ios/
+build_macos/
 DerivedData/
 
 # Index

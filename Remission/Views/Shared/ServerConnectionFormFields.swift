@@ -30,6 +30,7 @@ struct ServerConnectionFormFields: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
+                    .tint(nil)
                     .accessibilityIdentifier("server_form_transport_picker")
                 }
 
@@ -43,6 +44,7 @@ struct ServerConnectionFormFields: View {
                         L10n.tr("serverForm.placeholder.name"),
                         text: $form.name
                     )
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1)
                     .accessibilityIdentifier("server_form_name_field")
@@ -58,6 +60,7 @@ struct ServerConnectionFormFields: View {
                         L10n.tr("serverForm.placeholder.host"),
                         text: $form.host
                     )
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1)
                     .accessibilityIdentifier("server_form_host_field")
@@ -73,6 +76,7 @@ struct ServerConnectionFormFields: View {
                         L10n.tr("serverForm.placeholder.port"),
                         text: $form.port
                     )
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1)
                     .accessibilityIdentifier("server_form_port_field")
@@ -88,6 +92,7 @@ struct ServerConnectionFormFields: View {
                         L10n.tr("serverForm.placeholder.path"),
                         text: $form.path
                     )
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1)
                     .accessibilityIdentifier("server_form_path_field")
@@ -112,6 +117,7 @@ struct ServerConnectionFormFields: View {
                         L10n.tr("serverForm.placeholder.username"),
                         text: $form.username
                     )
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
                     .lineLimit(1)
                     .accessibilityIdentifier("server_form_username_field")
@@ -137,6 +143,7 @@ struct ServerConnectionFormFields: View {
                                 )
                             }
                         }
+                        .labelsHidden()
                         .textFieldStyle(.roundedBorder)
                         .lineLimit(1)
                         .accessibilityIdentifier("server_form_password_field")
