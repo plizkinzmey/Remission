@@ -14,7 +14,7 @@ struct ServerConfigRepository: Sendable {
 
 #if canImport(ComposableArchitecture)
     extension ServerConfigRepository: DependencyKey {
-        static var liveValue: ServerConfigRepository { .fileBased() }
+        static var liveValue: ServerConfigRepository { .fileBased(namespace: .live()) }
         static var previewValue: ServerConfigRepository {
             .inMemory(initial: [
                 .previewLocalHTTP,
@@ -50,11 +50,13 @@ enum ServerConfigRepositoryError: Error, LocalizedError, Sendable {
 }
 
 extension ServerConfigRepository {
-    /// Файловая реализация (Application Support/servers.json).
+    /// Файловая реализация (Application Support/<namespace>/servers.json).
     static func fileBased(
         fileManager _: FileManager = .default,
-        fileURL: URL = ServerConfigStoragePaths.defaultURL()
+        namespace: AppStorageNamespace = .release,
+        fileURL: URL? = nil
     ) -> ServerConfigRepository {
+        let fileURL = fileURL ?? ServerConfigStoragePaths.defaultURL(namespace: namespace)
         let store = ServerConfigFileStore(
             fileURL: fileURL
         )
@@ -232,21 +234,22 @@ private actor InMemoryServerConfigStore {
 // MARK: - Storage helpers
 
 enum ServerConfigStoragePaths {
-    static func defaultURL(fileManager: FileManager = .default) -> URL {
-        let baseDirectory: URL
-        if let appSupport = fileManager.urls(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask
-        ).first {
-            baseDirectory = appSupport.appendingPathComponent("Remission", isDirectory: true)
-        } else {
-            baseDirectory =
-                fileManager.urls(for: .documentDirectory, in: .userDomainMask)
-                .first?
-                .appendingPathComponent("Remission", isDirectory: true)
-                ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        }
+    static func defaultURL(
+        fileManager: FileManager = .default,
+        namespace: AppStorageNamespace = .release
+    ) -> URL {
+        let baseDirectory = applicationSupportDirectory(
+            fileManager: fileManager,
+            namespace: namespace
+        )
         return baseDirectory.appendingPathComponent("servers.json", isDirectory: false)
+    }
+
+    static func applicationSupportDirectory(
+        fileManager: FileManager = .default,
+        namespace: AppStorageNamespace
+    ) -> URL {
+        namespace.applicationSupportDirectoryURL(fileManager: fileManager)
     }
 
     /// Синхронно читает сохранённые записи. Используется до инициализации TCA-окружения.

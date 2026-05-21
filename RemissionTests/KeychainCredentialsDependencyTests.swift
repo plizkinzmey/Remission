@@ -1,11 +1,10 @@
 import Dependencies
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("KeychainCredentialsDependency Tests")
-struct KeychainCredentialsDependencyTests {
+final class KeychainCredentialsDependencyTests: XCTestCase {
     private let key = TransmissionServerCredentialsKey(
         host: "example.com",
         port: 9091,
@@ -15,39 +14,35 @@ struct KeychainCredentialsDependencyTests {
 
     // Проверяет, что стандартная test-зависимость явно сообщает о
     // неконфигурированном Keychain-клиенте при сохранении.
-    @Test
-    func defaultDependencySaveThrowsNotConfigured() throws {
+    func testDefaultDependencySaveThrowsNotConfigured() throws {
         let dependencies = DependencyValues()
         let credentials = TransmissionServerCredentials(key: key, password: "secret")
 
-        #expect(throws: KeychainCredentialsDependencyError.self) {
-            try dependencies.keychainCredentials.save(credentials)
+        XCTAssertThrowsError(try dependencies.keychainCredentials.save(credentials)) { error in
+            XCTAssertTrue(error is KeychainCredentialsDependencyError)
         }
     }
 
     // Проверяет, что стандартная test-зависимость падает и при чтении.
-    @Test
-    func defaultDependencyLoadThrowsNotConfigured() throws {
+    func testDefaultDependencyLoadThrowsNotConfigured() throws {
         let dependencies = DependencyValues()
 
-        #expect(throws: KeychainCredentialsDependencyError.self) {
-            _ = try dependencies.keychainCredentials.load(key)
+        XCTAssertThrowsError(try dependencies.keychainCredentials.load(key)) { error in
+            XCTAssertTrue(error is KeychainCredentialsDependencyError)
         }
     }
 
     // Проверяет, что стандартная test-зависимость падает и при удалении.
-    @Test
-    func defaultDependencyDeleteThrowsNotConfigured() throws {
+    func testDefaultDependencyDeleteThrowsNotConfigured() throws {
         let dependencies = DependencyValues()
 
-        #expect(throws: KeychainCredentialsDependencyError.self) {
-            try dependencies.keychainCredentials.delete(key)
+        XCTAssertThrowsError(try dependencies.keychainCredentials.delete(key)) { error in
+            XCTAssertTrue(error is KeychainCredentialsDependencyError)
         }
     }
 
     // Проверяет, что liveValue сохраняет, читает и удаляет ключ в Keychain.
-    @Test
-    func liveDependencySaveLoadDeleteRoundTrip() throws {
+    func testLiveDependencySaveLoadDeleteRoundTrip() async throws {
         let uniqueKey = TransmissionServerCredentialsKey(
             host: "example.com",
             port: 9091,
@@ -55,17 +50,23 @@ struct KeychainCredentialsDependencyTests {
             username: "user-\(UUID().uuidString)"
         )
         let credentials = TransmissionServerCredentials(key: uniqueKey, password: "secret")
-        let live = KeychainCredentialsDependency.liveValue
 
-        // Ensure clean slate in case of a previous run.
-        try? live.delete(uniqueKey)
+        let result = try await Task.detached {
+            let live = KeychainCredentialsDependency.liveValue
 
-        try live.save(credentials)
-        let loaded = try live.load(uniqueKey)
-        #expect(loaded == credentials)
+            // Ensure clean slate in case of a previous run.
+            try? live.delete(uniqueKey)
 
-        try live.delete(uniqueKey)
-        let deleted = try live.load(uniqueKey)
-        #expect(deleted == nil)
+            try live.save(credentials)
+            let loaded = try live.load(uniqueKey)
+
+            try live.delete(uniqueKey)
+            let deleted = try live.load(uniqueKey)
+
+            return (loaded, deleted)
+        }.value
+
+        XCTAssertEqual(result.0, credentials)
+        XCTAssertNil(result.1)
     }
 }

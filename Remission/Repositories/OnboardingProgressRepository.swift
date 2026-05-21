@@ -12,8 +12,12 @@ struct OnboardingProgressRepository: Sendable {
 
 #if canImport(ComposableArchitecture)
     extension OnboardingProgressRepository: DependencyKey {
-        static let liveValue: OnboardingProgressRepository = .userDefaults()
-        static let previewValue: OnboardingProgressRepository = .userDefaults()
+        static var liveValue: OnboardingProgressRepository {
+            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+        }
+        static var previewValue: OnboardingProgressRepository {
+            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+        }
         static let testValue: OnboardingProgressRepository = .inMemory()
     }
 

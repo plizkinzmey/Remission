@@ -33,8 +33,8 @@ final class TorrentListViewCoverageTests: XCTestCase {
         let emptyView = TorrentListView(store: emptyStore)
         _ = emptyView.body
 
-        XCTAssertTrue(loadedStore.withState { !$0.visibleItems.isEmpty })
-        XCTAssertTrue(emptyStore.withState { $0.visibleItems.isEmpty })
+        XCTAssertTrue(!loadedStore.state.visibleItems.isEmpty)
+        XCTAssertTrue(emptyStore.state.visibleItems.isEmpty)
     }
     func testTorrentListViewRendersLoadingOfflineAndErrorStates() {
         var loadingState = TorrentListReducer.State.previewLoading()
@@ -73,7 +73,7 @@ final class TorrentListViewCoverageTests: XCTestCase {
         let errorView = TorrentListView(store: errorStore)
         _ = errorView.body
 
-        XCTAssertTrue(errorStore.withState { $0.phase == .error("Boom") })
+        XCTAssertTrue(errorStore.state.phase == .error("Boom"))
     }
     func testTorrentListComponentsRender() {
         let header = TorrentListHeaderView(title: "Header")
@@ -139,7 +139,7 @@ final class TorrentListViewCoverageTests: XCTestCase {
             _ = view.macOSToolbarControls
         #endif
 
-        XCTAssertTrue(store.withState { $0.searchQuery == "Ubuntu" })
+        XCTAssertTrue(store.state.searchQuery == "Ubuntu")
     }
     func testTorrentListPreviewHelpersAreCallable() {
         _ = TorrentListReducer.State.previewBase()

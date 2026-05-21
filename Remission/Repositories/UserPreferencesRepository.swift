@@ -114,7 +114,9 @@ struct UserPreferencesRepository: Sendable, UserPreferencesRepositoryProtocol {
 
 #if canImport(ComposableArchitecture)
     extension UserPreferencesRepository: DependencyKey {
-        static let liveValue: UserPreferencesRepository = .persistent()
+        static var liveValue: UserPreferencesRepository {
+            .persistent(defaults: AppStorageNamespace.live().userDefaults())
+        }
         static var previewValue: UserPreferencesRepository {
             .inMemory(
                 store: InMemoryUserPreferencesRepositoryStore(

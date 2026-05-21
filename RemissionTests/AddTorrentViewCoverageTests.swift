@@ -36,8 +36,8 @@ final class AddTorrentViewCoverageTests: XCTestCase {
         let fileSourceSection = AddTorrentSourceSection(store: fileStore)
         host(fileSourceSection)
 
-        XCTAssertTrue(magnetStore.withState { $0.source == .magnetLink })
-        XCTAssertTrue(fileStore.withState { $0.source == .torrentFile })
+        XCTAssertTrue(magnetStore.state.source == .magnetLink)
+        XCTAssertTrue(fileStore.state.source == .torrentFile)
     }
 }
 

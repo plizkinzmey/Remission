@@ -1,22 +1,17 @@
 import Clocks
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("TransmissionClient Retry & Error Logic")
-struct TransmissionClientRetryTests {
-
-    @Test("Rethrows URLError immediately if not retriable (e.g. badURL)")
+final class TransmissionClientRetryTests: XCTestCase {
     func testNoRetryOnBadURL() async throws {
         MockURLProtocol.reset()
 
-        // Enqueue failure
         MockURLProtocol.enqueue { _ in
             throw URLError(.badURL)
         }
 
-        // Enqueue success response (should NOT be called)
         MockURLProtocol.enqueue { request in
             let data = try JSONEncoder().encode(TransmissionResponse(result: "success"))
             return (
@@ -27,39 +22,26 @@ struct TransmissionClientRetryTests {
 
         let client = makeClient()
 
-        var capturedError: APIError?
         do {
             _ = try await client.sessionGet()
-            Issue.record("Expected error to be thrown")
+            XCTFail("Expected error to be thrown")
         } catch let error as APIError {
-            capturedError = error
+            switch error {
+            case .unknown(let details):
+                XCTAssertTrue(details.contains("URL error"))
+            default:
+                XCTFail("Unexpected APIError case: \(error)")
+            }
         } catch {
-            Issue.record("Unexpected error type: \(type(of: error))")
-        }
-
-        guard let error = capturedError else { return }
-
-        // .badURL is mapped to .unknown(details: "URL error: ...") by APIError.mapURLError
-        switch error {
-        case .unknown(let details):
-            #expect(details.contains("URL error"))
-        default:
-            Issue.record("Unexpected APIError case: \(error)")
+            XCTFail("Unexpected error type: \(type(of: error))")
         }
     }
 
-    @Test("Retries on network timeout with backoff")
     func testRetryOnNetworkTimeout() async throws {
         MockURLProtocol.reset()
-        let clock = TestClock()
 
-        // 1. Fail (attempt 0)
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
-
-        // 2. Fail (attempt 1)
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
-
-        // 3. Success
         MockURLProtocol.enqueue { request in
             let data = try JSONEncoder().encode(TransmissionResponse(result: "success"))
             return (
@@ -68,41 +50,36 @@ struct TransmissionClientRetryTests {
             )
         }
 
-        let client = makeClient(clock: clock, retryDelay: 0.1)
+        let client = makeClient(maxRetries: 2, retryDelay: 0)
+        let response = try await client.sessionGet()
 
-        let task = Task {
-            try await client.sessionGet()
-        }
-
-        // Advance clock to trigger retries (0.1s + 0.2s = 0.3s total needed)
-        await clock.advance(by: .milliseconds(500))
-
-        let response = try await task.value
-        #expect(response.result == "success")
+        XCTAssertEqual(response.result, "success")
     }
 
-    @Test("Exceeding max retries throws networkUnavailable for timeout")
     func testExceedMaxRetries() async throws {
         MockURLProtocol.reset()
 
-        // Max retries = 2. Total attempts allowed = 3.
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
 
         let client = makeClient(maxRetries: 2, retryDelay: 0)
-        await #expect(throws: APIError.networkUnavailable) {
-            try await client.sessionGet()
+
+        do {
+            _ = try await client.sessionGet()
+            XCTFail("Expected APIError.networkUnavailable")
+        } catch let error as APIError {
+            XCTAssertEqual(error, .networkUnavailable)
+        } catch {
+            XCTFail("Unexpected error type: \(type(of: error))")
         }
     }
 
-    @Test("Session Conflict (409) updates session ID and retries immediately")
     func testSessionConflictRetry() async throws {
         MockURLProtocol.reset()
-        let clock = TestClock()
         let newSessionID = "new-session-id-123"
+        let receivedSessionID = LockedValue<String?>(nil)
 
-        // 1. 409 Conflict
         MockURLProtocol.enqueue { request in
             let response = HTTPURLResponse(
                 url: request.url!,
@@ -113,10 +90,8 @@ struct TransmissionClientRetryTests {
             return (response, Data())
         }
 
-        // 2. Success
         MockURLProtocol.enqueue { request in
-            let header = request.value(forHTTPHeaderField: "X-Transmission-Session-Id")
-            #expect(header == newSessionID)
+            receivedSessionID.set(request.value(forHTTPHeaderField: "X-Transmission-Session-Id"))
 
             let data = try JSONEncoder().encode(TransmissionResponse(result: "success"))
             return (
@@ -125,19 +100,17 @@ struct TransmissionClientRetryTests {
             )
         }
 
-        let client = makeClient(clock: clock)
+        let client = makeClient()
         let response = try await client.sessionGet()
 
-        #expect(response.result == "success")
+        XCTAssertEqual(response.result, "success")
+        XCTAssertEqual(receivedSessionID.value, newSessionID)
     }
 
-    @Test("Session Conflict loop limit throws sessionConflict")
     func testSessionConflictLimit() async throws {
         MockURLProtocol.reset()
-        let clock = TestClock()
         let newSessionID = "session-id"
 
-        // Return 409 multiple times. Client should throw sessionConflict after limit.
         for _ in 0..<5 {
             MockURLProtocol.enqueue { request in
                 let response = HTTPURLResponse(
@@ -150,15 +123,18 @@ struct TransmissionClientRetryTests {
             }
         }
 
-        let client = makeClient(clock: clock)
+        let client = makeClient()
 
-        await #expect(throws: APIError.sessionConflict) {
-            try await client.sessionGet()
+        do {
+            _ = try await client.sessionGet()
+            XCTFail("Expected APIError.sessionConflict")
+        } catch let error as APIError {
+            XCTAssertEqual(error, .sessionConflict)
+        } catch {
+            XCTFail("Unexpected error type: \(type(of: error))")
         }
     }
 }
-
-// MARK: - Helpers
 
 private func makeClient(
     clock: any Clock<Duration> = ContinuousClock(),
@@ -184,4 +160,25 @@ private func makeClient(
         sessionConfiguration: sessionConfiguration,
         clock: clock
     )
+}
+
+private final class LockedValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: Value
+
+    init(_ value: Value) {
+        storage = value
+    }
+
+    var value: Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
+    func set(_ value: Value) {
+        lock.lock()
+        storage = value
+        lock.unlock()
+    }
 }

@@ -60,7 +60,7 @@ echo ""
 echo -e "${BLUE}2️⃣  Checking code style with SwiftLint...${NC}"
 
 if command -v swiftlint &> /dev/null; then
-    if swiftlint lint --reporter xcode; then
+    if swiftlint lint --reporter xcode Remission RemissionTests RemissionUITests; then
         echo -e "${GREEN}   ✅ SwiftLint check passed${NC}"
     else
         echo -e "${RED}   ❌ SwiftLint check failed${NC}"

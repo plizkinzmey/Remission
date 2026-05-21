@@ -1,13 +1,11 @@
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("View Smoke Tests")
 @MainActor
-struct ViewSmokeTests {
-    @Test
-    func appLabeledValueViewRendersAllLayouts() {
+final class ViewSmokeTests: XCTestCase {
+    func testAppLabeledValueViewRendersAllLayouts() {
         let horizontal = AppLabeledValueView(
             label: "Label",
             value: "Value",
@@ -32,14 +30,12 @@ struct ViewSmokeTests {
         _ = adaptive.body
     }
 
-    @Test
-    func appTagViewRendersWithCustomStyle() {
+    func testAppTagViewRendersWithCustomStyle() {
         let view = AppTagView(text: "Downloading", color: .blue, opacity: 0.12)
         _ = view.body
     }
 
-    @Test
-    func appTorrentActionButtonRendersBusyAndIdle() {
+    func testAppTorrentActionButtonRendersBusyAndIdle() {
         let idle = AppTorrentActionButton(
             type: .start,
             isBusy: false,

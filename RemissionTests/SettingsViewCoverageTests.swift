@@ -15,8 +15,8 @@ final class SettingsViewCoverageTests: XCTestCase {
         let loadedView = SettingsView(store: loadedStore)
         _ = loadedView.body
 
-        XCTAssertTrue(loadedStore.withState { $0.persistedPreferences != nil })
-        XCTAssertTrue(loadingStore.withState { $0.persistedPreferences == nil })
+        XCTAssertTrue(loadedStore.state.persistedPreferences != nil)
+        XCTAssertTrue(loadingStore.state.persistedPreferences == nil)
     }
     func testSettingsSectionsRender() {
         let store = makeSettingsStore(isLoaded: true)

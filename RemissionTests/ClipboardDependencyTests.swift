@@ -16,7 +16,6 @@ struct ClipboardDependencyTests {
     func testValueCopyDoesNotThrow() async {
         let client = ClipboardClient.testValue
         await client.copy("sample")
-        #expect(true)
     }
 
     @Test

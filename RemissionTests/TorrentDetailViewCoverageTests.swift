@@ -23,8 +23,8 @@ final class TorrentDetailViewCoverageTests: XCTestCase {
         let idleView = TorrentDetailSummarySection(store: idleStore)
         host(idleView)
 
-        XCTAssertTrue(activeStore.withState { $0.status == Torrent.Status.downloading.rawValue })
-        XCTAssertTrue(idleStore.withState { $0.status == Torrent.Status.stopped.rawValue })
+        XCTAssertTrue(activeStore.state.status == Torrent.Status.downloading.rawValue)
+        XCTAssertTrue(idleStore.state.status == Torrent.Status.stopped.rawValue)
     }
     func testInfoAndAdvancedSectionsRenderWithMetadata() {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))
@@ -52,7 +52,7 @@ final class TorrentDetailViewCoverageTests: XCTestCase {
         )
         host(advancedView)
 
-        XCTAssertTrue(store.withState { $0.hasLoadedMetadata })
+        XCTAssertTrue(store.state.hasLoadedMetadata)
     }
     func testDetailViewRendersPlaceholdersAndErrors() {
         var loadingState = TorrentDetailReducer.State(torrentID: .init(rawValue: 7))
@@ -77,8 +77,8 @@ final class TorrentDetailViewCoverageTests: XCTestCase {
         let fallbackView = TorrentDetailView(store: fallbackStore)
         host(fallbackView)
 
-        XCTAssertTrue(loadingStore.withState { $0.isLoading })
-        XCTAssertTrue(fallbackStore.withState { $0.errorPresenter.banner != nil })
+        XCTAssertTrue(loadingStore.state.isLoading)
+        XCTAssertTrue(fallbackStore.state.errorPresenter.banner != nil)
     }
     func testDetailSubviewsRender() {
         let store = makeDetailStore(torrent: makeTorrent(withDetails: true))

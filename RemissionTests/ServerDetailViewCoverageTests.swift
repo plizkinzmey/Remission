@@ -18,7 +18,7 @@ final class ServerDetailViewCoverageTests: XCTestCase {
         let view = ServerDetailView(store: store)
         _ = view.body
 
-        XCTAssertTrue(store.withState { $0.connectionState.isBlockingInteractions })
+        XCTAssertTrue(store.state.connectionState.isBlockingInteractions)
     }
     func testConnectionCardRendersOfflineAndFailedStates() {
         var errorPresenter = ErrorPresenter<ServerDetailReducer.ErrorRetry>.State()
