@@ -98,6 +98,9 @@ Minimum search:
 - Every new screen and input form must have `#Preview` with mock data or preview dependencies.
 - Views should keep state ownership clear and avoid expensive work in `body`.
 - Check layout for duplicated ad-hoc styling that should be a local component.
+- **UI Metrics & Sizing Space Budget**: Verify that window/view minimum sizes are selected based on a precise element space budget analysis (e.g. at least 920px for multi-column lists) to prevent any text truncation, speed value squeezing, or button overlapping. Do not use generic layout sizes blindly.
+- **Code Cleanliness & SRP**: Check that dynamic frame metrics are encapsulated into distinct enums/structs (e.g., `AppWindowMetrics`) instead of cluttering SwiftUI declarative layout tree with ternary expressions.
+- **Isolation of AppKit Logic**: Verify that platform-specific window styling and delegate configuration closures are extracted from SwiftUI `body` into clean helper methods.
 
 Minimum search:
 - New/changed `struct ...: View`.

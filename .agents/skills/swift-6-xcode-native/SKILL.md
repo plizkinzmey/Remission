@@ -90,16 +90,14 @@ Before finishing:
 
 If a gate cannot run, record the reason and residual risk.
 
-## 5. SwiftUI Previews
+## 5. SwiftUI & UI Sizing Metrics Quality
 
-Every new screen and input form must include `#Preview`.
+Every SwiftUI view, new screen, and input form must follow high-quality design standards:
 
-Preview rules:
-
-- Use mock data or `AppDependencies.makePreview()`.
-- Do not call live Transmission servers, Keychain, or real file stores.
-- Include meaningful states for complex screens: loaded, empty, loading, error.
-- Keep previews fast and deterministic.
+- **#Preview macro**: Every new screen/form must include `#Preview` with mock data or `AppDependencies.makePreview()`. Previews must not call live Transmission servers, Keychain, or real file stores. Include meaningful states (loaded, empty, loading, error).
+- **UI Metrics & Sizing Space Budget**: Window/view minimum sizes must be selected based on a precise element space budget analysis (e.g. at least 920px width for multi-column lists) to prevent any text truncation, speed value squeezing, or button overlapping. Do not use generic layout sizes (like `800x600`) blindly.
+- **Code Cleanliness & SRP**: Dynamic frame metrics and size constants must be encapsulated into distinct structures/enums (e.g., `AppWindowMetrics`) instead of cluttering SwiftUI declarative layout tree with ternary expressions or inline calculations.
+- **Isolation of AppKit Logic**: Platform-specific window styling and delegate configuration closures must be extracted from SwiftUI `body` into clean helper methods or extensions. Keep declarative code purely declarative.
 
 ## 6. Safe Workflow and Commit Hygiene
 
