@@ -80,6 +80,13 @@ struct AppView: View {
                                 window.maxSize = NSSize(
                                     width: CGFloat.greatestFiniteMagnitude,
                                     height: CGFloat.greatestFiniteMagnitude)
+
+                                var frame = window.frame
+                                if frame.size.width < 680 || frame.size.height < 500 {
+                                    frame.size.width = max(frame.size.width, 680)
+                                    frame.size.height = max(frame.size.height, 500)
+                                    window.setFrame(frame, display: true, animate: true)
+                                }
                             }
                         }
                     )

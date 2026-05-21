@@ -51,22 +51,6 @@ struct RemissionApp: App {
     var body: some Scene {
         WindowGroup {
             AppView(store: store)
-                // Защитный минимальный размер для macOS, чтобы верстка не схлопывалась.
-                #if os(macOS)
-                    .frame(
-                        minWidth: WindowConstants.minimumSize.width,
-                        idealWidth: store.serverList.servers.isEmpty
-                            ? WindowConstants.minimumSize.width : nil,
-                        maxWidth: store.serverList.servers.isEmpty
-                            ? WindowConstants.minimumSize.width : .infinity,
-                        minHeight: store.serverList.servers.isEmpty
-                            ? 520 : WindowConstants.minimumSize.height,
-                        idealHeight: store.serverList.servers.isEmpty
-                            ? 520 : nil,
-                        maxHeight: store.serverList.servers.isEmpty
-                            ? 520 : .infinity
-                    )
-                #endif
         }
         #if os(macOS)
             .defaultSize(
