@@ -31,17 +31,6 @@ extension ServerListReducer {
                     identifiers.contains($0.key)
                 }
             )
-            if servers.isEmpty {
-                #if os(macOS)
-                    let shouldShowOnboarding =
-                        state.hasPresentedInitialOnboarding == false
-                        && onboardingProgressRepository.hasCompletedOnboarding() == false
-                    if shouldShowOnboarding {
-                        state.serverForm = ServerFormReducer.State(mode: .add)
-                        state.hasPresentedInitialOnboarding = true
-                    }
-                #endif
-            }
             let shouldAutoSelect =
                 servers.count == 1
                 && state.hasAutoSelectedSingleServer == false

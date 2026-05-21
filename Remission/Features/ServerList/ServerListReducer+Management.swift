@@ -6,7 +6,6 @@ extension ServerListReducer {
     func managementReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .addButtonTapped:
-            state.hasPresentedInitialOnboarding = true
             state.serverForm = ServerFormReducer.State(mode: .add)
             return .none
 

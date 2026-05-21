@@ -11,7 +11,6 @@ struct ServerListReducer {
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var serverForm: ServerFormReducer.State?
-        var hasPresentedInitialOnboarding: Bool = false
         var hasAutoSelectedSingleServer: Bool = false
         var isPreloaded: Bool = false
         var pendingDeletion: ServerConfig?

@@ -13,7 +13,6 @@ final class ServerListManagementTests: XCTestCase {
         }
 
         await store.send(.addButtonTapped) {
-            $0.hasPresentedInitialOnboarding = true
             $0.serverForm = ServerFormReducer.State(mode: .add)
         }
     }
