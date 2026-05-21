@@ -8,20 +8,26 @@ struct ServerConfigurationView: View {
     var submissionLabel: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        Form {
             ServerConnectionFormFields(form: $store.form)
 
             if let validationError = store.validationError {
-                errorText(validationError)
+                Section {
+                    errorText(validationError)
+                }
             }
 
             if case .failed(let message) = store.connectionStatus {
-                errorText(message)
+                Section {
+                    errorText(message)
+                }
             }
 
             #if os(iOS)
-                checkConnectionButton
-                    .frame(maxWidth: .infinity, alignment: .center)
+                Section {
+                    checkConnectionButton
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
             #endif
         }
         .disabled(isSubmitting)

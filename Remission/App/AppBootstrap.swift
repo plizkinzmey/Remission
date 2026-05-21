@@ -180,7 +180,8 @@ enum AppBootstrap {
                     && state.path.isEmpty
                 if shouldAutoOpenFirstServer {
                     state.path.append(
-                        ServerDetailReducer.State(server: state.serverList.servers[0]))
+                        .serverDetail(
+                            ServerDetailReducer.State(server: state.serverList.servers[0])))
                 }
             #endif
         case .torrentListSample:

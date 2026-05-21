@@ -60,7 +60,7 @@ final class AppBootstrapTests: XCTestCase {
     func testMakeInitialStateMigratesAndResetsPath() {
         // Миграция должна обновлять версию и сбрасывать navigation path.
         var state = AppReducer.State(version: .legacy)
-        state.path.append(ServerDetailReducer.State(server: .previewLocalHTTP))
+        state.path.append(.serverDetail(ServerDetailReducer.State(server: .previewLocalHTTP)))
 
         let migrated = AppBootstrap.makeInitialState(
             arguments: [],

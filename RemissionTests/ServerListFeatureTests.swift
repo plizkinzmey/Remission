@@ -40,7 +40,6 @@ final class ServerListFeatureTests: XCTestCase {
                 $0.isLoading = false
                 $0.servers = []
                 $0.serverForm = nil  // Should remain nil
-                $0.hasPresentedInitialOnboarding = false  // Should remain false
             }
         }
     #endif
@@ -98,9 +97,14 @@ final class ServerListFeatureTests: XCTestCase {
             ServerListReducer()
         }
 
-        await store.send(ServerListReducer.Action.addButtonTapped) {
-            $0.serverForm = ServerFormReducer.State(mode: .add)
-        }
+        #if os(macOS)
+            await store.send(ServerListReducer.Action.addButtonTapped) {
+                $0.serverForm = ServerFormReducer.State(mode: .add)
+            }
+        #else
+            await store.send(ServerListReducer.Action.addButtonTapped)
+            await store.receive(ServerListReducer.Action.delegate(.addServerRequested))
+        #endif
     }
     func testDeleteServerFlow() async {
         let server = ServerConfig.sample

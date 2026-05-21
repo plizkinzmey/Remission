@@ -106,21 +106,25 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.openTorrentFile(url))
 
         XCTAssertTrue(store.state.path.count == 1)
-        XCTAssertTrue(store.state.path.last?.server.id == newer.id)
+        if case .serverDetail(let detail) = store.state.path.last {
+            XCTAssertTrue(detail.server.id == newer.id)
+        } else {
+            XCTFail("Ожидали serverDetail в path")
+        }
         guard let openedID = store.state.path.ids.last else {
             XCTFail("Не смогли получить ID открытого сервера")
             return
         }
 
         await store.receive(
-            .path(.element(id: openedID, action: .fileImportResult(.success(url))))
+            .path(.element(id: openedID, action: .serverDetail(.fileImportResult(.success(url)))))
         )
     }
     func testOpenTorrentFileUsesActiveServer() async {
         // Если сервер уже открыт, отправляем файл прямо в него.
         let server = makeServer(name: "Active", createdAt: 1)
         var state = AppReducer.State()
-        state.path.append(ServerDetailReducer.State(server: server))
+        state.path.append(.serverDetail(ServerDetailReducer.State(server: server)))
 
         let store = TestStoreFactory.makeTestStore(
             initialState: state,
@@ -134,7 +138,8 @@ final class AppFeatureTests: XCTestCase {
 
         if let activeID {
             await store.receive(
-                .path(.element(id: activeID, action: .fileImportResult(.success(url))))
+                .path(
+                    .element(id: activeID, action: .serverDetail(.fileImportResult(.success(url)))))
             )
         } else {
             XCTFail("Ожидали активный сервер в path")
@@ -153,7 +158,11 @@ final class AppFeatureTests: XCTestCase {
 
         await store.send(.serverList(.task))
         XCTAssertTrue(store.state.path.count == 1)
-        XCTAssertTrue(store.state.path.last?.server.id == server.id)
+        if case .serverDetail(let detail) = store.state.path.last {
+            XCTAssertTrue(detail.server.id == server.id)
+        } else {
+            XCTFail("Ожидали serverDetail в path")
+        }
     }
     func testServerSelectedOpensPendingTorrent() async {
         // Pending файл должен открываться сразу после выбора сервера.
@@ -170,14 +179,18 @@ final class AppFeatureTests: XCTestCase {
         await store.send(.serverList(.delegate(.serverSelected(server))))
         XCTAssertTrue(store.state.pendingTorrentFileURL == nil)
         XCTAssertTrue(store.state.path.count == 1)
-        XCTAssertTrue(store.state.path.last?.server.id == server.id)
+        if case .serverDetail(let detail) = store.state.path.last {
+            XCTAssertTrue(detail.server.id == server.id)
+        } else {
+            XCTFail("Ожидали serverDetail в path")
+        }
         guard let openedID = store.state.path.ids.last else {
             XCTFail("Не смогли получить ID открытого сервера")
             return
         }
 
         await store.receive(
-            .path(.element(id: openedID, action: .fileImportResult(.success(url))))
+            .path(.element(id: openedID, action: .serverDetail(.fileImportResult(.success(url)))))
         )
     }
     func testServerRepositoryResponseOpensPendingFile() async {
@@ -199,14 +212,18 @@ final class AppFeatureTests: XCTestCase {
         )
         XCTAssertTrue(store.state.pendingTorrentFileURL == nil)
         XCTAssertTrue(store.state.path.count == 1)
-        XCTAssertTrue(store.state.path.last?.server.id == newer.id)
+        if case .serverDetail(let detail) = store.state.path.last {
+            XCTAssertTrue(detail.server.id == newer.id)
+        } else {
+            XCTFail("Ожидали serverDetail в path")
+        }
         guard let openedID = store.state.path.ids.last else {
             XCTFail("Не смогли получить ID открытого сервера")
             return
         }
 
         await store.receive(
-            .path(.element(id: openedID, action: .fileImportResult(.success(url))))
+            .path(.element(id: openedID, action: .serverDetail(.fileImportResult(.success(url)))))
         )
     }
 }

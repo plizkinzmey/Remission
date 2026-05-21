@@ -55,7 +55,16 @@ struct RemissionApp: App {
                 #if os(macOS)
                     .frame(
                         minWidth: WindowConstants.minimumSize.width,
-                        minHeight: WindowConstants.minimumSize.height)
+                        idealWidth: store.serverList.servers.isEmpty
+                            ? WindowConstants.minimumSize.width : nil,
+                        maxWidth: store.serverList.servers.isEmpty
+                            ? WindowConstants.minimumSize.width : .infinity,
+                        minHeight: WindowConstants.minimumSize.height,
+                        idealHeight: store.serverList.servers.isEmpty
+                            ? WindowConstants.minimumSize.height : nil,
+                        maxHeight: store.serverList.servers.isEmpty
+                            ? WindowConstants.minimumSize.height : .infinity
+                    )
                 #endif
         }
         #if os(macOS)

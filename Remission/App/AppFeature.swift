@@ -11,7 +11,7 @@ struct AppReducer {
     struct State: Equatable {
         var version: AppStateVersion
         var serverList: ServerListReducer.State
-        var path: StackState<ServerDetailReducer.State>
+        var path: StackState<Path.State>
         var pendingTorrentFileURL: URL?
         @Presents var trustPrompt: ServerTrustPromptReducer.State?
         var trustPromptQueue: [TransmissionTrustPrompt] = []
@@ -23,7 +23,7 @@ struct AppReducer {
         init(
             version: AppStateVersion = .latest,
             serverList: ServerListReducer.State = .init(),
-            path: StackState<ServerDetailReducer.State> = .init()
+            path: StackState<Path.State> = .init()
         ) {
             self.version = version
             self.serverList = serverList
@@ -35,7 +35,7 @@ struct AppReducer {
         case task
         case startupTimerElapsed
         case serverList(ServerListReducer.Action)
-        case path(StackAction<ServerDetailReducer.State, ServerDetailReducer.Action>)
+        case path(StackAction<Path.State, Path.Action>)
         case openTorrentFile(URL)
         case trustPromptReceived(TransmissionTrustPrompt)
         case trustPrompt(PresentationAction<ServerTrustPromptReducer.Action>)
@@ -139,6 +139,10 @@ struct AppReducer {
                 }
                 return .none
 
+            case .serverList(.delegate(.addServerRequested)):
+                state.path.append(.serverForm(ServerFormReducer.State(mode: .add)))
+                return .none
+
             case .serverList(.delegate(.serverSelected(let server))):
                 if let pendingURL = state.pendingTorrentFileURL {
                     state.pendingTorrentFileURL = nil
@@ -177,21 +181,29 @@ struct AppReducer {
             case .serverList:
                 return .none
 
-            case .path(.element(id: _, action: .delegate(.serverUpdated(let server)))):
+            case .path(
+                .element(id: _, action: .serverDetail(.delegate(.serverUpdated(let server))))):
                 state.serverList.servers[id: server.id] = server
                 return .none
 
-            case .path(.element(id: let id, action: .delegate(.serverDeleted(let serverID)))):
+            case .path(
+                .element(id: let id, action: .serverDetail(.delegate(.serverDeleted(let serverID))))
+            ):
                 state.path[id: id] = nil
                 state.serverList.servers.remove(id: serverID)
                 return .none
 
-            case .path(.element(id: _, action: .delegate(.torrentSelected))):
+            case .path(.element(id: _, action: .serverDetail(.delegate(.torrentSelected)))):
                 return .none
 
             case .path(
-                .element(id: let detailID, action: .connectionResponse(.success(let response)))):
-                guard let serverID = state.path[id: detailID]?.server.id else { return .none }
+                .element(
+                    id: let detailID,
+                    action: .serverDetail(.connectionResponse(.success(let response))))):
+                guard case .serverDetail(let detailState) = state.path[id: detailID] else {
+                    return .none
+                }
+                let serverID = detailState.server.id
                 return .send(
                     .serverList(
                         .connectionProbeResponse(
@@ -201,18 +213,29 @@ struct AppReducer {
                     )
                 )
 
-            case .path(.element(id: let detailID, action: .connectionResponse(.failure(let error)))):
-                guard let serverID = state.path[id: detailID]?.server.id else { return .none }
+            case .path(
+                .element(
+                    id: let detailID,
+                    action: .serverDetail(.connectionResponse(.failure(let error))))):
+                guard case .serverDetail(let detailState) = state.path[id: detailID] else {
+                    return .none
+                }
+                let serverID = detailState.server.id
                 return .send(.serverList(.connectionProbeResponse(serverID, .failure(error))))
 
             case .path(
-                .element(id: let detailID, action: .torrentList(.storageUpdated(let summary)))):
-                guard let serverID = state.path[id: detailID]?.server.id, let summary else {
+                .element(
+                    id: let detailID,
+                    action: .serverDetail(.torrentList(.storageUpdated(let summary))))):
+                guard case .serverDetail(let detailState) = state.path[id: detailID], let summary
+                else {
                     return .none
                 }
+                let serverID = detailState.server.id
                 return .send(.serverList(.storageResponse(serverID, .success(summary))))
 
-            case .path(.element(id: _, action: .torrentList(.torrentsResponse(let result)))):
+            case .path(
+                .element(id: _, action: .serverDetail(.torrentList(.torrentsResponse(let result))))):
                 #if os(iOS)
                     if let completion = state.backgroundFetchCompletion {
                         switch result {
@@ -226,6 +249,18 @@ struct AppReducer {
                 #endif
                 return .none
 
+            case .path(.element(id: _, action: .serverForm(.delegate(.didCreate(let server))))):
+                state.serverList.servers.append(server)
+                state.path.removeLast()
+                return .merge(
+                    .send(.serverList(.delegate(.serverCreated(server)))),
+                    .send(.serverList(.connectionProbeRequested(server.id)))
+                )
+
+            case .path(.element(id: _, action: .serverForm(.delegate(.cancelled)))):
+                state.path.removeLast()
+                return .none
+
             case .path:
                 return .none
 
@@ -237,13 +272,14 @@ struct AppReducer {
                     }
                     state.backgroundFetchCompletion = completion
                     return .send(
-                        .path(.element(id: lastID, action: .torrentList(.refreshRequested))))
+                        .path(
+                            .element(
+                                id: lastID, action: .serverDetail(.torrentList(.refreshRequested))))
+                    )
             #endif
             }
         }
-        .forEach(\.path, action: \.path) {
-            ServerDetailReducer()
-        }
+        .forEach(\.path, action: \.path)
         .ifLet(\.$trustPrompt, action: \.trustPrompt) {
             ServerTrustPromptReducer()
         }
@@ -253,6 +289,12 @@ struct AppReducer {
         }
     }
 
+    @Reducer(state: .equatable, action: .equatable)
+    enum Path {
+        case serverDetail(ServerDetailReducer)
+        case serverForm(ServerFormReducer)
+    }
+
     private func presentNextTrustPromptIfNeeded(state: inout State) {
         guard state.trustPrompt == nil else { return }
         guard state.trustPromptQueue.isEmpty == false else { return }
@@ -260,13 +302,19 @@ struct AppReducer {
     }
 
     private func preferredServer(in state: State) -> ServerConfig? {
-        let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        let lastServer = state.path.ids.last.flatMap { id -> ServerConfig? in
+            guard case .serverDetail(let detail) = state.path[id: id] else { return nil }
+            return detail.server
+        }
         if let lastServer { return lastServer }
         return preferredServer(from: Array(state.serverList.servers), in: state)
     }
 
     private func preferredServer(from servers: [ServerConfig], in state: State) -> ServerConfig? {
-        let lastServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        let lastServer = state.path.ids.last.flatMap { id -> ServerConfig? in
+            guard case .serverDetail(let detail) = state.path[id: id] else { return nil }
+            return detail.server
+        }
         if let lastServer { return lastServer }
         return servers.sorted(by: { $0.createdAt > $1.createdAt }).first
     }
@@ -275,11 +323,14 @@ struct AppReducer {
         _ server: ServerConfig,
         state: inout State
     ) -> Effect<Action> {
-        let activeServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        let activeServer = state.path.ids.last.flatMap { id -> ServerConfig? in
+            guard case .serverDetail(let detail) = state.path[id: id] else { return nil }
+            return detail.server
+        }
         if activeServer?.id == server.id {
             return .none
         }
-        state.path.append(ServerDetailReducer.State(server: server))
+        state.path.append(.serverDetail(ServerDetailReducer.State(server: server)))
         return .none
     }
 
@@ -288,19 +339,21 @@ struct AppReducer {
         in server: ServerConfig,
         state: inout State
     ) -> Effect<Action> {
-        let activeServer = state.path.ids.last.flatMap { state.path[id: $0]?.server }
+        let activeServer = state.path.ids.last.flatMap { id -> ServerConfig? in
+            guard case .serverDetail(let detail) = state.path[id: id] else { return nil }
+            return detail.server
+        }
         if activeServer?.id == server.id {
             guard let lastID = state.path.ids.last else { return .none }
             return .send(
-                .path(.element(id: lastID, action: .fileImportResult(.success(url))))
+                .path(.element(id: lastID, action: .serverDetail(.fileImportResult(.success(url)))))
             )
         }
 
-        state.path.append(ServerDetailReducer.State(server: server))
+        state.path.append(.serverDetail(ServerDetailReducer.State(server: server)))
         guard let targetID = state.path.ids.last else { return .none }
         return .send(
-            .path(.element(id: targetID, action: .fileImportResult(.success(url))))
-        )
+            .path(.element(id: targetID, action: .serverDetail(.fileImportResult(.success(url))))))
     }
 }
 

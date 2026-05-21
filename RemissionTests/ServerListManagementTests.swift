@@ -7,14 +7,19 @@ import XCTest
 @MainActor
 final class ServerListManagementTests: XCTestCase {
     func testAddButtonTapped() async {
-        // Проверяем, что addButtonTapped открывает форму и помечает onboarding показанным.
+        // Проверяем, что addButtonTapped открывает форму.
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
         }
 
-        await store.send(.addButtonTapped) {
-            $0.serverForm = ServerFormReducer.State(mode: .add)
-        }
+        #if os(macOS)
+            await store.send(.addButtonTapped) {
+                $0.serverForm = ServerFormReducer.State(mode: .add)
+            }
+        #else
+            await store.send(.addButtonTapped)
+            await store.receive(.delegate(.addServerRequested))
+        #endif
     }
     func testEditButtonTapped() async {
         // Проверяем, что editButtonTapped открывает форму редактирования выбранного сервера.

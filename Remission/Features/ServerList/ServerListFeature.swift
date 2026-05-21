@@ -47,6 +47,7 @@ struct ServerListReducer {
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
+        case addServerRequested
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository

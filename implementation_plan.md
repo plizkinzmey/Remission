@@ -1,28 +1,38 @@
-# План внедрения Code Review, ретроспективы и рефлексии
+# Startup Connection Setup Implementation Plan
 
 ## Цель
 
-Довести агентский workflow Remission до состояния, где после реализации и перед коммитом обязательно выполняется отдельный post-implementation review: поиск дублей, мертвого кода, нарушения Swift 6/TCA, избыточности, проверка актуальности API и фиксация ретроспективы.
+Заменить автопоказ модальной формы подключения при первом запуске на нативный стартовый flow: пустой root экран остается основным содержимым, а добавление сервера открывается осознанным пользовательским действием.
+Кроме того, сделать стартовое окно с настройками компактным и заблокировать изменение его размера на macOS, чтобы верстка не разъезжалась при растягивании.
 
-## Изменения
+## Архитектура и решение для размера окна
 
-- Создать `.agents/skills/code-review-reflection/SKILL.md` с триггером, чеклистом ревью, правилами Context7/актуальности API, Periphery и форматом ретроспектив.
-- Добавить постоянное хранилище ретроспектив в `.agents/retrospectives/`.
-- Обновить `AGENTS.md`: добавить правило 6 в critical block и описать post-implementation review как обязательный gate.
-- Исправить структуру `.agents/skills/swift-6-xcode-native/SKILL.md` и добавить секцию F после SwiftUI Previews.
-- Создать `Scripts/validate-dead-code.sh` в строгом режиме: Periphery, TODO/FIXME и реальные tool warnings видны в выводе и блокируют коммит до исправления; локальные эвристики остаются видимыми как review notes.
-- Подключить `validate-dead-code.sh` в `Scripts/pre-commit` и `Scripts/prepare-hooks.sh`.
+- `ServerListReducer` перестает автоматически выставлять `serverForm` после пустой загрузки серверов.
+- `ServerListView` сохраняет текущий empty state как root experience, но действие `Add Server` остается единым входом в `ServerFormView`.
+- **Фиксация стартового окна на macOS**:
+  Применяем динамические ограничения на размер корневой View (`AppView`) в `RemissionApp.swift` на macOS.
+  Если список серверов пуст (`store.serverList.servers.isEmpty == true`), мы жестко ограничиваем максимальный и минимальный размер окна до `WindowConstants.minimumSize` (600x450).
+  SwiftUI на macOS автоматически отключает кнопку развертывания окна (Zoom) и блокирует перетягивание рамки пользователем, если `minWidth/maxWidth` и `minHeight/maxHeight` равны.
+  Как только сервер добавлен, ограничения `maxWidth` и `maxHeight` сбрасываются в `.infinity`, делая окно стандартно растягиваемым.
+
+## Задачи
+
+1. TDD: добавить регрессионный тест, что пустая загрузка при незавершенном onboarding не открывает `serverForm`.
+2. TDD: обновить тесты кнопки добавления, чтобы зафиксировать ручной старт формы.
+3. Реализация: удалить macOS-only автопрезентацию формы из `ServerListReducer+Connection`.
+4. UI: зафиксировать размер стартового окна в `RemissionApp.swift` при пустом списке серверов (`store.serverList.servers.isEmpty == true`).
+5. Проверка: форматирование, линтинг, компиляция проекта, прохождение тестов в Xcode.
+6. Post-review: выполнить code-review-reflection и записать ретроспективу.
 
 ## Риски
 
-- Periphery может давать ложные срабатывания, но их нельзя скрывать. Нужно либо исправить код, либо явно настроить исключение/retain-правило, чтобы warning исчез из будущих проверок.
-- `.agents` и `Scripts` не входят в Xcode project navigator, поэтому для них используется filesystem workflow.
-- В репозитории уже есть незакоммиченные изменения; правки должны быть локализованы только к агентским правилам и hook scripts.
+- Изменение первого запуска не должно сломать UI-test fixtures и автопереход при единственном сервере.
+- Ограничение размера должно работать плавно и не вызывать прыжков интерфейса при переходе из состояния "без серверов" в состояние "активный сервер".
 
 ## Верификация
 
-- Проверить наличие всех новых файлов.
-- Проверить, что `periphery version` доступен.
-- Выполнить `bash -n` для измененных shell-скриптов.
-- Запустить `Scripts/validate-dead-code.sh`.
-- Проверить Xcode Issue Navigator на ошибки, если Xcode workspace доступен.
+- Проверка компиляции проекта с помощью `BuildProject`.
+- Запуск тестов на симуляторе iPhone 12 и macOS smoke тестов.
+- `ServerListFeatureTests.testTaskInitialLoadEmptyDoesNotAutoPresentServerForm`
+- `ServerListManagementTests.testAddButtonTapped`
+

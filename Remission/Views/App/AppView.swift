@@ -41,6 +41,16 @@ struct AppView: View {
                     allowing: Set(["*"])
                 )
                 .task { await store.send(.task).finish() }
+                #if os(macOS)
+                    .frame(
+                        minWidth: 600,
+                        idealWidth: store.serverList.servers.isEmpty ? 600 : nil,
+                        maxWidth: store.serverList.servers.isEmpty ? 600 : .infinity,
+                        minHeight: 450,
+                        idealHeight: store.serverList.servers.isEmpty ? 450 : nil,
+                        maxHeight: store.serverList.servers.isEmpty ? 450 : .infinity
+                    )
+                #endif
         #endif
     }
 
@@ -68,7 +78,12 @@ struct AppView: View {
                     #endif
                 }
         } destination: { store in
-            ServerDetailView(store: store)
+            switch store.case {
+            case .serverDetail(let detailStore):
+                ServerDetailView(store: detailStore)
+            case .serverForm(let formStore):
+                ServerFormView(store: formStore)
+            }
         }
         #if os(macOS)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
@@ -226,7 +241,7 @@ private func migratedLegacyState() -> AppReducer.State {
     let legacyState = AppReducer.State(
         version: .legacy,
         serverList: serverList,
-        path: StackState([legacyDetailState])
+        path: StackState([.serverDetail(legacyDetailState)])
     )
     return AppBootstrap.makeInitialState(
         arguments: [],

@@ -6,8 +6,12 @@ extension ServerListReducer {
     func managementReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .addButtonTapped:
-            state.serverForm = ServerFormReducer.State(mode: .add)
-            return .none
+            #if os(iOS)
+                return .send(.delegate(.addServerRequested))
+            #else
+                state.serverForm = ServerFormReducer.State(mode: .add)
+                return .none
+            #endif
 
         case .serverTapped(let id):
             guard let server = state.servers[id: id] else {

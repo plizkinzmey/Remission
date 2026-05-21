@@ -65,15 +65,13 @@ struct ServerFormView: View {
     }
 
     private var windowContent: some View {
-        Form {
-            ServerConfigurationView(
-                store: store.scope(state: \.serverConfig, action: \.serverConfig),
-                isSubmitting: store.isSaving,
-                submissionLabel: store.mode.isEdit
-                    ? L10n.tr("serverEditor.saving")
-                    : L10n.tr("onboarding.status.connecting")
-            )
-        }
+        ServerConfigurationView(
+            store: store.scope(state: \.serverConfig, action: \.serverConfig),
+            isSubmitting: store.isSaving,
+            submissionLabel: store.mode.isEdit
+                ? L10n.tr("serverEditor.saving")
+                : L10n.tr("onboarding.status.connecting")
+        )
         #if os(macOS)
             .formStyle(.grouped)
         #endif

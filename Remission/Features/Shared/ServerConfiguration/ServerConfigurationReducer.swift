@@ -54,17 +54,22 @@ struct ServerConfigurationReducer {
             state.validationError = nil
 
             if action.keyPath == \State.form.name {
-                state.form.name = state.form.name.filtered(allowed: .alphanumerics)
+                state.form.name = state.form.name.filtered(allowed: .serverNameCharacters)
             } else if action.keyPath == \State.form.host {
-                state.form.host = state.form.host.filteredASCII(allowed: .hostCharacters)
+                state.form.host = state.form.host.replacingOccurrences(of: " ", with: "")
+                    .filteredASCII(allowed: .hostCharacters)
             } else if action.keyPath == \State.form.port {
-                state.form.port = state.form.port.filtered(allowed: .decimalDigits)
+                let digits = state.form.port.replacingOccurrences(of: " ", with: "").filtered(
+                    allowed: .decimalDigits)
+                state.form.port = String(digits.prefix(5))
             } else if action.keyPath == \State.form.path {
-                state.form.path = state.form.path.filteredASCII(allowed: .pathCharacters)
+                state.form.path = state.form.path.replacingOccurrences(of: " ", with: "")
+                    .filteredASCII(allowed: .pathCharacters)
             } else if action.keyPath == \State.form.username {
-                state.form.username = state.form.username.filtered(allowed: .alphanumerics)
+                state.form.username = state.form.username.replacingOccurrences(of: " ", with: "")
+                    .filtered(allowed: .usernameCharacters)
             } else if action.keyPath == \State.form.password {
-                state.form.password = state.form.password.filteredASCII(allowed: .alphanumerics)
+                state.form.password = state.form.password.filtered(allowed: .passwordCharacters)
             }
 
             let resetEffect = self.resetConnectionState(state: &state)

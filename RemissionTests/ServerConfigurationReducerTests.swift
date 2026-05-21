@@ -34,7 +34,7 @@ final class ServerConfigurationReducerTests: XCTestCase {
         }
 
         await store.send(.binding(.set(\.form.password, "pa ss"))) {
-            $0.form.password = "pass"
+            $0.form.password = "pa ss"
         }
     }
     func testCheckConnectionInvalidForm() async {
