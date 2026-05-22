@@ -99,9 +99,23 @@ enum AppBootstrap {
         from arguments: [String],
         environment: [String: String]
     ) {
-        if let fixture = parseUITestFixture(arguments: arguments, environment: environment) {
+        let fixture = parseUITestFixture(arguments: arguments, environment: environment)
+        let scenario = parseUITestScenario(arguments: arguments, environment: environment)
+
+        if let fixture {
             applyFixture(fixture, to: &state)
         }
+        if fixture != nil || scenario != nil {
+            skipStartupPresentation(for: &state)
+        }
+    }
+
+    private static func skipStartupPresentation(for state: inout AppReducer.State) {
+        #if os(iOS)
+            state.startup.hasPresentedOnce = true
+            state.startup.minDurationElapsed = true
+            state.startup.isTimerScheduled = false
+        #endif
     }
 
     static func parseUITestFixture(

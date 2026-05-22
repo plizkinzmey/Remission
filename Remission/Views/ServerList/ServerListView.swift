@@ -24,10 +24,10 @@ struct ServerListView: View {
                 mainContent
             } else {
                 mainContent
-                    .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) {
-                        formStore in
-                        ServerFormView(store: formStore)
-                    }
+                    .sheet(
+                        item: $store.scope(state: \.serverForm, action: \.serverForm),
+                        content: serverFormSheet
+                    )
             }
         #else
             mainContent
@@ -35,6 +35,10 @@ struct ServerListView: View {
                     ServerFormView(store: formStore)
                 }
         #endif
+    }
+
+    private func serverFormSheet(_ formStore: StoreOf<ServerFormReducer>) -> some View {
+        ServerFormView(store: formStore)
     }
 
     @ViewBuilder

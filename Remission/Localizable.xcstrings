@@ -4881,6 +4881,7 @@
       }
     },
     "torrentList.refresh.progress" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4961,6 +4962,7 @@
       }
     },
     "torrentList.status.abbrev.checking" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4977,6 +4979,7 @@
       }
     },
     "torrentList.status.abbrev.downloading" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4993,6 +4996,7 @@
       }
     },
     "torrentList.status.abbrev.error" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5009,6 +5013,7 @@
       }
     },
     "torrentList.status.abbrev.paused" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5025,6 +5030,7 @@
       }
     },
     "torrentList.status.abbrev.seeding" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5041,6 +5047,7 @@
       }
     },
     "torrentList.status.abbrev.waiting" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

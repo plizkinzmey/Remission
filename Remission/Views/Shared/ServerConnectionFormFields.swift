@@ -23,10 +23,11 @@ struct ServerConnectionFormFields: View {
                         .fixedSize(horizontal: true, vertical: false)
 
                     Picker("", selection: $form.transport) {
-                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) {
-                            transport in
-                            Text(transport.title).tag(transport)
-                        }
+                        ForEach(
+                            ServerConnectionFormState.Transport.allCases,
+                            id: \.self,
+                            content: transportPickerOption
+                        )
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
@@ -161,10 +162,11 @@ struct ServerConnectionFormFields: View {
             Group {
                 Section(header: Text(L10n.tr("serverForm.section.connection")).lineLimit(1)) {
                     Picker(L10n.tr("serverForm.transport.label"), selection: $form.transport) {
-                        ForEach(ServerConnectionFormState.Transport.allCases, id: \.self) {
-                            transport in
-                            Text(transport.title).tag(transport)
-                        }
+                        ForEach(
+                            ServerConnectionFormState.Transport.allCases,
+                            id: \.self,
+                            content: transportPickerOption
+                        )
                     }
                     .accessibilityIdentifier("server_form_transport_picker")
                     .pickerStyle(.segmented)
@@ -263,5 +265,11 @@ struct ServerConnectionFormFields: View {
                 }
             }
         #endif
+    }
+
+    private func transportPickerOption(
+        _ transport: ServerConnectionFormState.Transport
+    ) -> some View {
+        Text(transport.title).tag(transport)
     }
 }

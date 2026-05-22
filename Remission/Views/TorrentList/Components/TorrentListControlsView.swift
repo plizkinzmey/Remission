@@ -1,140 +1,26 @@
 import ComposableArchitecture
 import SwiftUI
 
-#if canImport(UIKit)
-    import UIKit
-#endif
-
 struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
-    @State private var searchText: String = ""
-
-    // Keep consistent sizing across iOS + macOS.
-    private var controlsPillHeight: CGFloat { 30 }
-    private var controlsPillInnerPadding: CGFloat { 2 }
-
-    #if os(macOS)
-        private var macOSCategoryPickerWidth: CGFloat { 170 }
-    #endif
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Row 1: Filter segmented control
-            HStack {
-                Spacer()
-                #if os(iOS)
-                    if UIDevice.current.userInterfaceIdiom == .pad {
-                        filterCapsules
-                    } else {
-                        filterSegmentedControl
-                            .labelsHidden()
-                            .controlSize(.small)
-                    }
-                #else
-                    filterSegmentedControl
-                        .labelsHidden()
-                        .controlSize(.large)
-                #endif
-                Spacer()
-            }
-
-            #if os(iOS)
-                if UIDevice.current.userInterfaceIdiom == .pad && store.isSearchFieldVisible {
-                    searchFieldView
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            #endif
-
-            // Row 2: Category picker
-            HStack {
-                Spacer(minLength: 0)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                filterPicker
+                    .frame(maxWidth: 420)
                 categoryPicker
-                Spacer(minLength: 0)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                filterPicker
+                categoryPicker
             }
         }
-        .padding(.vertical, 4)
-        .onAppear {
-            if searchText != store.searchQuery {
-                searchText = store.searchQuery
-            }
-        }
-        .onChange(of: searchText) { _, newValue in
-            guard newValue != store.searchQuery else { return }
-            store.send(.searchQueryChanged(newValue))
-        }
-        .onChange(of: store.searchQuery) { _, newValue in
-            guard newValue != searchText else { return }
-            searchText = newValue
-        }
+        .accessibilityIdentifier("torrentlist_controls")
     }
 
-    #if os(iOS)
-        private var searchToggleButton: some View {
-            Button {
-                withAnimation(.spring(duration: 0.3)) {
-                    _ = store.send(.toggleSearchField)
-                }
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-            }
-            .buttonStyle(.plain)
-        }
-
-        private var filterCapsules: some View {
-            HStack {
-                HStack(spacing: 4) {
-                    filterSegmentedControlPad
-                    searchToggleButton
-                }
-                .padding(controlsPillInnerPadding)
-                .frame(height: controlsPillHeight)
-                .background(.thinMaterial, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .strokeBorder(.quaternary)
-                )
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
-        }
-    #endif
-
-    #if os(iOS)
-        private var searchFieldView: some View {
-            HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
-                TextField(L10n.tr("torrentList.search.prompt"), text: $searchText)
-                    .textFieldStyle(.plain)
-                    .font(.body)
-                    .submitLabel(.search)
-
-                if searchText.isEmpty == false {
-                    Button {
-                        searchText = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .symbolRenderingMode(.hierarchical)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 10)
-            .frame(height: controlsPillHeight)
-            .background(.thinMaterial, in: Capsule())
-            .overlay(
-                Capsule()
-                    .strokeBorder(.quaternary)
-            )
-        }
-    #endif
-
-    private var filterSegmentedControl: some View {
+    private var filterPicker: some View {
         Picker(
             L10n.tr("torrentList.filter.title"),
             selection: Binding(
@@ -146,74 +32,24 @@ struct TorrentListControlsView: View {
                 Text(filter.title).tag(filter)
             }
         }
-        .accessibilityIdentifier("torrentlist_filter_picker")
         .pickerStyle(.segmented)
-        .foregroundStyle(.primary)
-        #if os(macOS)
-            .controlSize(.large)
-        #endif
+        .accessibilityIdentifier("torrentlist_filter_picker")
     }
 
-    #if os(iOS)
-        private var filterSegmentedControlPad: some View {
-            filterSegmentedControl
-                .labelsHidden()
-                .controlSize(.small)
-                .fixedSize(horizontal: true, vertical: false)
-        }
-    #endif
-
     private var categoryPicker: some View {
-        Menu {
+        Picker(
+            L10n.tr("torrentAdd.section.category"),
+            selection: Binding(
+                get: { store.selectedCategory },
+                set: { store.send(.categoryChanged($0)) }
+            )
+        ) {
             ForEach(TorrentListReducer.CategoryFilter.allCases, id: \.self) { category in
-                Button(category.title) {
-                    store.send(.categoryChanged(category))
-                }
+                Text(category.title).tag(category)
             }
-        } label: {
-            #if os(macOS)
-                HStack(spacing: 8) {
-                    Text(store.selectedCategory.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 6)
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.semibold))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 10)
-                .padding(controlsPillInnerPadding)
-                .frame(width: macOSCategoryPickerWidth, height: controlsPillHeight)
-                .contentShape(Rectangle())
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(.quaternary)
-                )
-            #else
-                HStack(spacing: 8) {
-                    Text(store.selectedCategory.title)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.9)
-                        .foregroundStyle(.primary)
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.horizontal, 10)
-                .padding(controlsPillInnerPadding)
-                .frame(height: controlsPillHeight)
-                .contentShape(Rectangle())
-                .background(.thinMaterial, in: Capsule())
-                .overlay(
-                    Capsule()
-                        .strokeBorder(.quaternary)
-                )
-                .fixedSize(horizontal: true, vertical: false)
-            #endif
         }
+        .pickerStyle(.menu)
+        .controlSize(.regular)
         .accessibilityIdentifier("torrentlist_category_picker")
-        .buttonStyle(.plain)
     }
 }
