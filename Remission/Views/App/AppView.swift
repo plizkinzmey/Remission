@@ -164,7 +164,9 @@ struct AppView: View {
                 var frame = window.frame
                 if frame.size != targetSize {
                     frame.size = targetSize
-                    window.setFrame(frame, display: true, animate: true)
+                    DispatchQueue.main.async {
+                        window.setFrame(frame, display: true, animate: true)
+                    }
                 }
             } else {
                 if !window.styleMask.contains(.resizable) {
@@ -183,7 +185,9 @@ struct AppView: View {
                 {
                     frame.size.width = max(frame.size.width, minimumSize.width)
                     frame.size.height = max(frame.size.height, minimumSize.height)
-                    window.setFrame(frame, display: true, animate: true)
+                    DispatchQueue.main.async {
+                        window.setFrame(frame, display: true, animate: true)
+                    }
                 }
             }
         }

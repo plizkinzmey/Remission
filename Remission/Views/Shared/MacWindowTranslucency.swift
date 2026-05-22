@@ -29,7 +29,11 @@ import SwiftUI
         var isFixedSize: Bool = false {
             didSet {
                 if let window = window {
-                    configure?(window, isFixedSize)
+                    let configureBlock = configure
+                    let fixedSize = isFixedSize
+                    DispatchQueue.main.async {
+                        configureBlock?(window, fixedSize)
+                    }
                 }
             }
         }
@@ -38,7 +42,11 @@ import SwiftUI
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let window = window {
-                configure?(window, isFixedSize)
+                let configureBlock = configure
+                let fixedSize = isFixedSize
+                DispatchQueue.main.async {
+                    configureBlock?(window, fixedSize)
+                }
             }
         }
     }
@@ -69,7 +77,11 @@ import SwiftUI
             if nsView.isFixedSize != isFixedSize {
                 nsView.isFixedSize = isFixedSize
             } else if let window = nsView.window {
-                configure(window, isFixedSize)
+                let configureBlock = configure
+                let fixedSize = isFixedSize
+                DispatchQueue.main.async {
+                    configureBlock(window, fixedSize)
+                }
             }
         }
     }
