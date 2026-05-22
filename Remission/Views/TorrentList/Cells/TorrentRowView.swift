@@ -91,10 +91,14 @@ extension TorrentRowView {
     }
 
     private func metricsRow(metrics: TorrentListItem.Metrics) -> some View {
-        ViewThatFits(in: .horizontal) {
+        #if os(macOS)
             wideMetricsRow(metrics: metrics)
-            compactMetricsRow(metrics: metrics)
-        }
+        #else
+            ViewThatFits(in: .horizontal) {
+                wideMetricsRow(metrics: metrics)
+                compactMetricsRow(metrics: metrics)
+            }
+        #endif
     }
 
     private func wideMetricsRow(metrics: TorrentListItem.Metrics) -> some View {

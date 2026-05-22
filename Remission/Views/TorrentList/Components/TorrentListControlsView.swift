@@ -5,19 +5,28 @@ struct TorrentListControlsView: View {
     @Bindable var store: StoreOf<TorrentListReducer>
 
     var body: some View {
-        ViewThatFits(in: .horizontal) {
+        #if os(macOS)
             HStack(spacing: 12) {
                 filterPicker
                     .frame(maxWidth: 420)
                 categoryPicker
             }
+            .accessibilityIdentifier("torrentlist_controls")
+        #else
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 12) {
+                    filterPicker
+                        .frame(maxWidth: 420)
+                    categoryPicker
+                }
 
-            VStack(alignment: .leading, spacing: 8) {
-                filterPicker
-                categoryPicker
+                VStack(alignment: .leading, spacing: 8) {
+                    filterPicker
+                    categoryPicker
+                }
             }
-        }
-        .accessibilityIdentifier("torrentlist_controls")
+            .accessibilityIdentifier("torrentlist_controls")
+        #endif
     }
 
     private var filterPicker: some View {
