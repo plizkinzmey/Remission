@@ -7,7 +7,7 @@ struct ServerRowView: View, Equatable {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
-    @State private var pulseScale: CGFloat = 1.0
+    @State private var showsConnectionInfo = false
 
     var body: some View {
         #if os(iOS)
@@ -24,106 +24,61 @@ struct ServerRowView: View, Equatable {
 }
 
 extension ServerRowView {
-    private var hasAdditionalInfo: Bool {
-        switch status.phase {
-        case .connected, .failed:
-            return true
-        default:
-            return false
-        }
-    }
-
-    private var statusBorderColor: Color {
+    private var statusBorderStyle: AnyShapeStyle {
         switch status.phase {
         case .connected:
-            return .green.opacity(0.15)
+            return ServerRowColorTokens.connectedBorder
         case .failed:
-            return .red.opacity(0.15)
+            return ServerRowColorTokens.errorBorder
         case .idle, .probing:
-            return .blue.opacity(0.1)
+            return ServerRowColorTokens.neutralBorder
         }
     }
 
-    private var cardBackgroundColor: Color {
+    private var cardBackgroundStyle: AnyShapeStyle {
         #if os(iOS)
-            return Color(uiColor: .secondarySystemGroupedBackground)
+            return ServerRowColorTokens.cardBackground
         #else
-            return Color.clear
+            return ServerRowColorTokens.clear
         #endif
     }
 
-    private var connectionStatusIndicator: some View {
-        let tint = ConnectionStatusChipDescriptor(phase: status.phase).tint
-        let isConnecting = status.phase == .idle || status.phase == .probing
-
-        return ZStack {
-            if isConnecting {
-                Circle()
-                    .stroke(tint.opacity(0.3), lineWidth: 3)
-                    .frame(width: 12, height: 12)
-                    .scaleEffect(pulseScale)
-                    .opacity(2.0 - pulseScale)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: false))
-                        {
-                            pulseScale = 2.0
-                        }
-                    }
-            }
-
-            Circle()
-                .fill(tint)
-                .frame(width: 8, height: 8)
-                .shadow(color: tint.opacity(0.4), radius: 2)
+    private var connectionInfoDescriptor: ServerConnectionInfoDescriptor? {
+        guard case .connected(let handshake) = status.phase else {
+            return nil
         }
+        return ServerConnectionInfoDescriptor(server: server, handshake: handshake)
     }
 
     fileprivate var serverRowIOS: some View {
         VStack(spacing: 12) {
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 12) {
-                    // Header Row: Icon + Server Name + Security Badge
-                    HStack(alignment: .center, spacing: 10) {
-                        connectionStatusIndicator
+            HStack(alignment: .center, spacing: 10) {
+                connectionStatusIcon
+                connectionInfoButton
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(server.name)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
+                Button(action: onTap) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(server.name)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
 
-                            Text(server.displayAddress)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        }
-
-                        Spacer()
-
-                        securityBadge
+                        Text(server.displayAddress)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-
-                    // Version Summary (only if connected or failed)
-                    if hasAdditionalInfo {
-                        Divider()
-                            .background(Color.secondary.opacity(0.2))
-
-                        versionSummary
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
                 }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // Storage Summary & Actions Row
             HStack(alignment: .center) {
                 if status.storageSummary != nil {
-                    storageSummaryChip
-                } else {
-                    connectionStatusChip
+                    storageSummaryLabel
                 }
 
                 Spacer()
@@ -137,12 +92,12 @@ extension ServerRowView {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(cardBackgroundColor)
-                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
+                .fill(cardBackgroundStyle)
+                .shadow(color: ServerRowColorTokens.cardShadow, radius: 6, x: 0, y: 3)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(statusBorderColor, lineWidth: 1.5)
+                .stroke(statusBorderStyle, lineWidth: 1.5)
         )
     }
 
@@ -159,18 +114,11 @@ extension ServerRowView {
 
     fileprivate var serverRowMacWide: some View {
         HStack(alignment: .center, spacing: 16) {
-            Button(action: onTap) {
-                serverRowInfoStack
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
+            serverRowInfoStack
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
 
             HStack(spacing: 10) {
-                storageSummaryChip
-                connectionStatusChip
-                securityBadge
+                storageSummaryLabel
                 editButton
                 deleteButton
             }
@@ -179,19 +127,12 @@ extension ServerRowView {
 
     fileprivate var serverRowMacCompact: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button(action: onTap) {
-                serverRowInfoStack
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("server_list_item_compact_\(server.id.uuidString)")
+            serverRowInfoStack
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    storageSummaryChip
-                    connectionStatusChip
-                    securityBadge
+                    storageSummaryLabel
                     Spacer()
                     editButton
                     deleteButton
@@ -201,76 +142,104 @@ extension ServerRowView {
     }
 
     fileprivate var serverRowInfoStack: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(server.name)
-                    .font(.headline)
-                Text(verbatim: "-")
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                Text(server.displayAddress)
-                    .font(.subheadline)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
-            }
-            versionSummary
+        HStack(spacing: 6) {
+            connectionStatusIcon
+            connectionInfoButton
+            Button(action: onTap) {
+                HStack(spacing: 6) {
+                    serverIdentityText
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("server_list_item_\(server.id.uuidString)")
         }
     }
 
-    fileprivate var securityBadge: some View {
-        if server.isSecure {
-            badgeLabel(
-                text: ServerListStrings.badgeHTTPS,
-                systemImage: "lock.shield.fill",
-                fill: .blue.opacity(0.15),
-                foreground: .blue
-            )
-            .accessibilityLabel(ServerListStrings.accessibilitySecure)
-        } else {
-            badgeLabel(
-                text: ServerListStrings.badgeHTTP,
-                systemImage: "globe",
-                fill: .orange.opacity(0.15),
-                foreground: .orange
-            )
-            .accessibilityLabel(ServerListStrings.accessibilityInsecure)
+    fileprivate var serverIdentityText: some View {
+        Group {
+            Text(server.name)
+                .font(.headline)
+            Text(verbatim: "-")
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+            Text(server.displayAddress)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.9)
         }
+    }
+
+    fileprivate var connectionInfoButton: some View {
+        Button {
+            showsConnectionInfo.toggle()
+        } label: {
+            Image(systemName: "server.rack")
+                .font(.system(size: 13, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(ServerRowColorTokens.infoIcon)
+                .frame(width: 22, height: 22)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.borderless)
+        .help(connectionInfoDescriptor?.helpText ?? server.displayAddress)
+        .accessibilityLabel(ServerListStrings.connectionInfo)
+        .accessibilityValue(connectionInfoDescriptor?.helpText ?? server.displayAddress)
+        .popover(isPresented: $showsConnectionInfo) {
+            connectionInfoPopover
+        }
+    }
+
+    fileprivate var connectionInfoPopover: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let descriptor = connectionInfoDescriptor {
+                Text(descriptor.helpText)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(nil)
+            } else {
+                Text(server.displayAddress)
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+            }
+        }
+        .padding(12)
+        .frame(minWidth: 180, alignment: .leading)
     }
 
     fileprivate var deleteButton: some View {
         Button(action: onDelete) {
-            Image(systemName: "trash")
-                .font(.system(size: 14, weight: .semibold))
+            Label(ServerListStrings.actionDelete, systemImage: "trash")
         }
-        .buttonStyle(.bordered)
-        .tint(.red)
+        .serverRowCircularIconButton()
+        .foregroundStyle(.red)
         .accessibilityLabel(ServerListStrings.actionDelete)
     }
 
     fileprivate var editButton: some View {
         Button(action: onEdit) {
-            Image(systemName: "pencil")
-                .font(.system(size: 14, weight: .semibold))
+            Label(ServerListStrings.actionEdit, systemImage: "pencil")
         }
-        .buttonStyle(.bordered)
+        .serverRowCircularIconButton()
         .accessibilityLabel(ServerListStrings.actionEdit)
     }
 
-    fileprivate var connectionStatusChip: some View {
+    fileprivate var connectionStatusIcon: some View {
         let descriptor = ConnectionStatusChipDescriptor(phase: status.phase)
 
-        return Label(descriptor.label, systemImage: descriptor.systemImage)
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(descriptor.tint.opacity(0.15), in: Capsule())
+        return Image(systemName: descriptor.systemImage)
+            .font(.body)
+            .symbolRenderingMode(.hierarchical)
             .foregroundStyle(descriptor.tint)
+            .frame(width: 20, height: 20)
+            .help(descriptor.label)
+            .accessibilityLabel(descriptor.label)
     }
 
     @ViewBuilder
-    fileprivate var storageSummaryChip: some View {
+    fileprivate var storageSummaryLabel: some View {
         if let summary = status.storageSummary {
             let total = StorageFormatters.bytes(summary.totalBytes)
             let free = StorageFormatters.bytes(summary.freeBytes)
@@ -283,9 +252,6 @@ extension ServerRowView {
             .truncationMode(.tail)
             .minimumScaleFactor(0.85)
             .allowsTightening(true)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(Color.secondary.opacity(0.15), in: Capsule())
             .foregroundStyle(.secondary)
             .accessibilityIdentifier("server_list_storage_summary_\(server.id.uuidString)")
         } else {
@@ -293,55 +259,21 @@ extension ServerRowView {
         }
     }
 
-    @ViewBuilder
-    fileprivate var versionSummary: some View {
-        switch status.phase {
-        case .connected(let handshake):
-            let description = handshake.serverVersionDescription ?? ""
-            let rpcText = String(
-                format: ServerListStrings.rpcVersionTemplate,
-                Int64(handshake.rpcVersion)
-            )
-            let protocolText = handshake.protocolSummaryText
-            if description.isEmpty {
-                HStack(spacing: 6) {
-                    Text(rpcText)
-                    Text(protocolText)
-                }
-                .font(.footnote)
-                .foregroundStyle(.primary)
-            } else {
-                HStack(spacing: 6) {
-                    Text(ServerListStrings.transmissionVersionLabel)
-                    Text(description)
-                    Text(rpcText)
-                    Text(protocolText)
-                }
-                .font(.footnote)
-                .foregroundStyle(.primary)
-            }
-        case .failed(let message):
-            Text(message)
-                .font(.footnote)
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-        default:
-            EmptyView()
-        }
-    }
+}
 
-    fileprivate func badgeLabel(
-        text: String,
-        systemImage: String,
-        fill: Color,
-        foreground: Color
-    ) -> some View {
-        Label(text, systemImage: systemImage)
-            .font(.subheadline.weight(.semibold))
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(fill, in: Capsule())
-            .foregroundStyle(foreground)
+private struct ServerRowCircularIconButtonModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .controlSize(.small)
+    }
+}
+
+extension View {
+    fileprivate func serverRowCircularIconButton() -> some View {
+        modifier(ServerRowCircularIconButtonModifier())
     }
 }
 
@@ -355,17 +287,59 @@ struct ConnectionStatusChipDescriptor {
         case .idle, .probing:
             label = ServerListStrings.statusConnecting
             systemImage = "arrow.clockwise"
-            tint = .blue
+            tint = ServerRowColorTokens.progress
         case .connected:
             label = ServerListStrings.statusConnected
             systemImage = "checkmark.circle.fill"
-            tint = .green
+            tint = ServerRowColorTokens.connected
         case .failed:
             label = ServerListStrings.statusError
             systemImage = "exclamationmark.triangle.fill"
-            tint = .red
+            tint = ServerRowColorTokens.error
         }
     }
+}
+
+struct ServerConnectionInfoDescriptor: Equatable {
+    let transport: String
+    let helpText: String
+
+    init(server: ServerConfig, handshake: TransmissionHandshakeResult) {
+        transport = server.isSecure ? "HTTPS" : "HTTP"
+
+        let version: String
+        if let versionDescription = handshake.serverVersionDescription,
+            versionDescription.isEmpty == false
+        {
+            version = versionDescription
+        } else {
+            version = ServerListStrings.transmissionVersionUnavailable
+        }
+        let rpcText = String(
+            format: ServerListStrings.rpcVersionTemplate,
+            Int64(handshake.rpcVersion)
+        )
+
+        helpText = [
+            version,
+            rpcText,
+            handshake.protocolSummaryText,
+            transport
+        ].joined(separator: "\n")
+    }
+}
+
+enum ServerRowColorTokens {
+    static let clear = AnyShapeStyle(Color.clear)
+    static let cardBackground = AnyShapeStyle(.background.secondary)
+    static let cardShadow = Color.primary.opacity(0.05)
+    static let neutralBorder = AnyShapeStyle(.separator.opacity(0.35))
+    static let connectedBorder = AnyShapeStyle(.green.opacity(0.35))
+    static let errorBorder = AnyShapeStyle(.red.opacity(0.35))
+    static let progress = Color.blue
+    static let connected = Color.green
+    static let error = Color.red
+    static let infoIcon = AnyShapeStyle(.secondary)
 }
 
 enum ServerListStrings {
@@ -375,16 +349,13 @@ enum ServerListStrings {
     static let emptyTitle = L10n.tr("serverList.empty.title")
     static let emptyMessage = L10n.tr("serverList.empty.message")
     static let addServer = L10n.tr("serverList.action.addServer")
-    static let badgeHTTPS = L10n.tr("serverList.badge.https")
-    static let badgeHTTP = L10n.tr("serverList.badge.http")
-    static let accessibilitySecure = L10n.tr("serverList.accessibility.secure")
-    static let accessibilityInsecure = L10n.tr("serverList.accessibility.insecure")
     static let actionDelete = L10n.tr("serverDetail.action.delete")
     static let actionEdit = L10n.tr("serverList.action.edit")
     static let statusConnecting = L10n.tr("serverDetail.status.connecting")
     static let statusConnected = L10n.tr("serverDetail.status.connected")
     static let statusError = L10n.tr("serverDetail.status.error")
-    static let transmissionVersionLabel = L10n.tr("serverList.transmissionVersionLabel")
+    static let transmissionVersionUnavailable = L10n.tr("serverList.transmissionVersionUnavailable")
+    static let connectionInfo = L10n.tr("serverList.connectionInfo")
     static let rpcVersionTemplate = L10n.tr("serverDetail.status.rpcVersion")
     static let storageSummaryTemplate = L10n.tr("storage.summary.short")
 }

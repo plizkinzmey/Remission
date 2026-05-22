@@ -1703,6 +1703,7 @@
       }
     },
     "serverList.accessibility.insecure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1719,6 +1720,7 @@
       }
     },
     "serverList.accessibility.secure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1815,6 +1817,7 @@
       }
     },
     "serverList.badge.http" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1831,6 +1834,7 @@
       }
     },
     "serverList.badge.https" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1842,6 +1846,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HTTPS"
+          }
+        }
+      }
+    },
+    "serverList.connectionInfo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection details"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Детали подключения"
           }
         }
       }
@@ -1890,6 +1910,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Версия Transmission -"
+          }
+        }
+      }
+    },
+    "serverList.transmissionVersionUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmission version unavailable"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия Transmission недоступна"
           }
         }
       }

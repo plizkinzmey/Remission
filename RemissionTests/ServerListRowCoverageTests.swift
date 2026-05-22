@@ -6,6 +6,27 @@ import XCTest
 
 @MainActor
 final class ServerListRowCoverageTests: XCTestCase {
+    func testServerConnectionInfoDescriptorBuildsHoverHelp() {
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "session",
+            rpcVersion: 17,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0.3",
+            isCompatible: true
+        )
+
+        let descriptor = ServerConnectionInfoDescriptor(
+            server: .previewLocalHTTP,
+            handshake: handshake
+        )
+
+        XCTAssertEqual(descriptor.transport, "HTTP")
+        XCTAssertEqual(
+            descriptor.helpText,
+            "Transmission 4.0.3\nRPC v17\nLegacy RPC\nHTTP"
+        )
+    }
+
     func testServerRowRendersConnectedAndFailedStates() {
         let handshake = TransmissionHandshakeResult(
             sessionID: "session",
