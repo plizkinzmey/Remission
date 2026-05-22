@@ -57,6 +57,38 @@ final class AppBootstrapTests: XCTestCase {
         XCTAssertEqual(state.serverList.servers[0].name, "UI Torrent Fixture")
     }
 
+    #if os(iOS)
+        func testMakeInitialStateKeepsStartupTimerForNormalLaunch() {
+            let state = AppBootstrap.makeInitialState(arguments: [], environment: [:])
+
+            XCTAssertFalse(state.startup.hasPresentedOnce)
+            XCTAssertFalse(state.startup.minDurationElapsed)
+            XCTAssertTrue(state.startup.shouldScheduleTimer)
+        }
+
+        func testMakeInitialStateSkipsStartupForUITestingFixture() {
+            let state = AppBootstrap.makeInitialState(
+                arguments: ["--ui-testing-fixture=torrent-list-sample"],
+                environment: [:]
+            )
+
+            XCTAssertTrue(state.startup.hasPresentedOnce)
+            XCTAssertTrue(state.startup.minDurationElapsed)
+            XCTAssertFalse(state.startup.shouldScheduleTimer)
+        }
+
+        func testMakeInitialStateSkipsStartupForUITestingScenario() {
+            let state = AppBootstrap.makeInitialState(
+                arguments: ["--ui-testing-scenario=diagnostics-sample"],
+                environment: [:]
+            )
+
+            XCTAssertTrue(state.startup.hasPresentedOnce)
+            XCTAssertTrue(state.startup.minDurationElapsed)
+            XCTAssertFalse(state.startup.shouldScheduleTimer)
+        }
+    #endif
+
     func testMakeInitialStateMigratesAndResetsPath() {
         // Миграция должна обновлять версию и сбрасывать navigation path.
         var state = AppReducer.State(version: .legacy)

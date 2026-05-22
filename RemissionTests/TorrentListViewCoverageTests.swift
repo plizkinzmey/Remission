@@ -33,9 +33,23 @@ final class TorrentListViewCoverageTests: XCTestCase {
         let emptyView = TorrentListView(store: emptyStore)
         _ = emptyView.body
 
+        var filteredEmptyState = TorrentListReducer.State.previewLoaded()
+        filteredEmptyState.selectedFilter = .errors
+        filteredEmptyState.visibleItemsCache = []
+        let filteredEmptyStore = Store(initialState: filteredEmptyState) {
+            TorrentListReducer()
+        } withDependencies: {
+            $0 = AppDependencies.makeTestDefaults()
+        }
+
+        let filteredEmptyView = TorrentListView(store: filteredEmptyStore)
+        _ = filteredEmptyView.body
+
         XCTAssertTrue(!loadedStore.state.visibleItems.isEmpty)
         XCTAssertTrue(emptyStore.state.visibleItems.isEmpty)
+        XCTAssertTrue(filteredEmptyStore.state.visibleItems.isEmpty)
     }
+
     func testTorrentListViewRendersLoadingOfflineAndErrorStates() {
         var loadingState = TorrentListReducer.State.previewLoading()
         loadingState.isRefreshing = false
@@ -75,10 +89,8 @@ final class TorrentListViewCoverageTests: XCTestCase {
 
         XCTAssertTrue(errorStore.state.phase == .error("Boom"))
     }
-    func testTorrentListComponentsRender() {
-        let header = TorrentListHeaderView(title: "Header")
-        _ = header.body
 
+    func testTorrentListComponentsRender() {
         let controlsStore = Store(initialState: TorrentListReducer.State.previewLoaded()) {
             TorrentListReducer()
         } withDependencies: {
@@ -92,15 +104,10 @@ final class TorrentListViewCoverageTests: XCTestCase {
         )
         _ = summary.body
 
-        let empty = TorrentListEmptyStateView()
-        _ = empty.body
-
-        let background = TorrentRowBackgroundView(isIsolated: true)
-        _ = background.body
-
         let skeleton = TorrentRowSkeletonView(index: 3)
         _ = skeleton.body
     }
+
     func testTorrentRowViewRendersWithActions() {
         let torrent = Torrent.sampleDownloading()
         let item = TorrentListItem.State(torrent: torrent)
@@ -118,14 +125,14 @@ final class TorrentListViewCoverageTests: XCTestCase {
             item: item,
             openRequested: {},
             actions: actions,
-            longestStatusTitle: "Downloading",
             isLocked: false
         )
         _ = view.body
 
         XCTAssertTrue(item.torrent.name.isEmpty == false)
     }
-    func testTorrentListToolbarControlsRender() {
+
+    func testTorrentListControlsRenderWithSearchState() {
         var state = TorrentListReducer.State.previewLoaded()
         state.searchQuery = "Ubuntu"
         let store = Store(initialState: state) {
@@ -134,13 +141,12 @@ final class TorrentListViewCoverageTests: XCTestCase {
             $0 = AppDependencies.makeTestDefaults()
         }
 
-        let view = TorrentListView(store: store)
-        #if os(macOS)
-            _ = view.macOSToolbarControls
-        #endif
+        let controls = TorrentListControlsView(store: store)
+        _ = controls.body
 
         XCTAssertTrue(store.state.searchQuery == "Ubuntu")
     }
+
     func testTorrentListPreviewHelpersAreCallable() {
         _ = TorrentListReducer.State.previewBase()
         _ = TorrentListReducer.State.previewLoaded()
