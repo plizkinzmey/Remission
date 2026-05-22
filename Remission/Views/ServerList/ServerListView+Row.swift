@@ -176,14 +176,10 @@ extension ServerRowView {
         Button {
             showsConnectionInfo.toggle()
         } label: {
-            Image(systemName: "server.rack")
-                .font(.system(size: 13, weight: .semibold))
-                .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(ServerRowColorTokens.infoIcon)
-                .frame(width: 22, height: 22)
-                .contentShape(.rect)
+            Label(ServerListStrings.connectionInfo, systemImage: "info.circle")
         }
-        .buttonStyle(.borderless)
+        .serverRowCircularIconButton()
+        .tint(.secondary)
         .help(connectionInfoDescriptor?.helpText ?? server.displayAddress)
         .accessibilityLabel(ServerListStrings.connectionInfo)
         .accessibilityValue(connectionInfoDescriptor?.helpText ?? server.displayAddress)
@@ -214,7 +210,7 @@ extension ServerRowView {
             Label(ServerListStrings.actionDelete, systemImage: "trash")
         }
         .serverRowCircularIconButton()
-        .foregroundStyle(.red)
+        .tint(.red)
         .accessibilityLabel(ServerListStrings.actionDelete)
     }
 
@@ -223,6 +219,7 @@ extension ServerRowView {
             Label(ServerListStrings.actionEdit, systemImage: "pencil")
         }
         .serverRowCircularIconButton()
+        .tint(.secondary)
         .accessibilityLabel(ServerListStrings.actionEdit)
     }
 
