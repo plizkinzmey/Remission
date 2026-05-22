@@ -32,7 +32,9 @@ struct ServerListView: View {
         #else
             mainContent
                 .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
-                    ServerFormView(store: formStore)
+                    NavigationStack {
+                        ServerFormView(store: formStore)
+                    }
                 }
         #endif
     }

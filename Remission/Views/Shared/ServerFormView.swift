@@ -44,24 +44,22 @@ struct ServerFormView: View {
             .frame(width: 480, height: 500)
             .alert($store.scope(state: \.alert, action: \.alert))
         #else
-            NavigationStack {
-                windowContent
-                    .navigationTitle(store.mode.title)
-                    .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(L10n.tr("common.cancel")) {
-                                store.send(.delegate(.cancelled))
-                            }
-                        }
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(L10n.tr("common.save")) {
-                                store.send(.saveButtonTapped)
-                            }
-                            .disabled(store.isSaveButtonDisabled)
+            windowContent
+                .navigationTitle(store.mode.title)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.tr("common.cancel")) {
+                            store.send(.delegate(.cancelled))
                         }
                     }
-            }
-            .alert($store.scope(state: \.alert, action: \.alert))
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(L10n.tr("common.save")) {
+                            store.send(.saveButtonTapped)
+                        }
+                        .disabled(store.isSaveButtonDisabled)
+                    }
+                }
+                .alert($store.scope(state: \.alert, action: \.alert))
         #endif
     }
 
