@@ -637,7 +637,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         if let resolved = await rpcModeStore.load() {
             return [resolved]
         }
-        return [.legacy, .jsonRpc2]
+        return [.jsonRpc2, .legacy]
     }
 
     private func persistResolvedModeIfNeeded(_ mode: TransmissionRPCMode) async {

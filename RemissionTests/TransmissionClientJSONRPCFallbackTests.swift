@@ -10,16 +10,18 @@ struct TransmissionClientJSONRPCFallbackTests {
 
     // MARK: - Auto mode ordering
 
-    @Test("Auto mode sends legacy request first, not JSON-RPC 2.0")
-    func autoModeSendsLegacyFirst() async throws {
+    @Test("Auto mode sends JSON-RPC 2.0 request first")
+    func autoModeSendsJsonRpc2First() async throws {
         MockURLProtocol.reset()
         let inspector = RequestBodyInspector()
 
         MockURLProtocol.enqueue { request in
             inspector.append(requestBodyData(from: request))
-            let response = TransmissionResponse(
-                result: "success",
-                arguments: .object(["rpc-version": .int(19), "version": .string("4.1.0")])
+            let response = JSONRPCResponse(
+                jsonrpc: "2.0",
+                result: .object(["version": .string("4.1.0"), "rpc_version": .int(19)]),
+                error: nil,
+                id: .int(1)
             )
             return (
                 httpResponse(for: request, statusCode: 200),
@@ -34,8 +36,8 @@ struct TransmissionClientJSONRPCFallbackTests {
         #expect(payloads.count == 1)
         let json = try #require(
             try JSONSerialization.jsonObject(with: payloads[0]) as? [String: Any])
-        #expect(json["jsonrpc"] == nil, "Auto mode should send legacy envelope, not JSON-RPC")
-        #expect(json["method"] as? String == "session-get")
+        #expect(json["jsonrpc"] as? String == "2.0", "Auto mode should send JSON-RPC 2.0 first")
+        #expect(json["method"] as? String == "session_get")
     }
 
     // MARK: - Fallback reason detection
@@ -161,19 +163,20 @@ struct TransmissionClientJSONRPCFallbackTests {
 
     // MARK: - Mode persistence
 
-    @Test("Auto mode persists resolved legacy mode after successful request")
-    func autoModePersistsLegacyMode() async throws {
+    @Test("Auto mode persists resolved JSON-RPC 2.0 mode after successful request")
+    func autoModePersistsJsonRpc2Mode() async throws {
         MockURLProtocol.reset()
 
-        let successResponse = TransmissionResponse(
-            result: "success",
-            arguments: .object(["rpc-version": .int(19), "version": .string("4.1.0")])
-        )
-
         MockURLProtocol.enqueue { request in
-            (
+            let response = JSONRPCResponse(
+                jsonrpc: "2.0",
+                result: .object(["version": .string("4.1.0"), "rpc_version": .int(19)]),
+                error: nil,
+                id: .int(1)
+            )
+            return (
                 httpResponse(for: request, statusCode: 200),
-                try JSONEncoder().encode(successResponse)
+                try JSONEncoder().encode(response)
             )
         }
 
@@ -182,8 +185,8 @@ struct TransmissionClientJSONRPCFallbackTests {
 
         let persistedMode = await client.rpcModeStore.load()
         #expect(
-            persistedMode == .legacy,
-            "Auto mode should persist legacy after successful legacy request")
+            persistedMode == .jsonRpc2,
+            "Auto mode should persist JSON-RPC 2.0 after successful request")
     }
 
     @Test("Explicit JSON-RPC 2.0 mode does not persist to rpcModeStore (only auto does)")
@@ -199,7 +202,8 @@ struct TransmissionClientJSONRPCFallbackTests {
             )
             return (
                 httpResponse(for: request, statusCode: 200),
-                try JSONEncoder().encode(response))
+                try JSONEncoder().encode(response)
+            )
         }
 
         let client = makeClient(mode: .jsonRpc2)
@@ -211,31 +215,50 @@ struct TransmissionClientJSONRPCFallbackTests {
             "Explicit mode should not persist to rpcModeStore — only auto mode does")
     }
 
-    // MARK: - Auto mode fallback flow (demonstrates current behavior)
+    // MARK: - Auto mode fallback flow (demonstrates fixed behavior)
 
-    @Test("Auto mode: legacy failure throws without fallback to JSON-RPC 2.0")
-    func autoModeLegacyFailureThrowsWithoutFallback() async throws {
+    @Test("Auto mode: JSON-RPC 2.0 failure falls back to legacy")
+    func autoModeJsonRpc2FailureFallsBackToLegacy() async throws {
         MockURLProtocol.reset()
         let inspector = RequestBodyInspector()
 
         MockURLProtocol.enqueue { request in
             inspector.append(requestBodyData(from: request))
+            let raw = """
+                {"jsonrpc":"2.0","id":1}
+                """
             return (
                 httpResponse(for: request, statusCode: 200),
-                Data("{}".utf8)
+                Data(raw.utf8)
+            )
+        }
+
+        MockURLProtocol.enqueue { request in
+            inspector.append(requestBodyData(from: request))
+            let response = TransmissionResponse(
+                result: "success",
+                arguments: .object(["rpc-version": .int(19)])
+            )
+            return (
+                httpResponse(for: request, statusCode: 200),
+                try JSONEncoder().encode(response)
             )
         }
 
         let client = makeClient(mode: .auto)
-        do {
-            _ = try await client.sessionGet()
-            Issue.record("Expected error")
-        } catch {
-            #expect(inspector.values.count == 1, "Only one request should be sent (legacy)")
-            let json = try #require(
-                try JSONSerialization.jsonObject(with: inspector.values[0]) as? [String: Any])
-            #expect(json["jsonrpc"] == nil, "First request should be legacy envelope")
-        }
+        _ = try await client.sessionGet()
+
+        let payloads = inspector.values
+        #expect(payloads.count == 2, "Should send JSON-RPC 2.0 first, then fallback to legacy")
+
+        let first = try #require(
+            try JSONSerialization.jsonObject(with: payloads[0]) as? [String: Any])
+        #expect(first["jsonrpc"] as? String == "2.0", "First request should be JSON-RPC 2.0")
+
+        let second = try #require(
+            try JSONSerialization.jsonObject(with: payloads[1]) as? [String: Any])
+        #expect(second["jsonrpc"] == nil, "Fallback request should be legacy envelope")
+        #expect(second["method"] as? String == "session-get")
     }
 
     // MARK: - Session ID interaction with mode
