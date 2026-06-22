@@ -96,19 +96,17 @@ Branch: feature/stage-1-transmission-test-perimeter
 | swift-format | ✅ 0 changes | `swift-format format --in-place` ran, no diffs |
 | swiftlint | ✅ 2 warnings, 0 serious | Pre-existing warnings in ServerDetailView.swift:31,66 (not related to this task) |
 | New tests (9/9 pass) | ✅ All pass | iOS Simulator (iPhone12), 0.063s total |
-| Existing retry tests | ⚠️ Hangs in CLI | Pre-existing TestClock + URLSession interaction issue in CLI test runner; passes in Xcode IDE |
+| Existing retry tests | ✅ All pass (5/5) | macOS CLI, 0.019s |
 
 ## Риски
 
-1. **Existing retry tests hang in CLI** — `TransmissionClientRetryTests` зависают при запуске через `xcodebuild test` в CLI. Это известная проблема взаимодействия `TestClock` с `URLSession` в CLI-окружении. В Xcode IDE тесты проходят. Новые тесты не зависят от `TestClock` advance для основных сценариев и работают стабильно.
+1. **3 pre-existing failures в TransmissionClientRPCModeTests** — `autoModeFallsBackAndCachesLegacy`, `autoModeDoesNotFallbackOnJSONRPCBusinessError`. Не связаны с Stage 1, требуют отдельного follow-up.
 
-2. **swift-format** — проверка форматирования выполнена через CLI, diff-ов нет.
-
-3. **Новые тесты не изолированы от существующих** — используют общий `MockURLProtocol`, который нужно сбрасывать (`reset()`) перед каждым тестом. Это стандартный паттерн в проекте.
+2. **Новые тесты не изолированы от существующих** — используют общий `MockURLProtocol`, который нужно сбрасывать (`reset()`) перед каждым тестом. Это стандартный паттерн в проекте.
 
 ## Следующие задачи
 
-1. Запустить тесты через Xcode IDE и убедиться, что новые тесты проходят.
-2. Добавить тесты для polling/reconnect cancellation на уровне reducer.
-3. Расширить MockURLProtocol для concurrent challenge simulation (если нужно).
-4. Исследовать переход на `SWIFT_STRICT_CONCURRENCY = complete` с инвентаризацией зависимостей.
+1. Добавить тесты для polling/reconnect cancellation на уровне reducer.
+2. Расширить MockURLProtocol для concurrent challenge simulation (если нужно).
+3. Исследовать переход на `SWIFT_STRICT_CONCURRENCY = complete` с инвентаризацией зависимостей.
+4. Разобраться с pre-existing failures в `TransmissionClientRPCModeTests`.
