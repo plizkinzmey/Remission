@@ -1,20 +1,13 @@
-# Task: Startup Connection Onboarding (iOS/macOS 26)
+# Task: UI Recovery After Release Merge
 
-Implement a native, non-modal startup connection flow using Liquid Glass patterns for iOS 26 and native inline layouts for macOS 26.
+Restore the pre-merge presentation layer while retaining release functional changes.
 
 ## Status
-- [x] Research current startup flow
-- [x] Design new onboarding architecture
-- [x] Create design spec: `docs/superpowers/specs/2026-05-21-startup-connection-onboarding.md`
-- [x] Create implementation plan: `docs/superpowers/plans/2026-05-21-startup-connection-onboarding.md`
-- [x] Task 1: Reducer Clean-up (TDD)
-- [x] Task 2: iOS Onboarding Root Implementation
-- [x] Task 3: macOS Inline Setup Implementation
-- [x] Task 5: Make Startup Window Compact & Non-resizable on macOS
-- [x] Task 4: Final Polishing & Verification
+- [x] Investigate v0.13.0 merge graph and identify `f057820` as UI baseline
+- [x] Restore presentation-layer sources with functional deltas preserved
+- [x] Run format, lint, iOS/macOS tests, and post-implementation review
 
 ## Details
 - Repository: Remission
 - Platforms: iOS 26, macOS 26
 - Pattern: Native Onboarding (NavigationStack + ContentUnavailableView) + Fixed-size Initial Window (macOS)
-

@@ -9,17 +9,18 @@ struct AddTorrentView: View {
     var body: some View {
         Group {
             #if os(macOS)
-                VStack(spacing: 0) {
+                VStack(spacing: 12) {
+                    AppWindowHeader(L10n.tr("torrentAdd.title"))
                     windowContent
                 }
                 .safeAreaInset(edge: .bottom) {
-                    HStack {
-                        Spacer()
+                    AppWindowFooterBar(contentPadding: 6) {
+                        Spacer(minLength: 0)
                         Button(L10n.tr("common.cancel")) {
                             store.send(.closeButtonTapped)
                         }
                         .accessibilityIdentifier("torrent_add_cancel_button")
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                         Button(L10n.tr("torrentAdd.action.add")) {
                             store.send(.submitButtonTapped)
                         }
@@ -32,10 +33,8 @@ struct AddTorrentView: View {
                                 .isEmpty
                         )
                         .accessibilityIdentifier("torrent_add_submit_button")
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(AppPrimaryButtonStyle())
                     }
-                    .padding(12)
-                    .background(.bar)
                 }
             #else
                 windowContent
@@ -97,18 +96,29 @@ extension AddTorrentView {
     }
 
     fileprivate var windowContent: some View {
-        Form {
+        Group {
+            #if os(macOS)
+                windowFormContent
+            #else
+                ScrollView {
+                    windowFormContent
+                }
+                .scrollDismissesKeyboard(.interactively)
+                .appDismissKeyboardOnTap()
+            #endif
+        }
+    }
+
+    private var windowFormContent: some View {
+        VStack(alignment: .leading, spacing: 16) {
             AddTorrentSourceSection(store: store)
             AddTorrentDestinationSection(store: store)
             AddTorrentOptionsSection(store: store)
         }
-        #if os(macOS)
-            .formStyle(.grouped)
-        #endif
-        #if os(iOS)
-            .scrollDismissesKeyboard(.interactively)
-            .appDismissKeyboardOnTap()
-        #endif
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appCardSurface(cornerRadius: 16)
+        .padding(.horizontal, 12)
     }
 }
 

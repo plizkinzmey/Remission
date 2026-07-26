@@ -23,7 +23,7 @@ struct TorrentListStorageSummaryView: View {
             #else
                 .frame(height: 34)
             #endif
-            .background(Color.secondary.opacity(0.15), in: Capsule())
+            .appPillSurface()
             .accessibilityIdentifier("torrent_list_storage_summary")
         }
     }

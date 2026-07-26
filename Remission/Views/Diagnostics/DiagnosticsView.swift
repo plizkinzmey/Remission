@@ -12,28 +12,28 @@ struct DiagnosticsView: View {
         NavigationStack {
             Group {
                 #if os(macOS)
-                    VStack(spacing: 0) {
+                    VStack(spacing: 12) {
+                        AppWindowHeader(L10n.tr("diagnostics.title"))
                         windowContent
                             .frame(maxHeight: .infinity, alignment: .top)
-                            .padding(.top, 12)
 
-                        HStack {
-                            Spacer()
+                        AppWindowFooterBar(contentPadding: 6) {
+                            Spacer(minLength: 0)
                             Button(L10n.tr("diagnostics.clear")) {
                                 store.send(.clearTapped)
                             }
                             .disabled(store.entries.isEmpty || store.isLoading)
                             .accessibilityIdentifier("diagnostics_clear_button")
-                            .buttonStyle(.bordered)
+                            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                             Button(L10n.tr("diagnostics.close")) {
                                 store.send(.delegate(.closeRequested))
                             }
                             .accessibilityIdentifier("diagnostics_close_button")
-                            .buttonStyle(.borderedProminent)
+                            .buttonStyle(AppPrimaryButtonStyle())
                         }
-                        .padding(12)
-                        .background(.bar)
                     }
+                    // Keep the diagnostics sheet compact, but avoid forcing a fixed max height.
+                    // Fixed max heights can cause the sheet to clip content (header/footer) on smaller windows.
                     .frame(minWidth: 560, idealWidth: 760, maxWidth: 980)
                     .frame(minHeight: 360, idealHeight: macOSIdealHeight, maxHeight: macOSMaxHeight)
                 #else
@@ -77,17 +77,11 @@ extension DiagnosticsView {
                 logContent
             }
             .padding(12)
-            .background(
-                Color.controlBackgroundColor,
-                in: RoundedRectangle(cornerRadius: 16)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(.quaternary)
-            )
+            .appCardSurface(cornerRadius: 16)
             .padding(.horizontal, 12)
         }
         #if os(macOS)
+            // Avoid requesting infinite height on macOS sheets; it can cause the sheet to open too tall.
             .frame(maxWidth: .infinity, alignment: .top)
         #else
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -134,6 +128,7 @@ extension DiagnosticsView {
             }
         }
         #if os(macOS)
+            // Let the log area expand/shrink within the sheet height, so header/footer remain visible.
             .frame(maxWidth: .infinity)
             .frame(minHeight: 220, idealHeight: 340, maxHeight: .infinity)
         #else
@@ -147,6 +142,7 @@ extension DiagnosticsView {
     extension DiagnosticsView {
         private var macOSMaxHeight: CGFloat {
             let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
+            // Keep a safety margin so sheets don't open beyond the visible area (menu bar / dock / window chrome).
             let capped = visibleHeight - 140
             return max(520, min(capped, 760))
         }

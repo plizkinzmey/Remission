@@ -5,30 +5,32 @@ struct SettingsPollingSection: View {
     @Bindable var store: StoreOf<SettingsReducer>
 
     var body: some View {
-        Section(
-            header: Text(L10n.tr("settings.polling.section")),
-            footer: Text(L10n.tr("settings.polling.note"))
-        ) {
-            VStack(alignment: .leading, spacing: 8) {
-                Slider(
-                    value: Binding(
-                        get: { store.pollingIntervalSeconds },
-                        set: { store.send(.pollingIntervalChanged($0)) }
-                    ),
-                    in: 1...60,
-                    step: 1
-                )
-                .accessibilityIdentifier("settings_polling_slider")
-                .tint(Color.accentColor)
+        AppSectionCard(L10n.tr("settings.polling.section")) {
+            Slider(
+                value: Binding(
+                    get: { store.pollingIntervalSeconds },
+                    set: { store.send(.pollingIntervalChanged($0)) }
+                ),
+                in: 1...60,
+                step: 1
+            )
+            .accessibilityIdentifier("settings_polling_slider")
+            .tint(Color.accentColor)
+            .padding(.horizontal, 10)
+            .frame(height: 32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .appInteractivePillSurface()
 
-                Text(intervalLabel)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .accessibilityIdentifier("settings_polling_value")
-            }
-            .padding(.vertical, 4)
+            Text(intervalLabel)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .accessibilityIdentifier("settings_polling_value")
+            Text(L10n.tr("settings.polling.note"))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
         .disabled(store.isAutoRefreshEnabled == false)
+        .opacity(store.isAutoRefreshEnabled ? 1 : 0.6)
     }
 
     private var intervalLabel: String {

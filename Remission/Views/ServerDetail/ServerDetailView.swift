@@ -24,36 +24,46 @@ struct ServerDetailView: View {
             #endif
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
-            .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
-                ServerFormView(store: editorStore)
-            }
+            #if os(iOS)
+                .navigationDestination(
+                    item: $store.scope(state: \.editor, action: \.editor),
+                    destination: { editorStore in
+                        ServerFormView(store: editorStore)
+                    }
+                )
+            #else
+                .sheet(item: $store.scope(state: \.editor, action: \.editor)) { editorStore in
+                    ServerFormView(store: editorStore)
+                }
+            #endif
             .sheet(
-                item: $store.scope(state: \.torrentDetail, action: \.torrentDetail)
-            ) { detailStore in
-                NavigationStack {
-                    TorrentDetailView(store: detailStore)
-                        #if os(macOS)
-                            .frame(
-                                minWidth: 520,
-                                idealWidth: 640,
-                                maxWidth: 760,
-                                minHeight: 520,
-                                idealHeight: 560,
-                                maxHeight: 600
-                            )
-                        #endif
-                        #if !os(macOS)
-                            .toolbar {
-                                ToolbarItem(placement: .cancellationAction) {
-                                    Button(L10n.tr("serverDetail.button.close")) {
-                                        detailStore.send(.delegate(.closeRequested))
+                item: $store.scope(state: \.torrentDetail, action: \.torrentDetail),
+                content: { detailStore in
+                    NavigationStack {
+                        TorrentDetailView(store: detailStore)
+                            #if os(macOS)
+                                .frame(
+                                    minWidth: 520,
+                                    idealWidth: 640,
+                                    maxWidth: 760,
+                                    minHeight: 520,
+                                    idealHeight: 560,
+                                    maxHeight: 600
+                                )
+                            #endif
+                            #if !os(macOS)
+                                .toolbar {
+                                    ToolbarItem(placement: .cancellationAction) {
+                                        Button(L10n.tr("serverDetail.button.close")) {
+                                            detailStore.send(.delegate(.closeRequested))
+                                        }
                                     }
                                 }
-                            }
-                        #endif
+                            #endif
+                    }
+                    .appRootChrome()
                 }
-                .appRootChrome()
-            }
+            )
             .sheet(item: $store.scope(state: \.addTorrent, action: \.addTorrent)) { addStore in
                 NavigationStack {
                     AddTorrentView(store: addStore)
@@ -64,11 +74,12 @@ struct ServerDetailView: View {
                 SettingsView(store: settingsStore)
             }
             .sheet(
-                item: $store.scope(state: \.diagnostics, action: \.diagnostics)
-            ) { diagnosticsStore in
-                DiagnosticsView(store: diagnosticsStore)
-                    .appRootChrome()
-            }
+                item: $store.scope(state: \.diagnostics, action: \.diagnostics),
+                content: { diagnosticsStore in
+                    DiagnosticsView(store: diagnosticsStore)
+                        .appRootChrome()
+                }
+            )
             .alert(
                 $store.scope(state: \.errorPresenter.alert, action: \.errorPresenter.alert)
             )

@@ -10,30 +10,15 @@ struct TorrentDetailView: View {
     var body: some View {
         Group {
             #if os(macOS)
-                VStack(spacing: 0) {
-                    windowContent
-                        .background(
-                            Color.controlBackgroundColor,
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .strokeBorder(.quaternary)
-                        )
-                        .padding(.horizontal, 12)
-                        .padding(.top, 12)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                }
-                .safeAreaInset(edge: .bottom) {
-                    HStack {
+                VStack(spacing: 12) {
+                    macOSContentCard
+                    AppWindowFooterBar(contentPadding: 6) {
                         Spacer(minLength: 0)
                         Button(L10n.tr("serverDetail.button.close")) {
                             store.send(.delegate(.closeRequested))
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(AppFooterButtonStyle(variant: .neutral))
                     }
-                    .padding(12)
-                    .background(.bar)
                 }
                 .navigationTitle(L10n.tr("torrentDetail.window.title"))
                 .toolbarTitleDisplayMode(.inline)
@@ -133,6 +118,15 @@ struct TorrentDetailView: View {
             )
             .accessibilityIdentifier("torrent-detail-loading")
     }
+
+    #if os(macOS)
+        private var macOSContentCard: some View {
+            windowContent
+                .appCardSurface(cornerRadius: 16)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
+    #endif
 
     private var shouldShowInitialPlaceholder: Bool {
         store.isLoading

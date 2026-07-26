@@ -2,10 +2,6 @@ import ComposableArchitecture
 import Dependencies
 import SwiftUI
 
-#if os(macOS)
-    import AppKit
-#endif
-
 struct AppView: View {
     @Bindable var store: StoreOf<AppReducer>
     @State var isStartupTextVisible: Bool = false
@@ -45,34 +41,6 @@ struct AppView: View {
                     allowing: Set(["*"])
                 )
                 .task { await store.send(.task).finish() }
-                #if os(macOS)
-                    .frame(
-                        minWidth: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.width
-                            : AppWindowMetrics.mainMinimumSize.width,
-                        idealWidth: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.width
-                            : nil,
-                        maxWidth: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.width
-                            : .infinity,
-                        minHeight: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.height
-                            : AppWindowMetrics.mainMinimumSize.height,
-                        idealHeight: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.height
-                            : nil,
-                        maxHeight: isFirstLaunchWindow
-                            ? AppWindowMetrics.firstLaunchSize.height
-                            : .infinity
-                    )
-                    .background(
-                        MacWindowConfigurator(
-                            isFixedSize: isFirstLaunchWindow,
-                            configure: configureMacWindow
-                        )
-                    )
-                #endif
         #endif
     }
 
@@ -151,47 +119,6 @@ struct AppView: View {
     }
 
     #if os(macOS)
-        private func configureMacWindow(_ window: NSWindow, isFixed: Bool) {
-            if isFixed {
-                if window.styleMask.contains(.resizable) {
-                    window.styleMask.remove(.resizable)
-                }
-                window.standardWindowButton(.zoomButton)?.isEnabled = false
-                let targetSize = AppWindowMetrics.firstLaunchSize
-                window.minSize = targetSize
-                window.maxSize = targetSize
-
-                var frame = window.frame
-                if frame.size != targetSize {
-                    frame.size = targetSize
-                    DispatchQueue.main.async {
-                        window.setFrame(frame, display: true, animate: true)
-                    }
-                }
-            } else {
-                if !window.styleMask.contains(.resizable) {
-                    window.styleMask.insert(.resizable)
-                }
-                window.standardWindowButton(.zoomButton)?.isEnabled = true
-                let minimumSize = AppWindowMetrics.mainMinimumSize
-                window.minSize = minimumSize
-                window.maxSize = NSSize(
-                    width: CGFloat.greatestFiniteMagnitude,
-                    height: CGFloat.greatestFiniteMagnitude)
-
-                var frame = window.frame
-                if frame.size.width < minimumSize.width
-                    || frame.size.height < minimumSize.height
-                {
-                    frame.size.width = max(frame.size.width, minimumSize.width)
-                    frame.size.height = max(frame.size.height, minimumSize.height)
-                    DispatchQueue.main.async {
-                        window.setFrame(frame, display: true, animate: true)
-                    }
-                }
-            }
-        }
-
         private var macOSToolbarPill: some View {
             HStack(spacing: 10) {
                 if shouldShowAddServerToolbarButton {
@@ -231,11 +158,7 @@ struct AppView: View {
     #endif
 
     private var shouldShowAddServerToolbarButton: Bool {
-        isFirstLaunchWindow == false
-    }
-
-    private var isFirstLaunchWindow: Bool {
-        store.serverList.servers.isEmpty
+        store.serverList.servers.isEmpty == false
     }
 
     private var shouldShowServerList: Bool {
@@ -243,7 +166,7 @@ struct AppView: View {
             return true
         }
         // Если серверы уже есть (например, из кэша или фикстуры)
-        if isFirstLaunchWindow == false {
+        if store.serverList.servers.isEmpty == false {
             return true
         }
         // Если загрузка еще идет и список пуст, не показываем список (показываем сплэш или пустоту)
@@ -255,13 +178,6 @@ struct AppView: View {
     }
 
 }
-
-#if os(macOS)
-    private enum AppWindowMetrics {
-        static let firstLaunchSize = NSSize(width: 680, height: 520)
-        static let mainMinimumSize = NSSize(width: 920, height: 680)
-    }
-#endif
 
 #Preview("AppView Empty") {
     AppView(

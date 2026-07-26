@@ -15,10 +15,14 @@ struct ServerListManagementTests {
             ServerListReducer()
         }
 
-        await store.send(.addButtonTapped) {
-            $0.hasPresentedInitialOnboarding = true
-            $0.serverForm = ServerFormReducer.State(mode: .add)
-        }
+        #if os(iOS)
+            await store.send(.addButtonTapped)
+            await store.receive(.delegate(.addServerRequested))
+        #else
+            await store.send(.addButtonTapped) {
+                $0.serverForm = ServerFormReducer.State(mode: .add)
+            }
+        #endif
     }
 
     @Test("Edit button открывает форму редактирования")

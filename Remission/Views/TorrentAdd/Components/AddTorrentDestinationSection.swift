@@ -8,7 +8,7 @@ struct AddTorrentDestinationSection: View {
     private let destinationFieldHeight: CGFloat = 32
 
     var body: some View {
-        Section(header: Text(L10n.tr("torrentAdd.section.destination"))) {
+        AppSectionCard(L10n.tr("torrentAdd.section.destination"), style: .card) {
             destinationMenu
         }
         .sheet(isPresented: $isCustomPathEditorPresented) {
@@ -67,11 +67,7 @@ struct AddTorrentDestinationSection: View {
             .frame(height: destinationFieldHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .background(Color.controlBackgroundColor, in: RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .strokeBorder(.quaternary)
-            )
+            .appInteractivePillSurface()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(L10n.tr("torrentAdd.destination.suggestions"))

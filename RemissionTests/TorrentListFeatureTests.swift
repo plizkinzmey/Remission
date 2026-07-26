@@ -377,7 +377,6 @@ final class TorrentListFeatureTests: XCTestCase {
 
     // MARK: - Polling Lifecycle (isPollingActive)
 
-    @Test("Teardown sets polling inactive")
     func testTeardownSetsPollingInactive() async {
         let clock = TestClock()
         let torrents = [Torrent.previewDownloading]
@@ -404,7 +403,6 @@ final class TorrentListFeatureTests: XCTestCase {
         await store.finish()
     }
 
-    @Test("ResetForReconnect sets polling inactive")
     func testResetForReconnectSetsPollingInactive() async {
         let clock = TestClock()
         let torrents = [Torrent.previewDownloading]
@@ -431,7 +429,6 @@ final class TorrentListFeatureTests: XCTestCase {
         await store.finish()
     }
 
-    @Test("Polling becomes active after successful fetch")
     func testPollingBecomesActiveAfterSuccess() async {
         let clock = TestClock()
         let torrents = [Torrent.previewDownloading]

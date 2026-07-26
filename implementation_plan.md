@@ -1,38 +1,28 @@
-# Startup Connection Setup Implementation Plan
+# UI Recovery Implementation Plan
 
 ## Цель
 
-Заменить автопоказ модальной формы подключения при первом запуске на нативный стартовый flow: пустой root экран остается основным содержимым, а добавление сервера открывается осознанным пользовательским действием.
-Кроме того, сделать стартовое окно с настройками компактным и заблокировать изменение его размера на macOS, чтобы верстка не разъезжалась при растягивании.
+Вернуть presentation-layer к последнему корректному состоянию `f057820` (релиз 0.12.3), не откатывая runtime/storage isolation, HTTP-warning, актуальную TCA-навигацию add-server и Transmission RPC-исправления, попавшие в v0.13.0.
 
-## Архитектура и решение для размера окна
+## Границы
 
-- `ServerListReducer` перестает автоматически выставлять `serverForm` после пустой загрузки серверов.
-- `ServerListView` сохраняет текущий empty state как root experience, но действие `Add Server` остается единым входом в `ServerFormView`.
-- **Фиксация стартового окна на macOS**:
-  Применяем динамические ограничения на размер корневой View (`AppView`) в `RemissionApp.swift` на macOS.
-  Если список серверов пуст (`store.serverList.servers.isEmpty == true`), мы жестко ограничиваем максимальный и минимальный размер окна до `WindowConstants.minimumSize` (600x450).
-  SwiftUI на macOS автоматически отключает кнопку развертывания окна (Zoom) и блокирует перетягивание рамки пользователем, если `minWidth/maxWidth` и `minHeight/maxHeight` равны.
-  Как только сервер добавлен, ограничения `maxWidth` и `maxHeight` сбрасываются в `.infinity`, делая окно стандартно растягиваемым.
+- Восстановить SwiftUI Views и удалённые shared components из `f057820`.
+- Сохранить `AppRuntimeEnvironment`, текущий `AppReducer.Path`, HTTP alert binding и исправления macOS lifecycle window configurator.
+- Сохранить локальную незакоммиченную правку `ServerConfigurationView.swift`.
+- Не менять `Package.resolved`; `project.pbxproj` менять только если сборка докажет, что восстановленные source-файлы не подхватываются синхронизированной группой.
 
 ## Задачи
 
-1. TDD: добавить регрессионный тест, что пустая загрузка при незавершенном onboarding не открывает `serverForm`.
-2. TDD: обновить тесты кнопки добавления, чтобы зафиксировать ручной старт формы.
-3. Реализация: удалить macOS-only автопрезентацию формы из `ServerListReducer+Connection`.
-4. UI: зафиксировать размер стартового окна в `RemissionApp.swift` при пустом списке серверов (`store.serverList.servers.isEmpty == true`).
-5. Проверка: форматирование, линтинг, компиляция проекта, прохождение тестов в Xcode.
-6. Post-review: выполнить code-review-reflection и записать ретроспективу.
+1. Восстановить UI-исходники к `f057820`, исключив `ServerConfigurationView.swift` и текущий `MacWindowTranslucency.swift`.
+2. Вручную перенести нужные functional deltas в `AppView`, `ServerFormView` и `ServerConfigurationView`.
+3. Запустить build/test; только при реальном compile failure точечно изменить project metadata.
+4. Выполнить форматирование, линтинг, iOS/macOS tests и post-implementation review.
 
 ## Риски
 
-- Изменение первого запуска не должно сломать UI-test fixtures и автопереход при единственном сервере.
-- Ограничение размера должно работать плавно и не вызывать прыжков интерфейса при переходе из состояния "без серверов" в состояние "активный сервер".
+- Нельзя вернуть вложенный `NavigationStack` для формы, открываемой через `AppReducer.Path` на iOS.
+- Нельзя потерять HTTP confirmation alert или локальную пользовательскую правку кнопки подключения.
 
 ## Верификация
 
-- Проверка компиляции проекта с помощью `BuildProject`.
-- Запуск тестов на симуляторе iPhone 12 и macOS smoke тестов.
-- `ServerListFeatureTests.testTaskInitialLoadEmptyDoesNotAutoPresentServerForm`
-- `ServerListManagementTests.testAddButtonTapped`
-
+- `swift-format`, `swiftlint`, iOS tests на iPhone 12, macOS tests и `Scripts/validate-dead-code.sh`.

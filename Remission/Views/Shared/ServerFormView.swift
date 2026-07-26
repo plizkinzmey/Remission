@@ -6,52 +6,21 @@ struct ServerFormView: View {
 
     var body: some View {
         #if os(macOS)
-            VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                AppWindowHeader(store.mode.title)
                 windowContent
             }
             .safeAreaInset(edge: .bottom) {
-                HStack {
-                    Button(store.serverConfig.checkConnectionButtonTitle) {
-                        if OnboardingViewEnvironment.isOnboardingUITest {
-                            store.send(.serverConfig(.uiTestBypassConnection))
-                        } else {
-                            store.send(.serverConfig(.checkConnectionButtonTapped))
-                        }
-                    }
-                    .disabled(
-                        store.serverConfig.connectionStatus == .testing
-                            || store.serverConfig.form.isFormValid == false
-                    )
-                    .buttonStyle(.bordered)
-                    .tint(checkConnectionTint)
-
-                    Spacer(minLength: 0)
-
-                    Button(L10n.tr("common.cancel")) {
-                        store.send(.delegate(.cancelled))
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button(L10n.tr("common.save")) {
-                        store.send(.saveButtonTapped)
-                    }
-                    .disabled(store.isSaveButtonDisabled)
-                    .buttonStyle(.borderedProminent)
+                AppWindowFooterBar(contentPadding: 6) {
+                    macOSFooterContent
                 }
-                .padding(12)
-                .background(.bar)
             }
-            .frame(width: 480, height: 500)
+            .frame(minWidth: 480, idealWidth: 640, maxWidth: 760)
             .alert($store.scope(state: \.alert, action: \.alert))
         #else
             windowContent
                 .navigationTitle(store.mode.title)
                 .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button(L10n.tr("common.cancel")) {
-                            store.send(.delegate(.cancelled))
-                        }
-                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button(L10n.tr("common.save")) {
                             store.send(.saveButtonTapped)
@@ -63,7 +32,7 @@ struct ServerFormView: View {
         #endif
     }
 
-    private var windowContent: some View {
+    private var formContent: some View {
         ServerConfigurationView(
             store: store.scope(state: \.serverConfig, action: \.serverConfig),
             isSubmitting: store.isSaving,
@@ -71,22 +40,62 @@ struct ServerFormView: View {
                 ? L10n.tr("serverEditor.saving")
                 : L10n.tr("onboarding.status.connecting")
         )
-        #if os(macOS)
-            .formStyle(.grouped)
-        #endif
+    }
+
+    private var windowContent: some View {
+        VStack {
+            ScrollView {
+                formContent
+            }
+            #if os(iOS)
+                .scrollDismissesKeyboard(.interactively)
+            #endif
+        }
         #if os(iOS)
-            .scrollDismissesKeyboard(.interactively)
             .appDismissKeyboardOnTap()
         #endif
+        .padding(12)
+        .appCardSurface(cornerRadius: AppTheme.Radius.modal)
+        .padding(.horizontal, 12)
     }
 
     #if os(macOS)
-        private var checkConnectionTint: Color? {
+        @ViewBuilder
+        private var macOSFooterContent: some View {
+            Button(store.serverConfig.checkConnectionButtonTitle) {
+                if OnboardingViewEnvironment.isOnboardingUITest {
+                    store.send(.serverConfig(.uiTestBypassConnection))
+                } else {
+                    store.send(.serverConfig(.checkConnectionButtonTapped))
+                }
+            }
+            .disabled(
+                store.serverConfig.connectionStatus == .testing
+                    || store.serverConfig.form.isFormValid == false
+            )
+            .buttonStyle(
+                AppFooterButtonStyle(variant: checkConnectionButtonVariant))
+
+            Spacer(minLength: 0)
+
+            Button(L10n.tr("common.cancel")) {
+                store.send(.delegate(.cancelled))
+            }
+            .buttonStyle(AppFooterButtonStyle(variant: .neutral))
+
+            Button(L10n.tr("common.save")) {
+                store.send(.saveButtonTapped)
+            }
+            .disabled(store.isSaveButtonDisabled)
+            .buttonStyle(AppPrimaryButtonStyle())
+        }
+
+        private var checkConnectionButtonVariant: AppFooterButtonStyle.Variant {
             switch store.serverConfig.checkConnectionButtonVariant {
-            case .accent: return .accentColor
-            case .success: return .green
-            case .error: return .red
-            case .neutral: return nil
+            case .accent: .accent
+            case .success: .success
+            case .error: .error
+            case .neutral: .neutral
             }
         }
     #endif
