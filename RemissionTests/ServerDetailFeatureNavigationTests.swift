@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Detail Navigation & Import Tests")
 @MainActor
-struct ServerDetailFeatureNavigationTests {
-
-    @Test("Тап по торренту открывает детальный экран")
+final class ServerDetailFeatureNavigationTests: XCTestCase {
     func testRowTappedOpensTorrentDetail() async {
         // Проверяем, что выбор торрента создаёт состояние TorrentDetail с нужным ID.
         let server = ServerConfig.sample
@@ -34,8 +31,6 @@ struct ServerDetailFeatureNavigationTests {
 
         await store.receive(.torrentList(.delegate(.openTorrent(torrent.id))))
     }
-
-    @Test("Кнопка добавления торрента открывает AddTorrent")
     func testAddTorrentButtonTappedOpensAddTorrent() async {
         // Проверяем, что кнопка добавления создаёт состояние AddTorrent с serverID.
         let server = ServerConfig.sample
@@ -57,8 +52,6 @@ struct ServerDetailFeatureNavigationTests {
 
         await store.receive(.torrentList(.delegate(.addTorrentRequested)))
     }
-
-    @Test("Импорт файла создаёт AddTorrent и пробрасывает событие")
     func testFileImportResultSuccess() async {
         // Проверяем, что успешный выбор файла создаёт PendingTorrentInput.
         // Если connectionEnvironment ещё нет, ввод сохраняется в pendingAddTorrentInput
@@ -86,8 +79,6 @@ struct ServerDetailFeatureNavigationTests {
             )
         }
     }
-
-    @Test("Обработка загруженного файла создаёт PendingTorrentInput")
     func testHandleFileImportLoadedSuccess() async {
         // Проверяем, что готовые данные торрента сохраняются в pending,
         // если connectionEnvironment ещё нет.
@@ -103,11 +94,9 @@ struct ServerDetailFeatureNavigationTests {
             state: &state
         )
 
-        #expect(state.pendingAddTorrentInput == input)
-        #expect(state.addTorrent == nil)
+        XCTAssertTrue(state.pendingAddTorrentInput == input)
+        XCTAssertTrue(state.addTorrent == nil)
     }
-
-    @Test("Неверное расширение файла показывает alert")
     func testHandleFileImportInvalidExtension() async {
         // Проверяем, что файл с неверным расширением создаёт alert и не запускает импорт.
         let server = ServerConfig.sample
@@ -116,6 +105,6 @@ struct ServerDetailFeatureNavigationTests {
 
         _ = ServerDetailReducer().handleFileImport(url: url, state: &state)
 
-        #expect(state.alert != nil)
+        XCTAssertTrue(state.alert != nil)
     }
 }

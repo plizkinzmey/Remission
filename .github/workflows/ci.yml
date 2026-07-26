@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Format, lint, localizations, macOS tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Install formatters
+        run: brew install swift-format swiftlint
+
+      - name: Swift format
+        run: swift-format lint --configuration .swift-format --recursive --strict Remission RemissionTests RemissionUITests
+
+      - name: SwiftLint
+        run: swiftlint lint --reporter github
+
+      - name: Check localizations
+        run: Scripts/check-localizations.sh
+
+      - name: Test macOS
+        run: >-
+          xcodebuild test
+          -project Remission.xcodeproj
+          -scheme Remission
+          -sdk macosx
+          -destination 'platform=macOS,arch=arm64'
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          CODE_SIGNING_ALLOWED=NO

@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Shared View Coverage")
 @MainActor
-struct SharedViewCoverageTests {
-    @Test
-    func emptyPlaceholderViewRenders() {
+final class SharedViewCoverageTests: XCTestCase {
+    func testEmptyPlaceholderViewRenders() {
         let view = EmptyPlaceholderView(
             systemImage: "tray",
             title: "Title",
@@ -16,9 +14,7 @@ struct SharedViewCoverageTests {
         )
         _ = view.body
     }
-
-    @Test
-    func errorBannerViewRendersWithAndWithoutRetry() {
+    func testErrorBannerViewRendersWithAndWithoutRetry() {
         let retry = ErrorBannerView(
             message: "Something failed",
             onRetry: {},
@@ -32,22 +28,16 @@ struct SharedViewCoverageTests {
         _ = retry.body
         _ = noRetry.body
     }
-
-    @Test
-    func keyboardHandlingExtensionsAreCallable() {
+    func testKeyboardHandlingExtensionsAreCallable() {
         _ = Text("Input").appKeyboardAvoiding()
         _ = Text("Input").appDismissKeyboardOnTap()
     }
-
-    @Test
-    func macWindowTranslucencyModifierIsCallable() {
+    func testMacWindowTranslucencyModifierIsCallable() {
         #if os(macOS)
             _ = Text("Window").configureMacWindowForTranslucency()
         #endif
     }
-
-    @Test
-    func transmissionTrustPromptViewRendersCertificateDetails() {
+    func testTransmissionTrustPromptViewRendersCertificateDetails() {
         let identity = TransmissionServerTrustIdentity(
             host: "example.com",
             port: 443,

@@ -1,15 +1,12 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Torrent List Notification Tests")
 @MainActor
-struct TorrentListNotificationTests {
+final class TorrentListNotificationTests: XCTestCase {
     let serverID = ServerConnectionEnvironment.testServerID
-
-    @Test("Send notification when torrent completes")
     func testNotification_OnCompletion() async {
         let clock = TestClock()
         let torrentID = Torrent.Identifier(rawValue: 1)
@@ -34,42 +31,43 @@ struct TorrentListNotificationTests {
         newTorrent.summary.progress.percentDone = 1.0
         newTorrent.status = .seeding
 
-        await confirmation("Notification sent") { confirm in
-            let store = TestStoreFactory.makeTestStore(
-                initialState: TorrentListReducer.State(
-                    serverID: serverID,
-                    items: [TorrentListItem.State(torrent: oldTorrent)]
-                ),
-                reducer: TorrentListReducer()
-            ) {
-                $0.appClock = .test(clock: clock)
-                $0.notificationClient.sendNotification = { @Sendable title, body, _ in
-                    #expect(title == L10n.tr("torrentList.notification.completed.title"))
-                    #expect(
-                        body == L10n.tr("torrentList.notification.completed.body", "Test Movie"))
-                    confirm()
-                }
-            }
-            store.exhaustivity = .off
-
-            let payload = TorrentListReducer.FetchSuccess(
-                torrents: [newTorrent],
-                isFromCache: false,
-                snapshotDate: nil
-            )
-
-            await store.send(.torrentsResponse(.success(payload)))
-
-            // Give the fire-and-forget effect time to run
-            for _ in 0..<10 {
-                if Task.isCancelled { break }
-                try? await Task.sleep(for: .milliseconds(10))
-                await Task.yield()
+        let notificationSent = expectation(description: "Notification sent")
+        let notificationConfirmation = SendableExpectation(notificationSent)
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                items: [TorrentListItem.State(torrent: oldTorrent)]
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.notificationClient.sendNotification = { @Sendable title, body, _ in
+                XCTAssertEqual(title, L10n.tr("torrentList.notification.completed.title"))
+                XCTAssertEqual(
+                    body,
+                    L10n.tr("torrentList.notification.completed.body", "Test Movie")
+                )
+                notificationConfirmation.fulfill()
             }
         }
-    }
+        store.exhaustivity = .off
 
-    @Test("Send notification when torrent has error")
+        let payload = TorrentListReducer.FetchSuccess(
+            torrents: [newTorrent],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+
+        await store.send(.torrentsResponse(.success(payload)))
+
+        await fulfillment(of: [notificationSent], timeout: 1)
+        // Give the fire-and-forget effect time to run
+        for _ in 0..<10 {
+            if Task.isCancelled { break }
+            try? await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
+        }
+    }
     func testNotification_OnError() async {
         let clock = TestClock()
         let torrentID = Torrent.Identifier(rawValue: 1)
@@ -94,41 +92,40 @@ struct TorrentListNotificationTests {
         newTorrent.error = 3
         newTorrent.errorString = "Disk full"
 
-        await confirmation("Notification sent") { confirm in
-            let store = TestStoreFactory.makeTestStore(
-                initialState: TorrentListReducer.State(
-                    serverID: serverID,
-                    items: [TorrentListItem.State(torrent: oldTorrent)]
-                ),
-                reducer: TorrentListReducer()
-            ) {
-                $0.appClock = .test(clock: clock)
-                $0.notificationClient.sendNotification = { @Sendable title, body, _ in
-                    #expect(title == L10n.tr("torrentList.notification.error.title"))
-                    #expect(body == "Disk full")
-                    confirm()
-                }
-            }
-            store.exhaustivity = .off
-
-            let payload = TorrentListReducer.FetchSuccess(
-                torrents: [newTorrent],
-                isFromCache: false,
-                snapshotDate: nil
-            )
-
-            await store.send(.torrentsResponse(.success(payload)))
-
-            // Give the fire-and-forget effect time to run
-            for _ in 0..<10 {
-                if Task.isCancelled { break }
-                try? await Task.sleep(for: .milliseconds(10))
-                await Task.yield()
+        let notificationSent = expectation(description: "Notification sent")
+        let notificationConfirmation = SendableExpectation(notificationSent)
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                items: [TorrentListItem.State(torrent: oldTorrent)]
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.notificationClient.sendNotification = { @Sendable title, body, _ in
+                XCTAssertEqual(title, L10n.tr("torrentList.notification.error.title"))
+                XCTAssertEqual(body, "Disk full")
+                notificationConfirmation.fulfill()
             }
         }
-    }
+        store.exhaustivity = .off
 
-    @Test("No notification if state hasn't changed")
+        let payload = TorrentListReducer.FetchSuccess(
+            torrents: [newTorrent],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+
+        await store.send(.torrentsResponse(.success(payload)))
+
+        await fulfillment(of: [notificationSent], timeout: 1)
+        // Give the fire-and-forget effect time to run
+        for _ in 0..<10 {
+            if Task.isCancelled { break }
+            try? await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
+        }
+    }
     func testNotification_NoChange() async {
         let clock = TestClock()
         let torrent = Torrent.previewDownloading
@@ -142,7 +139,7 @@ struct TorrentListNotificationTests {
         ) {
             $0.appClock = .test(clock: clock)
             $0.notificationClient.sendNotification = { @Sendable _, _, _ in
-                Issue.record("Notification should not be sent")
+                XCTFail("Notification should not be sent")
             }
         }
         store.exhaustivity = .off
@@ -158,8 +155,6 @@ struct TorrentListNotificationTests {
         // Give it a small time to run the effect
         try? await Task.sleep(for: .milliseconds(100))
     }
-
-    @Test("No notification on initial load even if torrents are completed or errored")
     func testNotification_NoInitialLoadNotifications() async {
         let clock = TestClock()
         let completed = Torrent.previewCompleted
@@ -177,7 +172,7 @@ struct TorrentListNotificationTests {
         ) {
             $0.appClock = .test(clock: clock)
             $0.notificationClient.sendNotification = { @Sendable _, _, _ in
-                Issue.record("Notification should not be sent on initial load")
+                XCTFail("Notification should not be sent on initial load")
             }
         }
         store.exhaustivity = .off
@@ -191,8 +186,6 @@ struct TorrentListNotificationTests {
         await store.send(.torrentsResponse(.success(payload)))
         try? await Task.sleep(for: .milliseconds(100))
     }
-
-    @Test("Send notification for new completed torrent after list is loaded")
     func testNotification_NewTorrentAfterLoaded() async {
         let clock = TestClock()
         let existing = Torrent.previewDownloading
@@ -200,39 +193,54 @@ struct TorrentListNotificationTests {
         newCompleted.id = Torrent.Identifier(rawValue: 777)
         newCompleted.name = "New Download"
 
-        await confirmation("Notification sent") { confirm in
-            let store = TestStoreFactory.makeTestStore(
-                initialState: TorrentListReducer.State(
-                    serverID: serverID,
-                    phase: .loaded,
-                    items: [TorrentListItem.State(torrent: existing)]
-                ),
-                reducer: TorrentListReducer()
-            ) {
-                $0.appClock = .test(clock: clock)
-                $0.notificationClient.sendNotification = { @Sendable title, body, identifier in
-                    #expect(title == L10n.tr("torrentList.notification.completed.title"))
-                    #expect(
-                        body == L10n.tr("torrentList.notification.completed.body", "New Download"))
-                    #expect(identifier == "completed-777")
-                    confirm()
-                }
-            }
-            store.exhaustivity = .off
-
-            let payload = TorrentListReducer.FetchSuccess(
-                torrents: [existing, newCompleted],
-                isFromCache: false,
-                snapshotDate: nil
-            )
-
-            await store.send(.torrentsResponse(.success(payload)))
-
-            for _ in 0..<10 {
-                if Task.isCancelled { break }
-                try? await Task.sleep(for: .milliseconds(10))
-                await Task.yield()
+        let notificationSent = expectation(description: "Notification sent")
+        let notificationConfirmation = SendableExpectation(notificationSent)
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                phase: .loaded,
+                items: [TorrentListItem.State(torrent: existing)]
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.notificationClient.sendNotification = { @Sendable title, body, identifier in
+                XCTAssertEqual(title, L10n.tr("torrentList.notification.completed.title"))
+                XCTAssertEqual(
+                    body,
+                    L10n.tr("torrentList.notification.completed.body", "New Download")
+                )
+                XCTAssertEqual(identifier, "completed-777")
+                notificationConfirmation.fulfill()
             }
         }
+        store.exhaustivity = .off
+
+        let payload = TorrentListReducer.FetchSuccess(
+            torrents: [existing, newCompleted],
+            isFromCache: false,
+            snapshotDate: nil
+        )
+
+        await store.send(.torrentsResponse(.success(payload)))
+
+        await fulfillment(of: [notificationSent], timeout: 1)
+        for _ in 0..<10 {
+            if Task.isCancelled { break }
+            try? await Task.sleep(for: .milliseconds(10))
+            await Task.yield()
+        }
+    }
+}
+
+private final class SendableExpectation: @unchecked Sendable {
+    private let expectation: XCTestExpectation
+
+    init(_ expectation: XCTestExpectation) {
+        self.expectation = expectation
+    }
+
+    func fulfill() {
+        expectation.fulfill()
     }
 }

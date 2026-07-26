@@ -108,7 +108,9 @@ import Foundation
     }
 
     extension DiagnosticsLogStore: DependencyKey {
-        static let liveValue: DiagnosticsLogStore = .persistent()
+        static var liveValue: DiagnosticsLogStore {
+            .persistent(defaults: AppStorageNamespace.live().userDefaults())
+        }
         static let previewValue: DiagnosticsLogStore = .placeholder
         static let testValue: DiagnosticsLogStore = .inMemory()
     }

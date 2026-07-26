@@ -3,8 +3,17 @@
     import Foundation
 
     extension KeychainCredentialsDependency: DependencyKey {
-        static let liveValue: Self = {
-            let store: KeychainCredentialsStore = KeychainCredentialsStore()
+        static var liveValue: Self {
+            .live(
+                serviceIdentifier: AppStorageNamespace.live().credentialsKeychainServiceIdentifier)
+        }
+    }
+
+    extension KeychainCredentialsDependency {
+        static func live(
+            serviceIdentifier: String = KeychainCredentialsStore.defaultServiceIdentifier
+        ) -> Self {
+            let store = KeychainCredentialsStore(serviceIdentifier: serviceIdentifier)
             return Self(
                 save: { credentials in
                     try store.save(credentials)
@@ -16,6 +25,6 @@
                     try store.delete(key: key)
                 }
             )
-        }()
+        }
     }
 #endif

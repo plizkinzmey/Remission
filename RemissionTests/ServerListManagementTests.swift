@@ -37,6 +37,26 @@ struct ServerListManagementTests {
         }
     }
 
+    @Test("HTTP сервер требует подтверждения перед открытием")
+    func testHTTPServerSelectionRequiresConfirmation() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerListReducer.State(servers: [server])
+        ) {
+            ServerListReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+
+        await store.send(.serverTapped(server.id)) {
+            $0.pendingHTTPConnection = .selection(server)
+            $0.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+    }
+
     @Test("Удаление сервера отправляет запрос в репозиторий")
     func testDeleteServerFlow() async {
         // Проверяем полный сценарий: подтверждение удаления -> вызов репозитория -> обновление списка.
@@ -92,6 +112,7 @@ struct ServerListManagementTests {
         {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { _, _ in .init(handshake: handshake) }
             $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in
                 .testEnvironment(

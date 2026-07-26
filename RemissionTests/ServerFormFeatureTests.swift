@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Form Feature Tests")
 @MainActor
-struct ServerFormFeatureTests {
-
-    @Test("Успешное сохранение нового сервера")
+final class ServerFormFeatureTests: XCTestCase {
     func testSaveAddSuccess() async {
         // Проверяем, что сохранение в режиме add пишет credentials, сохраняет конфиг
         // и уведомляет delegate о создании.
@@ -60,12 +57,10 @@ struct ServerFormFeatureTests {
 
         await store.receive(ServerFormReducer.Action.delegate(.didCreate(expectedConfig)))
 
-        #expect(recorder.savedConfig == expectedConfig)
-        #expect(recorder.savedCredentials?.password == "secret")
-        #expect(recorder.onboardingCompleted == true)
+        XCTAssertTrue(recorder.savedConfig == expectedConfig)
+        XCTAssertTrue(recorder.savedCredentials?.password == "secret")
+        XCTAssertTrue(recorder.onboardingCompleted == true)
     }
-
-    @Test("Ошибка сохранения показывает alert")
     func testSaveFailureShowsAlert() async {
         // Проверяем, что при ошибке сохранения показывается alert с сообщением.
         let error = TestError(message: "Ошибка сохранения")
@@ -97,8 +92,6 @@ struct ServerFormFeatureTests {
             )
         }
     }
-
-    @Test("Сохранение в режиме edit не завершает онбординг")
     func testEditDoesNotCompleteOnboarding() async {
         // Проверяем, что при редактировании не выставляется completedOnboarding.
         let recorder = SaveRecorder()
@@ -137,7 +130,7 @@ struct ServerFormFeatureTests {
 
         await store.receive(ServerFormReducer.Action.delegate(.didUpdate(expectedConfig)))
 
-        #expect(recorder.onboardingCompleted == nil)
+        XCTAssertTrue(recorder.onboardingCompleted == nil)
     }
 }
 

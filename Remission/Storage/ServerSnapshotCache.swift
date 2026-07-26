@@ -26,8 +26,36 @@ struct OfflineCacheRepository: Sendable {
             @Dependency(\.appLogger) var appLogger
             let policy = OfflineCachePolicy.default
             let logger = appLogger.withCategory("offline-cache")
-            let store = OfflineCacheFileStore(policy: policy, now: dateProvider.now, log: logger)
+            return .fileBased(
+                baseDirectory: ServerSnapshotStoragePaths.defaultDirectory(namespace: .live()),
+                policy: policy,
+                now: dateProvider.now,
+                logger: logger
+            )
+        }
 
+        static var previewValue: OfflineCacheRepository {
+            .inMemory()
+        }
+
+        static var testValue: OfflineCacheRepository {
+            .inMemory()
+        }
+    }
+
+    extension OfflineCacheRepository {
+        static func fileBased(
+            baseDirectory: URL = ServerSnapshotStoragePaths.defaultDirectory(),
+            policy: OfflineCachePolicy = .default,
+            now: @escaping @Sendable () -> Date,
+            logger: AppLogger = .noop
+        ) -> OfflineCacheRepository {
+            let store = OfflineCacheFileStore(
+                baseDirectory: baseDirectory,
+                policy: policy,
+                now: now,
+                log: logger
+            )
             return OfflineCacheRepository(
                 policy: policy,
                 client: { key in
@@ -55,16 +83,6 @@ struct OfflineCacheRepository: Sendable {
             )
         }
 
-        static var previewValue: OfflineCacheRepository {
-            .inMemory()
-        }
-
-        static var testValue: OfflineCacheRepository {
-            .inMemory()
-        }
-    }
-
-    extension OfflineCacheRepository {
         static func inMemory(
             policy: OfflineCachePolicy = .default,
             now: @escaping @Sendable () -> Date = { Date() },

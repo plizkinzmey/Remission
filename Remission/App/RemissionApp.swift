@@ -15,9 +15,15 @@ struct RemissionApp: App {
     init() {
         NotificationClient.configure()
         let arguments = ProcessInfo.processInfo.arguments
+        let environment = ProcessInfo.processInfo.environment
+        let namespace = AppStorageNamespace.live(environment: environment)
         let scenario = AppBootstrap.parseUITestScenario(arguments: arguments)
         let fixture = AppBootstrap.parseUITestFixture(arguments: arguments)
-        let initialState = AppBootstrap.makeInitialState(arguments: arguments)
+        let initialState = AppBootstrap.makeInitialState(
+            arguments: arguments,
+            environment: environment,
+            storageFileURL: ServerConfigStoragePaths.defaultURL(namespace: namespace)
+        )
 
         let store = Store(initialState: initialState) {
             AppReducer()
@@ -26,10 +32,10 @@ struct RemissionApp: App {
                 dependencies = AppDependencies.makeUITest(
                     fixture: fixture,
                     scenario: scenario,
-                    environment: ProcessInfo.processInfo.environment
+                    environment: environment
                 )
             } else {
-                dependencies = AppDependencies.makeLive()
+                dependencies = AppDependencies.makeLive(namespace: namespace)
             }
         }
 
@@ -45,12 +51,6 @@ struct RemissionApp: App {
     var body: some Scene {
         WindowGroup {
             AppView(store: store)
-                // Защитный минимальный размер для macOS, чтобы верстка не схлопывалась.
-                #if os(macOS)
-                    .frame(
-                        minWidth: WindowConstants.minimumSize.width,
-                        minHeight: WindowConstants.minimumSize.height)
-                #endif
         }
         #if os(macOS)
             .defaultSize(
@@ -71,7 +71,7 @@ struct RemissionApp: App {
         // Минимальный размер окна, чтобы таблицы и панели не схлопывались.
         // Reduced to support macOS Split View (half-screen snapping).
         // Previous value (1100) prevented snapping on standard displays.
-        static let minimumSize = NSSize(width: 600, height: 450)
+        static let minimumSize = NSSize(width: 800, height: 600)
     }
 
     @MainActor

@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server Detail Add Torrent Logic")
 @MainActor
-struct ServerDetailAddTorrentTests {
-
-    @Test("File import handles loader error")
+final class ServerDetailAddTorrentTests: XCTestCase {
     func testFileImportLoaderError() async {
         let server = ServerConfig.sample
         let url = URL(fileURLWithPath: "/tmp/broken.torrent")
@@ -39,8 +36,6 @@ struct ServerDetailAddTorrentTests {
             }
         }
     }
-
-    @Test("File import failure action shows alert")
     func testFileImportFailureAction() async {
         let server = ServerConfig.sample
         let errorMessage = "Access denied"

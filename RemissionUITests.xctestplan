@@ -29,16 +29,7 @@
         "containerPath" : "container:Remission.xcodeproj",
         "identifier" : "15AA8C512EA1C9370025EF81",
         "name" : "RemissionUITests"
-      },
-      "selectedTests" : [
-        "RemissionUITests/RemissionUITests/testShowsEmptyStateOnFirstLaunch",
-        "RemissionUITests/RemissionUITests/testSelectingServerOpensDetailScreen",
-        "RemissionUITests/RemissionUITests/testTorrentListSearchAndRefresh",
-        "RemissionUITests/RemissionUITests/testOnboardingFlowAddsServer",
-        "RemissionUITests/RemissionUITests/testTorrentDetailFlow",
-        "RemissionUITests/RemissionUITests/testSettingsScreenShowsControls",
-        "RemissionUITests/RemissionUITests/testSettingsScreenShowsControlsAndAllowsEditing"
-      ]
+      }
     }
   ],
   "version" : 1

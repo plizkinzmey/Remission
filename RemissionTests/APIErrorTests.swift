@@ -63,10 +63,9 @@ struct APIErrorTests {
         #expect(APIError.mapURLError(URLError(.notConnectedToInternet)) == .networkUnavailable)
 
         let tls = APIError.mapURLError(URLError(.secureConnectionFailed))
-        if case .tlsEvaluationFailed = tls {
-            #expect(true)
-        } else {
-            Issue.record("Ожидали .tlsEvaluationFailed")
+        guard case .tlsEvaluationFailed = tls else {
+            Issue.record("Ожидали .tlsEvaluationFailed, но получили \(tls)")
+            return
         }
     }
 

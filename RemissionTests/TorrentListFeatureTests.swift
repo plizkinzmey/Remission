@@ -1,17 +1,14 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Torrent List Feature Tests")
 @MainActor
-struct TorrentListFeatureTests {
+final class TorrentListFeatureTests: XCTestCase {
     let serverID = ServerConnectionEnvironment.testServerID
 
     // MARK: - Happy Path: Initial Load & Polling
-
-    @Test("Initial load success and polling start")
     func testTask_InitialLoad_Success() async {
         let clock = TestClock()
         let torrents = [Torrent.previewDownloading, Torrent.previewCompleted]
@@ -54,8 +51,6 @@ struct TorrentListFeatureTests {
     }
 
     // MARK: - Search & Filtering
-
-    @Test("Search and filtering by status and category")
     func testSearchAndFiltering() async {
         let torrents = [
             Torrent.sampleDownloading(),
@@ -78,24 +73,24 @@ struct TorrentListFeatureTests {
         await store.send(TorrentListReducer.Action.searchQueryChanged("Ubuntu")) {
             $0.searchQuery = "Ubuntu"
         }
-        #expect(store.state.visibleItems.count == 1)
+        XCTAssertTrue(store.state.visibleItems.count == 1)
 
         await store.send(TorrentListReducer.Action.searchQueryChanged("")) {
             $0.searchQuery = ""
         }
-        #expect(store.state.visibleItems.count == 3)
+        XCTAssertTrue(store.state.visibleItems.count == 3)
 
         // Test Status Filtering
         await store.send(TorrentListReducer.Action.filterChanged(.downloading)) {
             $0.selectedFilter = .downloading
         }
-        #expect(store.state.visibleItems.count == 1)
+        XCTAssertTrue(store.state.visibleItems.count == 1)
 
         await store.send(TorrentListReducer.Action.filterChanged(.all))
 
         // Test Category Filtering
         await store.send(TorrentListReducer.Action.categoryChanged(.programs))
-        #expect(store.state.visibleItems.isEmpty)
+        XCTAssertTrue(store.state.visibleItems.isEmpty)
 
         var torrentWithTag = torrents[0]
         torrentWithTag.tags.append("programs")
@@ -107,10 +102,8 @@ struct TorrentListFeatureTests {
         )
 
         await store.send(TorrentListReducer.Action.torrentsResponse(.success(payload)))
-        #expect(store.state.visibleItems.count == 1)
+        XCTAssertTrue(store.state.visibleItems.count == 1)
     }
-
-    @Test("UI Controls remain accessible when filtered list is empty but total items exist")
     func testControlVisibilityWithEmptyFilteredList() async {
         let torrent = Torrent.sampleDownloading()
         // Изначально торрент без тегов (категория 'other' или 'all')
@@ -126,10 +119,10 @@ struct TorrentListFeatureTests {
         )
 
         // 1. Проверяем, что видимый список пуст
-        #expect(store.state.visibleItems.isEmpty)
+        XCTAssertTrue(store.state.visibleItems.isEmpty)
 
         // 2. Проверяем, что общий список НЕ пуст (это условие для показа поиска и категорий)
-        #expect(!store.state.items.isEmpty)
+        XCTAssertTrue(!store.state.items.isEmpty)
 
         // 3. Имитируем смену категории обратно на 'all'
         await store.send(.categoryChanged(.all)) {
@@ -137,12 +130,10 @@ struct TorrentListFeatureTests {
         }
 
         // 4. Теперь список должен стать непустым
-        #expect(!store.state.visibleItems.isEmpty)
+        XCTAssertTrue(!store.state.visibleItems.isEmpty)
     }
 
     // MARK: - Commands & Removal
-
-    @Test("Verify command stays busy across intermediate statuses (no flicker)")
     func testVerifyBusyDoesNotFlicker() async {
         let torrentID = Torrent.previewDownloading.id
         let torrent: Torrent = {
@@ -154,7 +145,7 @@ struct TorrentListFeatureTests {
 
         var repository = TorrentRepository.testValue
         repository.verifyClosure = { @Sendable ids in
-            #expect(ids == [torrentID])
+            XCTAssertTrue(ids == [torrentID])
         }
         repository.fetchListClosure = { @Sendable in [torrent] }
 
@@ -194,7 +185,7 @@ struct TorrentListFeatureTests {
         )
         await store.send(.torrentsResponse(.success(intermediatePayload))) {
             // Still busy due to in-flight verify.
-            #expect($0.inFlightCommands[torrentID]?.command == .verify)
+            XCTAssertTrue($0.inFlightCommands[torrentID]?.command == .verify)
         }
 
         // Now the actual check starts.
@@ -207,21 +198,19 @@ struct TorrentListFeatureTests {
         )
         await store.send(.torrentsResponse(.success(checkingPayload))) {
             // In-flight command is dropped; UI stays busy via status == checkWaiting/checking.
-            #expect($0.inFlightCommands[torrentID] == nil)
+            XCTAssertTrue($0.inFlightCommands[torrentID] == nil)
         }
 
         await store.send(.teardown)
         await store.finish()
     }
-
-    @Test("Torrent removal with confirmation")
     func testRemovalFlow() async throws {
         let torrent = Torrent.sampleDownloading()
         let clock = TestClock()
         let environment = makeEnvironment(
             torrentRepository: makeRemovalRepository(torrent: torrent)
         )
-        let expectedSummary = try #require(
+        let expectedSummary = try XCTUnwrap(
             StorageSummary.calculate(torrents: [], session: .previewActive, updatedAt: nil)
         )
         let store = TestStoreFactory.makeTestStore(
@@ -261,8 +250,6 @@ struct TorrentListFeatureTests {
     }
 
     // MARK: - Error Handling & Offline
-
-    @Test("Fetch failure with exponential backoff")
     func testFetchFailure_Backoff() async {
         let clock = TestClock()
         let error = NSError(
@@ -296,8 +283,6 @@ struct TorrentListFeatureTests {
         await store.send(.teardown)
         await store.finish()
     }
-
-    @Test("Handling seed ratio policy on refresh")
     func testSeedRatioPolicy() async {
         let clock = TestClock()
         var torrent = Torrent.sampleSeeding()
@@ -320,7 +305,7 @@ struct TorrentListFeatureTests {
             }
             $0.torrentRepository.fetchListClosure = { @Sendable [torrent] in [torrent] }
             $0.torrentRepository.stopClosure = { @Sendable [torrent] ids in
-                #expect(ids == [torrent.id])
+                XCTAssertTrue(ids == [torrent.id])
             }
         }
         store.exhaustivity = .off
@@ -332,8 +317,6 @@ struct TorrentListFeatureTests {
     }
 
     // MARK: - Integration Flow
-
-    @Test("Full flow from task to command and refresh")
     func testIntegration_FullFlow() async {
         let serverID = ServerConnectionEnvironment.testServerID
         let userPrefs = UserPreferencesRepository.previewValue
@@ -366,12 +349,10 @@ struct TorrentListFeatureTests {
         await store.send(TorrentListReducer.Action.pauseTapped(downloadingID))
 
         await store.skipReceivedActions()
-        #expect(store.state.inFlightCommands.isEmpty)
+        XCTAssertTrue(store.state.inFlightCommands.isEmpty)
 
         await store.finish()
     }
-
-    @Test("Transition to offline state manually")
     func testGoOffline() async {
         let store = TestStoreFactory.makeTestStore(
             initialState: TorrentListReducer.State(
@@ -391,6 +372,93 @@ struct TorrentListFeatureTests {
         await store.receive(
             TorrentListReducer.Action.errorPresenter(
                 .showBanner(message: "No internet", retry: .refresh)))
+        await store.finish()
+    }
+
+    // MARK: - Polling Lifecycle (isPollingActive)
+
+    @Test("Teardown sets polling inactive")
+    func testTeardownSetsPollingInactive() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded,
+                isPollingActive: true
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.teardown) {
+            $0.isPollingActive = false
+            $0.isRefreshing = false
+            $0.hasLoadedPreferences = false
+        }
+
+        await store.finish()
+    }
+
+    @Test("ResetForReconnect sets polling inactive")
+    func testResetForReconnectSetsPollingInactive() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded,
+                isPollingActive: true
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.resetForReconnect) {
+            $0.isPollingActive = false
+            $0.isRefreshing = false
+            $0.phase = .loading
+        }
+
+        await store.finish()
+    }
+
+    @Test("Polling becomes active after successful fetch")
+    func testPollingBecomesActiveAfterSuccess() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.refreshRequested) {
+            $0.isRefreshing = true
+            $0.failedAttempts = 0
+            $0.offlineState = nil
+        }
+
+        await store.receive(\.torrentsResponse.success) {
+            $0.isPollingActive = true
+            $0.phase = .loaded
+        }
+
         await store.finish()
     }
 
@@ -418,8 +486,8 @@ struct TorrentListFeatureTests {
     private func makeRemovalRepository(torrent: Torrent) -> TorrentRepository {
         var repository = TorrentRepository.testValue
         repository.removeClosure = { @Sendable ids, deleteData in
-            #expect(ids == [torrent.id])
-            #expect(deleteData == true)
+            XCTAssertTrue(ids == [torrent.id])
+            XCTAssertTrue(deleteData == true)
         }
         repository.fetchListClosure = { @Sendable in [] }
         return repository

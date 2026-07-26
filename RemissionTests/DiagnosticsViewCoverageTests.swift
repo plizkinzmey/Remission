@@ -1,6 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
-import Testing
+import XCTest
 
 @testable import Remission
 
@@ -10,9 +10,8 @@ import Testing
     import UIKit
 #endif
 
-@Suite("Diagnostics View Coverage")
 @MainActor
-struct DiagnosticsViewCoverageTests {
+final class DiagnosticsViewCoverageTests: XCTestCase {
     private func makeEntry(
         id: UUID = UUID(uuidString: "00000000-0000-0000-0000-000000000010")!,
         level: AppLogLevel = .error
@@ -35,9 +34,7 @@ struct DiagnosticsViewCoverageTests {
             DiagnosticsReducer()
         }
     }
-
-    @Test
-    func diagnosticsBadgesRender() {
+    func testDiagnosticsBadgesRender() {
         let levelBadge = DiagnosticsLevelBadge(level: .warning)
         let offline = DiagnosticsNetworkBadge(isOffline: true, isNetworkIssue: false)
         let network = DiagnosticsNetworkBadge(isOffline: false, isNetworkIssue: true)
@@ -45,18 +42,14 @@ struct DiagnosticsViewCoverageTests {
         host(offline)
         host(network)
     }
-
-    @Test
-    func diagnosticsLogRowAndDetailsRender() {
+    func testDiagnosticsLogRowAndDetailsRender() {
         let entry = makeEntry()
         let row = DiagnosticsLogRowView(entry: entry, onCopy: {})
         let details = DiagnosticsLogDetailsSheet(entry: entry)
         host(row)
         host(details)
     }
-
-    @Test
-    func diagnosticsFilterListTextAndRootViewsRender() {
+    func testDiagnosticsFilterListTextAndRootViewsRender() {
         let entry = makeEntry()
         let store = makeStore(entries: [entry])
         host(DiagnosticsFilterSection(store: store))

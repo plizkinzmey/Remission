@@ -30,6 +30,7 @@ struct ServerConfigurationView: View {
                 submissionOverlay
             }
         }
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     private func errorText(_ message: String) -> some View {

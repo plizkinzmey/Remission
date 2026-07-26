@@ -88,6 +88,7 @@ struct ErrorPresenter<Retry: Equatable & Sendable>: Sendable {
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 
     private func makeAlert(
@@ -122,9 +123,9 @@ extension Error {
             return description
         }
 
-        let nsError = self as NSError
-        return nsError.localizedDescription.isEmpty
+        let desc = self.localizedDescription
+        return desc.isEmpty
             ? String(describing: self)
-            : nsError.localizedDescription
+            : desc
     }
 }

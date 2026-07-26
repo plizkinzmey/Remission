@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Server List Feature Tests")
 @MainActor
-struct ServerListFeatureTests {
-
-    @Test("Initial load with no servers")
+final class ServerListFeatureTests: XCTestCase {
     func testTask_InitialLoad_Empty() async {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
@@ -26,8 +23,27 @@ struct ServerListFeatureTests {
             $0.servers = []
         }
     }
+    #if os(macOS)
+        func testTaskInitialLoadEmptyDoesNotAutoPresentServerForm() async {
+            let store = TestStore(initialState: ServerListReducer.State()) {
+                ServerListReducer()
+            } withDependencies: {
+                $0.serverConfigRepository.load = { @Sendable in [] }
+                $0.onboardingProgressRepository.hasCompletedOnboarding = { @Sendable in false }
+            }
 
-    @Test("Initial load with servers and auto-selection")
+            await store.send(ServerListReducer.Action.task) {
+                $0.isLoading = true
+            }
+
+            await store.receive(ServerListReducer.Action.serverRepositoryResponse(.success([]))) {
+                $0.isLoading = false
+                $0.servers = []
+                $0.serverForm = nil  // Should remain nil
+            }
+        }
+    #endif
+
     func testTask_InitialLoad_WithServers() async {
         let server = ServerConfig.sample
         let handshake = TransmissionHandshakeResult(
@@ -42,6 +58,7 @@ struct ServerListFeatureTests {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConfigRepository.load = { @Sendable in [server] }
             $0.serverConnectionProbe.run = { @Sendable _, _ in probeResult }
             $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in .previewValue }
@@ -76,19 +93,20 @@ struct ServerListFeatureTests {
         await store.receive(ServerListReducer.Action.storageRequested(server.id))
     }
 
-    @Test("Add button tapped")
     func testAddButtonTapped() async {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
         }
 
-        await store.send(ServerListReducer.Action.addButtonTapped) {
-            $0.hasPresentedInitialOnboarding = true
-            $0.serverForm = ServerFormReducer.State(mode: .add)
-        }
+        #if os(macOS)
+            await store.send(ServerListReducer.Action.addButtonTapped) {
+                $0.serverForm = ServerFormReducer.State(mode: .add)
+            }
+        #else
+            await store.send(ServerListReducer.Action.addButtonTapped)
+            await store.receive(ServerListReducer.Action.delegate(.addServerRequested))
+        #endif
     }
-
-    @Test("Delete server flow")
     func testDeleteServerFlow() async {
         let server = ServerConfig.sample
         let store = TestStore(
@@ -125,9 +143,8 @@ struct ServerListFeatureTests {
 
         await store.receive(ServerListReducer.Action.serverRepositoryResponse(.success([]))) {
             $0.servers = []
-            // Onboarding should NOT be triggered because hasCompletedOnboarding is true
+            // Onboarding should NOT be triggered
             $0.serverForm = nil
-            $0.hasPresentedInitialOnboarding = false
         }
     }
 }

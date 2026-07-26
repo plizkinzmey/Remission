@@ -25,8 +25,10 @@ struct TorrentDetailViewCoverageTests {
         let idleView = TorrentDetailSummarySection(store: idleStore)
         host(idleView)
 
-        #expect(activeStore.withState { $0.status == Torrent.Status.downloading.rawValue })
-        #expect(idleStore.withState { $0.status == Torrent.Status.stopped.rawValue })
+        let activeStatus = activeStore.state.status
+        let idleStatus = idleStore.state.status
+        #expect(activeStatus == Torrent.Status.downloading.rawValue)
+        #expect(idleStatus == Torrent.Status.stopped.rawValue)
     }
 
     @Test
@@ -56,7 +58,8 @@ struct TorrentDetailViewCoverageTests {
         )
         host(advancedView)
 
-        #expect(store.withState { $0.hasLoadedMetadata })
+        let hasLoaded = store.state.hasLoadedMetadata
+        #expect(hasLoaded)
     }
 
     @Test
@@ -83,8 +86,10 @@ struct TorrentDetailViewCoverageTests {
         let fallbackView = TorrentDetailView(store: fallbackStore)
         host(fallbackView)
 
-        #expect(loadingStore.withState { $0.isLoading })
-        #expect(fallbackStore.withState { $0.errorPresenter.banner != nil })
+        let isLoading = loadingStore.state.isLoading
+        let hasBanner = fallbackStore.state.errorPresenter.banner != nil
+        #expect(isLoading)
+        #expect(hasBanner)
     }
 
     @Test

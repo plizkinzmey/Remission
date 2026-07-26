@@ -35,8 +35,10 @@ struct TorrentListViewCoverageTests {
         let emptyView = TorrentListView(store: emptyStore)
         _ = emptyView.body
 
-        #expect(loadedStore.withState { !$0.visibleItems.isEmpty })
-        #expect(emptyStore.withState { $0.visibleItems.isEmpty })
+        let loadedItems = loadedStore.state.visibleItems
+        let emptyItems = emptyStore.state.visibleItems
+        #expect(!loadedItems.isEmpty)
+        #expect(emptyItems.isEmpty)
     }
 
     @Test
@@ -77,7 +79,8 @@ struct TorrentListViewCoverageTests {
         let errorView = TorrentListView(store: errorStore)
         _ = errorView.body
 
-        #expect(errorStore.withState { $0.phase == .error("Boom") })
+        let phase = errorStore.state.phase
+        #expect(phase == .error("Boom"))
     }
 
     @Test
@@ -149,7 +152,8 @@ struct TorrentListViewCoverageTests {
             _ = view.macOSToolbarControls
         #endif
 
-        #expect(store.withState { $0.searchQuery == "Ubuntu" })
+        let query = store.state.searchQuery
+        #expect(query == "Ubuntu")
     }
 
     @Test

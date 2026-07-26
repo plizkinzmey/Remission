@@ -29,7 +29,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		15AA8C3B2EA1C9360025EF81 /* Remission.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Remission.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Remission Dev.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RemissionUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		15D03AFF2EA3B62200044487 /* Remission.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Remission.xctestplan; sourceTree = "<group>"; };
@@ -103,7 +103,7 @@
 		15AA8C3C2EA1C9360025EF81 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				15AA8C3B2EA1C9360025EF81 /* Remission.app */,
+				15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */,
 				15AA8C482EA1C9370025EF81 /* RemissionTests.xctest */,
 				15AA8C522EA1C9370025EF81 /* RemissionUITests.xctest */,
 			);
@@ -134,7 +134,7 @@
 				15B1A0002F0B7B2E00E3D111 /* Logging */,
 			);
 			productName = Remission;
-			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission.app */;
+			productReference = 15AA8C3B2EA1C9360025EF81 /* Remission Dev.app */;
 			productType = "com.apple.product-type.application";
 		};
 		15AA8C472EA1C9370025EF81 /* RemissionTests */ = {
@@ -260,67 +260,7 @@
 				"$(TEMP_DIR)/SwiftLintDone",
 			);
 			shellPath = /bin/sh;
-			shellScript = (
-				"if [[ \"$(uname -m)\" == arm64 ]]",
-				"then",
-				"    export PATH=\"/opt/homebrew/bin:$PATH\"",
-				"fi",
-				"if command -v swiftlint >/dev/null 2>&1",
-				"then",
-				"    cd \"${SRCROOT}\"",
-				"    export SWIFTLINT_CACHE_PATH=\"${TEMP_DIR}/SwiftLintCache\"",
-				"    mkdir -p \"${SWIFTLINT_CACHE_PATH}\"",
-				"    swiftlint lint --reporter xcode || true",
-				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
-				"else",
-				"    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"",
-				"    touch \"${TEMP_DIR}/SwiftLintDone\"",
-				"fi",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-			);
+			shellScript = "if [[ \"$(uname -m)\" == arm64 ]]\nthen\n    export PATH=\"/opt/homebrew/bin:$PATH\"\nfi\nif command -v swiftlint >/dev/null 2>&1\nthen\n    cd \"${SRCROOT}\"\n    export SWIFTLINT_CACHE_PATH=\"${TEMP_DIR}/SwiftLintCache\"\n    mkdir -p \"${SWIFTLINT_CACHE_PATH}\"\n    swiftlint lint --reporter xcode || true\n    touch \"${TEMP_DIR}/SwiftLintDone\"\nelse\n    echo \"warning: swiftlint command not found - See https://github.com/realm/SwiftLint#installation for installation instructions.\"\n    touch \"${TEMP_DIR}/SwiftLintDone\"\nfi\n";
 		};
 		15F6B6B32F10A00000A0A111 /* Localizations Check */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -334,16 +274,7 @@
 				"$(DERIVED_FILE_DIR)/LocalizationsCheckDone",
 			);
 			shellPath = /bin/sh;
-			shellScript = (
-				"cd \"${SRCROOT}\"",
-				"Scripts/check-localizations.sh",
-				"",
-				"",
-				"",
-				"",
-				"",
-				"",
-			);
+			shellScript = "cd \"${SRCROOT}\"\nScripts/check-localizations.sh\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -441,6 +372,7 @@
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = targeted;
 			};
 			name = Debug;
 		};
@@ -512,7 +444,7 @@
 				CURRENT_PROJECT_VERSION = 645;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = X5G6TU7PS9;
-				ENABLE_APP_SANDBOX = YES;
+				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
@@ -541,8 +473,9 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 0.12.3;
-				PRODUCT_BUNDLE_IDENTIFIER = cryptolin.Remission;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_BUNDLE_IDENTIFIER = cryptolin.Remission.dev;
+				PRODUCT_MODULE_NAME = Remission;
+				PRODUCT_NAME = "Remission Dev";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -550,6 +483,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_ENABLE_EXPERIMENTAL_MACROS = YES;
+				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
@@ -649,10 +583,11 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Remission.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Remission";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Remission Dev.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Remission Dev";
 				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
@@ -737,6 +672,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_STRICT_CONCURRENCY = targeted;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";

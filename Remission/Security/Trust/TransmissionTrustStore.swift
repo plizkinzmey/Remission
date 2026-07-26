@@ -52,18 +52,22 @@ private struct TransmissionTrustMetadata: Codable, Equatable {
 
 /// Хранилище отпечатков TLS сертификатов Transmission.
 public struct TransmissionTrustStore: Sendable {
-    private enum Constants {
-        static let serviceIdentifier: String = "com.remission.transmission.trust"
-    }
+    public static let defaultServiceIdentifier: String = "com.remission.transmission.trust"
 
     private let interface: TransmissionTrustKeychainInterface
+    private let serviceIdentifier: String
 
-    public init() {
+    public init(serviceIdentifier: String = Self.defaultServiceIdentifier) {
         self.interface = .live
+        self.serviceIdentifier = serviceIdentifier
     }
 
-    init(interface: TransmissionTrustKeychainInterface) {
+    init(
+        interface: TransmissionTrustKeychainInterface,
+        serviceIdentifier: String = Self.defaultServiceIdentifier
+    ) {
         self.interface = interface
+        self.serviceIdentifier = serviceIdentifier
     }
 
     /// Сохраняет отпечаток SHA-256 для конкретного сервера.
@@ -185,7 +189,7 @@ public struct TransmissionTrustStore: Sendable {
     private func baseQuery(for identity: TransmissionServerTrustIdentity) -> [String: Any] {
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: Constants.serviceIdentifier,
+            kSecAttrService as String: serviceIdentifier,
             kSecAttrAccount as String: identity.canonicalIdentifier,
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
             kSecAttrSynchronizable as String: kCFBooleanFalse as CFBoolean

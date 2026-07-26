@@ -56,6 +56,7 @@ struct TorrentListReducer: Reducer {
         var selectedCategory: CategoryFilter = .all
         var isRefreshing: Bool = false
         var isPollingEnabled: Bool = true
+        var isPollingActive: Bool = false
         var failedAttempts: Int = 0
         var pollingInterval: Duration = .seconds(5)
         var adaptivePollingInterval: Duration?

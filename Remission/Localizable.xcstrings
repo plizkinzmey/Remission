@@ -1254,6 +1254,54 @@
         }
       }
     },
+    "server.alert.httpWarning.confirm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect via HTTP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключиться по HTTP"
+          }
+        }
+      }
+    },
+    "server.alert.httpWarning.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP does not encrypt your server credentials or traffic. Continue only on a trusted network."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP не шифрует учётные данные и трафик к серверу. Продолжайте только в доверенной сети."
+          }
+        }
+      }
+    },
+    "server.alert.httpWarning.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unencrypted connection"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Незашифрованное соединение"
+          }
+        }
+      }
+    },
     "serverDetail.alert.trustReset.confirm" : {
       "localizations" : {
         "en" : {
@@ -1703,6 +1751,7 @@
       }
     },
     "serverList.accessibility.insecure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1719,6 +1768,7 @@
       }
     },
     "serverList.accessibility.secure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1815,6 +1865,7 @@
       }
     },
     "serverList.badge.http" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1831,6 +1882,7 @@
       }
     },
     "serverList.badge.https" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -1842,6 +1894,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "HTTPS"
+          }
+        }
+      }
+    },
+    "serverList.connectionInfo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection details"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Детали подключения"
           }
         }
       }
@@ -1890,6 +1958,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Версия Transmission -"
+          }
+        }
+      }
+    },
+    "serverList.transmissionVersionUnavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmission version unavailable"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Версия Transmission недоступна"
           }
         }
       }
@@ -4881,6 +4965,7 @@
       }
     },
     "torrentList.refresh.progress" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4961,6 +5046,7 @@
       }
     },
     "torrentList.status.abbrev.checking" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4977,6 +5063,7 @@
       }
     },
     "torrentList.status.abbrev.downloading" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4993,6 +5080,7 @@
       }
     },
     "torrentList.status.abbrev.error" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5009,6 +5097,7 @@
       }
     },
     "torrentList.status.abbrev.paused" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5025,6 +5114,7 @@
       }
     },
     "torrentList.status.abbrev.seeding" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -5041,6 +5131,7 @@
       }
     },
     "torrentList.status.abbrev.waiting" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {

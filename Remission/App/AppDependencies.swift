@@ -4,10 +4,47 @@ import Foundation
 
 enum AppDependencies {
     /// Сборка live-набора зависимостей для основной Scheме приложения.
-    static func makeLive() -> DependencyValues {
+    static func makeLive(
+        namespace: AppStorageNamespace = .live()
+    ) -> DependencyValues {
         var dependencies = DependencyValues.appDefault()
+        let defaults = namespace.userDefaults()
+        let trustStore = TransmissionTrustStore(
+            serviceIdentifier: namespace.trustKeychainServiceIdentifier
+        )
+        let keychain = KeychainCredentialsDependency.live(
+            serviceIdentifier: namespace.credentialsKeychainServiceIdentifier
+        )
+        let offlineCache = OfflineCacheRepository.fileBased(
+            baseDirectory: ServerSnapshotStoragePaths.defaultDirectory(namespace: namespace),
+            now: dependencies.dateProvider.now,
+            logger: dependencies.appLogger.withCategory("offline-cache")
+        )
+
         dependencies.transmissionClient = .placeholder
-        dependencies.userPreferencesRepository = .persistent()
+        dependencies.keychainCredentials = keychain
+        dependencies.credentialsRepository = .live(
+            keychain: keychain,
+            auditLogger: .live(appLogger: dependencies.appLogger)
+        )
+        dependencies.serverConfigRepository = .fileBased(namespace: namespace)
+        dependencies.userPreferencesRepository = .persistent(defaults: defaults)
+        dependencies.httpWarningPreferencesStore = .userDefaults(defaults: defaults)
+        dependencies.onboardingProgressRepository = .userDefaults(defaults: defaults)
+        dependencies.transmissionTrustStoreClient = .live(store: trustStore)
+        dependencies.offlineCacheRepository = offlineCache
+        dependencies.serverConnectionProbe = .live(
+            appLogger: dependencies.appLogger,
+            trustStore: trustStore
+        )
+        dependencies.serverConnectionEnvironmentFactory = .live(
+            credentialsRepository: dependencies.credentialsRepository,
+            appClock: dependencies.appClock,
+            trustPromptCenter: dependencies.transmissionTrustPromptCenter,
+            appLogger: dependencies.appLogger,
+            offlineCacheRepository: offlineCache,
+            trustStore: trustStore
+        )
         return dependencies
     }
 

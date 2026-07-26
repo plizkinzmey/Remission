@@ -19,67 +19,90 @@ struct ServerListView: View {
     }
 
     var body: some View {
-        Group {
-            #if os(macOS)
-                AppFooterLayout {
-                    Group {
-                        if store.servers.isEmpty {
-                            if store.isLoading {
-                                if showsLoadingState {
-                                    loadingState
-                                } else {
-                                    Color.clear
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                }
-                            } else {
-                                emptyState
-                            }
-                        } else {
-                            VStack(alignment: .center, spacing: 12) {
-                                Text(ServerListStrings.serversTitle)
-                                    .font(.title3.bold())
-                                Text(ServerListStrings.serversSubtitle)
-                                    .font(.footnote)
-                                    .foregroundStyle(.primary)
-                                    .multilineTextAlignment(.center)
-                                serverList
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
+        #if os(macOS)
+            if store.servers.isEmpty {
+                mainContent
+            } else {
+                mainContent
+                    .sheet(
+                        item: $store.scope(state: \.serverForm, action: \.serverForm),
+                        content: serverFormSheet
+                    )
+            }
+        #else
+            mainContent
+                .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
+                    NavigationStack {
+                        ServerFormView(store: formStore)
                     }
-                } footer: {
-                    AppFooterInfoBar(centerText: AppVersion.footerText)
-                        .accessibilityIdentifier("server_list_footer")
                 }
-            #else
-                Group {
-                    if store.servers.isEmpty {
-                        if store.isLoading {
-                            if showsLoadingState {
-                                loadingState
-                            } else {
-                                Color.clear
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            }
+        #endif
+    }
+
+    private func serverFormSheet(_ formStore: StoreOf<ServerFormReducer>) -> some View {
+        ServerFormView(store: formStore)
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            if store.servers.isEmpty {
+                if store.isLoading {
+                    if showsLoadingState {
+                        loadingState
+                    } else {
+                        Color.clear
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                } else {
+                    #if os(macOS)
+                        if let formStore = store.scope(
+                            state: \.serverForm, action: \.serverForm.presented)
+                        {
+                            ServerFormView(store: formStore)
+                                .frame(
+                                    maxWidth: .infinity, maxHeight: .infinity, alignment: .center
+                                )
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
                         } else {
                             emptyState
+                                .transition(.opacity)
                         }
-                    } else {
-                        VStack(alignment: .center, spacing: 12) {
-                            Text(ServerListStrings.serversTitle)
-                                .font(.title3.bold())
-                            Text(ServerListStrings.serversSubtitle)
-                                .font(.footnote)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.center)
-                            serverList
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 8)
-                        .padding(.top, 12)
-                    }
+                    #else
+                        emptyState
+                    #endif
                 }
-            #endif
+            } else {
+                VStack(alignment: .center, spacing: 12) {
+                    Text(ServerListStrings.serversTitle)
+                        .font(.title3.bold())
+                    Text(ServerListStrings.serversSubtitle)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                    serverList
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 8)
+                .padding(.top, 12)
+            }
+        }
+        .animation(.spring(duration: 0.4), value: store.servers.isEmpty)
+        .animation(.spring(duration: 0.4), value: store.serverForm == nil)
+        .safeAreaInset(edge: .bottom) {
+            if !store.servers.isEmpty {
+                HStack {
+                    Spacer()
+                    Text(AppVersion.footerText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                    Spacer()
+                }
+                .padding(.vertical, 8)
+                .background(.bar)
+                .accessibilityIdentifier("server_list_footer")
+            }
         }
         .alert(
             $store.scope(state: \.alert, action: \.alert)
@@ -87,11 +110,5 @@ struct ServerListView: View {
         .confirmationDialog(
             $store.scope(state: \.deleteConfirmation, action: \.deleteConfirmation)
         )
-        .sheet(item: $store.scope(state: \.serverForm, action: \.serverForm)) { formStore in
-            ServerFormView(store: formStore)
-        }
-        #if os(iOS)
-            .background(AppBackgroundView())
-        #endif
     }
 }

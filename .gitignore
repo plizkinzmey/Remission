@@ -6,11 +6,15 @@
 .xcuserdata/
 
 # Scheme management
+**/xcuserdata/
 .xcodeproj/xcuserdata/
 .xcworkspace/xcuserdata/
 
 # Build products
+Build/
 build/
+build_ios/
+build_macos/
 DerivedData/
 
 # Index
@@ -71,6 +75,11 @@ Icon?
 build.log
 
 .gemini/
+.antigravitycli/
+test_output.txt
 gha-creds-*.json
 .github
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
 .swiftlint-cache/

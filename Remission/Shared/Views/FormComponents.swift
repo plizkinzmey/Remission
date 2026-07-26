@@ -94,4 +94,62 @@ extension Binding where Value == String {
             set: { self.wrappedValue = $0.filteredASCII(allowed: allowed) }
         )
     }
+
+    /// Ограничивает длину строки максимальным количеством символов.
+    func limited(to maxLength: Int) -> Binding<String> {
+        Binding(
+            get: { self.wrappedValue },
+            set: {
+                if $0.count > maxLength {
+                    self.wrappedValue = String($0.prefix(maxLength))
+                } else {
+                    self.wrappedValue = $0
+                }
+            }
+        )
+    }
+}
+
+/// Текстовое поле с двусторонней синхронизацией, гарантирующее мгновенное
+/// визуальное удаление недопустимых символов (например, кириллицы), которые
+/// отфильтровываются моделью.
+@MainActor
+struct SanitizedTextField: View {
+    let title: String
+    @Binding var text: String
+    var isSecure: Bool = false
+
+    init(_ title: String, text: Binding<String>, isSecure: Bool = false) {
+        self.title = title
+        self._text = text
+        self.isSecure = isSecure
+    }
+
+    @State private var localText: String = ""
+
+    var body: some View {
+        Group {
+            if isSecure {
+                SecureField(title, text: $localText)
+            } else {
+                TextField(title, text: $localText)
+            }
+        }
+        .onAppear {
+            localText = text
+        }
+        .onChange(of: text) { _, newValue in
+            if localText != newValue {
+                localText = newValue
+            }
+        }
+        .onChange(of: localText) { _, newValue in
+            if text != newValue {
+                text = newValue
+            }
+            if localText != text {
+                localText = text
+            }
+        }
+    }
 }

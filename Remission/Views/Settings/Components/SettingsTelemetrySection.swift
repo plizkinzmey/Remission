@@ -6,7 +6,16 @@ struct SettingsTelemetrySection: View {
     let isUITesting: Bool
 
     var body: some View {
-        AppSectionCard(L10n.tr("settings.telemetry.section")) {
+        Section(
+            header: Text(L10n.tr("settings.telemetry.section")),
+            footer: VStack(alignment: .leading, spacing: 6) {
+                Text(L10n.tr("settings.telemetry.note"))
+                if let policyURL {
+                    Link(L10n.tr("settings.telemetry.policy"), destination: policyURL)
+                        .accessibilityIdentifier("settings_telemetry_policy_link")
+                }
+            }
+        ) {
             Toggle(
                 L10n.tr("settings.telemetry.toggle"),
                 isOn: Binding(
@@ -15,17 +24,6 @@ struct SettingsTelemetrySection: View {
                 )
             )
             .accessibilityIdentifier("settings_telemetry_toggle")
-
-            Text(L10n.tr("settings.telemetry.note"))
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            if let policyURL {
-                Link(L10n.tr("settings.telemetry.policy"), destination: policyURL)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("settings_telemetry_policy_link")
-            }
 
             if isUITesting {
                 // UITests stub — provide a predictable element for automation without

@@ -15,13 +15,48 @@ struct ServerConnectionFormState: Equatable, Sendable {
         }
     }
 
-    var name: String = ""
-    var host: String = ""
-    var port: String = "9091"
-    var path: String = "/transmission/rpc"
+    var name: String = "" {
+        didSet {
+            let cleaned = name.filtered(allowed: .serverNameCharacters)
+            if name != cleaned { name = cleaned }
+        }
+    }
+    var host: String = "" {
+        didSet {
+            let cleaned = host.replacingOccurrences(of: " ", with: "").filteredASCII(
+                allowed: .hostCharacters)
+            if host != cleaned { host = cleaned }
+        }
+    }
+    var port: String = "9091" {
+        didSet {
+            let digitsOnly = port.replacingOccurrences(of: " ", with: "").filtered(
+                allowed: .decimalDigits)
+            let limited = String(digitsOnly.prefix(5))
+            if port != limited { port = limited }
+        }
+    }
+    var path: String = "/transmission/rpc" {
+        didSet {
+            let cleaned = path.replacingOccurrences(of: " ", with: "").filteredASCII(
+                allowed: .pathCharacters)
+            if path != cleaned { path = cleaned }
+        }
+    }
     var transport: Transport = .http
-    var username: String = ""
-    var password: String = ""
+    var username: String = "" {
+        didSet {
+            let cleaned = username.replacingOccurrences(of: " ", with: "").filtered(
+                allowed: .usernameCharacters)
+            if username != cleaned { username = cleaned }
+        }
+    }
+    var password: String = "" {
+        didSet {
+            let cleaned = password.filtered(allowed: .passwordCharacters)
+            if password != cleaned { password = cleaned }
+        }
+    }
 
     init() {}
 

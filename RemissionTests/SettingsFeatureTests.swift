@@ -1,14 +1,11 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Settings Feature Tests")
 @MainActor
-struct SettingsFeatureTests {
-
-    @Test("Task loads preferences and session state")
+final class SettingsFeatureTests: XCTestCase {
     func testTask_LoadsData() async {
         let serverID = UUID()
         let prefs = UserPreferences.default
@@ -47,8 +44,6 @@ struct SettingsFeatureTests {
             $0.seedRatioLimitValue = session.seedRatioLimit.value
         }
     }
-
-    @Test("Polling interval changed sets pending changes")
     func testPollingIntervalChanged() async {
         let store = TestStore(
             initialState: SettingsReducer.State(serverID: UUID(), serverName: "Test")
@@ -61,8 +56,6 @@ struct SettingsFeatureTests {
             $0.hasPendingChanges = true
         }
     }
-
-    @Test("Save success updates persisted state and notifies delegate")
     func testSave_Success() async {
         let serverID = UUID()
         let initialPrefs = UserPreferences.default

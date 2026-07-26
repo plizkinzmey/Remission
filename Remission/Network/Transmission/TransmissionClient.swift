@@ -103,7 +103,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         clock: any Clock<Duration>,
         appLogger: AppLogger,
         category: String,
-        sessionConfiguration: URLSessionConfiguration? = nil
+        sessionConfiguration: URLSessionConfiguration? = nil,
+        trustStore: TransmissionTrustStore = TransmissionTrustStore()
     ) -> TransmissionClient {
         let context = TransmissionLogContext(
             serverID: config.serverID,
@@ -123,6 +124,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         return TransmissionClient(
             config: finalConfig,
             sessionConfiguration: sessionConfiguration,
+            trustStore: trustStore,
             clock: clock,
             appLogger: appLogger.withCategory(category),
             baseLogContext: context
@@ -327,7 +329,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     retryAttempt: &retryAttempt,
                     elapsedMs: Date().timeIntervalSince(attemptStartedAt) * 1_000
                 )
-                if remainingRetries > 0 && shouldRetryError {
+                if shouldRetryError {
                     continue
                 }
                 throw APIError.mapURLError(urlError)
@@ -555,9 +557,9 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     private func decodeJSONRPCResponse(from data: Data) throws -> TransmissionResponse {
         do {
             let response = try JSONDecoder().decode(JSONRPCResponse.self, from: data)
-            if let jsonrpc = response.jsonrpc, jsonrpc != "2.0" {
+            guard let jsonrpc = response.jsonrpc, jsonrpc == "2.0" else {
                 throw APIError.decodingFailed(
-                    underlyingError: "Unsupported jsonrpc version: \(jsonrpc)"
+                    underlyingError: "Unsupported jsonrpc version: \(response.jsonrpc ?? "null")"
                 )
             }
             if response.result != nil, response.error != nil {
@@ -637,7 +639,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
         if let resolved = await rpcModeStore.load() {
             return [resolved]
         }
-        return [.legacy, .jsonRpc2]
+        return [.jsonRpc2, .legacy]
     }
 
     private func persistResolvedModeIfNeeded(_ mode: TransmissionRPCMode) async {

@@ -2,22 +2,25 @@ import ComposableArchitecture
 import Dependencies
 import Foundation
 import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("TransmissionClientDependency Tests")
-struct TransmissionClientDependencyTests {
-    // Проверяет, что стандартная test-зависимость явно падает,
-    // если её не переопределили в тесте.
-    @Test
-    func defaultTestDependencyThrowsNotConfigured() async throws {
+final class TransmissionClientDependencyDefaultTests: XCTestCase {
+    func testDefaultTestDependencyThrowsNotConfigured() async throws {
         let dependencies = DependencyValues()
 
-        await #expect(throws: TransmissionClientDependencyError.self) {
+        do {
             _ = try await dependencies.transmissionClient.sessionGet()
+            XCTFail("Expected TransmissionClientDependencyError")
+        } catch {
+            XCTAssertTrue(error is TransmissionClientDependencyError)
         }
     }
+}
 
+@Suite("TransmissionClientDependency Tests")
+struct TransmissionClientDependencyTests {
     // Проверяет, что live(client:) корректно проксирует вызовы
     // к реальному TransmissionClientProtocol и возвращает его результат.
     @Test

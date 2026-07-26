@@ -13,7 +13,9 @@ struct HttpWarningPreferencesStore: Sendable {
 
 #if canImport(ComposableArchitecture)
     extension HttpWarningPreferencesStore: DependencyKey {
-        static let liveValue: HttpWarningPreferencesStore = .userDefaults()
+        static var liveValue: HttpWarningPreferencesStore {
+            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+        }
         static let previewValue: HttpWarningPreferencesStore = .inMemory()
         static let testValue: HttpWarningPreferencesStore = .inMemory()
     }

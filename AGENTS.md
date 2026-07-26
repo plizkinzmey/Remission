@@ -5,6 +5,28 @@ The codebase is organized around Point-Free's The Composable Architecture (TCA) 
 
 This document exists so you can start productive work immediately (without re-studying the repo).
 
+> [!IMPORTANT]
+> **CRITICAL RULE FOR AI AGENTS (Antigravity & Codex)**:
+> 1. **Xcode Native Interaction**: All project-related actions (file reading, editing, searching, compiling, checking issues, and running tests) **MUST** be performed using the native **`xcode-native` MCP tools** (e.g., `XcodeRead`, `XcodeWrite`, `XcodeUpdate`, `BuildProject`, `XcodeListNavigatorIssues`, `RunSomeTests`) instead of terminal commands or basic file utilities. This keeps the Xcode state in sync with the codebase.
+> 2. **Swift 6 Mode**: The project is compiled in **Swift 6 language mode** with strict concurrency checking enabled. All modifications must conform to strict concurrency guidelines (proper `Sendable` declarations, actor isolation, `@MainActor` usage, and avoiding thread-unsafe global state or mutable variables).
+> 3. **iOS Simulator**: For all iOS testing and simulation, **always use the iPhone 12 simulator** (`platform=iOS Simulator,name=iPhone 12`) to ensure consistency.
+> 4. **SwiftUI Previews**: Every screen and input form **MUST** have a `#Preview` macro configured with mock data or preset dependencies. This allows instant layout verification in Xcode without invoking live network requests or reading actual Keychain stores.
+> 5. **Safe Git Workflow & Hygiene**:
+>    * **Изоляция веток**: Разработка фич и исправление багов ведется строго в ветках `feat/*`, `fix/*` или `refactor/*`. Прямые коммиты в ветку `main` запрещены.
+>    * **Строгий TDD**: Разработка ведется по методологии Test-Driven Development (Red-Green-Refactor). Сначала пишется падающий/не компилирующийся тест, затем реализуется функциональность для его прохождения.
+>    * **Пре-анализ и Планирование**: До внесения любых изменений выполняется глубокий статический анализ существующего кода, создается и согласовывается с пользователем `implementation_plan.md`. Прогресс отслеживается в `task.md`.
+>    * **Атомные коммиты на РУССКОМ языке**: Коммиты должны быть частыми, мелкими и атомарными. Коммит-сообщения оформляются строго по стандарту Conventional Commits (например, `feat(settings): добавить выбор темы` или `fix(diagnostics): исправить гонку данных`) и пишутся **строго на русском языке** (как заголовок, так и подробное тело коммита).
+>    * **Ворота безопасности (Safety Gates)**: Перед каждым коммитом обязательно применение авто-форматирования (`swift-format`), линтинга (`swiftlint`), успешная сборка (`BuildProject`), успешное прохождение тестов (`RunSomeTests`) и отсутствие ошибок/предупреждений. Любые найденные errors или warnings должны быть видны в выводе и исправлены до коммита.
+> 6. **Post-Implementation Code Review & Reflection**: После реализации, Safety Gates и перед коммитом агент ОБЯЗАН переключиться из роли разработчика в роль ревьюера и выполнить `.agents/skills/code-review-reflection/SKILL.md`: проверить дубли, мертвый код, избыточность, Swift 6/TCA-архитектуру, актуальность API, наличие тестов и записать ретроспективу в `.agents/retrospectives/` для нетривиальных задач.
+> 7. **Sizing & UI Architecture Quality (Anti-Squeezing Gate)**:
+>    * **Бюджет ширины и плотности UI**: При изменении или добавлении размеров окон запрещено выбирать абстрактные "круглые" цифры (например, `800x600`) без проведения точного расчёта ширины всех колонок, полей и кнопок. Минимальные размеры должны исключать любое усечение текста (truncation), сжатие или наложения. Для основного многоколоночного экрана торрентов ширина должна быть не менее `920` пикселей.
+>    * **Чистота разметки SwiftUI**: Запрещено засорять SwiftUI-представления сложными тернарными выражениями и динамическими условиями внутри модификаторов `.frame(...)` на верхнем уровне. Все размеры должны быть инкапсулированы в метрические структуры/перечисления (например, `AppWindowMetrics`).
+>    * **Изоляция кода AppKit**: Вся логика настройки системного `NSWindow` и обработка AppKit-состояний должна быть вынесена в отдельные чистые методы, а не прописываться в виде громоздких инлайновых замыканий внутри SwiftUI `body`.
+>    * **Гигиена SwiftUI NavigationStack**: Избегайте размещения жестко закодированных контейнеров `NavigationStack` внутри переиспользуемых, вложенных или вспомогательных `View` (особенно тех, которые могут быть запушены во внешний стек навигации). Контейнер `NavigationStack` должен настраиваться на уровне презентации (модального окна `.sheet` или родительского экрана-координатора).
+>    * **Разделение Tap Targets в списках**: Запрещено вкладывать интерактивные элементы управления (action-кнопки, ссылки) непосредственно внутрь ячеек списков, которые сами по себе являются кнопками или имеют собственное действие при нажатии. Области нажатия ячейки строки и её вложенных элементов управления должны быть строго разделены.
+>    * **Ограничение на использование `ViewThatFits`**: Запрещено использовать адаптивный контейнер `ViewThatFits` внутри ячеек списков (`List`), секций списка или других контейнеров с отложенной/динамической загрузкой элементов на macOS, если это приводит к изменению высоты ячейки. Это провоцирует критические циклы пересчета высоты (`AttributeGraph: cycle detected`) и предупреждения о реентерабельной раскладке (`NSHostingView is being laid out reentrantly`). На macOS следует использовать фиксированную горизонтальную раскладку, а адаптивное поведение с `ViewThatFits` сохранять только для iOS с помощью `#if os(macOS)` / `#else`.
+
+
 ## Quick Start
 
 - Open in Xcode:
@@ -14,8 +36,10 @@ This document exists so you can start productive work immediately (without re-st
   - `swiftlint lint --fix`
 - Localizations sanity check:
   - `/Users/plizkinzmey/SRC/Remission/Scripts/check-localizations.sh`
+- Dead-code check:
+  - `/Users/plizkinzmey/SRC/Remission/Scripts/validate-dead-code.sh`
 - Run tests (examples):
-  - iOS simulator: `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 16e'`
+  - iOS simulator (iPhone 12): `xcodebuild test -scheme Remission -destination 'platform=iOS Simulator,name=iPhone 12'`
   - macOS smoke: `xcodebuild test -scheme Remission -sdk macosx`
 
 ## What Runs Where (Entry Points)
@@ -159,4 +183,3 @@ When a fixture/scenario is present, `RemissionApp` swaps dependencies to UI-test
 
 For diagrams and a more detailed architecture walkthrough, see:
 `/Users/plizkinzmey/SRC/Remission/Doc/ProjectMap.md`
-

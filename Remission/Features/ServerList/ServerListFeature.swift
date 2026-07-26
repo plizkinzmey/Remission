@@ -11,10 +11,10 @@ struct ServerListReducer {
         @Presents var alert: AlertState<Alert>?
         @Presents var deleteConfirmation: ConfirmationDialogState<DeleteConfirmationAction>?
         @Presents var serverForm: ServerFormReducer.State?
-        var hasPresentedInitialOnboarding: Bool = false
         var hasAutoSelectedSingleServer: Bool = false
         var isPreloaded: Bool = false
         var pendingDeletion: ServerConfig?
+        var pendingHTTPConnection: PendingHTTPConnection?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
 
@@ -38,6 +38,13 @@ struct ServerListReducer {
     enum Alert: Equatable {
         case comingSoon
         case dismiss
+        case confirmHTTPConnection
+        case cancelHTTPConnection
+    }
+
+    enum PendingHTTPConnection: Equatable {
+        case probe(UUID)
+        case selection(ServerConfig)
     }
 
     enum DeleteConfirmationAction: Equatable {
@@ -48,6 +55,7 @@ struct ServerListReducer {
     enum Delegate: Equatable {
         case serverSelected(ServerConfig)
         case serverCreated(ServerConfig)
+        case addServerRequested
     }
 
     @Dependency(\.onboardingProgressRepository) var onboardingProgressRepository
@@ -60,11 +68,11 @@ struct ServerListReducer {
 
     var body: some ReducerOf<Self> {
         Reduce { state, action in
-            .merge(
-                connectionReducer(state: &state, action: action),
-                managementReducer(state: &state, action: action),
-                storageReducer(state: &state, action: action)
-            )
+            var effects: [Effect<Action>] = []
+            effects.append(connectionReducer(state: &state, action: action))
+            effects.append(managementReducer(state: &state, action: action))
+            effects.append(storageReducer(state: &state, action: action))
+            return .merge(effects)
         }
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$deleteConfirmation, action: \.deleteConfirmation)

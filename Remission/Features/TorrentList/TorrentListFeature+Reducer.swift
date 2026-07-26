@@ -37,6 +37,7 @@ extension TorrentListReducer {
 
                 case .teardown:
                     state.isRefreshing = false
+                    state.isPollingActive = false
                     state.hasLoadedPreferences = false
                     state.offlineState = nil
                     state.errorPresenter.banner = nil
@@ -56,6 +57,7 @@ extension TorrentListReducer {
 
                 case .resetForReconnect:
                     state.isRefreshing = false
+                    state.isPollingActive = false
                     state.phase = .loading
                     state.items.removeAll()
                     state.storageSummary = nil
@@ -208,6 +210,7 @@ extension TorrentListReducer {
                     return .send(.delegate(.addTorrentRequested))
 
                 case .pollingTick:
+                    state.isPollingActive = false
                     if appLogger.isNoop == false {
                         appLogger.withCategory("torrent-list").debug(
                             "pollingTick",
@@ -479,6 +482,7 @@ extension TorrentListReducer {
                         state: &state,
                         hasVisibleChanges: hasVisibleChanges
                     )
+                    state.isPollingActive = true
                     return .merge(notificationsEffect, schedulePolling(after: nextInterval))
 
                 case .storageUpdated(let summary):
@@ -523,6 +527,7 @@ extension TorrentListReducer {
                             )
                         )
                     }
+                    state.isPollingActive = true
                     let retryEffect = schedulePolling(
                         after: backoffDelay(for: state.failedAttempts))
                     return retryEffect

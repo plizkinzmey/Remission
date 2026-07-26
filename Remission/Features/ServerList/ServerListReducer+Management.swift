@@ -6,12 +6,26 @@ extension ServerListReducer {
     func managementReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .addButtonTapped:
-            state.hasPresentedInitialOnboarding = true
-            state.serverForm = ServerFormReducer.State(mode: .add)
-            return .none
+            #if os(iOS)
+                return .send(.delegate(.addServerRequested))
+            #else
+                state.serverForm = ServerFormReducer.State(mode: .add)
+                return .none
+            #endif
 
         case .serverTapped(let id):
             guard let server = state.servers[id: id] else {
+                return .none
+            }
+            guard
+                server.usesInsecureTransport == false
+                    || httpWarningPreferencesStore.isSuppressed(server.httpWarningFingerprint)
+            else {
+                state.pendingHTTPConnection = .selection(server)
+                state.alert = AlertFactory.httpConnectionWarning(
+                    confirmAction: .confirmHTTPConnection,
+                    cancelAction: .cancelHTTPConnection
+                )
                 return .none
             }
             return .send(.delegate(.serverSelected(server)))
@@ -35,6 +49,30 @@ extension ServerListReducer {
             return .none
 
         case .alert(.presented(.dismiss)):
+            state.alert = nil
+            return .none
+
+        case .alert(.presented(.confirmHTTPConnection)):
+            guard let pending = state.pendingHTTPConnection else { return .none }
+            state.pendingHTTPConnection = nil
+            state.alert = nil
+            switch pending {
+            case .probe(let id):
+                guard let server = state.servers[id: id] else { return .none }
+                httpWarningPreferencesStore.setSuppressed(server.httpWarningFingerprint, true)
+                return .send(.connectionProbeRequested(id))
+            case .selection(let server):
+                httpWarningPreferencesStore.setSuppressed(server.httpWarningFingerprint, true)
+                return .send(.delegate(.serverSelected(server)))
+            }
+
+        case .alert(.presented(.cancelHTTPConnection)):
+            state.pendingHTTPConnection = nil
+            state.alert = nil
+            return .none
+
+        case .alert(.dismiss):
+            state.pendingHTTPConnection = nil
             state.alert = nil
             return .none
 

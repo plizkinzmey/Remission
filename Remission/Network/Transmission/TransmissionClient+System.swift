@@ -72,7 +72,12 @@ extension TransmissionClient {
             .stringValue
         let rpcMode: TransmissionRPCMode
         if config.rpcMode == .auto {
-            rpcMode = await rpcModeStore.load() ?? .legacy
+            if rpcVersion < 17 {
+                rpcMode = .legacy
+                await rpcModeStore.store(.legacy)
+            } else {
+                rpcMode = await rpcModeStore.load() ?? .legacy
+            }
         } else {
             rpcMode = config.rpcMode
         }

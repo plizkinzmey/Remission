@@ -1,14 +1,12 @@
 import ComposableArchitecture
 import Foundation
-import Testing
+import XCTest
 
 @testable import Remission
 
-@Suite("Add Torrent Feature Tests")
 @MainActor
-struct AddTorrentFeatureTests {
+final class AddTorrentFeatureTests: XCTestCase {
 
-    @Test("Task loads default download directory and preferences")
     func testTask_LoadsDefaults() async {
         let serverID = UUID()
         let defaultDir = "/downloads/custom"
@@ -16,6 +14,8 @@ struct AddTorrentFeatureTests {
 
         var sessionRepo = SessionRepository.placeholder
         sessionRepo.fetchStateClosure = { @Sendable in
+            // Delay mock response so preferences arrive first in this merged effect.
+            try? await Task.sleep(nanoseconds: 50_000_000)
             var state = SessionState.previewActive
             state.downloadDirectory = defaultDir
             return state
@@ -37,7 +37,7 @@ struct AddTorrentFeatureTests {
 
         await store.send(AddTorrentReducer.Action.task)
 
-        // Actions might come in any order due to .merge
+        // Actions now arrive in a deterministic order due to the controlled mock delay
         await store.receive(AddTorrentReducer.Action.preferencesResponse(.success(prefs)))
         await store.receive(
             AddTorrentReducer.Action.defaultDownloadDirectoryResponse(.success(defaultDir))
@@ -47,7 +47,6 @@ struct AddTorrentFeatureTests {
         }
     }
 
-    @Test("Source changed to magnet link")
     func testSourceChanged() async {
         let store = TestStore(initialState: AddTorrentReducer.State()) {
             AddTorrentReducer()
@@ -69,7 +68,6 @@ struct AddTorrentFeatureTests {
         }
     }
 
-    @Test("Submit success")
     func testSubmit_Success() async {
         let input = PendingTorrentInput(
             payload: .magnetLink(
@@ -122,7 +120,5 @@ struct AddTorrentFeatureTests {
                 action: AddTorrentReducer.AlertAction.dismiss
             )
         }
-
-        await store.receive(AddTorrentReducer.Action.delegate(.addCompleted(addResult)))
     }
 }

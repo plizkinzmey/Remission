@@ -57,6 +57,89 @@ struct ServerConfigurationReducerTests {
         }
     }
 
+    @Test("HTTP требует подтверждения перед проверкой соединения")
+    func testHTTPConnectionRequiresConfirmation() async {
+        var state = ServerConfigurationReducer.State()
+        state.form.host = "nas.local"
+        state.form.port = "9091"
+        state.form.username = "alice"
+        state.form.password = "secret"
+
+        let fixedID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let server = state.form.makeServerConfig(id: fixedID, createdAt: fixedDate)
+        let context = ServerSubmissionContext(server: server, password: "secret")
+
+        let store = TestStore(initialState: state) {
+            ServerConfigurationReducer()
+        } withDependencies: {
+            $0.uuidGenerator.generate = { fixedID }
+            $0.dateProvider.now = { fixedDate }
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+
+        await store.send(.checkConnectionButtonTapped) {
+            $0.pendingHTTPSubmission = context
+            $0.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+    }
+
+    @Test("Подтверждение HTTP запускает проверку соединения")
+    func testConfirmedHTTPConnectionStartsProbe() async {
+        var state = ServerConfigurationReducer.State()
+        state.form.host = "nas.local"
+        state.form.port = "9091"
+        state.form.username = "alice"
+        state.form.password = "secret"
+
+        let fixedID = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+        let fixedDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let server = state.form.makeServerConfig(id: fixedID, createdAt: fixedDate)
+        let context = ServerSubmissionContext(server: server, password: "secret")
+        let handshake = TransmissionHandshakeResult(
+            sessionID: "session",
+            rpcVersion: 17,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0.0",
+            isCompatible: true
+        )
+
+        let store = TestStore(initialState: state) {
+            ServerConfigurationReducer()
+        } withDependencies: {
+            $0.uuidGenerator.generate = { fixedID }
+            $0.dateProvider.now = { fixedDate }
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+            $0.serverConnectionProbe.run = { @Sendable _, _ in
+                .init(handshake: handshake)
+            }
+        }
+
+        await store.send(.checkConnectionButtonTapped) {
+            $0.pendingHTTPSubmission = context
+            $0.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+
+        await store.send(.alert(.presented(.confirmHTTPConnection))) {
+            $0.pendingHTTPSubmission = nil
+            $0.alert = nil
+            $0.connectionStatus = .testing
+            $0.verifiedSubmission = context
+        }
+
+        await store.receive(.connectionTestFinished(.success(handshake))) {
+            $0.connectionStatus = .success(handshake)
+        }
+
+        await store.receive(.delegate(.connectionVerified(context)))
+    }
+
     @Test("UI тест обхода соединения возвращает verifiedSubmission")
     func testUiTestBypassConnection() async {
         // Проверяем, что uiTestBypassConnection помечает соединение успешным и сообщает delegate.

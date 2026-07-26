@@ -24,22 +24,64 @@ import SwiftUI
         }
     }
 
-    struct MacWindowConfigurator: NSViewRepresentable {
-        let configure: (NSWindow) -> Void
-
-        func makeNSView(context: Context) -> NSView {
-            let view = NSView()
-            DispatchQueue.main.async { [weak view] in
-                guard let window = view?.window else { return }
-                configure(window)
+    @MainActor
+    class ConfiguratorNSView: NSView {
+        var isFixedSize: Bool = false {
+            didSet {
+                if let window = window {
+                    let configureBlock = configure
+                    let fixedSize = isFixedSize
+                    DispatchQueue.main.async {
+                        configureBlock?(window, fixedSize)
+                    }
+                }
             }
+        }
+        var configure: ((NSWindow, Bool) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let window = window {
+                let configureBlock = configure
+                let fixedSize = isFixedSize
+                DispatchQueue.main.async {
+                    configureBlock?(window, fixedSize)
+                }
+            }
+        }
+    }
+
+    struct MacWindowConfigurator: NSViewRepresentable {
+        let isFixedSize: Bool
+        let configure: (NSWindow, Bool) -> Void
+
+        init(isFixedSize: Bool, configure: @escaping (NSWindow, Bool) -> Void) {
+            self.isFixedSize = isFixedSize
+            self.configure = configure
+        }
+
+        init(configure: @escaping (NSWindow) -> Void) {
+            self.isFixedSize = false
+            self.configure = { window, _ in configure(window) }
+        }
+
+        func makeNSView(context: Context) -> ConfiguratorNSView {
+            let view = ConfiguratorNSView()
+            view.configure = configure
+            view.isFixedSize = isFixedSize
             return view
         }
 
-        func updateNSView(_ nsView: NSView, context _: Context) {
-            DispatchQueue.main.async { [weak nsView] in
-                guard let window = nsView?.window else { return }
-                configure(window)
+        func updateNSView(_ nsView: ConfiguratorNSView, context _: Context) {
+            nsView.configure = configure
+            if nsView.isFixedSize != isFixedSize {
+                nsView.isFixedSize = isFixedSize
+            } else if let window = nsView.window {
+                let configureBlock = configure
+                let fixedSize = isFixedSize
+                DispatchQueue.main.async {
+                    configureBlock(window, fixedSize)
+                }
             }
         }
     }
