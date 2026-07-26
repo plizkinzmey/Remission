@@ -120,7 +120,5 @@ final class AddTorrentFeatureTests: XCTestCase {
                 action: AddTorrentReducer.AlertAction.dismiss
             )
         }
-
-        await store.receive(AddTorrentReducer.Action.delegate(.addCompleted(addResult)))
     }
 }

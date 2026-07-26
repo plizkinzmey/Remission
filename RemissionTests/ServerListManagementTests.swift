@@ -1,26 +1,27 @@
 import ComposableArchitecture
 import Foundation
-import XCTest
+import Testing
 
 @testable import Remission
 
+@Suite("Server List Management Tests")
 @MainActor
-final class ServerListManagementTests: XCTestCase {
+struct ServerListManagementTests {
+
+    @Test("Add button открывает форму добавления")
     func testAddButtonTapped() async {
-        // Проверяем, что addButtonTapped открывает форму.
+        // Проверяем, что addButtonTapped открывает форму и помечает onboarding показанным.
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
         }
 
-        #if os(macOS)
-            await store.send(.addButtonTapped) {
-                $0.serverForm = ServerFormReducer.State(mode: .add)
-            }
-        #else
-            await store.send(.addButtonTapped)
-            await store.receive(.delegate(.addServerRequested))
-        #endif
+        await store.send(.addButtonTapped) {
+            $0.hasPresentedInitialOnboarding = true
+            $0.serverForm = ServerFormReducer.State(mode: .add)
+        }
     }
+
+    @Test("Edit button открывает форму редактирования")
     func testEditButtonTapped() async {
         // Проверяем, что editButtonTapped открывает форму редактирования выбранного сервера.
         let server = ServerConfig.previewLocalHTTP
@@ -35,6 +36,28 @@ final class ServerListManagementTests: XCTestCase {
             $0.serverForm = ServerFormReducer.State(mode: .edit(server))
         }
     }
+
+    @Test("HTTP сервер требует подтверждения перед открытием")
+    func testHTTPServerSelectionRequiresConfirmation() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerListReducer.State(servers: [server])
+        ) {
+            ServerListReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+
+        await store.send(.serverTapped(server.id)) {
+            $0.pendingHTTPConnection = .selection(server)
+            $0.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+    }
+
+    @Test("Удаление сервера отправляет запрос в репозиторий")
     func testDeleteServerFlow() async {
         // Проверяем полный сценарий: подтверждение удаления -> вызов репозитория -> обновление списка.
         let server = ServerConfig.previewLocalHTTP
@@ -73,6 +96,8 @@ final class ServerListManagementTests: XCTestCase {
             $0.servers = []
         }
     }
+
+    @Test("Создание сервера добавляет в список и запускает probe")
     func testServerFormDidCreate() async {
         // Проверяем, что didCreate добавляет сервер и запускает connectionProbe.
         var serverConfig = ServerConfig.previewLocalHTTP
@@ -87,6 +112,7 @@ final class ServerListManagementTests: XCTestCase {
         {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { _, _ in .init(handshake: handshake) }
             $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in
                 .testEnvironment(

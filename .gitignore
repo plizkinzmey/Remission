@@ -79,4 +79,7 @@ build.log
 test_output.txt
 gha-creds-*.json
 .github
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
 .swiftlint-cache/

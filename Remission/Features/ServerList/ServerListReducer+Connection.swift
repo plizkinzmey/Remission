@@ -38,8 +38,12 @@ extension ServerListReducer {
             if shouldAutoSelect {
                 state.hasAutoSelectedSingleServer = true
             }
-            return .run { [servers, shouldAutoSelect] send in
-                for server in servers {
+            let serversToProbe = servers.filter {
+                $0.usesInsecureTransport == false
+                    || httpWarningPreferencesStore.isSuppressed($0.httpWarningFingerprint)
+            }
+            return .run { [serversToProbe, servers, shouldAutoSelect] send in
+                for server in serversToProbe {
                     await send(.connectionProbeRequested(server.id))
                 }
                 if shouldAutoSelect, let server = servers.first {
@@ -58,6 +62,17 @@ extension ServerListReducer {
 
         case .connectionProbeRequested(let id):
             guard let server = state.servers[id: id] else { return .none }
+            guard
+                server.usesInsecureTransport == false
+                    || httpWarningPreferencesStore.isSuppressed(server.httpWarningFingerprint)
+            else {
+                state.pendingHTTPConnection = .probe(id)
+                state.alert = AlertFactory.httpConnectionWarning(
+                    confirmAction: .confirmHTTPConnection,
+                    cancelAction: .cancelHTTPConnection
+                )
+                return .none
+            }
             if state.connectionStatuses[id]?.isProbing == true {
                 return .none
             }

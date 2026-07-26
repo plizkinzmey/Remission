@@ -1254,6 +1254,54 @@
         }
       }
     },
+    "server.alert.httpWarning.confirm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect via HTTP"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Подключиться по HTTP"
+          }
+        }
+      }
+    },
+    "server.alert.httpWarning.message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP does not encrypt your server credentials or traffic. Continue only on a trusted network."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HTTP не шифрует учётные данные и трафик к серверу. Продолжайте только в доверенной сети."
+          }
+        }
+      }
+    },
+    "server.alert.httpWarning.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unencrypted connection"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Незашифрованное соединение"
+          }
+        }
+      }
+    },
     "serverDetail.alert.trustReset.confirm" : {
       "localizations" : {
         "en" : {

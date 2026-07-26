@@ -64,6 +64,19 @@ enum AlertFactory {
         }
     }
 
+    static func httpConnectionWarning<Action>(
+        confirmAction: Action,
+        cancelAction: Action
+    ) -> AlertState<Action> {
+        confirmation(
+            title: L10n.tr("server.alert.httpWarning.title"),
+            message: L10n.tr("server.alert.httpWarning.message"),
+            confirmText: L10n.tr("server.alert.httpWarning.confirm"),
+            confirmAction: confirmAction,
+            cancelAction: cancelAction
+        )
+    }
+
     /// Создает алерт об успешном добавлении торрента.
     static func torrentAdded<Action>(
         name: String,

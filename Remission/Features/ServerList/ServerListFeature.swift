@@ -14,6 +14,7 @@ struct ServerListReducer {
         var hasAutoSelectedSingleServer: Bool = false
         var isPreloaded: Bool = false
         var pendingDeletion: ServerConfig?
+        var pendingHTTPConnection: PendingHTTPConnection?
         var connectionStatuses: [UUID: ConnectionStatus] = [:]
     }
 
@@ -37,6 +38,13 @@ struct ServerListReducer {
     enum Alert: Equatable {
         case comingSoon
         case dismiss
+        case confirmHTTPConnection
+        case cancelHTTPConnection
+    }
+
+    enum PendingHTTPConnection: Equatable {
+        case probe(UUID)
+        case selection(ServerConfig)
     }
 
     enum DeleteConfirmationAction: Equatable {

@@ -88,6 +88,7 @@ struct ErrorPresenter<Retry: Equatable & Sendable>: Sendable {
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 
     private func makeAlert(

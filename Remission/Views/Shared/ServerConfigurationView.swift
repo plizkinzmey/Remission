@@ -8,36 +8,29 @@ struct ServerConfigurationView: View {
     var submissionLabel: String = ""
 
     var body: some View {
-        Form {
+        VStack(alignment: .leading, spacing: 12) {
             ServerConnectionFormFields(form: $store.form)
 
             if let validationError = store.validationError {
-                Section {
-                    errorText(validationError)
-                }
+                errorText(validationError)
             }
 
             if case .failed(let message) = store.connectionStatus {
-                Section {
-                    errorText(message)
-                }
+                errorText(message)
             }
 
             #if os(iOS)
-                Section {
-                    checkConnectionButton
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
+                checkConnectionButton
+                    .frame(maxWidth: .infinity, alignment: .center)
             #endif
         }
         .disabled(isSubmitting)
-        .blur(radius: isSubmitting ? 2 : 0)
         .overlay {
             if isSubmitting {
                 submissionOverlay
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: isSubmitting)
+        .alert($store.scope(state: \.alert, action: \.alert))
     }
 
     private func errorText(_ message: String) -> some View {
@@ -58,29 +51,21 @@ struct ServerConfigurationView: View {
             }
         }
         .disabled(store.isCheckButtonDisabled || store.form.isFormValid == false)
-        .buttonStyle(.bordered)
-        .tint(checkConnectionTint)
-    }
-
-    private var checkConnectionTint: Color? {
-        switch store.checkConnectionButtonVariant {
-        case .accent: return .accentColor
-        case .success: return .green
-        case .error: return .red
-        case .neutral: return nil
-        }
+        .buttonStyle(AppFooterButtonStyle(variant: store.checkConnectionButtonVariant))
     }
 
     @ViewBuilder
     private var submissionOverlay: some View {
-        ProgressView(submissionLabel)
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: AppTheme.Radius.card)
-                    .fill(.ultraThinMaterial)
-                    .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
-            )
-            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+        ZStack {
+            Color.secondary.opacity(0.2)
+                .ignoresSafeArea()
+            ProgressView(submissionLabel)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Radius.card)
+                        .fill(.ultraThinMaterial)
+                )
+        }
     }
 }
 

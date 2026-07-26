@@ -78,7 +78,7 @@ struct TransmissionClientTorrentTests {
         }
 
         let client = makeTorrentClient()
-        await client.rpcVersionStore.store(17)  // Ensure labels are supported
+        await client.rpcVersionStore.store(17)
         _ = try await client.torrentAdd(
             filename: "magnet:?xt=urn:btih:123",
             metainfo: metainfo,

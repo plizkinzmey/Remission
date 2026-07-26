@@ -76,6 +76,8 @@ struct ServerDetailReducer {
         case dismiss
         case confirmDeletion
         case cancelDeletion
+        case confirmHTTPConnection
+        case cancelHTTPConnection
     }
 
     enum Delegate: Equatable {

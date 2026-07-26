@@ -8,7 +8,6 @@ import XCTest
 final class ServerDetailFeatureTests: XCTestCase {
     func testTask_StartsConnection() async {
         let server = ServerConfig.sample
-        let environment = ServerConnectionEnvironment.preview(server: server)
         let gate = PreferencesGate()
         let handshake = TransmissionHandshakeResult(
             sessionID: "preview-session",
@@ -17,10 +16,16 @@ final class ServerDetailFeatureTests: XCTestCase {
             serverVersionDescription: "Transmission Preview",
             isCompatible: true
         )
+        let environment = ServerConnectionEnvironment.testEnvironment(
+            server: server,
+            handshake: handshake
+        )
 
         let store = TestStore(initialState: ServerDetailReducer.State(server: server)) {
             ServerDetailReducer()
         } withDependencies: {
+            // Этот сценарий проверяет подключение, а не подтверждение HTTP.
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in environment }
             $0.userPreferencesRepository.loadClosure = { @Sendable _ in
                 await gate.wait()
@@ -29,7 +34,6 @@ final class ServerDetailFeatureTests: XCTestCase {
             $0.userPreferencesRepository.observeClosure = { @Sendable _ in
                 AsyncStream { $0.finish() }
             }
-            $0.transmissionClient.performHandshake = { @Sendable in handshake }
             $0.appClock.clock = { @Sendable in ContinuousClock() }
         }
 

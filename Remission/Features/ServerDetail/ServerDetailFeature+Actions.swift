@@ -7,6 +7,16 @@ extension ServerDetailReducer {
         state: inout State,
         force: Bool
     ) -> Effect<Action> {
+        guard
+            state.server.usesInsecureTransport == false
+                || httpWarningPreferencesStore.isSuppressed(state.server.httpWarningFingerprint)
+        else {
+            state.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+            return .none
+        }
         guard case .connecting = state.connectionState.phase,
             force == false
         else {

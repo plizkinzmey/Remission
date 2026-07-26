@@ -1,6 +1,6 @@
 import ComposableArchitecture
 import SwiftUI
-import XCTest
+import Testing
 
 @testable import Remission
 
@@ -10,9 +10,11 @@ import XCTest
     import UIKit
 #endif
 
+@Suite("Add Torrent View Coverage")
 @MainActor
-final class AddTorrentViewCoverageTests: XCTestCase {
-    func testAddTorrentViewsRenderForMagnetAndFileSources() {
+struct AddTorrentViewCoverageTests {
+    @Test
+    func addTorrentViewsRenderForMagnetAndFileSources() {
         let magnetStore = makeAddTorrentStore(isMagnet: true)
         let magnetView = AddTorrentView(store: magnetStore)
         host(magnetView)
@@ -36,8 +38,10 @@ final class AddTorrentViewCoverageTests: XCTestCase {
         let fileSourceSection = AddTorrentSourceSection(store: fileStore)
         host(fileSourceSection)
 
-        XCTAssertTrue(magnetStore.state.source == .magnetLink)
-        XCTAssertTrue(fileStore.state.source == .torrentFile)
+        let magnetSource = magnetStore.state.source
+        let fileSource = fileStore.state.source
+        #expect(magnetSource == .magnetLink)
+        #expect(fileSource == .torrentFile)
     }
 }
 

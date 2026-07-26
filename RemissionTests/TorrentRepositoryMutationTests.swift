@@ -17,19 +17,16 @@ struct TorrentRepositoryMutationTests {
         let response = try TransmissionFixtureLoader.loadResponse(
             "Torrents/torrent-add.success.magnet.json"
         )
-        let recorder = AddRecorder()
-
         let client = makeClient(
             torrentAdd: { filename, metainfo, downloadDir, paused, labels in
-                await recorder.record(
-                    filename: filename,
-                    metainfo: metainfo,
-                    downloadDir: downloadDir,
-                    paused: paused,
-                    labels: labels
-                )
+                #expect(filename == magnetURL.absoluteString)
+                #expect(metainfo == nil)
+                #expect(downloadDir == "/downloads")
+                #expect(paused == true)
+                #expect(labels == ["linux"])
                 return response
-            }
+            },
+            checkServerVersion: { (compatible: true, rpcVersion: 17) }
         )
 
         let closure = TorrentRepository.makeAddClosure(
@@ -38,12 +35,6 @@ struct TorrentRepositoryMutationTests {
         )
 
         let result = try await closure(input, "/downloads", true, ["linux"])
-
-        #expect(await recorder.filename == magnetURL.absoluteString)
-        #expect(await recorder.metainfo == nil)
-        #expect(await recorder.downloadDir == "/downloads")
-        #expect(await recorder.paused == true)
-        #expect(await recorder.labels == ["linux"])
 
         #expect(result.status == .added)
         #expect(result.id.rawValue == 8)
@@ -216,28 +207,6 @@ struct TorrentRepositoryMutationTests {
     }
 }
 
-private actor AddRecorder {
-    private(set) var filename: String?
-    private(set) var metainfo: Data?
-    private(set) var downloadDir: String?
-    private(set) var paused: Bool?
-    private(set) var labels: [String]?
-
-    func record(
-        filename: String?,
-        metainfo: Data?,
-        downloadDir: String?,
-        paused: Bool?,
-        labels: [String]?
-    ) {
-        self.filename = filename
-        self.metainfo = metainfo
-        self.downloadDir = downloadDir
-        self.paused = paused
-        self.labels = labels
-    }
-}
-
 private actor SetRecorder {
     private(set) var ids: [Int]?
     private(set) var arguments: AnyCodable?
@@ -258,9 +227,7 @@ private func makeClient(
     torrentSet: @escaping @Sendable ([Int], AnyCodable) async throws -> TransmissionResponse =
         { _, _ in fatalError("unused in tests") },
     checkServerVersion: @escaping @Sendable () async throws -> (compatible: Bool, rpcVersion: Int) =
-        {
-            (true, 17)
-        }
+        { (compatible: true, rpcVersion: 17) }
 ) -> TransmissionClientDependency {
     TransmissionClientDependency(
         sessionGet: { fatalError("unused in tests") },

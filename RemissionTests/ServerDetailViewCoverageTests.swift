@@ -1,12 +1,14 @@
 import ComposableArchitecture
 import SwiftUI
-import XCTest
+import Testing
 
 @testable import Remission
 
+@Suite("Server Detail View Coverage")
 @MainActor
-final class ServerDetailViewCoverageTests: XCTestCase {
-    func testServerDetailViewRendersConnectingState() {
+struct ServerDetailViewCoverageTests {
+    @Test
+    func serverDetailViewRendersConnectingState() {
         var state = ServerDetailReducer.State(server: ServerConfig.sample)
         state.connectionState.phase = .connecting
         let store = Store(initialState: state) {
@@ -18,9 +20,12 @@ final class ServerDetailViewCoverageTests: XCTestCase {
         let view = ServerDetailView(store: store)
         _ = view.body
 
-        XCTAssertTrue(store.state.connectionState.isBlockingInteractions)
+        let isBlocking = store.state.connectionState.isBlockingInteractions
+        #expect(isBlocking)
     }
-    func testConnectionCardRendersOfflineAndFailedStates() {
+
+    @Test
+    func connectionCardRendersOfflineAndFailedStates() {
         var errorPresenter = ErrorPresenter<ServerDetailReducer.ErrorRetry>.State()
         errorPresenter.banner = .init(message: "Offline", retry: .reconnect)
 
@@ -47,7 +52,9 @@ final class ServerDetailViewCoverageTests: XCTestCase {
         )
         _ = failedView.body
     }
-    func testConnectionPillRenders() {
+
+    @Test
+    func connectionPillRenders() {
         let pill = ServerDetailConnectionPill()
         _ = pill.body
     }
