@@ -394,6 +394,93 @@ struct TorrentListFeatureTests {
         await store.finish()
     }
 
+    // MARK: - Polling Lifecycle (isPollingActive)
+
+    @Test("Teardown sets polling inactive")
+    func testTeardownSetsPollingInactive() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded,
+                isPollingActive: true
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.teardown) {
+            $0.isPollingActive = false
+            $0.isRefreshing = false
+            $0.hasLoadedPreferences = false
+        }
+
+        await store.finish()
+    }
+
+    @Test("ResetForReconnect sets polling inactive")
+    func testResetForReconnectSetsPollingInactive() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded,
+                isPollingActive: true
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.resetForReconnect) {
+            $0.isPollingActive = false
+            $0.isRefreshing = false
+            $0.phase = .loading
+        }
+
+        await store.finish()
+    }
+
+    @Test("Polling becomes active after successful fetch")
+    func testPollingBecomesActiveAfterSuccess() async {
+        let clock = TestClock()
+        let torrents = [Torrent.previewDownloading]
+
+        let store = TestStoreFactory.makeTestStore(
+            initialState: TorrentListReducer.State(
+                serverID: serverID,
+                connectionEnvironment: .previewValue,
+                phase: .loaded
+            ),
+            reducer: TorrentListReducer()
+        ) {
+            $0.appClock = .test(clock: clock)
+            $0.torrentRepository.fetchListClosure = { @Sendable in torrents }
+        }
+
+        await store.send(.refreshRequested) {
+            $0.isRefreshing = true
+            $0.failedAttempts = 0
+            $0.offlineState = nil
+        }
+
+        await store.receive(\.torrentsResponse.success) {
+            $0.isPollingActive = true
+            $0.phase = .loaded
+        }
+
+        await store.finish()
+    }
+
     private func makeEnvironment(
         torrentRepository: TorrentRepository
     ) -> ServerConnectionEnvironment {

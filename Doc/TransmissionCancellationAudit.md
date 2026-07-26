@@ -162,3 +162,56 @@ Stage 4 выявил, что:
 4. **Production-код менять не нужно** — архитектура уже тестируема, проблема в тестовой инфраструктуре
 
 **Рекомендация**: Вернуться к тестированию polling/cancellation после рефакторинга TestStore usage или после создания PollingCoordinator.
+
+---
+
+## Stage 5: Minimal Test Seam for Polling Lifecycle
+
+Date: 2026-06-22
+Branch: feature/stage-5-transmission-cancellation-seam
+
+### Какой seam добавлен
+
+**Seam**: `isPollingActive` state property — observable boolean в `TorrentListReducer.State`, который отражает lifecycle polling effect.
+
+**Почему он минимальный**:
+- 1 строка в State struct
+- 5 строк в reducer (set true/false в relevant action handlers)
+- Не меняет behavior, только добавляет observable state
+
+### Какие файлы изменены
+
+| File | Change |
+|---|---|
+| `TorrentListFeature+Types.swift` | Добавлено `var isPollingActive: Bool = false` в State |
+| `TorrentListFeature+Reducer.swift` | `isPollingActive = false` в `.teardown`, `.resetForReconnect`, `.pollingTick`; `isPollingActive = true` перед `schedulePolling` |
+| `TorrentListFeatureTests.swift` | 3 новых теста |
+
+### Какие тесты добавлены
+
+| Test | What it verifies |
+|---|---|
+| `testTeardownSetsPollingInactive` | `.teardown` устанавливает `isPollingActive = false` |
+| `testResetForReconnectSetsPollingInactive` | `.resetForReconnect` устанавливает `isPollingActive = false` |
+| `testPollingBecomesActiveAfterSuccess` | после `torrentsResponse(.success)` polling активен |
+
+### Что теперь покрыто
+
+1. **Polling lifecycle observable** — `isPollingActive` отражает статус polling effect
+2. **Teardown cancellation** — `.teardown` сбрасывает `isPollingActive`
+3. **Reconnect cancellation** — `.resetForReconnect` сбрасывает `isPollingActive`
+4. **Polling activation** — polling становится активным после успешного fetch
+
+### Что осталось непокрытым
+
+| Scenario | Why not covered | What's needed |
+|---|---|---|
+| Repeated start doesn't create second loop | TestStore hangs on pending effects | TestStore fix or PollingCoordinator |
+| Cancellation stops network requests | TestStore hangs on pending effects | TestStore fix or PollingCoordinator |
+| Adaptive polling interval changes | TestStore hangs on pending effects | Extract to pure function (already done, but TestStore issue remains) |
+| Max retry attempts limit | TestStore hangs on pending effects | Extract to pure function (already done) |
+
+### Какие риски остались
+
+1. **TestStore limitation** — основная проблема TestStore с long-living effects не решена. Seam добавляет observable state, но не позволяет тестировать cancellation через TestStore без хрупкого timing.
+2. **Production code change** — добавлено поле в State, которое не используется в production logic. Это безопасно, но增加了 conceptual overhead.

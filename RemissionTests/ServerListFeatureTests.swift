@@ -42,6 +42,7 @@ struct ServerListFeatureTests {
         let store = TestStore(initialState: ServerListReducer.State()) {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConfigRepository.load = { @Sendable in [server] }
             $0.serverConnectionProbe.run = { @Sendable _, _ in probeResult }
             $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in .previewValue }

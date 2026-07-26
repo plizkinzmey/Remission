@@ -124,6 +124,7 @@ struct ServerFormReducer {
                 return .none
             }
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 
     private func performSave(state: inout State) -> Effect<Action> {

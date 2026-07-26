@@ -38,8 +38,10 @@ struct AddTorrentViewCoverageTests {
         let fileSourceSection = AddTorrentSourceSection(store: fileStore)
         host(fileSourceSection)
 
-        #expect(magnetStore.withState { $0.source == .magnetLink })
-        #expect(fileStore.withState { $0.source == .torrentFile })
+        let magnetSource = magnetStore.state.source
+        let fileSource = fileStore.state.source
+        #expect(magnetSource == .magnetLink)
+        #expect(fileSource == .torrentFile)
     }
 }
 

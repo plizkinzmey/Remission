@@ -8,6 +8,25 @@ import Testing
 @MainActor
 struct ServerDetailFeatureConnectionTests {
 
+    @Test("HTTP сервер требует подтверждения перед подключением")
+    func testHTTPConnectionRequiresConfirmation() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+
+        await store.send(.retryConnectionButtonTapped) {
+            $0.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+    }
+
     @Test("Успешное подключение обновляет состояние и окружение")
     func testConnectionResponseSuccess() async {
         // Проверяем, что успешный handshake обновляет состояние подключения и
@@ -149,6 +168,14 @@ struct ServerDetailFeatureConnectionTests {
         // сбросу списка и повторному подключению.
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
+        let handshakeGate = HandshakeGate()
+        let reconnectHandshake = TransmissionHandshakeResult(
+            sessionID: "reconnect",
+            rpcVersion: 18,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: "Transmission 4.0.0",
+            isCompatible: true
+        )
 
         var updatedServer = server
         updatedServer.connection.host = "new-host.local"
@@ -177,8 +204,20 @@ struct ServerDetailFeatureConnectionTests {
         state.torrentList.phase = .loaded
         state.editor = ServerFormReducer.State(mode: .edit(server))
 
+        var client = TransmissionClientDependency.placeholder
+        client.performHandshake = {
+            await handshakeGate.wait()
+            return reconnectHandshake
+        }
+        let reconnectEnvironment = ServerConnectionEnvironment.testEnvironment(
+            server: updatedServer,
+            transmissionClient: client
+        )
         let store = TestStore(initialState: state) {
             ServerDetailReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
+            $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in reconnectEnvironment }
         }
         store.exhaustivity = .off
 
@@ -196,10 +235,33 @@ struct ServerDetailFeatureConnectionTests {
             $0.torrentList.isAwaitingConnection = true
             $0.torrentList.phase = .loading
         }
+
+        await handshakeGate.open()
     }
 }
 
 private struct TestError: LocalizedError, Equatable {
     let message: String
     var errorDescription: String? { message }
+}
+
+private actor HandshakeGate {
+    private var isOpen = false
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    func wait() async {
+        if isOpen {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func open() {
+        guard isOpen == false else { return }
+        isOpen = true
+        continuation?.resume()
+        continuation = nil
+    }
 }

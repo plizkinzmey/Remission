@@ -44,6 +44,15 @@ extension ServerDetailReducer {
             )
             return .none
 
+        case .alert(.presented(.confirmHTTPConnection)):
+            state.alert = nil
+            httpWarningPreferencesStore.setSuppressed(state.server.httpWarningFingerprint, true)
+            return .send(.retryConnectionButtonTapped)
+
+        case .alert(.presented(.cancelHTTPConnection)):
+            state.alert = nil
+            return .none
+
         case .resetTrustButtonTapped:
             state.alert = AlertFactory.confirmation(
                 title: L10n.tr("serverDetail.alert.trustReset.title"),

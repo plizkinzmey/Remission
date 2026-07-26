@@ -73,4 +73,7 @@ build.log
 .gemini/
 gha-creds-*.json
 .github
+!.github/
+!.github/workflows/
+!.github/workflows/*.yml
 .swiftlint-cache/

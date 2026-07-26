@@ -27,6 +27,7 @@ struct ServerListConnectionTests {
         let store = TestStore(initialState: state) {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { @Sendable _, _ in result }
             $0.credentialsRepository.load = { @Sendable _ in
                 TransmissionServerCredentials(
@@ -60,6 +61,7 @@ struct ServerListConnectionTests {
         let store = TestStore(initialState: state) {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { @Sendable _, _ in throw error }
             $0.credentialsRepository.load = { @Sendable _ in
                 TransmissionServerCredentials(
@@ -90,6 +92,7 @@ struct ServerListConnectionTests {
         let store = TestStore(initialState: state) {
             ServerListReducer()
         } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.credentialsRepository.load = { @Sendable _ in nil }
         }
         store.exhaustivity = .off

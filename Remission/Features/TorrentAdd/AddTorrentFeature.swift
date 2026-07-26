@@ -88,7 +88,6 @@ struct AddTorrentReducer {
 
     enum Delegate: Equatable {
         case closeRequested
-        case addCompleted(TorrentRepository.AddResult)
     }
 
     enum AlertAction: Equatable {
@@ -256,7 +255,6 @@ struct AddTorrentReducer {
                     action: .dismiss
                 )
                 return .merge(
-                    .send(.delegate(.addCompleted(result.addResult))),
                     persistRecentDownloadDirectories(state: &state)
                 )
 

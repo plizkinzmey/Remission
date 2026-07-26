@@ -9,6 +9,8 @@ struct ServerConfigurationReducer {
         var validationError: String?
         var connectionStatus: ServerConnectionStatus = .idle
         var verifiedSubmission: ServerSubmissionContext?
+        var pendingHTTPSubmission: ServerSubmissionContext?
+        @Presents var alert: AlertState<AlertAction>?
 
         var isCheckButtonDisabled: Bool {
             connectionStatus == .testing
@@ -19,6 +21,7 @@ struct ServerConfigurationReducer {
         case binding(BindingAction<State>)
         case checkConnectionButtonTapped
         case connectionTestFinished(ServerConnectionTestResult)
+        case alert(PresentationAction<AlertAction>)
 
         case uiTestBypassConnection  // Для UI тестов
 
@@ -30,10 +33,16 @@ struct ServerConfigurationReducer {
         case formChanged
     }
 
+    enum AlertAction: Equatable {
+        case confirmHTTPConnection
+        case cancelHTTPConnection
+    }
+
     @Dependency(\.serverConnectionProbe) var serverConnectionProbe
     @Dependency(\.transmissionTrustPromptCenter) var trustPromptCenter
     @Dependency(\.uuidGenerator) var uuidGenerator
     @Dependency(\.dateProvider) var dateProvider
+    @Dependency(\.httpWarningPreferencesStore) var httpWarningPreferencesStore
 
     private enum CancellationID: Hashable {
         case connectionProbe
@@ -45,6 +54,7 @@ struct ServerConfigurationReducer {
         Reduce { state, action in
             self.core(state: &state, action: action)
         }
+        .ifLet(\.$alert, action: \.alert)
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -73,7 +83,38 @@ struct ServerConfigurationReducer {
         case .checkConnectionButtonTapped:
             guard state.connectionStatus != .testing else { return .none }
             guard let context = self.prepareSubmission(state: &state) else { return .none }
+            guard
+                context.server.usesInsecureTransport,
+                httpWarningPreferencesStore.isSuppressed(
+                    context.server.httpWarningFingerprint
+                ) == false
+            else {
+                return self.startConnectionProbe(state: &state, context: context)
+            }
+            state.pendingHTTPSubmission = context
+            state.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+            return .none
+
+        case .alert(.presented(.confirmHTTPConnection)):
+            guard let context = state.pendingHTTPSubmission else { return .none }
+            state.pendingHTTPSubmission = nil
+            state.alert = nil
+            httpWarningPreferencesStore.setSuppressed(
+                context.server.httpWarningFingerprint,
+                true
+            )
             return self.startConnectionProbe(state: &state, context: context)
+
+        case .alert(.presented(.cancelHTTPConnection)), .alert(.dismiss):
+            state.pendingHTTPSubmission = nil
+            state.alert = nil
+            return .none
+
+        case .alert:
+            return .none
 
         case .connectionTestFinished(.success(let handshake)):
             state.connectionStatus = .success(handshake)
@@ -110,6 +151,7 @@ struct ServerConfigurationReducer {
             state.connectionStatus = .idle
             state.verifiedSubmission = nil
         }
+        state.pendingHTTPSubmission = nil
         return .merge(
             .cancel(id: CancellationID.connectionProbe)
         )
@@ -128,9 +170,7 @@ struct ServerConfigurationReducer {
         )
         let password = state.form.password.isEmpty ? nil : state.form.password
 
-        let context = ServerSubmissionContext(server: server, password: password)
-        state.verifiedSubmission = context
-        return context
+        return ServerSubmissionContext(server: server, password: password)
     }
 
     private func startConnectionProbe(
@@ -138,6 +178,7 @@ struct ServerConfigurationReducer {
         context: ServerSubmissionContext
     ) -> Effect<Action> {
         state.connectionStatus = .testing
+        state.verifiedSubmission = context
         return .run { [context] send in
             do {
                 let result = try await serverConnectionProbe.run(

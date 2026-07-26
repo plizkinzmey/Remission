@@ -17,8 +17,10 @@ struct SettingsViewCoverageTests {
         let loadedView = SettingsView(store: loadedStore)
         _ = loadedView.body
 
-        #expect(loadedStore.withState { $0.persistedPreferences != nil })
-        #expect(loadingStore.withState { $0.persistedPreferences == nil })
+        let loadedPrefs = loadedStore.state.persistedPreferences
+        let loadingPrefs = loadingStore.state.persistedPreferences
+        #expect(loadedPrefs != nil)
+        #expect(loadingPrefs == nil)
     }
 
     @Test

@@ -20,7 +20,8 @@ struct ServerDetailViewCoverageTests {
         let view = ServerDetailView(store: store)
         _ = view.body
 
-        #expect(store.withState { $0.connectionState.isBlockingInteractions })
+        let isBlocking = store.state.connectionState.isBlockingInteractions
+        #expect(isBlocking)
     }
 
     @Test

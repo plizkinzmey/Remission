@@ -74,42 +74,55 @@ struct ErrorPresenterTests {
 
     // Проверяет, что showAlert с retry сохраняет pendingRetry и добавляет кнопку retry в алерт.
     @Test
-    func showAlertWithRetryConfiguresAlertAndPendingRetry() {
-        var state = ErrorPresenter<Retry>.State()
-        let reducer = ErrorPresenter<Retry>()
+    func showAlertWithRetryConfiguresAlertAndPendingRetry() async {
+        let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
+            ErrorPresenter<Retry>()
+        }
 
-        _ = reducer.reduce(
-            into: &state,
-            action: .showAlert(
-                title: "Ошибка",
-                message: "Попробовать снова?",
-                retry: .reconnect
-            )
-        )
-
-        #expect(state.pendingRetry == .reconnect)
-        #expect(state.alert != nil)
-        #expect(state.alert?.buttons.count == 2)
+        await store.send(.showAlert(
+            title: "Ошибка",
+            message: "Попробовать снова?",
+            retry: .reconnect
+        )) {
+            $0.pendingRetry = .reconnect
+            $0.alert = AlertState {
+                TextState("Ошибка")
+            } actions: {
+                ButtonState(action: .retry) {
+                    TextState(L10n.tr("common.retry"))
+                }
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState(L10n.tr("common.ok"))
+                }
+            } message: {
+                TextState("Попробовать снова?")
+            }
+        }
     }
 
     // Проверяет, что showAlert без retry не сохраняет pendingRetry и показывает только кнопку закрытия.
     @Test
-    func showAlertWithoutRetryShowsOnlyDismissButton() {
-        var state = ErrorPresenter<Retry>.State()
-        let reducer = ErrorPresenter<Retry>()
+    func showAlertWithoutRetryShowsOnlyDismissButton() async {
+        let store = TestStore(initialState: ErrorPresenter<Retry>.State()) {
+            ErrorPresenter<Retry>()
+        }
 
-        _ = reducer.reduce(
-            into: &state,
-            action: .showAlert(
-                title: "Ошибка",
-                message: "Без повторной попытки",
-                retry: nil
-            )
-        )
-
-        #expect(state.pendingRetry == nil)
-        #expect(state.alert != nil)
-        #expect(state.alert?.buttons.count == 1)
+        await store.send(.showAlert(
+            title: "Ошибка",
+            message: "Без повторной попытки",
+            retry: nil
+        )) {
+            $0.pendingRetry = nil
+            $0.alert = AlertState {
+                TextState("Ошибка")
+            } actions: {
+                ButtonState(role: .cancel, action: .dismiss) {
+                    TextState(L10n.tr("common.ok"))
+                }
+            } message: {
+                TextState("Без повторной попытки")
+            }
+        }
     }
 
     // Проверяет, что нажатие retry в алерте отправляет retryRequested и очищает alert/pendingRetry.
