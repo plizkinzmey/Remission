@@ -38,11 +38,16 @@ extension ServerListReducer {
             if shouldAutoSelect {
                 state.hasAutoSelectedSingleServer = true
             }
-            let serversToProbe = servers.filter {
-                $0.usesInsecureTransport == false
-                    || httpWarningPreferencesStore.isSuppressed($0.httpWarningFingerprint)
-            }
-            return .run { [serversToProbe, servers, shouldAutoSelect] send in
+            // Probe servers asynchronously - filter in a task
+            return .run { [servers, shouldAutoSelect] send in
+                var serversToProbe: [ServerConfig] = []
+                for server in servers {
+                    let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
+                        server.httpWarningFingerprint)
+                    if !server.usesInsecureTransport || isSuppressed {
+                        serversToProbe.append(server)
+                    }
+                }
                 for server in serversToProbe {
                     await send(.connectionProbeRequested(server.id))
                 }
@@ -62,51 +67,34 @@ extension ServerListReducer {
 
         case .connectionProbeRequested(let id):
             guard let server = state.servers[id: id] else { return .none }
-            guard
-                server.usesInsecureTransport == false
-                    || httpWarningPreferencesStore.isSuppressed(server.httpWarningFingerprint)
-            else {
-                state.pendingHTTPConnection = .probe(id)
-                state.alert = AlertFactory.httpConnectionWarning(
-                    confirmAction: .confirmHTTPConnection,
-                    cancelAction: .cancelHTTPConnection
-                )
-                return .none
-            }
-            if state.connectionStatuses[id]?.isProbing == true {
-                return .none
-            }
-            state.connectionStatuses[id] = .init(phase: .probing)
+            // Check httpWarningPreferencesStore asynchronously
             return .run { [server] send in
-                do {
-                    let password: String?
-                    if let credentialsKey = server.credentialsKey {
-                        guard
-                            let credentials = try await credentialsRepository.load(
-                                key: credentialsKey
-                            )
-                        else {
-                            throw ServerConnectionEnvironmentFactoryError.missingCredentials
-                        }
-                        password = credentials.password
-                    } else {
-                        password = nil
-                    }
-                    let result = try await serverConnectionProbe.run(
-                        .init(server: server, password: password),
-                        nil
-                    )
-                    await send(.connectionProbeResponse(server.id, .success(result)))
-                } catch {
-                    await send(
-                        .connectionProbeResponse(
-                            server.id,
-                            .failure(error)
-                        )
-                    )
+                let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
+                    server.httpWarningFingerprint)
+                if !server.usesInsecureTransport || isSuppressed {
+                    await send(.startConnectionProbe(server))
+                } else {
+                    await send(.showHTTPWarning(.probe(id)))
                 }
             }
-            .cancellable(id: ConnectionCancellationID.connectionProbe(id), cancelInFlight: true)
+
+        case .startConnectionProbe(let server):
+            return self.startConnectionProbe(state: &state, server: server)
+
+        case .showHTTPWarning(let pending):
+            state.pendingHTTPConnection = pending
+            state.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+            return .none
+
+        case .confirmHTTPProbe(let id):
+            guard let server = state.servers[id: id] else { return .none }
+            return .run { [server] send in
+                await httpWarningPreferencesStore.setSuppressed(server.httpWarningFingerprint, true)
+                await send(.startConnectionProbe(server))
+            }
 
         case .connectionProbeResponse(let id, .success(let result)):
             state.connectionStatuses[id] = .init(phase: .connected(result.handshake))
@@ -122,5 +110,42 @@ extension ServerListReducer {
         default:
             return .none
         }
+    }
+
+    private func startConnectionProbe(state: inout State, server: ServerConfig) -> Effect<Action> {
+        if state.connectionStatuses[server.id]?.isProbing == true {
+            return .none
+        }
+        state.connectionStatuses[server.id] = .init(phase: .probing)
+        return .run { [server] send in
+            do {
+                let password: String?
+                if let credentialsKey = server.credentialsKey {
+                    guard
+                        let credentials = try await credentialsRepository.load(
+                            key: credentialsKey
+                        )
+                    else {
+                        throw ServerConnectionEnvironmentFactoryError.missingCredentials
+                    }
+                    password = credentials.password
+                } else {
+                    password = nil
+                }
+                let result = try await serverConnectionProbe.run(
+                    .init(server: server, password: password),
+                    nil
+                )
+                await send(.connectionProbeResponse(server.id, .success(result)))
+            } catch {
+                await send(
+                    .connectionProbeResponse(
+                        server.id,
+                        .failure(error)
+                    )
+                )
+            }
+        }
+        .cancellable(id: ConnectionCancellationID.connectionProbe(server.id), cancelInFlight: true)
     }
 }

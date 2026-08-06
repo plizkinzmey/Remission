@@ -6,15 +6,15 @@ import Foundation
 
 /// Хранилище "не предупреждать про HTTP" на уровне конкретного сервера.
 struct HttpWarningPreferencesStore: Sendable {
-    var isSuppressed: @Sendable (String) -> Bool
-    var setSuppressed: @Sendable (String, Bool) -> Void
-    var reset: @Sendable (String) -> Void
+    var isSuppressed: @Sendable (String) async -> Bool
+    var setSuppressed: @Sendable (String, Bool) async -> Void
+    var reset: @Sendable (String) async -> Void
 }
 
 #if canImport(ComposableArchitecture)
     extension HttpWarningPreferencesStore: DependencyKey {
         static var liveValue: HttpWarningPreferencesStore {
-            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+            .userDefaults(suiteName: AppStorageNamespace.live().userDefaultsSuiteName)
         }
         static let previewValue: HttpWarningPreferencesStore = .inMemory()
         static let testValue: HttpWarningPreferencesStore = .inMemory()
@@ -34,71 +34,57 @@ extension HttpWarningPreferencesStore {
     }
 
     static func userDefaults(
-        defaults: UserDefaults = .standard
+        suiteName: String? = nil
     ) -> HttpWarningPreferencesStore {
-        let storage = UserDefaultsBox(defaults: defaults)
+        let store = UserDefaultsStore<[String: Bool]>(
+            key: Keys.prefix + "store", suiteName: suiteName)
         return HttpWarningPreferencesStore(
             isSuppressed: { fingerprint in
-                storage.defaults.bool(forKey: Keys.prefix + fingerprint)
+                await store.load()?[fingerprint] ?? false
             },
             setSuppressed: { fingerprint, value in
-                storage.defaults.set(value, forKey: Keys.prefix + fingerprint)
+                var current = await store.load() ?? [:]
+                current[fingerprint] = value
+                try? await store.save(current)
             },
             reset: { fingerprint in
-                storage.defaults.removeObject(forKey: Keys.prefix + fingerprint)
+                var current = await store.load() ?? [:]
+                current.removeValue(forKey: fingerprint)
+                try? await store.save(current)
             }
         )
     }
 
     static func inMemory() -> HttpWarningPreferencesStore {
-        let store = HttpWarningPreferencesMemoryStore()
+        let store = InMemoryHttpWarningStore()
+
         return HttpWarningPreferencesStore(
             isSuppressed: { fingerprint in
-                store.value(forKey: fingerprint) ?? false
+                await store.isSuppressed(fingerprint)
             },
             setSuppressed: { fingerprint, value in
-                store.set(value, forKey: fingerprint)
+                await store.setSuppressed(fingerprint, value)
             },
             reset: { fingerprint in
-                store.removeValue(forKey: fingerprint)
+                await store.reset(fingerprint)
             }
         )
     }
 }
 
-private final class HttpWarningPreferencesMemoryStore: @unchecked Sendable {
-    // Safety invariant:
-    // - Access is synchronized with `NSLock`, so concurrent reads/writes are safe.
-    // - The stored values are trivial `Bool`s keyed by `String`, with no external sharing.
-    private let lock = NSLock()
+/// Простое in-memory хранилище для тестов.
+private actor InMemoryHttpWarningStore {
     private var storage: [String: Bool] = [:]
 
-    func value(forKey key: String) -> Bool? {
-        lock.lock()
-        defer { lock.unlock() }
-        return storage[key]
+    func isSuppressed(_ fingerprint: String) -> Bool {
+        storage[fingerprint] ?? false
     }
 
-    func set(_ value: Bool, forKey key: String) {
-        lock.lock()
-        storage[key] = value
-        lock.unlock()
+    func setSuppressed(_ fingerprint: String, _ value: Bool) {
+        storage[fingerprint] = value
     }
 
-    func removeValue(forKey key: String) {
-        lock.lock()
-        storage.removeValue(forKey: key)
-        lock.unlock()
-    }
-}
-
-private final class UserDefaultsBox: @unchecked Sendable {
-    // Safety invariant:
-    // - `UserDefaults` is thread-safe for concurrent access.
-    // - This wrapper is only used to share a single reference across Sendable closures.
-    let defaults: UserDefaults
-
-    init(defaults: UserDefaults) {
-        self.defaults = defaults
+    func reset(_ fingerprint: String) {
+        storage.removeValue(forKey: fingerprint)
     }
 }

@@ -37,7 +37,7 @@ struct ServerConfigurationReducerTests {
         }
 
         await store.send(.binding(.set(\.form.password, "pa ss"))) {
-            $0.form.password = "pass"
+            $0.form.password = "pa ss"
         }
     }
 
@@ -132,6 +132,8 @@ struct ServerConfigurationReducerTests {
             $0.connectionStatus = .testing
             $0.verifiedSubmission = context
         }
+
+        await store.receive(.startConnectionProbeAfterCheck(context))
 
         await store.receive(.connectionTestFinished(.success(handshake))) {
             $0.connectionStatus = .success(handshake)

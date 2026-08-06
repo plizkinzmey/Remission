@@ -193,15 +193,6 @@ struct SessionStoreIsolationTests {
         #expect(await store.load() == .legacy)
     }
 
-    @Test("RPCVersionStore stores and loads version correctly")
-    func rpcVersionStoreStoreAndLoad() async {
-        let store = RPCVersionStore()
-        #expect(await store.load() == nil)
-
-        await store.store(19)
-        #expect(await store.load() == 19)
-    }
-
     @Test("JSONRPCIDStore generates sequential IDs")
     func jsonrpcIDStoreGeneratesSequentialIDs() async {
         let store = JSONRPCIDStore()

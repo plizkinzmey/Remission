@@ -25,6 +25,9 @@ struct ServerConfigurationReducer {
 
         case uiTestBypassConnection  // Для UI тестов
 
+        case showHTTPWarning(ServerSubmissionContext)
+        case startConnectionProbeAfterCheck(ServerSubmissionContext)
+
         case delegate(Delegate)
     }
 
@@ -52,103 +55,112 @@ struct ServerConfigurationReducer {
         BindingReducer()
 
         Reduce { state, action in
-            self.core(state: &state, action: action)
+            switch action {
+            case .binding(let action):
+                state.validationError = nil
+
+                if action.keyPath == \State.form.name {
+                    state.form.name = state.form.name.filtered(allowed: .serverNameCharacters)
+                } else if action.keyPath == \State.form.host {
+                    state.form.host = state.form.host.replacingOccurrences(of: " ", with: "")
+                        .filteredASCII(allowed: .hostCharacters)
+                } else if action.keyPath == \State.form.port {
+                    let digits = state.form.port.replacingOccurrences(of: " ", with: "").filtered(
+                        allowed: .decimalDigits)
+                    state.form.port = String(digits.prefix(5))
+                } else if action.keyPath == \State.form.path {
+                    state.form.path = state.form.path.replacingOccurrences(of: " ", with: "")
+                        .filteredASCII(allowed: .pathCharacters)
+                } else if action.keyPath == \State.form.username {
+                    state.form.username = state.form.username.replacingOccurrences(
+                        of: " ", with: ""
+                    )
+                    .filtered(allowed: .usernameCharacters)
+                } else if action.keyPath == \State.form.password {
+                    state.form.password = state.form.password.filtered(allowed: .passwordCharacters)
+                }
+
+                let resetEffect = self.resetConnectionState(state: &state)
+                return .merge(resetEffect, .send(.delegate(.formChanged)))
+
+            case .checkConnectionButtonTapped:
+                guard state.connectionStatus != .testing else { return .none }
+                guard let context = self.prepareSubmission(state: &state) else { return .none }
+                guard context.server.usesInsecureTransport else {
+                    return self.startConnectionProbe(state: &state, context: context)
+                }
+                // Check httpWarningPreferencesStore asynchronously, but set pending state first
+                state.pendingHTTPSubmission = context
+                state.alert = AlertFactory.httpConnectionWarning(
+                    confirmAction: .confirmHTTPConnection,
+                    cancelAction: .cancelHTTPConnection
+                )
+                return .run { [context] send in
+                    let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
+                        context.server.httpWarningFingerprint)
+                    if isSuppressed {
+                        await send(.startConnectionProbeAfterCheck(context))
+                    } else {
+                        // Already showed warning, wait for user confirmation
+                    }
+                }
+
+            case .alert(.presented(.confirmHTTPConnection)):
+                guard let context = state.pendingHTTPSubmission else { return .none }
+                state.pendingHTTPSubmission = nil
+                state.alert = nil
+                state.connectionStatus = .testing
+                state.verifiedSubmission = context
+                return .run { [context] send in
+                    await httpWarningPreferencesStore.setSuppressed(
+                        context.server.httpWarningFingerprint, true)
+                    await send(.startConnectionProbeAfterCheck(context))
+                }
+
+            case .alert(.presented(.cancelHTTPConnection)), .alert(.dismiss):
+                state.pendingHTTPSubmission = nil
+                state.alert = nil
+                return .none
+
+            case .alert:
+                return .none
+
+            case .startConnectionProbeAfterCheck(let context):
+                return self.startConnectionProbe(state: &state, context: context)
+
+            case .connectionTestFinished(.success(let handshake)):
+                state.connectionStatus = .success(handshake)
+                if let verified = state.verifiedSubmission {
+                    return .merge(
+                        .cancel(id: CancellationID.connectionProbe),
+                        .send(.delegate(.connectionVerified(verified)))
+                    )
+                }
+                return .merge(
+                    .cancel(id: CancellationID.connectionProbe)
+                )
+
+            case .connectionTestFinished(.failure(let message)):
+                state.connectionStatus = .failed(message)
+                state.verifiedSubmission = nil
+                return .merge(
+                    .cancel(id: CancellationID.connectionProbe)
+                )
+
+            case .uiTestBypassConnection:
+                guard let context = self.prepareSubmission(state: &state) else { return .none }
+                state.connectionStatus = .success(.uiTestPlaceholder)
+                state.verifiedSubmission = context
+                return .send(.delegate(.connectionVerified(context)))
+
+            case .delegate:
+                return .none
+
+            case .startConnectionProbeAfterCheck, .showHTTPWarning:
+                return .none
+            }
         }
         .ifLet(\.$alert, action: \.alert)
-    }
-
-    // swiftlint:disable:next cyclomatic_complexity function_body_length
-    private func core(state: inout State, action: Action) -> Effect<Action> {
-        switch action {
-        case .binding(let action):
-            state.validationError = nil
-
-            if action.keyPath == \State.form.name {
-                state.form.name = state.form.name.filtered(allowed: .serverNameCharacters)
-            } else if action.keyPath == \State.form.host {
-                state.form.host = state.form.host.replacingOccurrences(of: " ", with: "")
-                    .filteredASCII(allowed: .hostCharacters)
-            } else if action.keyPath == \State.form.port {
-                let digits = state.form.port.replacingOccurrences(of: " ", with: "").filtered(
-                    allowed: .decimalDigits)
-                state.form.port = String(digits.prefix(5))
-            } else if action.keyPath == \State.form.path {
-                state.form.path = state.form.path.replacingOccurrences(of: " ", with: "")
-                    .filteredASCII(allowed: .pathCharacters)
-            } else if action.keyPath == \State.form.username {
-                state.form.username = state.form.username.replacingOccurrences(of: " ", with: "")
-                    .filtered(allowed: .usernameCharacters)
-            } else if action.keyPath == \State.form.password {
-                state.form.password = state.form.password.filtered(allowed: .passwordCharacters)
-            }
-
-            let resetEffect = self.resetConnectionState(state: &state)
-            return .merge(resetEffect, .send(.delegate(.formChanged)))
-
-        case .checkConnectionButtonTapped:
-            guard state.connectionStatus != .testing else { return .none }
-            guard let context = self.prepareSubmission(state: &state) else { return .none }
-            guard
-                context.server.usesInsecureTransport,
-                httpWarningPreferencesStore.isSuppressed(
-                    context.server.httpWarningFingerprint
-                ) == false
-            else {
-                return self.startConnectionProbe(state: &state, context: context)
-            }
-            state.pendingHTTPSubmission = context
-            state.alert = AlertFactory.httpConnectionWarning(
-                confirmAction: .confirmHTTPConnection,
-                cancelAction: .cancelHTTPConnection
-            )
-            return .none
-
-        case .alert(.presented(.confirmHTTPConnection)):
-            guard let context = state.pendingHTTPSubmission else { return .none }
-            state.pendingHTTPSubmission = nil
-            state.alert = nil
-            httpWarningPreferencesStore.setSuppressed(
-                context.server.httpWarningFingerprint,
-                true
-            )
-            return self.startConnectionProbe(state: &state, context: context)
-
-        case .alert(.presented(.cancelHTTPConnection)), .alert(.dismiss):
-            state.pendingHTTPSubmission = nil
-            state.alert = nil
-            return .none
-
-        case .alert:
-            return .none
-
-        case .connectionTestFinished(.success(let handshake)):
-            state.connectionStatus = .success(handshake)
-            if let verified = state.verifiedSubmission {
-                return .merge(
-                    .cancel(id: CancellationID.connectionProbe),
-                    .send(.delegate(.connectionVerified(verified)))
-                )
-            }
-            return .merge(
-                .cancel(id: CancellationID.connectionProbe)
-            )
-
-        case .connectionTestFinished(.failure(let message)):
-            state.connectionStatus = .failed(message)
-            state.verifiedSubmission = nil
-            return .merge(
-                .cancel(id: CancellationID.connectionProbe)
-            )
-
-        case .uiTestBypassConnection:
-            guard let context = self.prepareSubmission(state: &state) else { return .none }
-            state.connectionStatus = .success(.uiTestPlaceholder)
-            state.verifiedSubmission = context
-            return .send(.delegate(.connectionVerified(context)))
-
-        case .delegate:
-            return .none
-        }
     }
 
     private func resetConnectionState(state: inout State) -> Effect<Action> {

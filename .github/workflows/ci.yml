@@ -41,3 +41,89 @@ jobs:
           -destination 'platform=macOS,arch=arm64'
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
           CODE_SIGNING_ALLOWED=NO
+
+  metrics-check:
+    name: Code metrics (size, concurrency, architecture)
+    runs-on: macos-15
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Check file size limits (app ≤ 300, tests ≤ 400)
+        run: |
+          MAX_APP=300
+          MAX_TESTS=400
+          VIOLATIONS=0
+          echo "Checking app files..."
+          for f in $(find Remission -name "*.swift" -not -path "*/Tests/*" -not -path "*/RemissionTests/*" -not -path "*/RemissionUITests/*"); do
+            lines=$(wc -l < "$f")
+            if [ $lines -gt $MAX_APP ]; then
+              echo "❌ $f: $lines lines (max $MAX_APP)"
+              VIOLATIONS=1
+            fi
+          done
+          echo "Checking test files..."
+          for f in $(find RemissionTests RemissionUITests -name "*.swift" 2>/dev/null); do
+            lines=$(wc -l < "$f")
+            if [ $lines -gt $MAX_TESTS ]; then
+              echo "⚠️  $f: $lines lines (max $MAX_TESTS)"
+            fi
+          done
+          exit $VIOLATIONS
+
+      - name: Check reducer Action case count (≤ 50)
+        run: |
+          MAX_ACTIONS=50
+          VIOLATIONS=0
+          for f in $(find Remission/Features -name "*Feature*.swift" -not -path "*/Tests/*"); do
+            count=$(grep -c "case " "$f" 2>/dev/null || echo 0)
+            if [ $count -gt $MAX_ACTIONS ]; then
+              echo "❌ $f: $count action cases (max $MAX_ACTIONS)"
+              VIOLATIONS=1
+            fi
+          done
+          exit $VIOLATIONS
+
+      - name: Check @unchecked Sendable documented
+        run: |
+          VIOLATIONS=0
+          for f in $(grep -rl "@unchecked Sendable" Remission --include="*.swift" | grep -v Tests); do
+            # Check if there's a safety comment within 3 lines before
+            if ! grep -B3 "@unchecked Sendable" "$f" | grep -q "safe because"; then
+              echo "❌ $f: @unchecked Sendable without 'safe because' comment"
+              VIOLATIONS=1
+            fi
+          done
+          exit $VIOLATIONS
+
+      - name: Check NSLock / OSAllocatedUnfairLock in app code
+        run: |
+          if grep -rn "NSLock\|OSAllocatedUnfairLock" Remission --include="*.swift" | grep -v "RemissionTests" | grep -v "RemissionUITests"; then
+            echo "❌ Found NSLock/OSAllocatedUnfairLock in app code — use actor instead"
+            exit 1
+          fi
+          echo "✅ No locks in app code"
+
+  test-ios:
+    name: iOS Simulator tests
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+
+      - name: Test iOS
+        run: >-
+          xcodebuild test
+          -project Remission.xcodeproj
+          -scheme Remission
+          -destination 'platform=iOS Simulator,name=iPhone 16e'
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          CODE_SIGNING_ALLOWED=NO

@@ -35,19 +35,16 @@ extension ServerDetailReducer {
             return .none
 
         case .httpWarningResetButtonTapped:
-            httpWarningPreferencesStore.reset(state.server.httpWarningFingerprint)
-            state.alert = AlertFactory.simpleAlert(
-                title: L10n.tr("serverDetail.alert.httpWarningsReset.title"),
-                message: L10n.tr("serverDetail.alert.httpWarningsReset.message"),
-                buttonText: L10n.tr("serverDetail.alert.httpWarningsReset.button"),
-                action: .dismiss
-            )
-            return .none
+            return .run { [fingerprint = state.server.httpWarningFingerprint] _ in
+                await httpWarningPreferencesStore.reset(fingerprint)
+            }
 
         case .alert(.presented(.confirmHTTPConnection)):
             state.alert = nil
-            httpWarningPreferencesStore.setSuppressed(state.server.httpWarningFingerprint, true)
-            return .send(.retryConnectionButtonTapped)
+            return .run { [fingerprint = state.server.httpWarningFingerprint] send in
+                await httpWarningPreferencesStore.setSuppressed(fingerprint, true)
+                await send(.retryConnectionButtonTapped)
+            }
 
         case .alert(.presented(.cancelHTTPConnection)):
             state.alert = nil

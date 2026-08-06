@@ -21,12 +21,16 @@ final class ServerDetailFeatureTests: XCTestCase {
             handshake: handshake
         )
 
+        let clock = TestClock()
+
         let store = TestStore(initialState: ServerDetailReducer.State(server: server)) {
             ServerDetailReducer()
         } withDependencies: {
             // Этот сценарий проверяет подключение, а не подтверждение HTTP.
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
-            $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in environment }
+            $0.serverConnectionEnvironmentFactory = ServerConnectionEnvironmentFactory(make: {
+                @Sendable _ in environment
+            })
             $0.userPreferencesRepository.loadClosure = { @Sendable _ in
                 await gate.wait()
                 return .default
@@ -34,31 +38,47 @@ final class ServerDetailFeatureTests: XCTestCase {
             $0.userPreferencesRepository.observeClosure = { @Sendable _ in
                 AsyncStream { $0.finish() }
             }
-            $0.appClock.clock = { @Sendable in ContinuousClock() }
+            $0.appClock = .test(clock: clock)
         }
 
         store.exhaustivity = .off
 
         await store.send(ServerDetailReducer.Action.task)
 
+        // First effect: startConnection -> startConnectionAfterCheck
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(ServerDetailReducer.Action.startConnectionAfterCheck(server, false))
+
+        // Second effect: connect -> cacheKeyPrepared -> connectionResponse
+        await clock.advance(by: .seconds(1))
+
         await store.receive(ServerDetailReducer.Action.cacheKeyPrepared(environment.cacheKey)) {
             $0.torrentList.cacheKey = environment.cacheKey
         }
 
-        await store.receive(\.connectionResponse.success) {
+        await store.receive(
+            ServerDetailReducer.Action.connectionResponse(
+                .success(
+                    ServerDetailReducer.ConnectionResponse(
+                        environment: environment,
+                        handshake: handshake
+                    )))
+        ) { state in
             let updatedEnv = environment.updatingRPCVersion(handshake.rpcVersion)
-            $0.connectionState.phase = .ready(
+            state.connectionState.phase = .ready(
                 .init(fingerprint: updatedEnv.fingerprint, handshake: handshake))
-            $0.connectionEnvironment = updatedEnv
+            state.connectionEnvironment = updatedEnv
 
-            $0.torrentList.connectionEnvironment = updatedEnv
-            $0.torrentList.cacheKey = updatedEnv.cacheKey
-            $0.torrentList.handshake = handshake
+            state.torrentList.connectionEnvironment = updatedEnv
+            state.torrentList.cacheKey = updatedEnv.cacheKey
+            state.torrentList.handshake = handshake
         }
 
         await gate.open()
 
-        await store.receive(\.userPreferencesResponse.success) {
+        await store.receive(ServerDetailReducer.Action.userPreferencesResponse(.success(.default)))
+        {
             $0.preferences = .default
         }
     }

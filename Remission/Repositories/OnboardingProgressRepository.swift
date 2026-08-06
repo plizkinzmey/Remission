@@ -6,17 +6,17 @@ import Foundation
 
 /// Репозиторий, отвечающий за хранение состояния прохождения онбординга.
 struct OnboardingProgressRepository: Sendable {
-    var hasCompletedOnboarding: @Sendable () -> Bool
-    var setCompletedOnboarding: @Sendable (Bool) -> Void
+    var hasCompletedOnboarding: @Sendable () async -> Bool
+    var setCompletedOnboarding: @Sendable (Bool) async -> Void
 }
 
 #if canImport(ComposableArchitecture)
     extension OnboardingProgressRepository: DependencyKey {
         static var liveValue: OnboardingProgressRepository {
-            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+            .userDefaults(suiteName: AppStorageNamespace.live().userDefaultsSuiteName)
         }
         static var previewValue: OnboardingProgressRepository {
-            .userDefaults(defaults: AppStorageNamespace.live().userDefaults())
+            .userDefaults(suiteName: AppStorageNamespace.live().userDefaultsSuiteName)
         }
         static let testValue: OnboardingProgressRepository = .inMemory()
     }
@@ -34,65 +34,50 @@ extension OnboardingProgressRepository {
         static let completed: String = "onboarding.completed"
     }
 
-    /// Реализация поверх `UserDefaults`, используемая в live/preview окружениях.
+    /// Реализация поверх `UserDefaultsStore` (actor-based), используемая в live/preview окружениях.
     static func userDefaults(
-        defaults: UserDefaults = .standard,
+        suiteName: String? = nil,
         completedKey: String = Keys.completed
     ) -> OnboardingProgressRepository {
-        let storage = UserDefaultsBox(defaults: defaults)
+        let store = UserDefaultsStore<Bool>(key: completedKey, suiteName: suiteName)
         return OnboardingProgressRepository(
             hasCompletedOnboarding: {
-                storage.defaults.bool(forKey: completedKey)
+                await store.load() ?? false
             },
             setCompletedOnboarding: { isCompleted in
-                storage.defaults.set(isCompleted, forKey: completedKey)
+                try? await store.save(isCompleted)
             }
         )
     }
 
     /// In-memory реализация, применяемая в тестах.
     static func inMemory() -> OnboardingProgressRepository {
-        let store = OnboardingProgressMemoryStore()
+        let store = InMemoryStore<Bool>(initialValue: false)
 
         return OnboardingProgressRepository(
             hasCompletedOnboarding: {
-                store.completed
+                await store.load()
             },
             setCompletedOnboarding: { isCompleted in
-                store.completed = isCompleted
+                await store.save(isCompleted)
             }
         )
     }
 }
 
-private final class OnboardingProgressMemoryStore: @unchecked Sendable {
-    // Safety invariant:
-    // - Access is synchronized with `NSLock`, so concurrent reads/writes are safe.
-    // - The stored value is a trivial `Bool`, so there are no reference-sharing hazards.
-    private let lock = NSLock()
-    private var _completed: Bool = false
+/// Простое in-memory хранилище для тестов.
+private actor InMemoryStore<Value: Sendable> {
+    private var value: Value
 
-    var completed: Bool {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return _completed
-        }
-        set {
-            lock.lock()
-            _completed = newValue
-            lock.unlock()
-        }
+    init(initialValue: Value) {
+        self.value = initialValue
     }
-}
 
-private final class UserDefaultsBox: @unchecked Sendable {
-    // Safety invariant:
-    // - `UserDefaults` is thread-safe for concurrent access.
-    // - This wrapper is only used to share a single reference across Sendable closures.
-    let defaults: UserDefaults
+    func load() -> Value {
+        value
+    }
 
-    init(defaults: UserDefaults) {
-        self.defaults = defaults
+    func save(_ newValue: Value) {
+        value = newValue
     }
 }

@@ -79,11 +79,13 @@ struct ErrorPresenterTests {
             ErrorPresenter<Retry>()
         }
 
-        await store.send(.showAlert(
-            title: "Ошибка",
-            message: "Попробовать снова?",
-            retry: .reconnect
-        )) {
+        await store.send(
+            .showAlert(
+                title: "Ошибка",
+                message: "Попробовать снова?",
+                retry: .reconnect
+            )
+        ) {
             $0.pendingRetry = .reconnect
             $0.alert = AlertState {
                 TextState("Ошибка")
@@ -107,11 +109,13 @@ struct ErrorPresenterTests {
             ErrorPresenter<Retry>()
         }
 
-        await store.send(.showAlert(
-            title: "Ошибка",
-            message: "Без повторной попытки",
-            retry: nil
-        )) {
+        await store.send(
+            .showAlert(
+                title: "Ошибка",
+                message: "Без повторной попытки",
+                retry: nil
+            )
+        ) {
             $0.pendingRetry = nil
             $0.alert = AlertState {
                 TextState("Ошибка")

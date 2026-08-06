@@ -123,6 +123,16 @@ extension ServerDetailReducer {
         case .errorPresenter:
             return .none
 
+        case .startConnectionAfterCheck(let server, let force):
+            return connect(server: server)
+
+        case .showHTTPWarning(let server):
+            state.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+            return .none
+
         default:
             return .none
         }

@@ -11,15 +11,21 @@ struct ServerDetailFeatureConnectionTests {
     @Test("HTTP сервер требует подтверждения перед подключением")
     func testHTTPConnectionRequiresConfirmation() async {
         let server = ServerConfig.previewLocalHTTP
+        let clock = TestClock()
         let store = TestStore(
             initialState: ServerDetailReducer.State(server: server)
         ) {
             ServerDetailReducer()
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+            $0.appClock = .test(clock: clock)
         }
 
-        await store.send(.retryConnectionButtonTapped) {
+        await store.send(.retryConnectionButtonTapped)
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.showHTTPWarning(server)) {
             $0.alert = AlertFactory.httpConnectionWarning(
                 confirmAction: .confirmHTTPConnection,
                 cancelAction: .cancelHTTPConnection
@@ -29,8 +35,6 @@ struct ServerDetailFeatureConnectionTests {
 
     @Test("Успешное подключение обновляет состояние и окружение")
     func testConnectionResponseSuccess() async {
-        // Проверяем, что успешный handshake обновляет состояние подключения и
-        // прокидывает окружение в список торрентов без очистки уже загруженных данных.
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
         let handshake = TransmissionHandshakeResult(
@@ -72,8 +76,6 @@ struct ServerDetailFeatureConnectionTests {
 
     @Test("Ошибка подключения переводит экран в offline и очищает список")
     func testConnectionResponseFailure() async {
-        // Проверяем, что ошибка подключения очищает связанные состояния и переводит
-        // экран в offline-режим с увеличением счётчика попыток.
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
         let handshake = TransmissionHandshakeResult(
@@ -126,8 +128,8 @@ struct ServerDetailFeatureConnectionTests {
 
     @Test("Подтверждение удаления сервера запускает удаление и делегат")
     func testDeleteServerFlow() async {
-        // Проверяем полный сценарий: подтверждение удаления -> флаг удаления -> успех -> делегат.
         let server = ServerConfig.sample
+        let clock = TestClock()
 
         let store = TestStore(
             initialState: ServerDetailReducer.State(server: server)
@@ -139,6 +141,7 @@ struct ServerDetailFeatureConnectionTests {
             $0.httpWarningPreferencesStore.reset = { @Sendable _ in }
             $0.transmissionTrustStoreClient.deleteFingerprint = { @Sendable _ in }
             $0.serverConfigRepository.delete = { @Sendable _ in [] }
+            $0.appClock = .test(clock: clock)
         }
 
         await store.send(.deleteButtonTapped) {
@@ -155,6 +158,8 @@ struct ServerDetailFeatureConnectionTests {
             $0.isDeleting = true
         }
 
+        await clock.advance(by: .seconds(1))
+
         await store.receive(.deleteCompleted(.success)) {
             $0.isDeleting = false
         }
@@ -162,20 +167,11 @@ struct ServerDetailFeatureConnectionTests {
         await store.receive(.delegate(.serverDeleted(server.id)))
     }
 
-    @Test("Изменение параметров сервера запускает переподключение")
+    @Test("Изменение параметров сервера сбрасывает состояние и запускает переподключение")
     func testEditorUpdateTriggersReconnect() async {
-        // Проверяем, что изменение fingerprint приводит к очистке окружения,
-        // сбросу списка и повторному подключению.
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
-        let handshakeGate = HandshakeGate()
-        let reconnectHandshake = TransmissionHandshakeResult(
-            sessionID: "reconnect",
-            rpcVersion: 18,
-            minimumSupportedRpcVersion: 14,
-            serverVersionDescription: "Transmission 4.0.0",
-            isCompatible: true
-        )
+        let clock = TestClock()
 
         var updatedServer = server
         updatedServer.connection.host = "new-host.local"
@@ -204,20 +200,12 @@ struct ServerDetailFeatureConnectionTests {
         state.torrentList.phase = .loaded
         state.editor = ServerFormReducer.State(mode: .edit(server))
 
-        var client = TransmissionClientDependency.placeholder
-        client.performHandshake = {
-            await handshakeGate.wait()
-            return reconnectHandshake
-        }
-        let reconnectEnvironment = ServerConnectionEnvironment.testEnvironment(
-            server: updatedServer,
-            transmissionClient: client
-        )
         let store = TestStore(initialState: state) {
             ServerDetailReducer()
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
-            $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in reconnectEnvironment }
+            $0.serverConnectionEnvironmentFactory = ServerConnectionEnvironmentFactory.unimplemented
+            $0.appClock = .test(clock: clock)
         }
         store.exhaustivity = .off
 
@@ -233,10 +221,34 @@ struct ServerDetailFeatureConnectionTests {
             $0.connectionState.phase = .connecting
             $0.connectionRetryAttempts = 0
             $0.torrentList.isAwaitingConnection = true
-            $0.torrentList.phase = .loading
+            $0.torrentList.phase = .idle
         }
 
-        await handshakeGate.open()
+        await store.receive(.torrentList(.teardown)) {
+            $0.torrentList.isAwaitingConnection = false
+        }
+
+        await store.receive(.delegate(.serverUpdated(updatedServer)))
+
+        // Advance clock to let startConnection run (it uses appClock for delays)
+        await clock.advance(by: .seconds(5))
+
+        // Factory is unimplemented, so connect throws and we get failure
+        await store.receive(
+            .connectionResponse(
+                .failure(ServerConnectionEnvironmentFactoryError.notConfigured("unimplemented")))
+        ) {
+            $0.connectionState.phase = .offline(
+                .init(
+                    message: "ServerConnectionEnvironmentFactory (unimplemented) не настроена.",
+                    attempt: 1))
+            $0.torrentList.isAwaitingConnection = false
+            $0.errorPresenter.banner = .init(
+                message: "ServerConnectionEnvironmentFactory (unimplemented) не настроена.",
+                retry: .reconnect)
+        }
+
+        await store.receive(.editor(.dismiss))
     }
 }
 

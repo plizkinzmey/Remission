@@ -67,6 +67,7 @@ struct TransmissionClientSystemSessionTests {
             ]
         )
 
+        // First sessionGet() call from checkServerVersion() - gets 409
         MockURLProtocol.enqueue { request in
             headers.append(request.value(forHTTPHeaderField: "X-Transmission-Session-Id"))
             let response = httpResponse(
@@ -77,6 +78,13 @@ struct TransmissionClientSystemSessionTests {
             return (response, Data())
         }
 
+        // Retry sessionGet() after 409 - gets 200 with version
+        MockURLProtocol.enqueue { request in
+            headers.append(request.value(forHTTPHeaderField: "X-Transmission-Session-Id"))
+            return (httpResponse(for: request, statusCode: 200), try encode(handshakeResponse))
+        }
+
+        // Second sessionGet() call from performHandshake() - gets 200 with version
         MockURLProtocol.enqueue { request in
             headers.append(request.value(forHTTPHeaderField: "X-Transmission-Session-Id"))
             return (httpResponse(for: request, statusCode: 200), try encode(handshakeResponse))
@@ -90,7 +98,7 @@ struct TransmissionClientSystemSessionTests {
         #expect(handshake.isCompatible == true)
 
         let recordedHeaders = headers.values
-        #expect(recordedHeaders.count == 2)
+        #expect(recordedHeaders.count == 3)
         #expect(recordedHeaders.last == sessionID)
     }
 
@@ -105,6 +113,12 @@ struct TransmissionClientSystemSessionTests {
             ]
         )
 
+        // First sessionGet() call from checkServerVersion()
+        MockURLProtocol.enqueue { request in
+            (httpResponse(for: request, statusCode: 200), try encode(response))
+        }
+
+        // Second sessionGet() call from performHandshake()
         MockURLProtocol.enqueue { request in
             (httpResponse(for: request, statusCode: 200), try encode(response))
         }

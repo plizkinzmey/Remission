@@ -7,28 +7,28 @@ import Testing
 struct OnboardingProgressRepositoryTests {
     // Проверяет in-memory реализацию: значение меняется и читается корректно.
     @Test
-    func inMemoryStoresCompletionFlag() {
+    func inMemoryStoresCompletionFlag() async {
         let repository = OnboardingProgressRepository.inMemory()
-        #expect(repository.hasCompletedOnboarding() == false)
+        #expect(await repository.hasCompletedOnboarding() == false)
 
-        repository.setCompletedOnboarding(true)
-        #expect(repository.hasCompletedOnboarding())
+        await repository.setCompletedOnboarding(true)
+        #expect(await repository.hasCompletedOnboarding())
     }
 
     // Проверяет UserDefaults-реализацию на изолированном suite.
     @Test
-    func userDefaultsPersistsCompletionFlag() {
+    func userDefaultsPersistsCompletionFlag() async {
         let suiteName = "OnboardingProgressRepositoryTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
 
-        let repository = OnboardingProgressRepository.userDefaults(defaults: defaults)
-        #expect(repository.hasCompletedOnboarding() == false)
+        let repository = OnboardingProgressRepository.userDefaults(suiteName: suiteName)
+        #expect(await repository.hasCompletedOnboarding() == false)
 
-        repository.setCompletedOnboarding(true)
+        await repository.setCompletedOnboarding(true)
 
-        let reloaded = OnboardingProgressRepository.userDefaults(defaults: defaults)
-        #expect(reloaded.hasCompletedOnboarding())
+        let reloaded = OnboardingProgressRepository.userDefaults(suiteName: suiteName)
+        #expect(await reloaded.hasCompletedOnboarding())
 
         defaults.removePersistentDomain(forName: suiteName)
     }

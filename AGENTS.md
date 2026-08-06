@@ -183,3 +183,81 @@ When a fixture/scenario is present, `RemissionApp` swaps dependencies to UI-test
 
 For diagrams and a more detailed architecture walkthrough, see:
 `/Users/plizkinzmey/SRC/Remission/Doc/ProjectMap.md`
+
+---
+
+## 📏 Quality Gates & Size Limits (MANDATORY for all agents)
+
+*Source of truth: `Doc/RefactoringPlan.md` — this section is a summary for quick reference.*
+
+### Hard Limits (CI will fail the build)
+
+| Metric | Limit | Check Command |
+|--------|-------|---------------|
+| **Max lines per Swift file (app)** | **300** | `wc -l < file.swift` |
+| **Max lines per Swift file (tests)** | 400 | `wc -l < file.swift` |
+| **Max `enum Action` cases per reducer** | **50** | `grep -c "case " Feature.swift` |
+| **Max `reduce(into:)` branches** | **50** | manual review |
+| **Max `@unchecked Sendable` without documented invariant** | **0** | grep + comment check |
+| **`NSLock` / `OSAllocatedUnfairLock` in app code** | **0** | grep in CI |
+| **View `body` nesting depth** | **≤ 6** | manual / SwiftLint |
+
+> **Exception:** Only with `// swiftlint:disable file_length` + written justification in the same file.
+
+### Concurrency Rules (Swift 6)
+
+- `SWIFT_STRICT_CONCURRENCY = complete` **must pass in Debug** locally before commit.
+- Every `@unchecked Sendable` **must** have a preceding comment: `// @unchecked Sendable safe because: <invariant>`
+- **No new `NSLock` / `OSAllocatedUnfairLock`** — use `actor` instead.
+- Public types **must be `Sendable`** (struct preferred, final class with let props, or actor).
+
+### Architecture Rules
+
+- **Single Responsibility per File:** One file = one reducer / one view / one client / one repository.
+- **No God Reducers:** If `Action` > 50 cases → split via `Scope` + sub-reducers.
+- **Feature-First Structure:** New feature = `Features/Xyz/XyzFeature.swift` + `Views/Xyz/XyzView.swift` + `XyzFeatureTests.swift`.
+- **DI Only via `@Dependency`:** No singletons, no `shared`, no `static let` in app code.
+- **Actor-First for Shared Mutable State:** Any in-memory shared mutable state → `actor`.
+
+### Testing Rules
+
+- New reducers → `TestStore` tests with `TestClock`.
+- New network clients → `MockURLProtocol` fixtures.
+- UI-critical changes → UI test in `RemissionUITests/` (or issue filed).
+- Migrate `XCTestCase` → `@Test` when touching files.
+
+### Pre-Commit Checklist (Agent MUST run before commit)
+
+```bash
+# 1. Format
+swift-format format --in-place --configuration .swift-format --recursive Remission RemissionTests RemissionUITests
+# 2. Lint
+swiftlint lint --fix
+# 3. Localizations
+Scripts/check-localizations.sh
+# 4. File size check (max 300 lines app)
+MAX=300; for f in $(git diff --cached --name-only -- 'Remission/*.swift' 'Remission/**/*.swift' | grep -v Tests); do [ -f "$f" ] && [ $(wc -l < "$f") -gt $MAX ] && echo "❌ $f: $(wc -l < "$f") lines" && exit 1; done
+# 5. Build + Test (macOS minimum)
+xcodebuild test -scheme Remission -sdk macosx -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO
+```
+
+### CI Pipeline (`.github/workflows/ci.yml`)
+
+Jobs:
+1. **quality** — swift-format --strict, swiftlint, check-localizations, macOS tests
+2. **metrics-check** — file size, action count, @unchecked Sendable, NSLock counts (HARD FAIL)
+3. **test-ios** — iOS simulator tests (to be added)
+
+---
+
+## 🔄 Refactoring Plan Reference
+
+Full phased plan: `Doc/RefactoringPlan.md`
+
+**Current phase:** Phase 1 (Concurrency) → Phase 2 (Decomposition) → Phase 3 (Tests) → Phase 4 (Hygiene)
+
+Agents MUST follow the phase order. Do NOT start Phase 2 before Phase 1 complete.
+
+---
+
+*Документ живой — обновляется по мере выполнения фаз. Все изменения правил требуют согласования в команде.*

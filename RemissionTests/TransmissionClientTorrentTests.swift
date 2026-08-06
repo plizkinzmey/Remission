@@ -19,7 +19,7 @@ struct TransmissionClientTorrentTests {
         }
 
         let client = makeTorrentClient()
-        _ = try await client.torrentGet()
+        _ = try await client.torrentGet(ids: nil, fields: nil)
 
         let recorded = requests.requests
         #expect(recorded.count == 1)
@@ -78,7 +78,7 @@ struct TransmissionClientTorrentTests {
         }
 
         let client = makeTorrentClient()
-        await client.rpcVersionStore.store(17)
+        await client.test_rpcResolver.rpcVersionStore?.store(17)
         _ = try await client.torrentAdd(
             filename: "magnet:?xt=urn:btih:123",
             metainfo: metainfo,

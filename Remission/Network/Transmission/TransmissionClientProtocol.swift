@@ -1,6 +1,12 @@
+// TransmissionClientProtocol.swift
+// Remission
+//
+// Protocol for Transmission RPC client.
+// Defines the contract for all methods needed for MVP (session-get, torrent-get/add/start/stop/remove).
+
 import Foundation
 
-/// Результат рукопожатия Transmission RPC, содержащий метаданные соединения.
+/// Result of Transmission RPC handshake, containing connection metadata.
 public struct TransmissionHandshakeResult: Equatable, Sendable {
     public let sessionID: String?
     public let rpcVersion: Int
@@ -29,40 +35,38 @@ public struct TransmissionHandshakeResult: Equatable, Sendable {
     }
 }
 
-/// Протокол для клиента взаимодействия с Transmission RPC API.
-/// Определяет контракт для всех методов, необходимых MVP (session-get, torrent-get/add/start/stop/remove).
-/// Конкретную реализацию с URLSession подключают через DI.
+/// Protocol for client interacting with Transmission RPC API.
+/// Concrete implementation using URLSession is injected via DI.
 public protocol TransmissionClientProtocol: Sendable {
-    /// Type aliases для компактности сигнатур методов
     typealias TorrentIDs = [Int]
     typealias ClientResult = TransmissionResponse
 
-    /// Получить информацию о текущей сессии и версии Transmission.
-    /// Используется при рукопожатии для проверки совместимости версии (минимум 3.0).
+    /// Get current session info and Transmission version.
+    /// Used during handshake to verify version compatibility (minimum 3.0).
     func sessionGet() async throws -> ClientResult
 
-    /// Установить параметры сессии (например, лимиты скоростей).
+    /// Set session parameters (e.g., speed limits).
     func sessionSet(arguments: AnyCodable) async throws -> ClientResult
 
-    /// Получить статистику сессии (активные торренты, скорости, счётчики).
+    /// Get session statistics (active torrents, speeds, counters).
     func sessionStats() async throws -> ClientResult
 
-    /// Получить свободное место по указанному пути (`free-space`).
+    /// Get free space at given path (`free-space`).
     func freeSpace(path: String) async throws -> ClientResult
 
-    /// Получить информацию о торрентах.
+    /// Get torrent information.
     /// - Parameters:
-    ///   - ids: Опциональный массив ID торрентов для фильтрации.
-    ///   - fields: Опциональный массив полей для оптимизации ответа.
+    ///   - ids: Optional array of torrent IDs for filtering.
+    ///   - fields: Optional array of fields to optimize response.
     func torrentGet(ids: TorrentIDs?, fields: [String]?) async throws -> ClientResult
 
-    /// Добавить новый торрент из файла, magnet-ссылки или URL.
+    /// Add new torrent from file, magnet link, or URL.
     /// - Parameters:
-    ///   - filename: Путь к файлу, URL или magnet-ссылка. Опционально, если используется `metainfo`.
-    ///   - metainfo: Base64-исходные данные `.torrent` файла (сырые байты до кодирования). Опционально, если используется `filename`.
-    ///   - downloadDir: Опциональная директория для загрузки.
-    ///   - paused: Запустить ли торрент в режиме паузы.
-    ///   - labels: Опциональные теги для торрента.
+    ///   - filename: Path to file, URL, or magnet link. Optional if `metainfo` provided.
+    ///   - metainfo: Base64 raw `.torrent` file data. Optional if `filename` provided.
+    ///   - downloadDir: Optional download directory.
+    ///   - paused: Whether to start torrent paused.
+    ///   - labels: Optional tags for torrent.
     func torrentAdd(
         filename: String?,
         metainfo: Data?,
@@ -71,39 +75,35 @@ public protocol TransmissionClientProtocol: Sendable {
         labels: [String]?
     ) async throws -> ClientResult
 
-    /// Запустить один или несколько торрентов.
+    /// Start one or more torrents.
     func torrentStart(ids: TorrentIDs) async throws -> ClientResult
 
-    /// Остановить один или несколько торрентов.
+    /// Stop one or more torrents.
     func torrentStop(ids: TorrentIDs) async throws -> ClientResult
 
-    /// Удалить один или несколько торрентов.
+    /// Remove one or more torrents.
     /// - Parameters:
-    ///   - ids: Массив ID торрентов.
-    ///   - deleteLocalData: Удалять ли локальные файлы торрента.
+    ///   - ids: Array of torrent IDs.
+    ///   - deleteLocalData: Whether to delete local torrent files.
     func torrentRemove(ids: TorrentIDs, deleteLocalData: Bool?) async throws -> ClientResult
 
-    /// Установить параметры для одного или нескольких торрентов (приоритеты, лимиты).
+    /// Set parameters for one or more torrents (priorities, limits).
     func torrentSet(ids: TorrentIDs, arguments: AnyCodable) async throws -> ClientResult
 
-    /// Проверить целостность торрента (долгая операция).
+    /// Verify torrent integrity (long-running operation).
     func torrentVerify(ids: TorrentIDs) async throws -> ClientResult
 
-    /// Checks server version compatibility with the minimum required Transmission version (3.0+, RPC v14).
-    ///
+    /// Checks server version compatibility with minimum required Transmission version (3.0+, RPC v14).
     /// - Returns: A tuple containing compatibility status and the RPC version number.
-    /// - Throws: `APIError.versionUnsupported` if server version is below minimum (RPC v14),
-    ///           `APIError.decodingFailed` if unable to parse version information.
+    /// - Throws: `APIError` if unable to parse version information.
     func checkServerVersion() async throws -> (compatible: Bool, rpcVersion: Int)
 
-    /// Выполняет полное рукопожатие с сервером Transmission:
-    /// получает session-id (при необходимости) и проверяет совместимость версии.
-    ///
-    /// - Returns: `TransmissionHandshakeResult` с подробной информацией.
-    /// - Throws: `APIError.sessionConflict`, `APIError.versionUnsupported`,
-    ///           `APIError.decodingFailed` и другие ошибки сетевого слоя.
+    /// Performs full handshake with Transmission server:
+    /// obtains session-id (if needed) and verifies version compatibility.
+    /// - Returns: `TransmissionHandshakeResult` with detailed information.
+    /// - Throws: `APIError.sessionConflict`, `APIError.decodingFailed` and other network layer errors.
     func performHandshake() async throws -> TransmissionHandshakeResult
 
-    /// Регистрирует обработчик доверия для self-signed / недоверенных сертификатов.
+    /// Registers trust decision handler for self-signed / untrusted certificates.
     func setTrustDecisionHandler(_ handler: @escaping TransmissionTrustDecisionHandler)
 }

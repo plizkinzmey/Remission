@@ -64,6 +64,9 @@ struct ServerDetailReducer {
         case addTorrentDataLoaded(PendingTorrentInput, String?)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
+        // Internal async actions
+        case startConnectionAfterCheck(ServerConfig, Bool)
+        case showHTTPWarning(ServerConfig)
     }
 
     enum ErrorRetry: Equatable {

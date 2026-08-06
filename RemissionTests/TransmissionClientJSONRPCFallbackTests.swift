@@ -60,7 +60,7 @@ struct TransmissionClientJSONRPCFallbackTests {
             )
         }
 
-        await #expect(throws: APIError.self) {
+        await #expect(throws: RetryDecision.self) {
             _ = try await client.sessionGet()
         }
     }
@@ -83,7 +83,7 @@ struct TransmissionClientJSONRPCFallbackTests {
             )
         }
 
-        await #expect(throws: APIError.self) {
+        await #expect(throws: RetryDecision.self) {
             _ = try await client.sessionGet()
         }
     }
@@ -183,7 +183,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .auto)
         _ = try await client.sessionGet()
 
-        let persistedMode = await client.rpcModeStore.load()
+        let persistedMode = await client.test_rpcResolver.rpcModeStoreConcrete?.load()
         #expect(
             persistedMode == .jsonRpc2,
             "Auto mode should persist JSON-RPC 2.0 after successful request")
@@ -209,7 +209,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .jsonRpc2)
         _ = try await client.sessionGet()
 
-        let persistedMode = await client.rpcModeStore.load()
+        let persistedMode = await client.test_rpcResolver.rpcModeStoreConcrete?.load()
         #expect(
             persistedMode == nil,
             "Explicit mode should not persist to rpcModeStore — only auto mode does")
@@ -268,6 +268,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         MockURLProtocol.reset()
         let expectedSessionID = "fallback-session-abc"
 
+        // First request (JSON-RPC 2.0) -> gets 409
         MockURLProtocol.enqueue { _ in
             let response = HTTPURLResponse(
                 url: URL(string: "http://localhost:9091/transmission/rpc")!,
@@ -278,13 +279,17 @@ struct TransmissionClientJSONRPCFallbackTests {
             return (response, Data())
         }
 
+        // Retry with session ID (JSON-RPC 2.0) -> needs JSON-RPC 2.0 response format
         MockURLProtocol.enqueue { request in
             let header = request.value(forHTTPHeaderField: "X-Transmission-Session-Id")
             #expect(header == expectedSessionID, "Session ID should be sent after 409 handshake")
 
-            let response = TransmissionResponse(
-                result: "success",
-                arguments: .object(["rpc-version": .int(19)])
+            // Return JSON-RPC 2.0 format since we're still in JSON-RPC 2.0 mode
+            let response = JSONRPCResponse(
+                jsonrpc: "2.0",
+                result: .object(["rpc_version": .int(19)]),
+                error: nil,
+                id: .int(1)
             )
             return (
                 httpResponse(for: request, statusCode: 200),
@@ -295,7 +300,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .auto)
         _ = try await client.sessionGet()
 
-        let storedSessionID = await client.sessionStore.load()
+        let storedSessionID = await client.test_auth.sessionStore.load()
         #expect(storedSessionID == expectedSessionID)
     }
 
@@ -381,7 +386,7 @@ struct FallbackReasonDetectionTests {
             )
         }
 
-        await #expect(throws: APIError.self) {
+        await #expect(throws: RetryDecision.self) {
             _ = try await client.sessionGet()
         }
     }
@@ -404,7 +409,7 @@ struct FallbackReasonDetectionTests {
             )
         }
 
-        await #expect(throws: APIError.self) {
+        await #expect(throws: RetryDecision.self) {
             _ = try await client.sessionGet()
         }
     }

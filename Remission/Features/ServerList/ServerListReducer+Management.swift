@@ -17,18 +17,24 @@ extension ServerListReducer {
             guard let server = state.servers[id: id] else {
                 return .none
             }
-            guard
-                server.usesInsecureTransport == false
-                    || httpWarningPreferencesStore.isSuppressed(server.httpWarningFingerprint)
-            else {
-                state.pendingHTTPConnection = .selection(server)
-                state.alert = AlertFactory.httpConnectionWarning(
-                    confirmAction: .confirmHTTPConnection,
-                    cancelAction: .cancelHTTPConnection
-                )
-                return .none
+            // Check httpWarningPreferencesStore asynchronously
+            return .run { [server] send in
+                let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
+                    server.httpWarningFingerprint)
+                if !server.usesInsecureTransport || isSuppressed {
+                    await send(.delegate(.serverSelected(server)))
+                } else {
+                    await send(.showHTTPWarning(.selection(server)))
+                }
             }
-            return .send(.delegate(.serverSelected(server)))
+
+        case .showHTTPWarning(let pending):
+            state.pendingHTTPConnection = pending
+            state.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+            return .none
 
         case .editButtonTapped(let id):
             guard let server = state.servers[id: id] else {
@@ -56,15 +62,22 @@ extension ServerListReducer {
             guard let pending = state.pendingHTTPConnection else { return .none }
             state.pendingHTTPConnection = nil
             state.alert = nil
-            switch pending {
-            case .probe(let id):
-                guard let server = state.servers[id: id] else { return .none }
-                httpWarningPreferencesStore.setSuppressed(server.httpWarningFingerprint, true)
-                return .send(.connectionProbeRequested(id))
-            case .selection(let server):
-                httpWarningPreferencesStore.setSuppressed(server.httpWarningFingerprint, true)
-                return .send(.delegate(.serverSelected(server)))
+            return .run { [pending] send in
+                switch pending {
+                case .probe(let id):
+                    // Need to get server from the dependency since we can't access state here
+                    // This will be handled by connectionReducer which has the server
+                    await send(.confirmHTTPProbe(id))
+                case .selection(let server):
+                    await httpWarningPreferencesStore.setSuppressed(
+                        server.httpWarningFingerprint, true)
+                    await send(.delegate(.serverSelected(server)))
+                }
             }
+
+        case .confirmHTTPProbe(let id):
+            // This action is handled in connectionReducer where we have access to the server
+            return .none
 
         case .alert(.presented(.cancelHTTPConnection)):
             state.pendingHTTPConnection = nil
@@ -131,7 +144,7 @@ extension ServerListReducer {
                 if let key = server.credentialsKey {
                     try await credentialsRepository.delete(key: key)
                 }
-                httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
+                await httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
                 let identity = TransmissionServerTrustIdentity(
                     host: server.connection.host,
                     port: server.connection.port,

@@ -42,6 +42,7 @@ final class TransmissionClientRetryTests: XCTestCase {
 
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
+        MockURLProtocol.enqueue { _ in throw URLError(.timedOut) }
         MockURLProtocol.enqueue { request in
             let data = try JSONEncoder().encode(TransmissionResponse(result: "success"))
             return (
@@ -50,7 +51,7 @@ final class TransmissionClientRetryTests: XCTestCase {
             )
         }
 
-        let client = makeClient(maxRetries: 2, retryDelay: 0)
+        let client = makeClient(maxRetries: 3, retryDelay: 0)
         let response = try await client.sessionGet()
 
         XCTAssertEqual(response.result, "success")

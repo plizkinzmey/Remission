@@ -29,8 +29,10 @@ enum AppDependencies {
         )
         dependencies.serverConfigRepository = .fileBased(namespace: namespace)
         dependencies.userPreferencesRepository = .persistent(defaults: defaults)
-        dependencies.httpWarningPreferencesStore = .userDefaults(defaults: defaults)
-        dependencies.onboardingProgressRepository = .userDefaults(defaults: defaults)
+        dependencies.httpWarningPreferencesStore = .userDefaults(
+            suiteName: namespace.userDefaultsSuiteName)
+        dependencies.onboardingProgressRepository = .userDefaults(
+            suiteName: namespace.userDefaultsSuiteName)
         dependencies.transmissionTrustStoreClient = .live(store: trustStore)
         dependencies.offlineCacheRepository = offlineCache
         dependencies.serverConnectionProbe = .live(

@@ -165,7 +165,7 @@ struct ServerFormReducer {
 
                 // 3. Если это был онбординг, помечаем как завершенный
                 if case .add = mode {
-                    onboardingProgressRepository.setCompletedOnboarding(true)
+                    await onboardingProgressRepository.setCompletedOnboarding(true)
                 }
 
                 await send(.saveResponse(.success(config)))

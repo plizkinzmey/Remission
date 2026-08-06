@@ -32,6 +32,9 @@ struct ServerListReducer {
         case connectionProbeResponse(UUID, TaskResult<ServerConnectionProbe.Result>)
         case storageRequested(UUID)
         case storageResponse(UUID, TaskResult<StorageSummary>)
+        case showHTTPWarning(PendingHTTPConnection)
+        case startConnectionProbe(ServerConfig)
+        case confirmHTTPProbe(UUID)
         case delegate(Delegate)
     }
 

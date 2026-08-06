@@ -192,7 +192,7 @@ actor PersistentUserPreferencesStore {
 }
 
 final class PreferencesUserDefaultsBox: @unchecked Sendable {
-    // Safety invariant:
+    // @unchecked Sendable safe because:
     // - `UserDefaults` is thread-safe for concurrent access.
     // - This wrapper exists solely to share a single `UserDefaults` instance across Sendable closures.
     private let defaults: UserDefaults

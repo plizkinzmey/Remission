@@ -230,9 +230,10 @@ enum TransmissionCertificateFingerprint {
 
 #if DEBUG
     private final class TransmissionTrustInMemoryDatabase: @unchecked Sendable {
-        // Safety invariant:
+        // @unchecked Sendable safe because:
         // - Access to `storage` is fully synchronized with `NSLock`.
         // - Stored values are `Data` blobs; no external mutation occurs after insertion.
+        // - This class is ONLY used in DEBUG builds for in-memory test storage.
         private var storage: [String: (value: Data, generic: Data)] = [:]
         private let lock: NSLock = NSLock()
 

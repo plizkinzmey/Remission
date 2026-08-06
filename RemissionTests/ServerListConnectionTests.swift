@@ -18,6 +18,8 @@ final class ServerListConnectionTests: XCTestCase {
         )
         let result = ServerConnectionProbe.Result(handshake: handshake)
 
+        let clock = TestClock()
+
         var state = ServerListReducer.State()
         state.servers = [server]
 
@@ -32,12 +34,19 @@ final class ServerListConnectionTests: XCTestCase {
                     password: "secret"
                 )
             }
+            $0.appClock = .test(clock: clock)
         }
         store.exhaustivity = .off
 
-        await store.send(.connectionProbeRequested(server.id)) {
+        await store.send(.connectionProbeRequested(server.id))
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.startConnectionProbe(server)) {
             $0.connectionStatuses[server.id] = .init(phase: .probing)
         }
+
+        await clock.advance(by: .seconds(1))
 
         await store.receive(.connectionProbeResponse(server.id, .success(result))) {
             $0.connectionStatuses[server.id] = .init(phase: .connected(handshake))
@@ -49,6 +58,8 @@ final class ServerListConnectionTests: XCTestCase {
         // Проверяем, что ошибка probe переводит статус в failed.
         let server = ServerConfig.previewLocalHTTP
         let error = TestError(message: "fail")
+
+        let clock = TestClock()
 
         var state = ServerListReducer.State()
         state.servers = [server]
@@ -64,12 +75,19 @@ final class ServerListConnectionTests: XCTestCase {
                     password: "secret"
                 )
             }
+            $0.appClock = .test(clock: clock)
         }
         store.exhaustivity = .off
 
-        await store.send(.connectionProbeRequested(server.id)) {
+        await store.send(.connectionProbeRequested(server.id))
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.startConnectionProbe(server)) {
             $0.connectionStatuses[server.id] = .init(phase: .probing)
         }
+
+        await clock.advance(by: .seconds(1))
 
         await store.receive(.connectionProbeResponse(server.id, .failure(error))) {
             $0.connectionStatuses[server.id] = .init(phase: .failed(error.message))
@@ -79,6 +97,8 @@ final class ServerListConnectionTests: XCTestCase {
         // Проверяем, что при отсутствии credentials probe возвращает ошибку и статус failed.
         let server = ServerConfig.previewLocalHTTP
 
+        let clock = TestClock()
+
         var state = ServerListReducer.State()
         state.servers = [server]
 
@@ -87,12 +107,19 @@ final class ServerListConnectionTests: XCTestCase {
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.credentialsRepository.load = { @Sendable _ in nil }
+            $0.appClock = .test(clock: clock)
         }
         store.exhaustivity = .off
 
-        await store.send(.connectionProbeRequested(server.id)) {
+        await store.send(.connectionProbeRequested(server.id))
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.startConnectionProbe(server)) {
             $0.connectionStatuses[server.id] = .init(phase: .probing)
         }
+
+        await clock.advance(by: .seconds(1))
 
         await store.receive(
             ServerListReducer.Action.connectionProbeResponse(

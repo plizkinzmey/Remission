@@ -7,46 +7,24 @@ extension ServerDetailReducer {
         state: inout State,
         force: Bool
     ) -> Effect<Action> {
-        guard
-            state.server.usesInsecureTransport == false
-                || httpWarningPreferencesStore.isSuppressed(state.server.httpWarningFingerprint)
-        else {
-            state.alert = AlertFactory.httpConnectionWarning(
-                confirmAction: .confirmHTTPConnection,
-                cancelAction: .cancelHTTPConnection
-            )
-            return .none
-        }
-        guard case .connecting = state.connectionState.phase,
-            force == false
-        else {
-            let shouldResetList =
-                state.torrentList.items.isEmpty == false
-                || state.torrentList.phase != .idle
-            state.connectionEnvironment = nil
-            state.lastAppliedDefaultSpeedLimits = nil
-            state.connectionState.phase = .connecting
-            state.torrentList.isAwaitingConnection = true
-            if shouldResetList {
-                state.torrentList.items.removeAll()
-                state.torrentList.storageSummary = nil
-                state.torrentList.cacheKey = nil
+        let server = state.server
+        state.torrentList.isAwaitingConnection = true
+        // Check httpWarningPreferencesStore asynchronously
+        return .run { [server] send in
+            let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
+                server.httpWarningFingerprint)
+            if !server.usesInsecureTransport || isSuppressed {
+                await send(.startConnectionAfterCheck(server, force))
+            } else {
+                await send(.showHTTPWarning(server))
             }
-            if state.torrentList.items.isEmpty {
-                state.torrentList.phase = .loading
-            }
-            let resetEffect: Effect<Action> =
-                shouldResetList
-                ? .send(.torrentList(.resetForReconnect))
-                : .none
-            return .merge(
-                .cancel(id: ConnectionCancellationID.connectionRetry),
-                resetEffect,
-                connect(server: state.server)
-            )
         }
+    }
 
-        return .none
+    /// Внутренний action для продолжения подключения после проверки HTTP warning
+    private enum InternalAction: Equatable {
+        case startConnectionAfterCheck(ServerConfig, Bool)
+        case showHTTPWarning(ServerConfig)
     }
 
     /// Создаёт `ServerConnectionEnvironment` и выполняет handshake Transmission.
@@ -77,7 +55,7 @@ extension ServerDetailReducer {
                     try await credentialsRepository.delete(key: key)
                 }
                 try await offlineCacheRepository.clear(server.id)
-                httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
+                await httpWarningPreferencesStore.reset(server.httpWarningFingerprint)
                 let identity = TransmissionServerTrustIdentity(
                     host: server.connection.host,
                     port: server.connection.port,

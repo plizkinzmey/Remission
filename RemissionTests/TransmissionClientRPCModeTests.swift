@@ -90,6 +90,22 @@ struct TransmissionClientRPCModeTests {
     func handshakeCapturesJSONRPCSemverAndMode() async throws {
         MockURLProtocol.reset()
 
+        // First sessionGet() call from checkServerVersion()
+        MockURLProtocol.enqueue { request in
+            let response = JSONRPCResponse(
+                jsonrpc: "2.0",
+                result: .object([
+                    "version": .string("4.1.1"),
+                    "rpc_version": .int(19),
+                    "rpc_version_semver": .string("6.0.1")
+                ]),
+                error: nil,
+                id: .int(1)
+            )
+            return (httpResponse(for: request, statusCode: 200), try JSONEncoder().encode(response))
+        }
+
+        // Second sessionGet() call from performHandshake()
         MockURLProtocol.enqueue { request in
             let response = JSONRPCResponse(
                 jsonrpc: "2.0",
@@ -327,7 +343,7 @@ struct TransmissionClientRPCModeTests {
         }
 
         let client = makeClient(mode: .jsonRpc2)
-        await #expect(throws: APIError.self) {
+        await #expect(throws: RetryDecision.self) {
             _ = try await client.sessionGet()
         }
     }
@@ -339,7 +355,7 @@ struct TransmissionClientRPCModeTests {
         MockURLProtocol.reset()
         let inspector = RequestBodyInspector()
 
-        // 1. JSON-RPC query: server returns legacy envelope saying "no method name" because it doesn't know "session_get"
+        // 1. First sessionGet() call from checkServerVersion() - JSON-RPC query: server returns legacy envelope saying "no method name" because it doesn't know "session_get"
         MockURLProtocol.enqueue { request in
             inspector.append(requestBodyData(from: request))
             let response = """
@@ -348,7 +364,7 @@ struct TransmissionClientRPCModeTests {
             return (httpResponse(for: request, statusCode: 200), Data(response.utf8))
         }
 
-        // 2. Fallback to legacy: server returns successful legacy handshake
+        // 2. Fallback to legacy: retry sessionGet() from checkServerVersion() - Legacy success
         MockURLProtocol.enqueue { request in
             inspector.append(requestBodyData(from: request))
             let success = TransmissionResponse(
@@ -358,7 +374,17 @@ struct TransmissionClientRPCModeTests {
             return (httpResponse(for: request, statusCode: 200), try JSONEncoder().encode(success))
         }
 
-        // 3. Subsequent request uses cached legacy mode immediately
+        // 3. Second sessionGet() call from performHandshake() - Legacy (cached)
+        MockURLProtocol.enqueue { request in
+            inspector.append(requestBodyData(from: request))
+            let success = TransmissionResponse(
+                result: "success",
+                arguments: .object(["rpc-version": .int(15), "version": .string("3.00")])
+            )
+            return (httpResponse(for: request, statusCode: 200), try JSONEncoder().encode(success))
+        }
+
+        // 4. Subsequent sessionGet() from test - Legacy (cached)
         MockURLProtocol.enqueue { request in
             inspector.append(requestBodyData(from: request))
             let success = TransmissionResponse(
@@ -376,8 +402,8 @@ struct TransmissionClientRPCModeTests {
         _ = try await client.sessionGet()
 
         let payloads = inspector.values
-        #expect(payloads.count == 3)
-        guard payloads.count >= 3 else { return }
+        #expect(payloads.count == 4)
+        guard payloads.count >= 4 else { return }
 
         // First was JSON-RPC
         let first = try #require(
@@ -396,6 +422,12 @@ struct TransmissionClientRPCModeTests {
             try JSONSerialization.jsonObject(with: payloads[2]) as? [String: Any])
         #expect(third["jsonrpc"] == nil)
         #expect(third["method"] as? String == "session-get")
+
+        // Fourth was Legacy cached
+        let fourth = try #require(
+            try JSONSerialization.jsonObject(with: payloads[3]) as? [String: Any])
+        #expect(fourth["jsonrpc"] == nil)
+        #expect(fourth["method"] as? String == "session-get")
     }
 }
 

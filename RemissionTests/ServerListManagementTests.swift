@@ -44,15 +44,21 @@ struct ServerListManagementTests {
     @Test("HTTP сервер требует подтверждения перед открытием")
     func testHTTPServerSelectionRequiresConfirmation() async {
         let server = ServerConfig.previewLocalHTTP
+        let clock = TestClock()
         let store = TestStore(
             initialState: ServerListReducer.State(servers: [server])
         ) {
             ServerListReducer()
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+            $0.appClock = .test(clock: clock)
         }
 
-        await store.send(.serverTapped(server.id)) {
+        await store.send(.serverTapped(server.id))
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.showHTTPWarning(.selection(server))) {
             $0.pendingHTTPConnection = .selection(server)
             $0.alert = AlertFactory.httpConnectionWarning(
                 confirmAction: .confirmHTTPConnection,
@@ -65,6 +71,7 @@ struct ServerListManagementTests {
     func testDeleteServerFlow() async {
         // Проверяем полный сценарий: подтверждение удаления -> вызов репозитория -> обновление списка.
         let server = ServerConfig.previewLocalHTTP
+        let clock = TestClock()
 
         var state = ServerListReducer.State()
         state.servers = [server]
@@ -77,6 +84,7 @@ struct ServerListManagementTests {
             $0.transmissionTrustStoreClient.deleteFingerprint = { @Sendable _ in }
             $0.serverConfigRepository.delete = { @Sendable _ in [] }
             $0.onboardingProgressRepository.hasCompletedOnboarding = { @Sendable in true }
+            $0.appClock = .test(clock: clock)
         }
         store.exhaustivity = .off
 
@@ -95,6 +103,8 @@ struct ServerListManagementTests {
             $0.deleteConfirmation = nil
         }
 
+        await clock.advance(by: .seconds(1))
+
         await store.receive(.serverRepositoryResponse(.success([]))) {
             $0.isLoading = false
             $0.servers = []
@@ -112,17 +122,21 @@ struct ServerListManagementTests {
             serverVersionDescription: "Transmission Test 4.0", isCompatible: true
         )
 
+        let clock = TestClock()
+
         let store = TestStore(initialState: ServerListReducer.State(serverForm: .init(mode: .add)))
         {
             ServerListReducer()
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { _, _ in .init(handshake: handshake) }
-            $0.serverConnectionEnvironmentFactory.make = { @Sendable _ in
+            $0.serverConnectionEnvironmentFactory = ServerConnectionEnvironmentFactory(make: {
+                @Sendable _ in
                 .testEnvironment(
                     server: server, handshake: handshake,
                     torrentRepository: .testValue, sessionRepository: .testValue)
-            }
+            })
+            $0.appClock = .test(clock: clock)
         }
 
         let expectedSummary = StorageSummary.calculate(
@@ -134,9 +148,19 @@ struct ServerListManagementTests {
         }
 
         await store.receive(.delegate(.serverCreated(server)))
-        await store.receive(.connectionProbeRequested(server.id)) {
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.connectionProbeRequested(server.id))
+
+        await clock.advance(by: .seconds(1))
+
+        await store.receive(.startConnectionProbe(server)) {
             $0.connectionStatuses[server.id] = .init(phase: .probing)
         }
+
+        await clock.advance(by: .seconds(1))
+
         await store.receive(
             .connectionProbeResponse(server.id, .success(.init(handshake: handshake)))
         ) {

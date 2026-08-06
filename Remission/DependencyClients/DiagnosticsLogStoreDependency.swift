@@ -30,8 +30,7 @@ import Foundation
             defaults: UserDefaults = .standard,
             maxEntries: Int = 500
         ) -> DiagnosticsLogStore {
-            let defaultsBox = DiagnosticsUserDefaultsBox(defaults: defaults)
-            let store = PersistentDiagnosticsLogStore(defaults: defaultsBox, maxEntries: maxEntries)
+            let store = PersistentDiagnosticsLogStore(maxEntries: maxEntries)
 
             return DiagnosticsLogStore(
                 load: { filter in
@@ -212,19 +211,27 @@ import Foundation
             static let entries = "diagnostics_log_entries"
         }
 
-        private let defaults: DiagnosticsUserDefaultsBox
+        private let store: UserDefaultsStore<[DiagnosticsLogEntry]>
         private let maxEntries: Int
         private var entries: [DiagnosticsLogEntry]
         private var observers: [UUID: Observer] = [:]
+        private var isLoaded = false
 
-        init(defaults: DiagnosticsUserDefaultsBox, maxEntries: Int) {
-            self.defaults = defaults
+        init(maxEntries: Int) {
+            self.store = UserDefaultsStore(key: StorageKey.entries)
             self.maxEntries = maxEntries
             self.entries = []
-            self.entries = Self.loadSnapshot(defaults: defaults, maxEntries: maxEntries)
         }
 
-        func append(_ entry: DiagnosticsLogEntry) {
+        private func ensureLoaded() async {
+            guard !isLoaded else { return }
+            isLoaded = true
+            let loaded = await store.load() ?? []
+            self.entries = Array(loaded.suffix(maxEntries))
+        }
+
+        func append(_ entry: DiagnosticsLogEntry) async {
+            await ensureLoaded()
             entries.append(entry)
             var droppedIDs: [UUID] = []
             if entries.count > maxEntries {
@@ -232,29 +239,41 @@ import Foundation
                 droppedIDs = entries.prefix(dropCount).map(\.id)
                 entries.removeFirst(dropCount)
             }
-            persist()
+            await persist()
             notifyObservers(appended: entry, droppedIDs: droppedIDs)
         }
 
-        func clear() throws {
+        func clear() async throws {
+            await ensureLoaded()
             entries.removeAll()
-            defaults.remove(StorageKey.entries)
+            await store.remove()
             notifyObserversCleared()
         }
 
-        func snapshot(filter: DiagnosticsLogFilter) -> [DiagnosticsLogEntry] {
-            apply(filter: filter, to: entries)
+        func snapshot(filter: DiagnosticsLogFilter) async -> [DiagnosticsLogEntry] {
+            await ensureLoaded()
+            return apply(filter: filter, to: entries)
         }
 
         func observe(filter: DiagnosticsLogFilter) -> AsyncStream<DiagnosticsLogStore.StreamEvent> {
             AsyncStream { continuation in
                 let id = UUID()
-                observers[id] = Observer(filter: filter, continuation: continuation)
+                Task { [weak self] in
+                    await self?.addObserver(id: id, filter: filter, continuation: continuation)
+                }
 
                 continuation.onTermination = { [weak self] _ in
                     Task { await self?.removeObserver(id) }
                 }
             }
+        }
+
+        private func addObserver(
+            id: UUID, filter: DiagnosticsLogFilter,
+            continuation: AsyncStream<DiagnosticsLogStore.StreamEvent>.Continuation
+        ) async {
+            await ensureLoaded()
+            observers[id] = Observer(filter: filter, continuation: continuation)
         }
 
         private func removeObserver(_ id: UUID) {
@@ -289,52 +308,12 @@ import Foundation
                 .filter { filter.matches($0) }
         }
 
-        private func persist() {
+        private func persist() async {
             do {
-                let data = try JSONEncoder().encode(entries)
-                defaults.set(data, forKey: StorageKey.entries)
+                try await store.save(entries)
             } catch {
-                defaults.remove(StorageKey.entries)
+                await store.remove()
             }
-        }
-
-        private static func loadSnapshot(
-            defaults: DiagnosticsUserDefaultsBox,
-            maxEntries: Int
-        ) -> [DiagnosticsLogEntry] {
-            guard let data = defaults.data(StorageKey.entries) else {
-                return []
-            }
-            do {
-                let decoded = try JSONDecoder().decode([DiagnosticsLogEntry].self, from: data)
-                return Array(decoded.suffix(maxEntries))
-            } catch {
-                defaults.remove(StorageKey.entries)
-                return []
-            }
-        }
-    }
-
-    private final class DiagnosticsUserDefaultsBox: @unchecked Sendable {
-        // Safety invariant:
-        // - `UserDefaults` is thread-safe for concurrent access.
-        // - This wrapper only provides a minimal API for `Data` get/set/remove.
-        private let defaults: UserDefaults
-
-        init(defaults: UserDefaults) {
-            self.defaults = defaults
-        }
-
-        func data(_ key: String) -> Data? {
-            defaults.data(forKey: key)
-        }
-
-        func set(_ data: Data, forKey key: String) {
-            defaults.set(data, forKey: key)
-        }
-
-        func remove(_ key: String) {
-            defaults.removeObject(forKey: key)
         }
     }
 #endif
