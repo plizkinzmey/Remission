@@ -78,7 +78,16 @@ struct TorrentMainInfoView: View {
         store: Store(
             initialState: {
                 var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
-                state.apply(.previewDownloading)
+                state.name = "Sample Torrent"
+                state.status = Torrent.Status.downloading.rawValue
+                state.percentDone = 0.65
+                state.hasLoadedMetadata = true
+                state.totalSize = 1_000_000_000
+                state.downloadedEver = 650_000_000
+                state.uploadedEver = 100_000_000
+                state.eta = 3600
+                state.downloadDir = "/Users/Downloads"
+                state.dateAdded = Int(Date().timeIntervalSince1970)
                 return state
             }()
         ) {

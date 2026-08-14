@@ -75,7 +75,7 @@ extension ServerListReducer {
                 }
             }
 
-        case .confirmHTTPProbe(let id):
+        case .confirmHTTPProbe:
             // This action is handled in connectionReducer where we have access to the server
             return .none
 

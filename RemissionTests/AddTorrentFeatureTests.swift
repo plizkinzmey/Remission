@@ -113,12 +113,9 @@ final class AddTorrentFeatureTests: XCTestCase {
                 .success(AddTorrentReducer.SubmitResult(addResult: addResult)))
         ) {
             $0.isSubmitting = false
-            $0.closeOnAlertDismiss = true
-            $0.alert = AlertFactory.torrentAdded(
-                name: addResult.name,
-                isDuplicate: false,
-                action: AddTorrentReducer.AlertAction.dismiss
-            )
+            $0.alert = nil
         }
+
+        await store.receive(.delegate(.closeRequested))
     }
 }

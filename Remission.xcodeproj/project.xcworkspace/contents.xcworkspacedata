@@ -4,4 +4,10 @@
    <FileRef
       location = "self:">
    </FileRef>
+   <FileRef
+      location = "group:implementation_plan.md">
+   </FileRef>
+   <FileRef
+      location = "group:task.md">
+   </FileRef>
 </Workspace>

@@ -63,7 +63,6 @@ extension AddTorrentReducer {
         )
         guard destinationRaw.isEmpty == false else {
             state.alert = AlertFactory.destinationRequired(action: .dismiss)
-            state.closeOnAlertDismiss = false
             return .none
         }
 
@@ -77,14 +76,12 @@ extension AddTorrentReducer {
 
         guard let environment = state.connectionEnvironment else {
             state.alert = AlertFactory.noConnection(action: .dismiss)
-            state.closeOnAlertDismiss = false
             return .none
         }
 
         let tags = TorrentCategory.tags(for: state.category)
         let startPaused = state.startPaused
         state.isSubmitting = true
-        state.closeOnAlertDismiss = false
 
         return .run { send in
             let result = await Result {

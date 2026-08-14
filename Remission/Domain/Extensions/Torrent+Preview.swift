@@ -62,6 +62,45 @@ extension Torrent {
     }()
 }
 
+// MARK: - Nested types previews
+
+extension Torrent.File {
+    static let preview: Torrent.File = .init(
+        index: 0,
+        name: "ubuntu-24.04-desktop-amd64.iso",
+        length: 4_200_000_000,
+        bytesCompleted: 1_800_000_000,
+        priority: 0,
+        wanted: true
+    )
+}
+
+extension Torrent.Tracker {
+    static let preview: Torrent.Tracker = .init(
+        id: 1,
+        announce: "https://tracker.example.com/announce",
+        tier: 0
+    )
+}
+
+extension Torrent.TrackerStat {
+    static let preview: Torrent.TrackerStat = .init(
+        trackerId: 1,
+        lastAnnounceResult: "Success",
+        downloadCount: 123,
+        leecherCount: 42,
+        seederCount: 81
+    )
+}
+
+extension Torrent.SpeedSample {
+    static let preview: Torrent.SpeedSample = .init(
+        timestamp: Date(),
+        downloadRate: 1_250_000,
+        uploadRate: 45_000
+    )
+}
+
 // MARK: - AppBootstrap Samples
 
 extension Torrent {

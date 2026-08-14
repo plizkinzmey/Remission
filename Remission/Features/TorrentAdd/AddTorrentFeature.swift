@@ -39,7 +39,6 @@ struct AddTorrentReducer {
         var startPaused: Bool = false
         var category: TorrentCategory = .other
         var isSubmitting: Bool = false
-        var closeOnAlertDismiss: Bool = false
         @Presents var alert: AlertState<AlertAction>?
 
         init(
@@ -246,21 +245,13 @@ struct AddTorrentReducer {
             case .submitButtonTapped:
                 return submit(state: &state)
 
-            case .submitResponse(.success(let result)):
+            case .submitResponse(.success):
                 state.isSubmitting = false
-                state.closeOnAlertDismiss = true
-                state.alert = AlertFactory.torrentAdded(
-                    name: result.addResult.name,
-                    isDuplicate: result.addResult.status == .duplicate,
-                    action: .dismiss
-                )
-                return .merge(
-                    persistRecentDownloadDirectories(state: &state)
-                )
+                state.alert = nil
+                return .send(.delegate(.closeRequested))
 
             case .submitResponse(.failure(let error)):
                 state.isSubmitting = false
-                state.closeOnAlertDismiss = false
                 state.alert = AlertFactory.torrentAddFailed(
                     message: error.message,
                     action: .dismiss
@@ -296,9 +287,7 @@ struct AddTorrentReducer {
 
             case .alert(.presented(.dismiss)):
                 state.alert = nil
-                let shouldClose = state.closeOnAlertDismiss
-                state.closeOnAlertDismiss = false
-                return shouldClose ? .send(.delegate(.closeRequested)) : .none
+                return .none
 
             case .alert(.dismiss):
                 return .none

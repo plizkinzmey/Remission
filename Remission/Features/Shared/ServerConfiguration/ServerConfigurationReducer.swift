@@ -156,7 +156,7 @@ struct ServerConfigurationReducer {
             case .delegate:
                 return .none
 
-            case .startConnectionProbeAfterCheck, .showHTTPWarning:
+            case .showHTTPWarning:
                 return .none
             }
         }

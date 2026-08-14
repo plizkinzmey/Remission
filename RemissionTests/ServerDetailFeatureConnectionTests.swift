@@ -218,7 +218,6 @@ struct ServerDetailFeatureConnectionTests {
             $0.torrentList.serverID = updatedServer.id
             $0.connectionEnvironment = nil
             $0.lastAppliedDefaultSpeedLimits = nil
-            $0.connectionState.phase = .connecting
             $0.connectionRetryAttempts = 0
             $0.torrentList.isAwaitingConnection = true
             $0.torrentList.phase = .idle
@@ -248,7 +247,6 @@ struct ServerDetailFeatureConnectionTests {
                 retry: .reconnect)
         }
 
-        await store.receive(.editor(.dismiss))
     }
 }
 

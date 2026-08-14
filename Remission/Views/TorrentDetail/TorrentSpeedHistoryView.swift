@@ -5,7 +5,7 @@ import SwiftUI
 #endif
 
 struct TorrentSpeedHistoryView: View {
-    let samples: [SpeedSample]
+    let samples: [Torrent.SpeedSample]
     var showsContainer: Bool = true
 
     var body: some View {

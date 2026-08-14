@@ -11,9 +11,9 @@ struct TorrentTrackersView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(store.trackers) { tracker in
-                let stats: TrackerStat? = store
-                    .trackerStats
+            ForEach(store.trackers.trackers) { tracker in
+                let stats: Torrent.TrackerStat? = store
+                    .trackers.trackerStats
                     .first { $0.trackerId == tracker.id }
                 TorrentTrackerRow(tracker: tracker, stats: stats)
             }
@@ -22,8 +22,8 @@ struct TorrentTrackersView: View {
 }
 
 private struct TorrentTrackerRow: View {
-    let tracker: TorrentTracker
-    let stats: TrackerStat?
+    let tracker: Torrent.Tracker
+    let stats: Torrent.TrackerStat?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -70,7 +70,8 @@ private struct TorrentTrackerRow: View {
             store: Store(
                 initialState: {
                     var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
-                    state.apply(.previewDownloading)
+                    state.trackers.trackers = [Torrent.Tracker.preview]
+                    state.trackers.trackerStats = [Torrent.TrackerStat.preview]
                     return state
                 }()
             ) {

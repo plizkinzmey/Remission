@@ -2,8 +2,20 @@ import ComposableArchitecture
 import Foundation
 
 extension AlertState where Action == TorrentDetailReducer.AlertAction {
-    static func info(message: String) -> AlertState {
-        AlertState {
+    static func connectionMissing() -> Self {
+        Self {
+            TextState(L10n.tr("torrentDetail.error.title"))
+        } actions: {
+            ButtonState(action: .dismiss) {
+                TextState(L10n.tr("common.ok"))
+            }
+        } message: {
+            TextState(L10n.tr("torrentAdd.alert.noConnection.title"))
+        }
+    }
+
+    static func info(message: String) -> Self {
+        Self {
             TextState(L10n.tr("common.ok"))
         } actions: {
             ButtonState(action: .dismiss) {
@@ -14,8 +26,8 @@ extension AlertState where Action == TorrentDetailReducer.AlertAction {
         }
     }
 
-    static func error(message: String) -> AlertState {
-        AlertState {
+    static func error(message: String) -> Self {
+        Self {
             TextState(L10n.tr("torrentDetail.error.title"))
         } actions: {
             ButtonState(action: .dismiss) {
@@ -25,16 +37,11 @@ extension AlertState where Action == TorrentDetailReducer.AlertAction {
             TextState(message)
         }
     }
-
-    static func connectionMissing() -> AlertState {
-        .error(message: L10n.tr("torrentAdd.alert.noConnection.title"))
-    }
 }
 
-extension ConfirmationDialogState
-where Action == TorrentDetailReducer.RemoveConfirmationAction {
-    static func removeTorrent(name: String) -> ConfirmationDialogState {
-        ConfirmationDialogState {
+extension ConfirmationDialogState where Action == TorrentDetailReducer.RemoveConfirmationAction {
+    static func removeTorrent(name: String) -> Self {
+        Self {
             TextState(
                 String(
                     format: L10n.tr("torrentDetail.actions.removePrompt"),

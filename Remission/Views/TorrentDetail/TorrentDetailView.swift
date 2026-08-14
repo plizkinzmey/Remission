@@ -130,18 +130,18 @@ struct TorrentDetailView: View {
 
     private var shouldShowInitialPlaceholder: Bool {
         store.isLoading
-            && store.files.isEmpty
-            && store.trackers.isEmpty
-            && store.peers.isEmpty
-            && store.speedHistory.samples.isEmpty
+            && store.files.files.isEmpty
+            && store.trackers.trackers.isEmpty
+            && store.peers.peers.isEmpty
+            && store.stats.speedHistory.samples.isEmpty
     }
 
     private var shouldShowMetadataFallback: Bool {
         store.isLoading == false
             && store.errorPresenter.banner == nil
             && store.hasLoadedMetadata == false
-            && store.files.isEmpty
-            && store.trackers.isEmpty
-            && store.peers.isEmpty
+            && store.files.files.isEmpty
+            && store.trackers.trackers.isEmpty
+            && store.peers.peers.isEmpty
     }
 }

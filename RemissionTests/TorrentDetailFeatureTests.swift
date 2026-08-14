@@ -56,14 +56,11 @@ final class TorrentDetailFeatureTests: XCTestCase {
 
         store.exhaustivity = .off
 
-        await store.send(TorrentDetailReducer.Action.startTapped) {
-            $0.activeCommand = .start
-            $0.pendingStatusChange = .init(command: .start, initialStatus: $0.status)
-        }
+        await store.send(TorrentDetailReducer.Action.startTapped)
 
         await store.receive(\.commandResponse) {
-            $0.activeCommand = nil
-            $0.pendingListSync = true
+            $0.commands.activeCommand = .start
+            $0.pendingStatusChange = .init(command: .start, initialStatus: $0.status)
         }
 
         await store.receive(
@@ -108,14 +105,11 @@ final class TorrentDetailFeatureTests: XCTestCase {
         store.exhaustivity = .off
 
         // Tap verify: should lock immediately and keep a pending status change.
-        await store.send(.verifyTapped) {
-            $0.activeCommand = .verify
-            $0.pendingStatusChange = .init(command: .verify, initialStatus: $0.status)
-        }
+        await store.send(.verifyTapped)
 
         await store.receive(\.commandResponse) {
-            $0.activeCommand = nil
-            $0.pendingListSync = true
+            $0.commands.activeCommand = .verify
+            $0.pendingStatusChange = .init(command: .verify, initialStatus: $0.status)
         }
 
         // Details arrive with an intermediate (non-checking) status: should remain locked.

@@ -12,7 +12,7 @@ struct TorrentFilesView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(store.files) { file in
+            ForEach(store.files.files) { file in
                 TorrentFileRow(file: file) { priority in
                     store.send(
                         .priorityChanged(fileIndices: [file.index], priority: priority))
@@ -27,7 +27,7 @@ struct TorrentFilesView: View {
 }
 
 private struct TorrentFileRow: View {
-    let file: TorrentFile
+    let file: Torrent.File
     let onPriorityChange: (Int) -> Void
 
     var body: some View {
@@ -107,7 +107,7 @@ private struct TorrentFileRow: View {
             store: Store(
                 initialState: {
                     var state = TorrentDetailReducer.State(torrentID: .init(rawValue: 1))
-                    state.apply(.previewDownloading)
+                    state.files.files = [Torrent.File.preview]
                     return state
                 }()
             ) {
