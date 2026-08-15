@@ -4,7 +4,7 @@ extension TransmissionDomainMapper {
     func mapSessionState(
         sessionResponse: TransmissionResponse,
         statsResponse: TransmissionResponse,
-        freeSpaceBytes: Int64
+        storage: SessionState.Storage
     ) throws -> SessionState {
         let sessionArguments: [String: AnyCodable] = try arguments(
             from: sessionResponse,
@@ -28,7 +28,6 @@ extension TransmissionDomainMapper {
             from: sessionArguments
         )
         let throughput: SessionState.Throughput = makeThroughput(from: statsArguments)
-        let storage = SessionState.Storage(freeBytes: freeSpaceBytes)
 
         let cumulativeStats: SessionState.LifetimeStats = try mapLifetimeStats(
             from: statsArguments,
@@ -55,18 +54,35 @@ extension TransmissionDomainMapper {
         )
     }
 
-    func mapFreeSpaceBytes(
+    func mapStorageMetrics(
         from response: TransmissionResponse
-    ) throws -> Int64 {
+    ) throws -> SessionState.Storage {
         let arguments: [String: AnyCodable] = try arguments(
             from: response,
             context: "free-space"
         )
-        let value = try requireField(
-            arguments["size_bytes"] == nil ? "size-bytes" : "size_bytes",
-            in: arguments,
-            context: "free-space"
+        let freeBytes = try mapByteValue(
+            field: arguments["size_bytes"] == nil ? "size-bytes" : "size_bytes",
+            in: arguments
         )
+        let totalBytes = try mapByteValue(
+            field: arguments["total_size"] == nil ? "total-size" : "total_size",
+            in: arguments
+        )
+        return SessionState.Storage(totalBytes: totalBytes, freeBytes: freeBytes)
+    }
+
+    func mapFreeSpaceBytes(
+        from response: TransmissionResponse
+    ) throws -> Int64 {
+        try mapStorageMetrics(from: response).freeBytes
+    }
+
+    private func mapByteValue(
+        field: String,
+        in arguments: [String: AnyCodable]
+    ) throws -> Int64 {
+        let value = try requireField(field, in: arguments, context: "free-space")
         if let int = value.intValue {
             return Int64(int)
         }
@@ -74,7 +90,7 @@ extension TransmissionDomainMapper {
             return Int64(double)
         }
         throw DomainMappingError.invalidType(
-            field: "size-bytes",
+            field: field,
             expected: "int",
             context: "free-space"
         )

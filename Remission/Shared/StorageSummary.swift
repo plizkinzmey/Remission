@@ -1,38 +1,28 @@
 import Foundation
 
-/// Агрегированные метрики хранилища, рассчитанные по текущему списку торрентов и состоянию сессии.
+/// Представление дисковых метрик Transmission для UI.
 struct StorageSummary: Equatable, Sendable {
-    var totalBytes: Int64
-    var freeBytes: Int64
+    private var storage: SessionState.Storage
     var updatedAt: Date?
 
-    /// Объём занятого места торрентами. Для безопасности результат ограничен снизу нулём.
-    var usedBytes: Int64 {
-        max(totalBytes - freeBytes, 0)
-    }
+    var totalBytes: Int64 { storage.totalBytes }
+    var freeBytes: Int64 { storage.freeBytes }
+    var usedBytes: Int64 { storage.usedBytes }
 
-    init(totalBytes: Int64, freeBytes: Int64, updatedAt: Date? = nil) {
-        self.totalBytes = totalBytes
-        self.freeBytes = freeBytes
+    init(storage: SessionState.Storage, updatedAt: Date? = nil) {
+        self.storage = storage
         self.updatedAt = updatedAt
     }
 
-    /// Строит сводку по хранилищу на основе торрентов и снимка свободного места из сессии.
-    /// Возвращает `nil`, если состояние сессии недоступно.
-    static func calculate(
-        torrents: [Torrent],
-        session: SessionState?,
-        updatedAt: Date?
-    ) -> StorageSummary? {
-        guard let session else { return nil }
-        let usedBytes = torrents.reduce(Int64(0)) { total, torrent in
-            total + Int64(torrent.summary.progress.totalSize)
-        }
-        let totalBytes = usedBytes + session.storage.freeBytes
-        return StorageSummary(
-            totalBytes: totalBytes,
-            freeBytes: session.storage.freeBytes,
+    init(totalBytes: Int64, freeBytes: Int64, updatedAt: Date? = nil) {
+        self.init(
+            storage: .init(totalBytes: totalBytes, freeBytes: freeBytes),
             updatedAt: updatedAt
         )
+    }
+
+    static func from(session: SessionState?, updatedAt: Date?) -> StorageSummary? {
+        guard let session else { return nil }
+        return StorageSummary(storage: session.storage, updatedAt: updatedAt)
     }
 }

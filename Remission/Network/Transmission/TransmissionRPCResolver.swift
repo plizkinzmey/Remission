@@ -15,13 +15,6 @@ struct TransmissionRPCResolver {
     // Test accessors for concrete types
     var rpcModeStoreConcrete: RPCModeStore? { rpcModeStore as? RPCModeStore }
     var jsonrpcIDStoreConcrete: JSONRPCIDStore? { jsonrpcIDStore as? JSONRPCIDStore }
-
-    // For backwards compatibility with tests - allows setting RPC version
-    var rpcVersionStore: RPCVersionStore? {
-        get { nil }
-        set { /* no-op for backwards compatibility */  }
-    }
-
     init(
         mode: TransmissionRPCMode,
         rpcModeStore: RPCModeStoreProtocol,
@@ -31,7 +24,6 @@ struct TransmissionRPCResolver {
         self.rpcModeStore = rpcModeStore
         self.jsonrpcIDStore = jsonrpcIDStore
     }
-
     /// Returns the initial list of modes to try based on configuration.
     func initialModesToTry() async -> [TransmissionRPCMode] {
         if mode != .auto {
@@ -265,11 +257,4 @@ actor JSONRPCIDStore: JSONRPCIDStoreProtocol {
         currentID += 1
         return .int(currentID)
     }
-}
-
-/// For backwards compatibility with tests - allows setting RPC version
-class RPCVersionStore {
-    init() {}
-    func store(_ value: Int) {}
-    func load() async -> Int? { nil }
 }

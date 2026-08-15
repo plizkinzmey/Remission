@@ -169,9 +169,17 @@ public struct SessionState: Equatable, Sendable, Codable {
     public struct Storage: Equatable, Sendable, Codable {
         /// Свободное место в байтах (`free-space` → `size-bytes`).
         public var freeBytes: Int64
+        /// Общая ёмкость файловой системы для запрошенного пути (`free-space` → `total-size`).
+        public var totalBytes: Int64
 
-        public init(freeBytes: Int64) {
+        public init(totalBytes: Int64, freeBytes: Int64) {
+            self.totalBytes = totalBytes
             self.freeBytes = freeBytes
+        }
+
+        /// Фактически занятое место на файловой системе для запрошенного пути.
+        public var usedBytes: Int64 {
+            max(totalBytes - freeBytes, 0)
         }
     }
 
@@ -243,7 +251,7 @@ extension SessionState {
                 downloadSpeed: 9_500_000,
                 uploadSpeed: 1_200_000
             ),
-            storage: .init(freeBytes: 1_500_000_000_000),
+            storage: .init(totalBytes: 2_000_000_000_000, freeBytes: 1_500_000_000_000),
             cumulativeStats: .init(
                 filesAdded: 542,
                 downloadedBytes: 8_450_000_000_000,
@@ -289,7 +297,7 @@ extension SessionState {
                 downloadSpeed: 0,
                 uploadSpeed: 0
             ),
-            storage: .init(freeBytes: 250_000_000_000),
+            storage: .init(totalBytes: 500_000_000_000, freeBytes: 250_000_000_000),
             cumulativeStats: .init(
                 filesAdded: 120,
                 downloadedBytes: 1_200_000_000_000,

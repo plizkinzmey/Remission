@@ -19,17 +19,12 @@ extension SessionRepository {
         let downloadDirectory =
             mapper.stringValue(aliases: ["download_dir", "download-dir"], in: sessionArguments)
             ?? ""
-        let freeSpaceBytes: Int64
-        do {
-            let freeSpaceResponse = try await transmissionClient.freeSpace(downloadDirectory)
-            freeSpaceBytes = try mapper.mapFreeSpaceBytes(from: freeSpaceResponse)
-        } catch {
-            freeSpaceBytes = 0
-        }
+        let freeSpaceResponse = try await transmissionClient.freeSpace(downloadDirectory)
+        let storage = try mapper.mapStorageMetrics(from: freeSpaceResponse)
         let state = try mapper.mapSessionState(
             sessionResponse: session,
             statsResponse: stats,
-            freeSpaceBytes: freeSpaceBytes
+            storage: storage
         )
         try await cacheState(state)
         return state
