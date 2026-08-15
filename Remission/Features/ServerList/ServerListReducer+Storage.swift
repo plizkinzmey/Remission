@@ -20,13 +20,8 @@ extension ServerListReducer {
                         @Dependency(\.sessionRepository) var sessionRepository: SessionRepository
                         return try await sessionRepository.fetchState()
                     }
-                    let torrents = try await environment.withDependencies {
-                        @Dependency(\.torrentRepository) var torrentRepository: TorrentRepository
-                        return try await torrentRepository.fetchList()
-                    }
                     let snapshot = try? await environment.snapshot.load()
-                    if let summary = StorageSummary.calculate(
-                        torrents: torrents,
+                    if let summary = StorageSummary.from(
                         session: session,
                         updatedAt: snapshot?.latestUpdatedAt
                     ) {

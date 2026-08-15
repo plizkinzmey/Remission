@@ -35,8 +35,7 @@ final class ServerListStorageTests: XCTestCase {
             $0.connectionStatuses[server.id]?.isLoadingStorage = true
         }
 
-        let expectedSummary = StorageSummary.calculate(
-            torrents: torrents,
+        let expectedSummary = StorageSummary.from(
             session: session,
             updatedAt: nil
         )

@@ -233,7 +233,10 @@ struct TransmissionClientRPCModeTests {
             inspector.append(requestBodyData(from: request))
             let response = JSONRPCResponse(
                 jsonrpc: "2.0",
-                result: .object(["size_bytes": .int(123_456)]),
+                result: .object([
+                    "size_bytes": .int(123_456),
+                    "total_size": .int(1_000_000)
+                ]),
                 error: nil,
                 id: .int(1)
             )

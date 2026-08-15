@@ -137,8 +137,7 @@ extension TorrentListReducer {
                 let snapshot = (try? await environment.snapshot.load()) ?? nil
                 let updatedAt = snapshot?.torrents?.updatedAt
                 if shouldFetchStorage {
-                    let summary = StorageSummary.calculate(
-                        torrents: torrents,
+                    let summary = StorageSummary.from(
                         session: session,
                         updatedAt: updatedAt
                     )

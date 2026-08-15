@@ -12,19 +12,30 @@ struct TransmissionDomainMapperSessionTests {
 
         let intResponse = TransmissionResponse(
             result: "success",
-            arguments: .object(["size-bytes": .int(1_024)])
+            arguments: .object([
+                "size-bytes": .int(1_024),
+                "total-size": .int(4_096)
+            ])
         )
         #expect(try mapper.mapFreeSpaceBytes(from: intResponse) == 1_024)
+        #expect(try mapper.mapStorageMetrics(from: intResponse).totalBytes == 4_096)
+        #expect(try mapper.mapStorageMetrics(from: intResponse).freeBytes == 1_024)
 
         let doubleResponse = TransmissionResponse(
             result: "success",
-            arguments: .object(["size-bytes": .double(2_048.9)])
+            arguments: .object([
+                "size-bytes": .double(2_048.9),
+                "total-size": .double(4_096)
+            ])
         )
         #expect(try mapper.mapFreeSpaceBytes(from: doubleResponse) == 2_048)
 
         let snakeCaseResponse = TransmissionResponse(
             result: "success",
-            arguments: .object(["size_bytes": .int(4_096)])
+            arguments: .object([
+                "size_bytes": .int(4_096),
+                "total_size": .int(8_192)
+            ])
         )
         #expect(try mapper.mapFreeSpaceBytes(from: snakeCaseResponse) == 4_096)
 
@@ -102,7 +113,7 @@ struct TransmissionDomainMapperSessionTests {
         let state = try mapper.mapSessionState(
             sessionResponse: sessionResponse,
             statsResponse: statsResponse,
-            freeSpaceBytes: 9_999
+            storage: .init(totalBytes: 20_000, freeBytes: 9_999)
         )
 
         #expect(state.rpc.rpcVersion == 17)
@@ -180,7 +191,7 @@ struct TransmissionDomainMapperSessionTests {
         let state = try mapper.mapSessionState(
             sessionResponse: sessionResponse,
             statsResponse: statsResponse,
-            freeSpaceBytes: 1
+            storage: .init(totalBytes: 2, freeBytes: 1)
         )
 
         #expect(state.rpc.rpcVersion == 19)

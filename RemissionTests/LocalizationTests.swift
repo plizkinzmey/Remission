@@ -14,6 +14,14 @@ struct LocalizationTests {
         #expect(value == key)
     }
 
+    @Test
+    func torrentSearchPromptDoesNotMentionETA() {
+        #expect(
+            L10n.tr("torrentList.search.prompt")
+                .localizedCaseInsensitiveContains("eta") == false
+        )
+    }
+
     // Проверяет, что для известного ключа возвращается непустое значение.
     @Test
     func knownKeyReturnsNonEmptyValue() {
