@@ -14,8 +14,13 @@ struct TorrentCategoryTests {
     // и не должен случайно поменяться.
     @Test
     func orderedMatchesAllCasesInExpectedOrder() {
-        #expect(TorrentCategory.ordered == [.programs, .movies, .series, .books, .other])
+        #expect(TorrentCategory.ordered == [.programs, .movies, .series, .books, .music, .other])
         #expect(TorrentCategory.ordered.count == TorrentCategory.allCases.count)
+
+        #expect(
+            TorrentListReducer.CategoryFilter.allCases.map(\.rawValue)
+                == ["all"] + TorrentCategory.ordered.map(\.rawValue)
+        )
     }
 
     // Проверяет, что категория определяется по тегам без учета регистра,
@@ -27,6 +32,7 @@ struct TorrentCategoryTests {
             CategoryCase(tags: ["MoViEs"], expected: .movies),
             CategoryCase(tags: ["books", "series"], expected: .series),
             CategoryCase(tags: ["programs", "other"], expected: .other),
+            CategoryCase(tags: ["music"], expected: .music),
             CategoryCase(tags: ["unknown"], expected: .other),
             CategoryCase(tags: [], expected: .other)
         ]

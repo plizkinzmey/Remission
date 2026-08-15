@@ -183,7 +183,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .auto)
         _ = try await client.sessionGet()
 
-        let persistedMode = await client.test_rpcResolver.rpcModeStoreConcrete?.load()
+        let persistedMode = await client.testRPCResolver.rpcModeStoreConcrete?.load()
         #expect(
             persistedMode == .jsonRpc2,
             "Auto mode should persist JSON-RPC 2.0 after successful request")
@@ -209,7 +209,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .jsonRpc2)
         _ = try await client.sessionGet()
 
-        let persistedMode = await client.test_rpcResolver.rpcModeStoreConcrete?.load()
+        let persistedMode = await client.testRPCResolver.rpcModeStoreConcrete?.load()
         #expect(
             persistedMode == nil,
             "Explicit mode should not persist to rpcModeStore — only auto mode does")
@@ -300,7 +300,7 @@ struct TransmissionClientJSONRPCFallbackTests {
         let client = makeClient(mode: .auto)
         _ = try await client.sessionGet()
 
-        let storedSessionID = await client.test_auth.sessionStore.load()
+        let storedSessionID = await client.testAuth.sessionStore.load()
         #expect(storedSessionID == expectedSessionID)
     }
 

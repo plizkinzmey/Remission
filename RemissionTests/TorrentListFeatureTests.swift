@@ -211,7 +211,7 @@ final class TorrentListFeatureTests: XCTestCase {
             torrentRepository: makeRemovalRepository(torrent: torrent)
         )
         let expectedSummary = try XCTUnwrap(
-            StorageSummary.calculate(torrents: [], session: .previewActive, updatedAt: nil)
+            StorageSummary.from(session: .previewActive, updatedAt: nil)
         )
         let store = TestStoreFactory.makeTestStore(
             initialState: TorrentListReducer.State(

@@ -51,54 +51,16 @@ struct TransmissionRetryPolicy {
     func execute<T: Sendable>(
         operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {
-        var remainingRetries = config.maxRetries
-        var retryAttempt = 0
+        var state = RetryState(maxRetries: config.maxRetries)
 
         while true {
             do {
                 return try await operation()
             } catch let retryError as TransmissionRetryError {
-                switch retryError {
-                case .network(let urlError):
-                    guard shouldRetryURLError(urlError) else {
-                        throw APIError.mapURLError(urlError)
-                    }
-                    guard remainingRetries > 0 else {
-                        throw APIError.mapURLError(urlError)
-                    }
-                    remainingRetries -= 1
-                    let delay = retryDelay(for: retryAttempt)
-                    retryAttempt += 1
-                    try await clock.sleep(for: delay)
-                    continue
-                case .sessionConflict:
-                    throw APIError.sessionConflict
-                case .transientServerError(let statusCode):
-                    guard remainingRetries > 0 else {
-                        throw APIError.unknown(
-                            details: "Transient server error (\(statusCode)) after max retries")
-                    }
-                    remainingRetries -= 1
-                    let delay = retryDelay(for: retryAttempt)
-                    retryAttempt += 1
-                    try await clock.sleep(for: delay)
-                    continue
-                }
+                try await handle(retryError, state: &state)
             } catch let urlError as URLError {
-                // Wrap raw URLError in TransmissionRetryError for consistent handling
-                guard shouldRetryURLError(urlError) else {
-                    throw APIError.mapURLError(urlError)
-                }
-                guard remainingRetries > 0 else {
-                    throw APIError.mapURLError(urlError)
-                }
-                remainingRetries -= 1
-                let delay = retryDelay(for: retryAttempt)
-                retryAttempt += 1
-                try await clock.sleep(for: delay)
-                continue
+                try await handle(urlError, state: &state)
             } catch let apiError as APIError {
-                // Check for JSON-RPC fallback scenarios
                 if let fallbackReason = fallbackReasonFromAPIError(apiError) {
                     throw RetryDecision.fallbackToLegacy(reason: fallbackReason)
                 }
@@ -109,6 +71,63 @@ struct TransmissionRetryPolicy {
                 throw APIError.unknown(details: error.localizedDescription)
             }
         }
+    }
+
+    private struct RetryState {
+        var remainingRetries: Int
+        var retryAttempt = 0
+
+        init(maxRetries: Int) {
+            remainingRetries = maxRetries
+        }
+    }
+
+    private func handle(
+        _ error: TransmissionRetryError,
+        state: inout RetryState
+    ) async throws {
+        switch error {
+        case .network(let urlError):
+            guard shouldRetryURLError(urlError) else {
+                throw APIError.mapURLError(urlError)
+            }
+            try await waitForRetry(
+                state: &state,
+                exhaustedError: APIError.mapURLError(urlError)
+            )
+        case .sessionConflict:
+            throw APIError.sessionConflict
+        case .transientServerError(let statusCode):
+            let exhaustedError = APIError.unknown(
+                details: "Transient server error (\(statusCode)) after max retries")
+            try await waitForRetry(state: &state, exhaustedError: exhaustedError)
+        }
+    }
+
+    private func handle(
+        _ error: URLError,
+        state: inout RetryState
+    ) async throws {
+        guard shouldRetryURLError(error) else {
+            throw APIError.mapURLError(error)
+        }
+        try await waitForRetry(
+            state: &state,
+            exhaustedError: APIError.mapURLError(error)
+        )
+    }
+
+    private func waitForRetry(
+        state: inout RetryState,
+        exhaustedError: APIError
+    ) async throws {
+        guard state.remainingRetries > 0 else {
+            throw exhaustedError
+        }
+        state.remainingRetries -= 1
+        let delay = retryDelay(for: state.retryAttempt)
+        state.retryAttempt += 1
+        try await clock.sleep(for: delay)
     }
 
     /// Determines if an APIError should trigger JSON-RPC → Legacy fallback.

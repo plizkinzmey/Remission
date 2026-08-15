@@ -75,13 +75,15 @@ struct SessionRepositoryMappingTests {
         )
 
         #expect(state.storage.freeBytes == 5_000)
+        #expect(state.storage.totalBytes == 10_000)
+        #expect(state.storage.usedBytes == 5_000)
         #expect(await recorder.cached?.storage.freeBytes == 5_000)
         #expect(await recorder.cacheCount == 1)
     }
 
-    @Test("fetchSessionState подставляет freeSpace=0, когда free-space падает")
-    func fetchSessionStateFallsBackToZeroFreeSpace() async throws {
-        // Ошибка free-space не должна ронять весь session-get.
+    @Test("fetchSessionState пробрасывает ошибку free-space и не кеширует неполные метрики")
+    func fetchSessionStateFailsWhenFreeSpaceFails() async throws {
+        // Нельзя превращать ошибку free-space в нулевое свободное место.
         enum FreeSpaceError: Error { case failed }
 
         let mapper = TransmissionDomainMapper()
@@ -93,14 +95,14 @@ struct SessionRepositoryMappingTests {
             freeSpace: .failure(FreeSpaceError.failed)
         )
 
-        let state = try await SessionRepository.fetchSessionState(
-            transmissionClient: client,
-            mapper: mapper,
-            cacheState: recorder.cache
-        )
-
-        #expect(state.storage.freeBytes == 0)
-        #expect(await recorder.cached?.storage.freeBytes == 0)
+        await #expect(throws: FreeSpaceError.self) {
+            try await SessionRepository.fetchSessionState(
+                transmissionClient: client,
+                mapper: mapper,
+                cacheState: recorder.cache
+            )
+        }
+        #expect(await recorder.cached == nil)
     }
 }
 
@@ -187,7 +189,8 @@ private func makeFreeSpaceResponse(bytes: Int) -> TransmissionResponse {
     TransmissionResponse(
         result: "success",
         arguments: .object([
-            "size-bytes": .int(bytes)
+            "size-bytes": .int(bytes),
+            "total-size": .int(10_000)
         ])
     )
 }

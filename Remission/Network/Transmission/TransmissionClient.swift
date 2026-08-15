@@ -25,7 +25,7 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     var rpcModeStore: RPCModeStore { rpcResolver.rpcModeStoreConcrete! }
 
     /// For testing: access to session store
-    var sessionStore: SessionStore { auth.sessionStore as! SessionStore }
+    var sessionStore: SessionStoreProtocol { auth.sessionStore }
 
     /// For testing: access to JSON-RPC ID store
     var jsonrpcIDStore: JSONRPCIDStore { rpcResolver.jsonrpcIDStoreConcrete! }
@@ -45,8 +45,8 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
     typealias RPCMethod = TransmissionRPCMethod
 
     // Test accessors for internal components
-    var test_rpcResolver: TransmissionRPCResolver { rpcResolver }
-    var test_auth: TransmissionAuth { auth }
+    var testRPCResolver: TransmissionRPCResolver { rpcResolver }
+    var testAuth: TransmissionAuth { auth }
 
     // MARK: - Init
 
@@ -252,37 +252,54 @@ public final class TransmissionClient: TransmissionClientProtocol, Sendable {
                     await self.rpcResolver.persistResolvedModeIfNeeded(mode)
                     return transmissionResponse
 
-                } catch let apiError as APIError {
-                    // Check for JSON-RPC fallback
-                    if self.rpcResolver.fallbackReasonFromAPIError(apiError) != nil,
-                        mode == .jsonRpc2,
-                        modeIndex + 1 < modesToTry.count
-                    {
-                        modeIndex += 1
-                        continue
-                    }
-                    throw apiError
-                } catch let decision as RetryDecision {
-                    // Handle JSON-RPC → Legacy fallback from retry policy
-                    if case .fallbackToLegacy = decision,
-                        mode == .jsonRpc2,
-                        modeIndex + 1 < modesToTry.count
-                    {
-                        modeIndex += 1
-                        continue
-                    }
-                    throw decision
-                } catch let urlError as URLError {
-                    // Wrap URLError for retry policy to handle
-                    throw TransmissionRetryError.network(urlError)
-                } catch let retryError as TransmissionRetryError {
-                    // Re-throw retry errors as-is for retry policy
-                    throw retryError
                 } catch {
-                    throw APIError.unknown(details: error.localizedDescription)
+                    if self.shouldFallbackToLegacy(
+                        error,
+                        mode: mode,
+                        modeIndex: modeIndex,
+                        modeCount: modesToTry.count
+                    ) {
+                        modeIndex += 1
+                        continue
+                    }
+                    try self.rethrowRequestError(error)
                 }
             }
         }
+    }
+
+    private func rethrowRequestError(_ error: Error) throws -> Never {
+        if let apiError = error as? APIError {
+            throw apiError
+        }
+        if let decision = error as? RetryDecision {
+            throw decision
+        }
+        if let urlError = error as? URLError {
+            throw TransmissionRetryError.network(urlError)
+        }
+        if let retryError = error as? TransmissionRetryError {
+            throw retryError
+        }
+        throw APIError.unknown(details: error.localizedDescription)
+    }
+
+    private func shouldFallbackToLegacy(
+        _ error: Error,
+        mode: TransmissionRPCMode,
+        modeIndex: Int,
+        modeCount: Int
+    ) -> Bool {
+        guard mode == .jsonRpc2, modeIndex + 1 < modeCount else { return false }
+        if let apiError = error as? APIError {
+            return rpcResolver.fallbackReasonFromAPIError(apiError) != nil
+        }
+        if let decision = error as? RetryDecision,
+            case .fallbackToLegacy = decision
+        {
+            return true
+        }
+        return false
     }
 
     // MARK: - TransmissionClientProtocol Implementation (via sendRequest)

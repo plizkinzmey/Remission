@@ -28,9 +28,10 @@ final class ServerDetailFeatureTests: XCTestCase {
         } withDependencies: {
             // Этот сценарий проверяет подключение, а не подтверждение HTTP.
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
-            $0.serverConnectionEnvironmentFactory = ServerConnectionEnvironmentFactory(make: {
-                @Sendable _ in environment
-            })
+            $0.serverConnectionEnvironmentFactory =
+                ServerConnectionEnvironmentFactory(make: { @Sendable _ in
+                    environment
+                })
             $0.userPreferencesRepository.loadClosure = { @Sendable _ in
                 await gate.wait()
                 return .default

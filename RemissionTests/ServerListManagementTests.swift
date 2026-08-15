@@ -130,17 +130,17 @@ struct ServerListManagementTests {
         } withDependencies: {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in true }
             $0.serverConnectionProbe.run = { _, _ in .init(handshake: handshake) }
-            $0.serverConnectionEnvironmentFactory = ServerConnectionEnvironmentFactory(make: {
-                @Sendable _ in
-                .testEnvironment(
-                    server: server, handshake: handshake,
-                    torrentRepository: .testValue, sessionRepository: .testValue)
-            })
+            $0.serverConnectionEnvironmentFactory =
+                ServerConnectionEnvironmentFactory(make: { @Sendable _ in
+                    .testEnvironment(
+                        server: server, handshake: handshake,
+                        torrentRepository: .testValue, sessionRepository: .testValue)
+                })
             $0.appClock = .test(clock: clock)
         }
 
-        let expectedSummary = StorageSummary.calculate(
-            torrents: [], session: .previewActive, updatedAt: nil)
+        let expectedSummary = StorageSummary.from(
+            session: .previewActive, updatedAt: nil)
 
         await store.send(.serverForm(.presented(.delegate(.didCreate(server))))) {
             $0.servers.append(server)

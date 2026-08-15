@@ -317,7 +317,7 @@ extension TorrentListReducer {
                         "itemsRevision": "\(state.itemsRevision)",
                         "metricsRevision": "\(state.metricsRevision)",
                         "filter": "\(state.selectedFilter.rawValue)",
-                        "category": "\(state.selectedCategory.rawValue)",
+                        "category": "\(String(describing: state.selectedCategory))",
                         "query": "\(state.normalizedSearchQuery)"
                     ]
                 )
@@ -338,7 +338,7 @@ extension TorrentListReducer {
                     "itemsRevision": "\(state.itemsRevision)",
                     "metricsRevision": "\(state.metricsRevision)",
                     "filter": "\(state.selectedFilter.rawValue)",
-                    "category": "\(state.selectedCategory.rawValue)",
+                    "category": "\(String(describing: state.selectedCategory))",
                     "query": "\(state.normalizedSearchQuery)"
                 ]
             )

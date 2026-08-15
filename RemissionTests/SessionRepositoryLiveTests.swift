@@ -179,7 +179,8 @@ private func makeFreeSpaceResponse(bytes: Int) -> TransmissionResponse {
     TransmissionResponse(
         result: "success",
         arguments: .object([
-            "size-bytes": .int(bytes)
+            "size-bytes": .int(bytes),
+            "total-size": .int(10_000)
         ])
     )
 }
