@@ -6,6 +6,7 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
     case movies
     case series
     case books
+    case music
     case other
 
     static let ordered: [TorrentCategory] = [
@@ -13,6 +14,7 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
         .movies,
         .series,
         .books,
+        .music,
         .other
     ]
 
@@ -28,6 +30,8 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
             return L10n.tr("torrentCategory.series")
         case .books:
             return L10n.tr("torrentCategory.books")
+        case .music:
+            return L10n.tr("torrentCategory.music")
         case .other:
             return L10n.tr("torrentCategory.other")
         }
@@ -43,6 +47,8 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
             return "film.stack.fill"
         case .books:
             return "book.fill"
+        case .music:
+            return "music.note"
         case .other:
             return "tag.fill"
         }

@@ -3015,6 +3015,22 @@
         }
       }
     },
+    "torrentCategory.music" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Music"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Музыка"
+          }
+        }
+      }
+    },
     "torrentCategory.other" : {
       "localizations" : {
         "en" : {
@@ -4992,13 +5008,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search by title or ETA"
+            "value" : "Search by title"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Поиск по названию или ETA"
+            "value" : "Поиск по названию"
           }
         }
       }

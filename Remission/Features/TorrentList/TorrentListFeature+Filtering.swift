@@ -39,45 +39,33 @@ extension TorrentListReducer {
         case movies
         case series
         case books
+        case music
         case other
+
+        static var allCases: [Self] {
+            [.all] + TorrentCategory.ordered.compactMap { Self(rawValue: $0.rawValue) }
+        }
 
         var title: String {
             switch self {
             case .all:
                 return L10n.tr("torrentList.category.all")
-            case .programs:
-                return TorrentCategory.programs.title
-            case .movies:
-                return TorrentCategory.movies.title
-            case .series:
-                return TorrentCategory.series.title
-            case .books:
-                return TorrentCategory.books.title
-            case .other:
-                return TorrentCategory.other.title
+            default:
+                return mappedCategory.title
             }
         }
 
         func matches(_ item: TorrentListItem.State) -> Bool {
-            guard let category = mappedCategory else { return true }
-            return TorrentCategory.category(from: item.torrent.tags) == category
-        }
-
-        private var mappedCategory: TorrentCategory? {
             switch self {
             case .all:
-                return nil
-            case .programs:
-                return .programs
-            case .movies:
-                return .movies
-            case .series:
-                return .series
-            case .books:
-                return .books
-            case .other:
-                return .other
+                return true
+            default:
+                return TorrentCategory.category(from: item.torrent.tags) == mappedCategory
             }
+        }
+
+        private var mappedCategory: TorrentCategory {
+            TorrentCategory(rawValue: rawValue) ?? .other
         }
     }
 }
