@@ -2,11 +2,8 @@ import ComposableArchitecture
 import SwiftUI
 
 struct ServerDetailConnectionCard: View {
-    let connectionState: ServerDetailReducer.ConnectionState
-    let errorPresenter: ErrorPresenter<ServerDetailReducer.ErrorRetry>.State
+    let connectionPhase: ServerConnectionReducer.Phase
     let onRetry: () -> Void
-    let onDismissError: () -> Void
-    let onRetryError: (ServerDetailReducer.ErrorRetry) -> Void
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
@@ -18,7 +15,7 @@ struct ServerDetailConnectionCard: View {
 
     @ViewBuilder
     private var connectionContent: some View {
-        switch connectionState.phase {
+        switch connectionPhase {
         case .idle:
             Text(L10n.tr("serverDetail.status.waiting"))
                 .font(.footnote)
@@ -29,14 +26,18 @@ struct ServerDetailConnectionCard: View {
             ServerDetailConnectionPill()
                 .appMaterialize()
 
-        case .ready:
+        case .connected:
             EmptyView()
 
-        case .offline(let offline):
+        case .disconnected(let disconnected) where disconnected.attempt < 3:
+            ServerDetailConnectionPill()
+                .appMaterialize()
+
+        case .disconnected(let disconnected):
             AppStatusCardView(
                 systemImage: "wifi.slash",
                 title: L10n.tr("serverDetail.status.error"),
-                message: offline.message,
+                message: disconnected.message,
                 buttonTitle: L10n.tr("common.retry"),
                 onButtonTap: onRetry,
                 iconColor: .orange
@@ -44,17 +45,6 @@ struct ServerDetailConnectionCard: View {
             .appMaterialize()
             .accessibilityIdentifier("server_detail_status_offline")
 
-        case .failed(let failure):
-            AppStatusCardView(
-                systemImage: "xmark.octagon.fill",
-                title: L10n.tr("serverDetail.status.error"),
-                message: failure.message,
-                buttonTitle: L10n.tr("serverDetail.action.retry"),
-                onButtonTap: onRetry,
-                iconColor: .red
-            )
-            .appMaterialize()
-            .accessibilityIdentifier("server_detail_status_failed")
         }
     }
 }

@@ -8,8 +8,31 @@ import Testing
 @MainActor
 struct ServerDetailFeatureConnectionTests {
 
-    @Test("HTTP сервер требует подтверждения перед подключением")
-    func testHTTPConnectionRequiresConfirmation() async {
+    @Test("ServerDetail маршрутизирует child HTTP warning через connection scope")
+    func testConnectionChildEffectIsRoutedThroughScope() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.connection(.task)) {
+            $0.connection.phase = .connecting
+        }
+        await store.receive(.connection(.showHTTPWarning)) {
+            $0.connection.alert = AlertFactory.httpConnectionWarning(
+                confirmAction: .confirmHTTPConnection,
+                cancelAction: .cancelHTTPConnection
+            )
+        }
+    }
+
+    @Test("Legacy retry delegates HTTP warning to connection reducer")
+    func testLegacyRetryDelegatesToConnectionReducer() async {
         let server = ServerConfig.previewLocalHTTP
         let clock = TestClock()
         let store = TestStore(
@@ -20,13 +43,87 @@ struct ServerDetailFeatureConnectionTests {
             $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
             $0.appClock = .test(clock: clock)
         }
+        store.exhaustivity = .off
 
         await store.send(.retryConnectionButtonTapped)
-
         await clock.advance(by: .seconds(1))
+        await store.receive(.connection(.showHTTPWarning))
+    }
 
-        await store.receive(.showHTTPWarning(server)) {
-            $0.alert = AlertFactory.httpConnectionWarning(
+    @Test("Child failure is bridged to ServerDetail connection state")
+    func testChildFailureBridgesToLegacyConnectionState() async {
+        let server = ServerConfig.sample
+        let error = ServerConnectionEnvironmentFactoryError.notConfigured("bridge")
+        var state = ServerDetailReducer.State(server: server)
+        state.connection.phase = .connecting
+
+        let store = TestStore(initialState: state) {
+            ServerDetailReducer()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.connection(.connectionResponse(.failure(error)))) {
+            $0.connection.phase = .disconnected(
+                .init(message: error.userFacingMessage, attempt: 1)
+            )
+        }
+        await store.receive(.connectionResponse(.failure(error)))
+    }
+
+    @Test("ServerDetail task delegates initial connection to connection reducer")
+    func testTaskDelegatesInitialConnection() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task)
+        await store.receive(.connection(.showHTTPWarning))
+    }
+
+    @Test("Task does not restart terminal connection failure")
+    func testTaskDoesNotRestartTerminalFailure() async {
+        let server = ServerConfig.sample
+        var state = ServerDetailReducer.State(server: server)
+        state.connection.phase = .disconnected(
+            .init(message: "Network unavailable", attempt: 3)
+        )
+
+        let store = TestStore(initialState: state) {
+            ServerDetailReducer()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.task) {
+            $0.connection.phase = .disconnected(
+                .init(message: "Network unavailable", attempt: 3)
+            )
+        }
+    }
+
+    @Test("HTTP сервер требует подтверждения перед подключением")
+    func testHTTPConnectionRequiresConfirmation() async {
+        let server = ServerConfig.previewLocalHTTP
+        let store = TestStore(
+            initialState: ServerDetailReducer.State(server: server)
+        ) {
+            ServerDetailReducer()
+        } withDependencies: {
+            $0.httpWarningPreferencesStore.isSuppressed = { @Sendable _ in false }
+        }
+
+        await store.send(.retryConnectionButtonTapped)
+        await store.receive(.connection(.manualRetryRequested)) {
+            $0.connection.phase = .connecting
+        }
+
+        await store.receive(.connection(.showHTTPWarning)) {
+            $0.connection.alert = AlertFactory.httpConnectionWarning(
                 confirmAction: .confirmHTTPConnection,
                 cancelAction: .cancelHTTPConnection
             )
@@ -51,7 +148,7 @@ struct ServerDetailFeatureConnectionTests {
         let updatedEnvironment = environment.updatingRPCVersion(handshake.rpcVersion)
 
         var state = ServerDetailReducer.State(server: server)
-        state.connectionState.phase = .connecting
+        state.connection.phase = .connecting
         state.torrentList.items = [
             TorrentListItem.State(torrent: .previewDownloading)
         ]
@@ -63,10 +160,6 @@ struct ServerDetailFeatureConnectionTests {
 
         await store.send(.connectionResponse(.success(response))) {
             $0.connectionEnvironment = updatedEnvironment
-            $0.connectionRetryAttempts = 0
-            $0.connectionState.phase = .ready(
-                .init(fingerprint: updatedEnvironment.fingerprint, handshake: handshake)
-            )
             $0.torrentList.connectionEnvironment = updatedEnvironment
             $0.torrentList.cacheKey = updatedEnvironment.cacheKey
             $0.torrentList.handshake = handshake
@@ -89,8 +182,8 @@ struct ServerDetailFeatureConnectionTests {
 
         var state = ServerDetailReducer.State(server: server)
         state.connectionEnvironment = environment
-        state.connectionState.phase = .ready(
-            .init(fingerprint: environment.fingerprint, handshake: handshake)
+        state.connection.phase = .connected(
+            .init(environment: environment, handshake: handshake)
         )
         state.torrentList.connectionEnvironment = environment
         state.torrentList.handshake = handshake
@@ -115,14 +208,7 @@ struct ServerDetailFeatureConnectionTests {
             $0.torrentList.handshake = nil
             $0.torrentList.items.removeAll()
             $0.torrentList.storageSummary = nil
-            $0.connectionRetryAttempts = 1
-            $0.connectionState.phase = .offline(
-                .init(message: error.message, attempt: 1)
-            )
-            $0.errorPresenter.banner = .init(
-                message: error.message,
-                retry: .reconnect
-            )
+
         }
     }
 
@@ -182,9 +268,9 @@ struct ServerDetailFeatureConnectionTests {
             downloadKilobytesPerSecond: 128,
             uploadKilobytesPerSecond: 64
         )
-        state.connectionState.phase = .ready(
+        state.connection.phase = .connected(
             .init(
-                fingerprint: environment.fingerprint,
+                environment: environment,
                 handshake: TransmissionHandshakeResult(
                     sessionID: "test",
                     rpcVersion: 18,
@@ -218,8 +304,7 @@ struct ServerDetailFeatureConnectionTests {
             $0.torrentList.serverID = updatedServer.id
             $0.connectionEnvironment = nil
             $0.lastAppliedDefaultSpeedLimits = nil
-            $0.connectionRetryAttempts = 0
-            $0.torrentList.isAwaitingConnection = true
+            $0.torrentList.isAwaitingConnection = false
             $0.torrentList.phase = .idle
         }
 
@@ -237,14 +322,7 @@ struct ServerDetailFeatureConnectionTests {
             .connectionResponse(
                 .failure(ServerConnectionEnvironmentFactoryError.notConfigured("unimplemented")))
         ) {
-            $0.connectionState.phase = .offline(
-                .init(
-                    message: "ServerConnectionEnvironmentFactory (unimplemented) не настроена.",
-                    attempt: 1))
             $0.torrentList.isAwaitingConnection = false
-            $0.errorPresenter.banner = .init(
-                message: "ServerConnectionEnvironmentFactory (unimplemented) не настроена.",
-                retry: .reconnect)
         }
 
     }

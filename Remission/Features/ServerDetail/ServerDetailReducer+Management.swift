@@ -111,8 +111,7 @@ extension ServerDetailReducer {
                 state.lastAppliedDefaultSpeedLimits = nil
             }
             let connectionEffect =
-                shouldReconnect
-                ? startConnection(state: &state, force: true) : .none
+                shouldReconnect ? Effect<Action>.send(.retryConnectionButtonTapped) : .none
             return .concatenate(
                 teardownEffect,
                 .send(.delegate(.serverUpdated(server))),

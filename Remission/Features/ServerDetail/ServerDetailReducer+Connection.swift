@@ -5,6 +5,21 @@ extension ServerDetailReducer {
     // swiftlint:disable:next function_body_length cyclomatic_complexity
     func connectionReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
+        case .connection(.connectionResponse(.success(let response))):
+            return .send(
+                .connectionResponse(
+                    .success(
+                        .init(
+                            environment: response.environment,
+                            handshake: response.handshake
+                        )
+                    )
+                )
+            )
+
+        case .connection(.connectionResponse(.failure(let error))):
+            return .send(.connectionResponse(.failure(error)))
+
         case .task:
             let serverID = state.server.id
             let resetEffect = resetTorrentListOnReconnectIfNeeded(state: &state)
@@ -16,12 +31,7 @@ extension ServerDetailReducer {
             )
 
         case .retryConnectionButtonTapped:
-            state.errorPresenter.banner = nil
-            state.connectionRetryAttempts = 0
-            return startConnection(state: &state, force: true)
-
-        case .connectionRetryTick:
-            return startConnection(state: &state, force: true)
+            return .send(.connection(.manualRetryRequested))
 
         case .cacheKeyPrepared(let key):
             state.torrentList.cacheKey = key
@@ -34,13 +44,6 @@ extension ServerDetailReducer {
             state.connectionEnvironment = environment
             state.torrentDetail?.applyConnectionEnvironment(environment)
             state.addTorrent?.connectionEnvironment = environment
-            state.connectionRetryAttempts = 0
-            state.connectionState.phase = .ready(
-                .init(
-                    fingerprint: environment.fingerprint,
-                    handshake: response.handshake
-                )
-            )
             state.torrentList.connectionEnvironment = environment
             state.torrentList.cacheKey = environment.cacheKey
             state.torrentList.handshake = response.handshake
@@ -64,13 +67,12 @@ extension ServerDetailReducer {
             }
 
             return .merge(
-                .cancel(id: ConnectionCancellationID.connectionRetry),
                 effects,
                 applyDefaultSpeedLimitsIfNeeded(state: &state),
                 pendingImportEffect
             )
 
-        case .connectionResponse(.failure(let error)):
+        case .connectionResponse(.failure):
             state.connectionEnvironment = nil
             state.lastAppliedDefaultSpeedLimits = nil
             state.torrentDetail?.applyConnectionEnvironment(nil)
@@ -79,35 +81,11 @@ extension ServerDetailReducer {
             state.torrentList.handshake = nil
             state.torrentList.items.removeAll()
             state.torrentList.storageSummary = nil
-            let message = error.userFacingMessage
-            state.connectionRetryAttempts += 1
-            state.connectionState.phase = .offline(
-                .init(
-                    message: message,
-                    attempt: state.connectionRetryAttempts
-                )
-            )
-            state.errorPresenter.banner = .init(
-                message: message,
-                retry: .reconnect
-            )
-
-            if state.connectionRetryAttempts >= maxConnectionRetryAttempts {
-                state.torrentList.isAwaitingConnection = false
-            }
-
             let teardown: Effect<Action> = .send(.torrentList(.teardown))
-            let reset: Effect<Action> = .send(.torrentList(.resetForReconnect))
-            let offlineEffect: Effect<Action> = .send(
-                .torrentList(.goOffline(message: message))
-            )
             let cacheClear: Effect<Action> = clearOfflineCache(serverID: state.server.id)
             return .merge(
                 teardown,
-                reset,
-                offlineEffect,
-                cacheClear,
-                scheduleConnectionRetry(state: &state)
+                cacheClear
             )
 
         case .userPreferencesResponse(.success(let preferences)):
@@ -121,16 +99,6 @@ extension ServerDetailReducer {
             return .send(.retryConnectionButtonTapped)
 
         case .errorPresenter:
-            return .none
-
-        case .startConnectionAfterCheck(let server, _):
-            return connect(server: server)
-
-        case .showHTTPWarning:
-            state.alert = AlertFactory.httpConnectionWarning(
-                confirmAction: .confirmHTTPConnection,
-                cancelAction: .cancelHTTPConnection
-            )
             return .none
 
         default:

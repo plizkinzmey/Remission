@@ -6,24 +6,15 @@ struct ServerDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        mainContent
-            .overlay {
-                if isConnecting {
-                    VStack {
-                        ServerDetailConnectionPill()
-                            .appMaterialize()
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .allowsHitTesting(false)
-                }
-            }
-            .allowsHitTesting(isConnecting == false)
+        displayedContent
+            .allowsHitTesting(isConnectionInProgress == false)
             .navigationTitle(store.server.name)
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
+
             #if os(iOS)
                 .navigationDestination(
                     item: $store.scope(state: \.editor, action: \.editor),
@@ -122,18 +113,38 @@ struct ServerDetailView: View {
                 #endif
             }
             .overlay(alignment: .topLeading) {
-                // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
-                Color.clear
-                    .frame(width: 1, height: 1)
-                    .accessibilityElement()
-                    .accessibilityIdentifier("server_detail_address")
-                    .accessibilityLabel(store.server.displayAddress)
-                    .accessibilityHidden(false)
+                if isConnectionInProgress == false {
+                    // Отдельный доступный элемент с адресом для стабильности UI-теста на macOS.
+                    Color.clear
+                        .frame(width: 1, height: 1)
+                        .accessibilityElement()
+                        .accessibilityIdentifier("server_detail_address")
+                        .accessibilityLabel(store.server.displayAddress)
+                        .accessibilityHidden(false)
+                }
             }
     }
 
-    private var isConnecting: Bool {
-        store.connectionState.isBlockingInteractions || store.torrentList.isAwaitingConnection
+    private var isConnectionInProgress: Bool {
+        switch store.connection.phase {
+        case .connecting:
+            return true
+        case .disconnected(let disconnected):
+            return disconnected.attempt < 3
+        case .idle, .connected:
+            return false
+        }
+    }
+
+    @ViewBuilder
+    private var displayedContent: some View {
+        if isConnectionInProgress {
+            ServerDetailConnectionPill()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        } else {
+            mainContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        }
     }
 
     private var mainContent: some View {
@@ -167,24 +178,17 @@ struct ServerDetailView: View {
     }
 
     private var shouldShowConnectionSection: Bool {
-        switch store.connectionState.phase {
-        case .ready, .connecting:
+        if isConnectionInProgress { return false }
+        switch store.connection.phase {
+        case .connected:
             return false
-        default:
+        case .idle, .connecting, .disconnected:
             return true
         }
     }
 
     private var shouldShowTorrentList: Bool {
-        if store.connectionEnvironment != nil {
-            return true
-        }
-        if case .connecting = store.connectionState.phase {
-            return true
-        }
-        if store.torrentList.isAwaitingConnection {
-            return true
-        }
+        if case .connected = store.connection.phase { return true }
         return false
     }
 
@@ -264,11 +268,8 @@ struct ServerDetailView: View {
 
     private var connectionContent: some View {
         ServerDetailConnectionCard(
-            connectionState: store.connectionState,
-            errorPresenter: store.errorPresenter,
+            connectionPhase: store.connection.phase,
             onRetry: { store.send(.retryConnectionButtonTapped) },
-            onDismissError: { store.send(.errorPresenter(.bannerDismissed)) },
-            onRetryError: { store.send(.errorPresenter(.retryRequested($0))) }
         )
     }
 

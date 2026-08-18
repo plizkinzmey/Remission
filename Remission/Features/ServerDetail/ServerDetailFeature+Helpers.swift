@@ -6,27 +6,27 @@ extension ServerDetailReducer {
         state: inout State
     ) -> Effect<Action> {
         guard state.torrentList.items.isEmpty == false else { return .none }
-        switch state.connectionState.phase {
-        case .ready:
+        switch state.connection.phase {
+        case .connected:
             return .none
-        case .idle, .connecting, .offline, .failed:
+        case .idle, .connecting, .disconnected:
             state.torrentList.items.removeAll()
             state.torrentList.storageSummary = nil
-            return .send(.torrentList(.resetForReconnect))
+            return .send(.torrentList(.teardown))
         }
     }
 
     func startConnectionIfNeeded(
         state: inout State
     ) -> Effect<Action> {
-        let fingerprint = state.server.connectionFingerprint
-        guard case .ready(let ready) = state.connectionState.phase,
-            ready.fingerprint == fingerprint,
-            state.connectionEnvironment?.isValid(for: state.server) == true
-        else {
-            return startConnection(state: &state, force: false)
+        switch state.connection.phase {
+        case .idle:
+            return .send(.connection(.task))
+        case .connected(let connected) where connected.environment.isValid(for: state.server):
+            return .none
+        case .connected, .connecting, .disconnected:
+            return .none
         }
-        return .none
     }
 
     func clearOfflineCache(serverID: UUID) -> Effect<Action> {

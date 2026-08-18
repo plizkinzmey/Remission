@@ -10,7 +10,7 @@ struct ServerDetailViewCoverageTests {
     @Test
     func serverDetailViewRendersConnectingState() {
         var state = ServerDetailReducer.State(server: ServerConfig.sample)
-        state.connectionState.phase = .connecting
+        state.connection.phase = .connecting
         let store = Store(initialState: state) {
             ServerDetailReducer()
         } withDependencies: {
@@ -20,35 +20,32 @@ struct ServerDetailViewCoverageTests {
         let view = ServerDetailView(store: store)
         _ = view.body
 
-        let isBlocking = store.state.connectionState.isBlockingInteractions
+        let isBlocking: Bool
+        if case .connecting = store.state.connection.phase {
+            isBlocking = true
+        } else {
+            isBlocking = false
+        }
         #expect(isBlocking)
+        #expect(store.state.connectionEnvironment == nil)
+        #expect(store.state.torrentList.connectionEnvironment == nil)
     }
 
     @Test
     func connectionCardRendersOfflineAndFailedStates() {
-        var errorPresenter = ErrorPresenter<ServerDetailReducer.ErrorRetry>.State()
-        errorPresenter.banner = .init(message: "Offline", retry: .reconnect)
-
-        var connectionState = ServerDetailReducer.ConnectionState()
-        connectionState.phase = .offline(
+        var connectionPhase = ServerConnectionReducer.Phase.disconnected(
             .init(message: "No connection", attempt: 1)
         )
         let offlineView = ServerDetailConnectionCard(
-            connectionState: connectionState,
-            errorPresenter: errorPresenter,
-            onRetry: {},
-            onDismissError: {},
-            onRetryError: { _ in }
+            connectionPhase: connectionPhase,
+            onRetry: {}
         )
         _ = offlineView.body
 
-        connectionState.phase = .failed(.init(message: "Failed"))
+        connectionPhase = .disconnected(.init(message: "Failed", attempt: 2))
         let failedView = ServerDetailConnectionCard(
-            connectionState: connectionState,
-            errorPresenter: errorPresenter,
-            onRetry: {},
-            onDismissError: {},
-            onRetryError: { _ in }
+            connectionPhase: connectionPhase,
+            onRetry: {}
         )
         _ = failedView.body
     }

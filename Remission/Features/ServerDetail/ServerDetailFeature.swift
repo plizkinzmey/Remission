@@ -16,10 +16,9 @@ struct ServerDetailReducer {
         @Presents var torrentDetail: TorrentDetailReducer.State?
         @Presents var addTorrent: AddTorrentReducer.State?
         var isDeleting: Bool = false
-        var connectionState: ConnectionState = .init()
+        var connection: ServerConnectionReducer.State
         var connectionEnvironment: ServerConnectionEnvironment?
         var torrentList: TorrentListReducer.State = .init()
-        var connectionRetryAttempts: Int = 0
         var preferences: UserPreferences?
         var lastAppliedDefaultSpeedLimits: UserPreferences.DefaultSpeedLimits?
         var pendingAddTorrentInput: PendingTorrentInput?
@@ -30,12 +29,14 @@ struct ServerDetailReducer {
             torrentListState.serverID = server.id
             torrentListState.isAwaitingConnection = true
             self.torrentList = torrentListState
+            self.connection = ServerConnectionReducer.State(server: server)
             if startEditing {
                 self.editor = ServerFormReducer.State(mode: .edit(server))
             }
         }
     }
 
+    @CasePathable
     enum Action: Equatable {
         case task
         case editButtonTapped
@@ -48,7 +49,7 @@ struct ServerDetailReducer {
         case resetTrustSucceeded
         case resetTrustFailed(String)
         case retryConnectionButtonTapped
-        case connectionRetryTick
+        case connection(ServerConnectionReducer.Action)
         case errorPresenter(ErrorPresenter<ErrorRetry>.Action)
         case cacheKeyPrepared(OfflineCacheKey)
         case connectionResponse(TaskResult<ConnectionResponse>)
@@ -64,9 +65,6 @@ struct ServerDetailReducer {
         case addTorrentDataLoaded(PendingTorrentInput, String?)
         case alert(PresentationAction<AlertAction>)
         case delegate(Delegate)
-        // Internal async actions
-        case startConnectionAfterCheck(ServerConfig, Bool)
-        case showHTTPWarning(ServerConfig)
     }
 
     enum ErrorRetry: Equatable {
@@ -96,21 +94,25 @@ struct ServerDetailReducer {
     @Dependency(\.serverConnectionEnvironmentFactory) var serverConnectionEnvironmentFactory
     @Dependency(\.torrentFileLoader) var torrentFileLoader
     @Dependency(\.userPreferencesRepository) var userPreferencesRepository
-    @Dependency(\.appClock) var appClock
     @Dependency(\.offlineCacheRepository) var offlineCacheRepository
 
     var body: some ReducerOf<Self> {
-        Scope(state: \.torrentList, action: \.torrentList) {
-            TorrentListReducer()
-        }
+        CombineReducers {
+            Scope(state: \.torrentList, action: \.torrentList) {
+                TorrentListReducer()
+            }
+            Scope(state: \.connection, action: \.connection) {
+                ServerConnectionReducer()
+            }
 
-        Reduce { state, action in
-            var effects: [Effect<Action>] = []
-            effects.append(connectionReducer(state: &state, action: action))
-            effects.append(managementReducer(state: &state, action: action))
-            effects.append(navigationReducer(state: &state, action: action))
-            effects.append(importReducer(state: &state, action: action))
-            return .merge(effects)
+            Reduce { state, action in
+                var effects: [Effect<Action>] = []
+                effects.append(connectionReducer(state: &state, action: action))
+                effects.append(managementReducer(state: &state, action: action))
+                effects.append(navigationReducer(state: &state, action: action))
+                effects.append(importReducer(state: &state, action: action))
+                return .merge(effects)
+            }
         }
         .ifLet(\.$alert, action: \.alert)
         .ifLet(\.$editor, action: \.editor) {
@@ -135,6 +137,5 @@ struct ServerDetailReducer {
         case preferences
         case preferencesUpdates
         case defaultSpeedLimits
-        case connectionRetry
     }
 }

@@ -1,8 +1,6 @@
 import ComposableArchitecture
 import Foundation
 
-// swiftlint:disable nesting
-
 // MARK: - Error Types
 
 extension ServerDetailReducer {
@@ -32,59 +30,9 @@ extension ServerDetailReducer {
     }
 }
 
-// MARK: - Connection State
-
 extension ServerDetailReducer {
-    struct ConnectionState: Equatable {
-        struct Ready: Equatable {
-            var fingerprint: String
-            var handshake: TransmissionHandshakeResult
-        }
-
-        struct Failure: Equatable {
-            var message: String
-        }
-
-        struct Offline: Equatable {
-            var message: String
-            var attempt: Int
-        }
-
-        enum Phase: Equatable {
-            case idle
-            case connecting
-            case ready(Ready)
-            case offline(Offline)
-            case failed(Failure)
-        }
-
-        var phase: Phase = .idle
-
-        var isBlockingInteractions: Bool {
-            switch phase {
-            case .connecting:
-                return true
-            case .idle, .ready, .offline, .failed:
-                return false
-            }
-        }
-
-        var failureMessage: String? {
-            switch phase {
-            case .failed(let failure):
-                return failure.message
-            case .offline(let offline):
-                return offline.message
-            default:
-                return nil
-            }
-        }
-    }
-
     struct ConnectionResponse: Equatable {
         var environment: ServerConnectionEnvironment
         var handshake: TransmissionHandshakeResult
     }
 }
-
-// swiftlint:enable nesting

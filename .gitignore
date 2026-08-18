@@ -9,6 +9,7 @@
 **/xcuserdata/
 .xcodeproj/xcuserdata/
 .xcworkspace/xcuserdata/
+.hermes/
 
 # Build products
 Build/

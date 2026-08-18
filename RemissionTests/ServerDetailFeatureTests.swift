@@ -21,8 +21,6 @@ final class ServerDetailFeatureTests: XCTestCase {
             handshake: handshake
         )
 
-        let clock = TestClock()
-
         let store = TestStore(initialState: ServerDetailReducer.State(server: server)) {
             ServerDetailReducer()
         } withDependencies: {
@@ -39,23 +37,24 @@ final class ServerDetailFeatureTests: XCTestCase {
             $0.userPreferencesRepository.observeClosure = { @Sendable _ in
                 AsyncStream { $0.finish() }
             }
-            $0.appClock = .test(clock: clock)
         }
 
         store.exhaustivity = .off
 
         await store.send(ServerDetailReducer.Action.task)
 
-        // First effect: startConnection -> startConnectionAfterCheck
-        await clock.advance(by: .seconds(1))
-
-        await store.receive(ServerDetailReducer.Action.startConnectionAfterCheck(server, false))
-
-        // Second effect: connect -> cacheKeyPrepared -> connectionResponse
-        await clock.advance(by: .seconds(1))
-
-        await store.receive(ServerDetailReducer.Action.cacheKeyPrepared(environment.cacheKey)) {
-            $0.torrentList.cacheKey = environment.cacheKey
+        await store.receive(
+            ServerDetailReducer.Action.connection(
+                .connectionResponse(
+                    .success(
+                        .init(
+                            environment: environment,
+                            handshake: handshake
+                        ))))
+        ) {
+            $0.connection.phase = .connected(
+                .init(environment: environment, handshake: handshake)
+            )
         }
 
         await store.receive(
@@ -67,8 +66,6 @@ final class ServerDetailFeatureTests: XCTestCase {
                     )))
         ) { state in
             let updatedEnv = environment.updatingRPCVersion(handshake.rpcVersion)
-            state.connectionState.phase = .ready(
-                .init(fingerprint: updatedEnv.fingerprint, handshake: handshake))
             state.connectionEnvironment = updatedEnv
 
             state.torrentList.connectionEnvironment = updatedEnv

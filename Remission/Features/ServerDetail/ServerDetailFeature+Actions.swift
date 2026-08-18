@@ -2,52 +2,6 @@ import ComposableArchitecture
 import Foundation
 
 extension ServerDetailReducer {
-    /// Запускает процесс подключения к серверу, учитывая флаг принудительного запуска.
-    func startConnection(
-        state: inout State,
-        force: Bool
-    ) -> Effect<Action> {
-        let server = state.server
-        state.torrentList.isAwaitingConnection = true
-        // Check httpWarningPreferencesStore asynchronously
-        return .run { [server] send in
-            let isSuppressed = await httpWarningPreferencesStore.isSuppressed(
-                server.httpWarningFingerprint)
-            if !server.usesInsecureTransport || isSuppressed {
-                await send(.startConnectionAfterCheck(server, force))
-            } else {
-                await send(.showHTTPWarning(server))
-            }
-        }
-    }
-
-    /// Внутренний action для продолжения подключения после проверки HTTP warning
-    private enum InternalAction: Equatable {
-        case startConnectionAfterCheck(ServerConfig, Bool)
-        case showHTTPWarning(ServerConfig)
-    }
-
-    /// Создаёт `ServerConnectionEnvironment` и выполняет handshake Transmission.
-    func connect(server: ServerConfig) -> Effect<Action> {
-        .run { send in
-            await send(
-                .connectionResponse(
-                    TaskResult {
-                        let environment = try await serverConnectionEnvironmentFactory.make(server)
-                        await send(.cacheKeyPrepared(environment.cacheKey))
-                        let handshake = try await environment.withDependencies {
-                            @Dependency(\.transmissionClient) var client:
-                                TransmissionClientDependency
-                            return try await client.performHandshake()
-                        }
-                        return ConnectionResponse(environment: environment, handshake: handshake)
-                    }
-                )
-            )
-        }
-        .cancellable(id: ConnectionCancellationID.connection, cancelInFlight: true)
-    }
-
     func deleteServer(_ server: ServerConfig) -> Effect<Action> {
         .run { send in
             do {
@@ -87,22 +41,4 @@ extension ServerDetailReducer {
         }
     }
 
-    func scheduleConnectionRetry(
-        state: inout State
-    ) -> Effect<Action> {
-        guard state.connectionRetryAttempts < maxConnectionRetryAttempts else {
-            return .none
-        }
-        let delay = BackoffStrategy.delay(for: state.connectionRetryAttempts)
-        return .run { send in
-            let clock = appClock.clock()
-            do {
-                try await clock.sleep(for: delay)
-                await send(.connectionRetryTick)
-            } catch is CancellationError {
-                return
-            }
-        }
-        .cancellable(id: ConnectionCancellationID.connectionRetry, cancelInFlight: true)
-    }
 }

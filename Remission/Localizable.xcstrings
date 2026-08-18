@@ -1128,6 +1128,7 @@
       }
     },
     "serverDetail.action.retry" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4760,6 +4761,7 @@
       }
     },
     "torrentList.error.message.default" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -4776,6 +4778,7 @@
       }
     },
     "torrentList.error.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
