@@ -101,10 +101,6 @@ struct ServerDetailReducer {
             Scope(state: \.torrentList, action: \.torrentList) {
                 TorrentListReducer()
             }
-            Scope(state: \.connection, action: \.connection) {
-                ServerConnectionReducer()
-            }
-
             Reduce { state, action in
                 var effects: [Effect<Action>] = []
                 effects.append(connectionReducer(state: &state, action: action))
@@ -112,6 +108,9 @@ struct ServerDetailReducer {
                 effects.append(navigationReducer(state: &state, action: action))
                 effects.append(importReducer(state: &state, action: action))
                 return .merge(effects)
+            }
+            Scope(state: \.connection, action: \.connection) {
+                ServerConnectionReducer()
             }
         }
         .ifLet(\.$alert, action: \.alert)

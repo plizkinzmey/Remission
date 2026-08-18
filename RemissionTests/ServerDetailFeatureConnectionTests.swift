@@ -8,6 +8,23 @@ import Testing
 @MainActor
 struct ServerDetailFeatureConnectionTests {
 
+    @Test("Stale child failure does not clear a connected ServerDetail")
+    func staleChildFailureDoesNotClearConnectedServerDetail() async {
+        let server = ServerConfig.sample
+        let environment = ServerConnectionEnvironment.preview(server: server)
+        let error = ServerConnectionEnvironmentFactoryError.notConfigured("stale")
+        var state = ServerDetailReducer.State(server: server)
+        state.connection.phase = .connected(.init(environment: environment, handshake: handshake))
+        state.connectionEnvironment = environment
+        state.torrentList.connectionEnvironment = environment
+
+        let store = TestStore(initialState: state) {
+            ServerDetailReducer()
+        }
+
+        await store.send(.connection(.connectionResponse(.failure(error))))
+    }
+
     @Test("ServerDetail маршрутизирует child HTTP warning через connection scope")
     func testConnectionChildEffectIsRoutedThroughScope() async {
         let server = ServerConfig.previewLocalHTTP
@@ -327,12 +344,39 @@ struct ServerDetailFeatureConnectionTests {
         }
 
     }
+
+    @Test("Name-only edit synchronizes the child server without reconnecting")
+    func nameOnlyEditSynchronizesChildServer() async {
+        let server = ServerConfig.sample
+        var updatedServer = server
+        updatedServer.name = "Renamed server"
+        var state = ServerDetailReducer.State(server: server)
+        state.editor = ServerFormReducer.State(mode: .edit(server))
+
+        let store = TestStore(initialState: state) {
+            ServerDetailReducer()
+        }
+        store.exhaustivity = .off
+
+        await store.send(.editor(.presented(.delegate(.didUpdate(updatedServer))))) {
+            $0.server = updatedServer
+            $0.connection.server = updatedServer
+        }
+    }
 }
 
 private struct TestError: LocalizedError, Equatable {
     let message: String
     var errorDescription: String? { message }
 }
+
+private let handshake = TransmissionHandshakeResult(
+    sessionID: nil,
+    rpcVersion: 20,
+    minimumSupportedRpcVersion: 14,
+    serverVersionDescription: nil,
+    isCompatible: true
+)
 
 private actor HandshakeGate {
     private var isOpen = false

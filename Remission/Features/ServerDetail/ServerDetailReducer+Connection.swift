@@ -6,6 +6,7 @@ extension ServerDetailReducer {
     func connectionReducer(state: inout State, action: Action) -> Effect<Action> {
         switch action {
         case .connection(.connectionResponse(.success(let response))):
+            guard case .connecting = state.connection.phase else { return .none }
             return .send(
                 .connectionResponse(
                     .success(
@@ -18,6 +19,7 @@ extension ServerDetailReducer {
             )
 
         case .connection(.connectionResponse(.failure(let error))):
+            guard case .connecting = state.connection.phase else { return .none }
             return .send(.connectionResponse(.failure(error)))
 
         case .task:

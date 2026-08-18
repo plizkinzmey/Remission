@@ -101,6 +101,7 @@ extension ServerDetailReducer {
             let shouldReconnect =
                 state.server.connectionFingerprint != server.connectionFingerprint
             state.server = server
+            state.connection.server = server
             state.torrentList.serverID = server.id
             let teardownEffect: Effect<Action> =
                 shouldReconnect ? .send(.torrentList(.teardown)) : .none
