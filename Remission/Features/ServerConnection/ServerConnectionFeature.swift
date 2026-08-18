@@ -89,6 +89,7 @@ struct ServerConnectionReducer {
                 )
 
             case .connectionResponse(.success(let response)):
+                guard case .connecting = state.phase else { return .none }
                 state.failedConnectionAttempts = 0
                 state.phase = .connected(
                     .init(environment: response.environment, handshake: response.handshake)
@@ -96,6 +97,7 @@ struct ServerConnectionReducer {
                 return .cancel(id: CancellationID.automaticRetry)
 
             case .connectionResponse(.failure(let error)):
+                guard case .connecting = state.phase else { return .none }
                 let previousAttempt: Int
                 if case .disconnected(let previous) = state.phase {
                     previousAttempt = previous.attempt
@@ -126,6 +128,7 @@ struct ServerConnectionReducer {
 
             case .alert(.presented(.cancelHTTPConnection)):
                 state.alert = nil
+                state.phase = .idle
                 return .none
 
             case .alert:

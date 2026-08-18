@@ -7,6 +7,49 @@ import Testing
 @Suite("Unified Server Connection Tests")
 @MainActor
 struct ServerConnectionFeatureTests {
+    @Test("Cancelling HTTP warning returns the connection to idle")
+    func cancellingHTTPWarningReturnsToIdle() async {
+        let server = ServerConfig.previewLocalHTTP
+        var state = ServerConnectionReducer.State(server: server)
+        state.phase = .connecting
+        state.alert = AlertFactory.httpConnectionWarning(
+            confirmAction: .confirmHTTPConnection,
+            cancelAction: .cancelHTTPConnection
+        )
+
+        let store = TestStore(initialState: state) {
+            ServerConnectionReducer()
+        }
+
+        await store.send(.alert(.presented(.cancelHTTPConnection))) {
+            $0.phase = .idle
+            $0.alert = nil
+        }
+    }
+
+    @Test("Stale connection response cannot revive terminal failure")
+    func staleConnectionResponseCannotReviveTerminalFailure() async {
+        let server = ServerConfig.sample
+        var state = ServerConnectionReducer.State(server: server)
+        state.phase = .disconnected(.init(message: "Network unavailable", attempt: 3))
+        state.failedConnectionAttempts = 3
+
+        let store = TestStore(initialState: state) {
+            ServerConnectionReducer()
+        }
+
+        await store.send(
+            .connectionResponse(
+                .success(
+                    .init(
+                        environment: .preview(server: server),
+                        handshake: handshake
+                    )
+                )
+            )
+        )
+    }
+
     @Test("Task does not restart a terminal connection failure")
     func taskDoesNotRestartTerminalConnectionFailure() async {
         let server = ServerConfig.sample
@@ -25,13 +68,6 @@ struct ServerConnectionFeatureTests {
     func automaticRetryDoesNotReconnectAfterSuccess() async {
         let server = ServerConfig.sample
         let environment = ServerConnectionEnvironment.preview(server: server)
-        let handshake = TransmissionHandshakeResult(
-            sessionID: nil,
-            rpcVersion: 20,
-            minimumSupportedRpcVersion: 14,
-            serverVersionDescription: nil,
-            isCompatible: true
-        )
         var state = ServerConnectionReducer.State(server: server)
         state.phase = .connected(.init(environment: environment, handshake: handshake))
 
@@ -40,6 +76,16 @@ struct ServerConnectionFeatureTests {
         }
 
         await store.send(.retryRequested)
+    }
+
+    private var handshake: TransmissionHandshakeResult {
+        TransmissionHandshakeResult(
+            sessionID: nil,
+            rpcVersion: 20,
+            minimumSupportedRpcVersion: 14,
+            serverVersionDescription: nil,
+            isCompatible: true
+        )
     }
 
     @Test("Retry immediately replaces disconnected state with connecting state")

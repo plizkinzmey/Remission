@@ -105,6 +105,7 @@ extension ServerDetailReducer {
             let teardownEffect: Effect<Action> =
                 shouldReconnect ? .send(.torrentList(.teardown)) : .none
             if shouldReconnect {
+                state.connection = .init(server: server)
                 state.torrentList = .init()
                 state.torrentList.serverID = server.id
                 state.connectionEnvironment = nil

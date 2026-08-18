@@ -14,6 +14,7 @@ struct ServerDetailView: View {
             #endif
             .task { await store.send(.task).finish() }
             .alert($store.scope(state: \.alert, action: \.alert))
+            .alert($store.scope(state: \.connection.alert, action: \.connection.alert))
 
             #if os(iOS)
                 .navigationDestination(

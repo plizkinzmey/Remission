@@ -299,6 +299,7 @@ struct ServerDetailFeatureConnectionTests {
             .editor(.presented(.delegate(.didUpdate(updatedServer))))
         ) {
             $0.server = updatedServer
+            $0.connection = .init(server: updatedServer)
             $0.torrentList.serverID = updatedServer.id
             $0.torrentList = .init()
             $0.torrentList.serverID = updatedServer.id
