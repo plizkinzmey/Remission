@@ -3069,13 +3069,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Series"
+            "value" : "Shows"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сериалы"
+            "value" : "Шоу"
           }
         }
       }

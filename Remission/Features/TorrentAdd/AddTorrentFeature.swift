@@ -219,10 +219,12 @@ struct AddTorrentReducer {
 
             case .destinationPathChanged(let value):
                 state.destinationPath = value
+                applyCategoryFromDownloadPath(state: &state)
                 return persistRecentDownloadDirectories(state: &state)
 
             case .destinationSuggestionSelected(let value):
                 state.destinationPath = value
+                applyCategoryFromDownloadPath(state: &state)
                 return .none
 
             case .destinationSuggestionDeleted(let value):
@@ -231,6 +233,7 @@ struct AddTorrentReducer {
                     let fallback = state.serverDownloadDirectory
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                     state.destinationPath = fallback
+                    applyCategoryFromDownloadPath(state: &state)
                 }
                 return persistRecentDownloadDirectories(state: &state)
 
@@ -263,6 +266,7 @@ struct AddTorrentReducer {
                 if state.destinationPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     state.destinationPath = directory
                 }
+                applyCategoryFromDownloadPath(state: &state)
                 state.recentDownloadDirectories = normalizedRecentDirectories(
                     state.recentDownloadDirectories,
                     defaultDirectory: directory

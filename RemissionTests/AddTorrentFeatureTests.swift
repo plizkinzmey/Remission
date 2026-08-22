@@ -68,6 +68,51 @@ final class AddTorrentFeatureTests: XCTestCase {
         }
     }
 
+    func testDestinationPathAutomaticallySelectsCategory() async {
+        let store = TestStore(initialState: AddTorrentReducer.State()) {
+            AddTorrentReducer()
+        }
+
+        await store.send(.destinationPathChanged("/downloads/Movies")) {
+            $0.destinationPath = "/downloads/Movies"
+            $0.category = .movies
+        }
+
+        await store.send(.destinationSuggestionSelected("/downloads/Shows")) {
+            $0.destinationPath = "/downloads/Shows"
+            $0.category = .series
+        }
+
+        await store.send(.defaultDownloadDirectoryResponse(.success("/downloads/Books"))) {
+            $0.serverDownloadDirectory = "/downloads/Books"
+            $0.destinationPath = "/downloads/Shows"
+            $0.category = .series
+        }
+
+        await store.send(.destinationPathChanged("/downloads/custom")) {
+            $0.destinationPath = "/downloads/custom"
+            $0.category = .series
+        }
+    }
+
+    func testDeletingSelectedDestinationRecalculatesFallbackCategory() async {
+        var state = AddTorrentReducer.State()
+        state.serverDownloadDirectory = "/downloads/Movies"
+        state.destinationPath = "/downloads/Shows"
+        state.recentDownloadDirectories = ["/downloads/Shows"]
+        state.category = .series
+
+        let store = TestStore(initialState: state) {
+            AddTorrentReducer()
+        }
+
+        await store.send(.destinationSuggestionDeleted("/downloads/Shows")) {
+            $0.recentDownloadDirectories = []
+            $0.destinationPath = "/downloads/Movies"
+            $0.category = .movies
+        }
+    }
+
     func testSubmit_Success() async {
         let input = PendingTorrentInput(
             payload: .magnetLink(

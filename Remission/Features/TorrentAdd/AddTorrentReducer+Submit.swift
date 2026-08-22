@@ -2,6 +2,12 @@ import ComposableArchitecture
 import Foundation
 
 extension AddTorrentReducer {
+    func applyCategoryFromDownloadPath(state: inout State) {
+        if let category = TorrentCategory.category(fromDownloadPath: state.destinationPath) {
+            state.category = category
+        }
+    }
+
     func loadDefaultDownloadDirectory(
         environment: ServerConnectionEnvironment
     ) -> Effect<Action> {

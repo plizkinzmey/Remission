@@ -72,6 +72,19 @@ enum TorrentCategory: String, CaseIterable, Equatable, Sendable {
         return .other
     }
 
+    static func category(fromDownloadPath path: String) -> TorrentCategory? {
+        let components = path.split { $0 == "/" || $0 == "\\" }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+
+        for category in TorrentCategory.ordered where category != .other {
+            let names = category == .series ? [category.tagKey, "shows"] : [category.tagKey]
+            if components.contains(where: names.contains) {
+                return category
+            }
+        }
+        return nil
+    }
+
     static func tags(for category: TorrentCategory) -> [String] {
         [category.tagKey]
     }

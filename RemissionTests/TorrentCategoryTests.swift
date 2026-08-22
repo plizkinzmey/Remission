@@ -60,4 +60,19 @@ struct TorrentCategoryTests {
         let unknown = TorrentCategory.localizedTitle(for: "not-a-category")
         #expect(unknown == nil)
     }
+
+    @Test(
+        "Category detection from download path",
+        arguments: [
+            ("/downloads/Movies", TorrentCategory.movies),
+            ("/downloads/mOvIeS/1080p", TorrentCategory.movies),
+            ("/downloads/Shows", TorrentCategory.series),
+            ("/downloads/books-old", nil),
+            ("/downloads/other-files", nil),
+            ("/downloads", nil)
+        ]
+    )
+    func categoryFromDownloadPath(path: String, expected: TorrentCategory?) {
+        #expect(TorrentCategory.category(fromDownloadPath: path) == expected)
+    }
 }
