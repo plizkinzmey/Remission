@@ -47,6 +47,11 @@ die() { echo "❌ $*" >&2; exit 1; }
 info() { echo "ℹ️  $*"; }
 ok() { echo "✅ $*"; }
 
+require_option_value() {
+  [[ $# -ge 2 && -n "${2:-}" && "${2:0:2}" != "--" ]] \
+    || die "Опция $1 требует значения."
+}
+
 run() {
   # shellcheck disable=SC2068
   "$@"
@@ -58,6 +63,79 @@ pipe_xcbeautify_if_available() {
   else
     cat
   fi
+}
+
+run_xcodebuild_logged() {
+  local log_path="$1"
+  shift
+  info "Raw xcodebuild log: ${log_path}"
+  set +e
+  xcodebuild "$@" 2>&1 | tee "$log_path" | pipe_xcbeautify_if_available
+  local -a pipeline_status=("${PIPESTATUS[@]}")
+  set -e
+  local status
+  for status in "${pipeline_status[@]}"; do
+    [[ "$status" -eq 0 ]] || return "$status"
+  done
+  return 0
+}
+
+require_nonempty_file() {
+  local path="$1"
+  [[ -s "$path" ]] || die "Не найден или пустой artifact: $path"
+}
+
+validate_ipa() {
+  local ipa_path="$1"
+  require_nonempty_file "$ipa_path"
+  unzip -tq "$ipa_path" >/dev/null || die "IPA повреждён: $ipa_path"
+  local ipa_entries
+  ipa_entries="$(unzip -Z1 "$ipa_path")" \
+    || die "Не удалось прочитать содержимое IPA: $ipa_path"
+  grep -Eq '^Payload/[^/]+\.app/Info\.plist$' <<<"$ipa_entries" \
+    || die "В IPA отсутствует app Info.plist: $ipa_path"
+}
+
+validate_macos_zip() {
+  local zip_path="$1"
+  require_nonempty_file "$zip_path"
+  unzip -tq "$zip_path" >/dev/null || die "macOS zip повреждён: $zip_path"
+  local zip_entries
+  zip_entries="$(unzip -Z1 "$zip_path")" \
+    || die "Не удалось прочитать содержимое macOS zip: $zip_path"
+  grep -Eq '(^|/)Remission\.app/' <<<"$zip_entries" \
+    || die "В macOS zip отсутствует Remission.app: $zip_path"
+}
+
+validate_artifacts() {
+  local platform="$1"
+  local ios_dir="$2"
+  local macos_zip="$3"
+
+  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+    local ipa_path
+    ipa_path="$(find "$ios_dir" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+    [[ -n "$ipa_path" ]] || die "iOS artifact отсутствует в $ios_dir"
+    validate_ipa "$ipa_path"
+  fi
+  if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
+    validate_macos_zip "$macos_zip"
+  fi
+}
+
+require_remote_sync() {
+  git fetch --quiet origin main develop --tags
+  if [[ "${skip_build:-false}" == "true" ]]; then
+    git merge-base --is-ancestor origin/main HEAD \
+      || die "Recovery требует fast-forward: origin/main не является предком текущего HEAD."
+  else
+    [[ "$(git rev-parse HEAD)" == "$(git rev-parse origin/main)" ]] \
+      || die "Локальный main не синхронизирован с origin/main."
+  fi
+  git rev-parse --verify --quiet origin/develop >/dev/null \
+    || die "На origin отсутствует ветка develop."
+  git merge-base --is-ancestor origin/develop HEAD \
+    || die "origin/develop содержит изменения, отсутствующие в main."
 }
 
 SKIP_WORKTREE_RESTORE="false"
@@ -195,20 +273,20 @@ main() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --version) version="${2:-}"; shift 2 ;;
-      --bump) bump="${2:-}"; shift 2 ;;
+      --version) require_option_value "$@"; version="$2"; shift 2 ;;
+      --bump) require_option_value "$@"; bump="$2"; shift 2 ;;
       --tag) tag="true"; shift ;;
       --push) push="true"; shift ;;
       --allow-dirty) allow_dirty="true"; shift ;;
       --no-version-commit) version_commit="false"; shift ;;
       --version-only) version_only="true"; shift ;;
-      --export-options-plist) export_options_plist="${2:-}"; shift 2 ;;
-      --platform) platform="${2:-}"; shift 2 ;;
+      --export-options-plist) require_option_value "$@"; export_options_plist="$2"; shift 2 ;;
+      --platform) require_option_value "$@"; platform="$2"; shift 2 ;;
       --github-release) github_release="true"; shift ;;
       --pre-release) pre_release="true"; shift ;;
       --draft) draft="true"; shift ;;
       --skip-build) skip_build="true"; shift ;;
-      --notes-file) notes_file_arg="${2:-}"; shift 2 ;;
+      --notes-file) require_option_value "$@"; notes_file_arg="$2"; shift 2 ;;
       -h|--help) usage; exit 0 ;;
       *) die "Неизвестный аргумент: $1 (см. --help)" ;;
     esac
@@ -216,6 +294,24 @@ main() {
 
   [[ -n "$version" || -n "$bump" ]] || { usage; exit 1; }
   [[ -z "$version" || -z "$bump" ]] || die "Используй либо --version, либо --bump (не вместе)."
+  if [[ "$version_commit" == "false" && ( "$tag" == "true" || "$push" == "true" || "$github_release" == "true" ) ]]; then
+    die "--no-version-commit нельзя использовать вместе с --tag, --push или --github-release."
+  fi
+  if [[ "$github_release" == "true" && "$push" != "true" ]]; then
+    die "--github-release требует --push, чтобы tag существовал на origin."
+  fi
+  if [[ "$push" == "true" && "$tag" != "true" ]]; then
+    die "--push требует --tag."
+  fi
+  if [[ "$github_release" == "true" && "$tag" != "true" ]]; then
+    die "--github-release требует --tag."
+  fi
+  if [[ "$allow_dirty" == "true" && ( "$tag" == "true" || "$push" == "true" || "$github_release" == "true" ) ]]; then
+    die "--allow-dirty нельзя использовать для tag, push или GitHub release."
+  fi
+  if [[ "$version_only" == "true" && ( "$tag" == "true" || "$push" == "true" || "$github_release" == "true" || "$skip_build" == "true" ) ]]; then
+    die "--version-only нельзя комбинировать с tag, push, GitHub release или --skip-build."
+  fi
 
   if [[ "$github_release" == "true" ]]; then
     command -v gh >/dev/null 2>&1 || die "GitHub CLI (gh) не установлен. Установите его через 'brew install gh'."
@@ -229,6 +325,9 @@ main() {
 
   require_branch_main
   require_clean_tree "$allow_dirty"
+  if [[ "$allow_dirty" != "true" ]]; then
+    require_remote_sync
+  fi
 
   if [[ -n "$bump" ]]; then
     local last
@@ -237,6 +336,23 @@ main() {
   fi
 
   [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Некорректная версия: $version (ожидаю X.Y.Z)"
+
+  local release_tag="v${version}"
+  local tag_exists="false"
+  if git show-ref --tags --verify --quiet "refs/tags/${release_tag}"; then
+    if [[ "$skip_build" == "true" && "$tag" == "true" \
+        && "$(git cat-file -t "$release_tag")" == "tag" \
+        && "$(git rev-parse "$release_tag^{commit}")" == "$(git rev-parse HEAD)" ]]; then
+      tag_exists="true"
+      version_commit="false"
+      info "Использую существующий tag ${release_tag} для recovery."
+    else
+      die "Tag уже существует и не может быть автоматически переиспользован: ${release_tag}"
+    fi
+  fi
+  if [[ "$skip_build" == "true" ]]; then
+    version_commit="false"
+  fi
 
   local pbxproj="${ROOT_DIR}/Remission.xcodeproj/project.pbxproj"
   [[ -f "$pbxproj" ]] || die "Не найден project.pbxproj: $pbxproj"
@@ -248,32 +364,20 @@ main() {
     build_number=$((build_number_base + 1))
   fi
 
-  update_project_versions "$pbxproj" "$version"
-  ok "Обновлена версия в project.pbxproj: ${version}"
-
-  if git diff --quiet -- "$pbxproj"; then
-    info "project.pbxproj не изменился после обновления версии."
-  else
+  if [[ "$version_only" == "true" ]]; then
+    update_project_versions "$pbxproj" "$version"
     if [[ "$version_commit" == "true" ]]; then
       git add "$pbxproj"
       git commit -m "Обновить версию ${version}"
-      ok "Закоммичена версия ${version}"
     else
       info "project.pbxproj обновлён, но не закоммичен (--no-version-commit)."
     fi
-  fi
-
-  if [[ "$SKIP_WORKTREE_RESTORE" == "true" ]]; then
-    git update-index --skip-worktree "$pbxproj"
-  fi
-  if [[ "$ASSUME_UNCHANGED_RESTORE" == "true" ]]; then
-    git update-index --assume-unchanged "$pbxproj"
-  fi
-
-  if [[ "$version_only" == "true" ]]; then
     ok "Версия обновлена, сборка пропущена (--version-only)."
     exit 0
   fi
+
+  local source_commit
+  source_commit="$(git rev-parse HEAD)"
 
   case "$platform" in
     all|ios|macos) ;;
@@ -284,13 +388,23 @@ main() {
     [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
   fi
 
-  local release_tag="v${version}"
   local out_dir="Build/Releases/${release_tag}"
   local ios_dir="${out_dir}/ios"
   local macos_dir="${out_dir}/macos"
   local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
+  local state_file="${out_dir}/release-state.txt"
 
   run mkdir -p "$ios_dir" "$macos_dir"
+  if [[ "$skip_build" == "true" && -f "$state_file" ]]; then
+    printf 'phase=recovery_started\n' >>"$state_file"
+  else
+    {
+      echo "version=${version}"
+      echo "platform=${platform}"
+      echo "source_commit=${source_commit}"
+      echo "phase=started"
+    } >"$state_file"
+  fi
 
   info "Версия: ${version} (build: ${build_number})"
   if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
@@ -307,13 +421,20 @@ main() {
   if [[ "$skip_build" == "true" ]]; then
     info "⏩ Пропускаю сборку (--skip-build). Использую существующие артефакты."
     [[ -d "$out_dir" ]] || die "Директория с релизом не найдена: $out_dir. Нечего выпускать без сборки."
-    ios_ok="true"
-    macos_ok="true"
+    [[ -f "${out_dir}/metadata.txt" ]] || die "Не найден metadata.txt для recovery: ${out_dir}"
+    grep -Fxq "version=${version}" "${out_dir}/metadata.txt" \
+      || die "Metadata version не совпадает с release version."
+    grep -Fxq "platform=${platform}" "${out_dir}/metadata.txt" \
+      || die "Metadata platform не совпадает с --platform."
+    grep -Fxq "commit=${source_commit}" "${out_dir}/metadata.txt" \
+      || die "Artifact собран не из текущего HEAD: recovery запрещён."
+    validate_artifacts "$platform" "$ios_dir" "$macos_zip"
+    [[ "$platform" == "all" || "$platform" == "ios" ]] && ios_ok="true"
+    [[ "$platform" == "all" || "$platform" == "macos" ]] && macos_ok="true"
   else
     if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
-      ios_ok="true"
       info "Архивирую iOS…"
-      if ! run xcodebuild \
+      if ! run_xcodebuild_logged "${out_dir}/ios-archive.log" \
         -project Remission.xcodeproj \
         -scheme Remission \
         -configuration Release \
@@ -323,28 +444,27 @@ main() {
         -allowProvisioningDeviceRegistration \
         MARKETING_VERSION="$version" \
         CURRENT_PROJECT_VERSION="$build_number" \
-        archive | pipe_xcbeautify_if_available; then
-        ios_ok="false"
+        archive; then
+        die "iOS archive неуспешен. См. ${out_dir}/ios-archive.log"
       fi
 
-      if [[ "$ios_ok" == "true" ]]; then
-        info "Экспортирую iOS IPA…"
-        if ! run xcodebuild \
+      info "Экспортирую iOS IPA…"
+      if ! run_xcodebuild_logged "${out_dir}/ios-export.log" \
           -exportArchive \
           -archivePath "$ios_archive" \
           -exportOptionsPlist "$export_options_plist" \
           -allowProvisioningUpdates \
           -allowProvisioningDeviceRegistration \
-          -exportPath "$ios_dir" | pipe_xcbeautify_if_available; then
-          ios_ok="false"
-        fi
+          -exportPath "$ios_dir"; then
+        die "iOS export неуспешен. См. ${out_dir}/ios-export.log"
       fi
+      validate_artifacts "ios" "$ios_dir" "$macos_zip"
+      ios_ok="true"
     fi
 
     if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
-      macos_ok="true"
       info "Архивирую macOS…"
-      if ! run xcodebuild \
+      if ! run_xcodebuild_logged "${out_dir}/macos-archive.log" \
         -project Remission.xcodeproj \
         -scheme Remission \
         -configuration Release \
@@ -352,28 +472,56 @@ main() {
         -archivePath "$macos_archive" \
         MARKETING_VERSION="$version" \
         CURRENT_PROJECT_VERSION="$build_number" \
-        archive | pipe_xcbeautify_if_available; then
-        macos_ok="false"
+        archive; then
+        die "macOS archive неуспешен. См. ${out_dir}/macos-archive.log"
       fi
 
-      if [[ "$macos_ok" == "true" ]]; then
-        info "Собираю macOS zip…"
-        local macos_app="${macos_archive}/Products/Applications/Remission.app"
-        [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
+      info "Собираю macOS zip…"
+      local macos_app="${macos_archive}/Products/Applications/Remission.app"
+      [[ -d "$macos_app" ]] || die "Не найден .app в archive: $macos_app"
 
-        run rm -rf "${macos_dir}/Remission.app"
-        run cp -R "$macos_app" "${macos_dir}/Remission.app"
+      run rm -rf "${macos_dir}/Remission.app"
+      run cp -R "$macos_app" "${macos_dir}/Remission.app"
 
-        run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
-      fi
+      run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
+      validate_artifacts "macos" "$ios_dir" "$macos_zip"
+      macos_ok="true"
     fi
+  fi
+
+  validate_artifacts "$platform" "$ios_dir" "$macos_zip"
+  printf 'phase=artifacts_validated\n' >>"$state_file"
+
+  local release_commit="$source_commit"
+  if [[ "$version_commit" == "true" ]]; then
+    update_project_versions "$pbxproj" "$version"
+    if git diff --quiet -- "$pbxproj"; then
+      info "project.pbxproj уже содержит версию ${version}."
+    else
+      git add "$pbxproj"
+      git commit -m "Обновить версию ${version}"
+      release_commit="$(git rev-parse HEAD)"
+      ok "Закоммичена версия ${version}"
+    fi
+  fi
+  if [[ "$SKIP_WORKTREE_RESTORE" == "true" ]]; then
+    git update-index --skip-worktree "$pbxproj"
+  fi
+  if [[ "$ASSUME_UNCHANGED_RESTORE" == "true" ]]; then
+    git update-index --assume-unchanged "$pbxproj"
+  fi
+  if [[ "$version_commit" == "true" ]]; then
+    printf 'phase=version_committed\nrelease_commit=%s\n' "$release_commit" >>"$state_file"
+  else
+    printf 'phase=artifacts_reused\nrelease_commit=%s\n' "$release_commit" >>"$state_file"
   fi
 
   {
     echo "tag=${release_tag}"
     echo "version=${version}"
     echo "build_number=${build_number}"
-    echo "commit=$(git rev-parse HEAD)"
+    echo "commit=${release_commit}"
+    echo "built_from_commit=${source_commit}"
     echo "platform=${platform}"
     if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
       echo "export_options_plist=${export_options_plist}"
@@ -383,6 +531,14 @@ main() {
     echo "generated_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   } >"${out_dir}/metadata.txt"
 
+  # Validate local develop before any tag or remote side effect.
+  local local_develop_exists="false"
+  if git show-ref --verify --quiet refs/heads/develop; then
+    local_develop_exists="true"
+    git merge-base --is-ancestor develop HEAD \
+      || die "Local develop содержит непубликованные изменения; sync отменён."
+  fi
+
   if [[ "$tag" == "true" ]]; then
     if [[ "$ios_ok" != "true" && "$platform" != "macos" ]]; then
       die "iOS сборка неуспешна; тег не создан. Исправь подпись iOS или запусти с --platform macos."
@@ -390,29 +546,44 @@ main() {
     if [[ "$macos_ok" != "true" && "$platform" != "ios" ]]; then
       die "macOS сборка неуспешна; тег не создан."
     fi
-    git tag -a "$release_tag" -m "Release $release_tag"
-    ok "Создан git tag: $release_tag"
+    if [[ "$tag_exists" == "false" ]]; then
+      git tag -a "$release_tag" -m "Release $release_tag"
+      ok "Создан git tag: $release_tag"
+    else
+      ok "Переиспользован существующий git tag: $release_tag"
+    fi
+    printf 'phase=tag_ready\ntag=%s\n' "$release_tag" >>"$state_file"
   fi
 
   if [[ "$push" == "true" ]]; then
     [[ "$tag" == "true" ]] || die "--push требует --tag (чтобы пушить именно тег релиза)."
+    printf 'phase=main_push_started\n' >>"$state_file"
     git push origin main
+    printf 'phase=main_pushed\n' >>"$state_file"
     git push origin "$release_tag"
     ok "Запушены main и тег $release_tag"
+    printf 'phase=main_and_tag_pushed\n' >>"$state_file"
   fi
 
-  # Sync develop branch with the new version
-  if git show-ref --verify --quiet refs/heads/develop; then
-    info "🔄 Синхронизирую версию в ветку develop..."
-    git checkout develop
-    git merge main
-    if [[ "$push" == "true" ]]; then
-      git push origin develop
-      ok "Ветка develop обновлена и запушена."
-    else
-      ok "Ветка develop обновлена локально (не запушена, т.к. нет --push)."
-    fi
-    git checkout main
+  # Sync develop without checking it out; this keeps the caller on main.
+  if [[ "$push" == "true" ]]; then
+    info "🔄 Синхронизирую версию в remote develop..."
+    git push origin "HEAD:develop"
+    ok "Remote develop обновлена."
+  fi
+  local develop_synced="false"
+  if [[ "$push" == "true" ]]; then
+    develop_synced="true"
+  fi
+  if [[ "$local_develop_exists" == "true" ]]; then
+    git update-ref refs/heads/develop HEAD
+    ok "Local develop обновлена."
+    develop_synced="true"
+  fi
+  if [[ "$develop_synced" == "true" ]]; then
+    printf 'phase=develop_synced\n' >>"$state_file"
+  else
+    printf 'phase=develop_sync_skipped\n' >>"$state_file"
   fi
 
   if [[ "$github_release" == "true" ]]; then
@@ -420,53 +591,60 @@ main() {
     [[ "$tag" == "true" ]] || die "--github-release требует --tag (релиз на GitHub должен быть привязан к тегу)."
     
     local assets=()
-    if [[ -f "$macos_zip" ]]; then
+    if [[ "$platform" == "all" || "$platform" == "macos" ]]; then
+      validate_macos_zip "$macos_zip"
       assets+=("$macos_zip")
     fi
-    
-    local ipa_file
-    ipa_file=$(find "$ios_dir" -name "*.ipa" | head -n 1)
-    if [[ -n "$ipa_file" ]]; then
+
+    if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+      local ipa_file
+      ipa_file="$(find "$ios_dir" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+      [[ -n "$ipa_file" ]] || die "iOS IPA отсутствует перед GitHub release."
+      validate_ipa "$ipa_file"
       assets+=("$ipa_file")
     fi
 
-    if [[ ${#assets[@]} -eq 0 ]]; then
-      info "⚠️  Нет файлов для загрузки (macos zip или ios ipa). Пропускаю создание релиза."
+    [[ ${#assets[@]} -gt 0 ]] || die "Нет обязательных assets для GitHub release."
+    local previous_tag
+    previous_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 HEAD^ 2>/dev/null || true)"
+
+    local notes_file="${out_dir}/release_notes.md"
+    if [[ -n "$notes_file_arg" ]]; then
+      notes_file="$notes_file_arg"
+      [[ -f "$notes_file" ]] || die "Не найден файл заметок: $notes_file"
     else
-      local previous_tag
-      previous_tag="$(git describe --tags --match 'v[0-9]*' --abbrev=0 HEAD^ 2>/dev/null || true)"
+      generate_release_notes "$notes_file" "$previous_tag" "$release_tag"
+    fi
 
-      local notes_file="${out_dir}/release_notes.md"
-      if [[ -n "$notes_file_arg" ]]; then
-        notes_file="$notes_file_arg"
-        [[ -f "$notes_file" ]] || die "Не найден файл заметок: $notes_file"
-      else
-        generate_release_notes "$notes_file" "$previous_tag" "$release_tag"
-      fi
-
-      local gh_args=(
-        "release" "create" "$release_tag"
-        "--title" "Remission ${release_tag}"
-        "--notes-file" "$notes_file"
-      )
+    local gh_args=(
+      "release" "create" "$release_tag"
+      "--title" "Remission ${release_tag}"
+      "--notes-file" "$notes_file"
+    )
       
-      if [[ "$pre_release" == "true" ]]; then
-        gh_args+=("--prerelease")
-      fi
-      
-      if [[ "$draft" == "true" ]]; then
-        gh_args+=("--draft")
-      fi
+    if [[ "$pre_release" == "true" ]]; then
+      gh_args+=("--prerelease")
+    fi
 
-      info "Загружаю файлы: ${assets[*]}"
-      local release_url
+    if [[ "$draft" == "true" ]]; then
+      gh_args+=("--draft")
+    fi
+
+    info "Загружаю файлы: ${assets[*]}"
+    local release_url
+    if gh release view "$release_tag" >/dev/null 2>&1; then
+      info "GitHub release ${release_tag} уже существует; загружаю assets повторно."
+      run gh release upload "$release_tag" "${assets[@]}" --clobber
+      release_url="$(gh release view "$release_tag" --json url --jq .url)"
+    else
       release_url=$(run gh "${gh_args[@]}" "${assets[@]}")
-      ok "Релиз на GitHub успешно создан: ${release_url}"
+    fi
+    ok "Релиз на GitHub успешно создан: ${release_url}"
+    printf 'phase=github_release_created\nrelease_url=%s\n' "$release_url" >>"$state_file"
 
-      if [[ "$draft" == "true" && "$(uname)" == "Darwin" ]]; then
-        info "Открываю черновик релиза в браузере..."
-        open "$release_url"
-      fi
+    if [[ "$draft" == "true" && "$(uname)" == "Darwin" ]]; then
+      info "Открываю черновик релиза в браузере..."
+      open "$release_url"
     fi
   fi
 
