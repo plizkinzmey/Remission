@@ -288,6 +288,7 @@ main() {
   local out_dir="Build/Releases/${release_tag}"
   local ios_dir="${out_dir}/ios"
   local macos_dir="${out_dir}/macos"
+  local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
 
   run mkdir -p "$ios_dir" "$macos_dir"
 
@@ -363,7 +364,6 @@ main() {
         run rm -rf "${macos_dir}/Remission.app"
         run cp -R "$macos_app" "${macos_dir}/Remission.app"
 
-        local macos_zip="${out_dir}/Remission-macOS-${release_tag}.zip"
         run ditto -c -k --sequesterRsrc --keepParent "${macos_dir}/Remission.app" "$macos_zip"
       fi
     fi
