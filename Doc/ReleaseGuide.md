@@ -32,7 +32,7 @@
 3.  **Python 3**: Используется для обработки файла проекта.
 4.  **Чистая рабочая директория и синхронный `main`**: Скрипт требует отсутствия незакоммиченных изменений и проверяет совпадение с `origin/main`. `--allow-dirty` разрешён только для локальных операций без tag/push/GitHub release.
 5.  **Ветка `main`**: Релизы разрешены только из ветки `main`.
-6.  **Signing contract для iOS**: `ExportOptions.plist`, Apple account, Team ID и provisioning profiles должны быть проверены до запуска. Скрипт сохраняет raw archive/export logs, но не может создать provisioning profile за пределами доступной Apple signing environment.
+6.  **Signing contract для iOS**: по умолчанию используется настроенный signed export. Если provisioning profile отсутствует, используйте `--unsigned-ios`: приложение архивируется без provisioning и упаковывается в IPA. Такой IPA не устанавливается на устройство без последующей подписи.
 
 ## Основные параметры
 
@@ -47,6 +47,7 @@
 
 ### Сборка
 *   `--platform {all|ios|macos}`: Выбрать платформу для сборки (по умолчанию `all`).
+*   `--unsigned-ios`: Собрать iOS без provisioning profile и упаковать archive `.app` в unsigned IPA.
 *   `--export-options-plist PATH`: Путь к файлу конфигурации экспорта iOS (по умолчанию `ExportOptions.plist`).
 *   `--version-only`: Только обновить версию без запуска сборки.
 
@@ -95,7 +96,7 @@
 1.  Убедитесь, что вы находитесь в ветке `main`, рабочее дерево чистое, а `main` синхронизирован с сервером.
 2.  Запустите скрипт с нужными флагами (рекомендуется использовать `--draft` для первого контроля).
 3.  Скрипт сначала архивирует/экспортирует все выбранные платформы и сохраняет raw logs в `Build/Releases/vX.Y.Z/`.
-4.  Для `all` обязательны и IPA, и macOS zip. При отсутствии любого artifact скрипт завершается до version commit/tag/push.
+4.  Для `all` обязательны и IPA, и macOS zip. При отсутствии любого artifact скрипт завершается до version commit/tag/push. Для среды без provisioning используйте `--unsigned-ios`.
 5.  Только после успешной проверки artifacts скрипт коммитит версию, создаёт tag, отправляет `main`/tag, синхронизирует `develop` и создаёт GitHub release.
 6.  После завершения проверьте `metadata.txt`, `release-state.txt`, raw logs и список assets на GitHub.
 7.  Если всё верно, опубликуйте draft вручную.

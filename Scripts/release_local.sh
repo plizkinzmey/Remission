@@ -7,15 +7,15 @@ cd "$ROOT_DIR"
 usage() {
   cat <<'EOF'
 Usage:
-  Scripts/release_local.sh --version X.Y.Z [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
-  Scripts/release_local.sh --bump {major|minor|patch} [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
+  Scripts/release_local.sh --version X.Y.Z [--unsigned-ios] [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
+  Scripts/release_local.sh --bump {major|minor|patch} [--unsigned-ios] [--tag] [--push] [--github-release] [--pre-release] [--draft] [--skip-build] [--export-options-plist PATH] [--notes-file PATH]
   Scripts/release_local.sh --version X.Y.Z --no-version-commit [--tag] [--push]
   Scripts/release_local.sh --version X.Y.Z --version-only [--no-version-commit]
 
   Scripts/release_local.sh --version X.Y.Z --platform {all|ios|macos}
 
 Builds:
-  - iOS IPA (via xcodebuild archive + exportArchive)
+  - iOS IPA (signed export or unsigned Payload packaging)
   - macOS app zip (from .xcarchive Products/Applications)
 
 Rules:
@@ -36,7 +36,7 @@ Outputs:
     - metadata.txt
 
 Notes:
-  - iOS export signing depends on your certificates/profiles and export options plist.
+  - iOS uses signed export by default; `--unsigned-ios` builds without provisioning and packages the archive app into an IPA.
   - Скрипт обновляет MARKETING_VERSION/CURRENT_PROJECT_VERSION в project.pbxproj и делает коммит,
     если не указан --no-version-commit.
   - --version-only обновляет версию (и опционально коммитит) без сборки.
@@ -105,6 +105,18 @@ validate_macos_zip() {
     || die "Не удалось прочитать содержимое macOS zip: $zip_path"
   grep -Eq '(^|/)Remission\.app/' <<<"$zip_entries" \
     || die "В macOS zip отсутствует Remission.app: $zip_path"
+}
+
+package_unsigned_ipa() {
+  local app_path="$1"
+  local ipa_path="$2"
+  [[ -d "$app_path" ]] || die "Не найден iOS .app для unsigned IPA: $app_path"
+  local staging_dir
+  staging_dir="$(mktemp -d)"
+  mkdir -p "${staging_dir}/Payload"
+  cp -R "$app_path" "${staging_dir}/Payload/Remission.app"
+  ditto -c -k --sequesterRsrc --keepParent "${staging_dir}/Payload" "$ipa_path"
+  rm -rf "$staging_dir"
 }
 
 validate_artifacts() {
@@ -265,6 +277,7 @@ main() {
   local version_only="false"
   local export_options_plist="ExportOptions.plist"
   local platform="all"
+  local unsigned_ios="false"
   local github_release="false"
   local pre_release="false"
   local draft="false"
@@ -282,6 +295,7 @@ main() {
       --version-only) version_only="true"; shift ;;
       --export-options-plist) require_option_value "$@"; export_options_plist="$2"; shift 2 ;;
       --platform) require_option_value "$@"; platform="$2"; shift 2 ;;
+      --unsigned-ios) unsigned_ios="true"; shift ;;
       --github-release) github_release="true"; shift ;;
       --pre-release) pre_release="true"; shift ;;
       --draft) draft="true"; shift ;;
@@ -384,7 +398,7 @@ main() {
     *) die "Некорректный --platform: $platform (ожидаю all|ios|macos)" ;;
   esac
 
-  if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
+  if [[ ( "$platform" == "all" || "$platform" == "ios" ) && "$unsigned_ios" != "true" ]]; then
     [[ -f "$export_options_plist" ]] || die "Не найден export options plist: $export_options_plist"
   fi
 
@@ -408,7 +422,11 @@ main() {
 
   info "Версия: ${version} (build: ${build_number})"
   if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
-    info "Export options plist: ${export_options_plist}"
+    if [[ "$unsigned_ios" == "true" ]]; then
+      info "iOS signing: unsigned (без provisioning profile)"
+    else
+      info "Export options plist: ${export_options_plist}"
+    fi
   fi
   info "Output: ${out_dir}"
 
@@ -426,6 +444,10 @@ main() {
       || die "Metadata version не совпадает с release version."
     grep -Fxq "platform=${platform}" "${out_dir}/metadata.txt" \
       || die "Metadata platform не совпадает с --platform."
+    if [[ "$unsigned_ios" == "true" ]]; then
+      grep -Fxq "signing=unsigned" "${out_dir}/metadata.txt" \
+        || die "Artifact не соответствует unsigned iOS recovery mode."
+    fi
     grep -Fxq "commit=${source_commit}" "${out_dir}/metadata.txt" \
       || die "Artifact собран не из текущего HEAD: recovery запрещён."
     validate_artifacts "$platform" "$ios_dir" "$macos_zip"
@@ -434,29 +456,41 @@ main() {
   else
     if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
       info "Архивирую iOS…"
-      if ! run_xcodebuild_logged "${out_dir}/ios-archive.log" \
+      local ios_archive_args=(
         -project Remission.xcodeproj \
         -scheme Remission \
         -configuration Release \
         -destination 'generic/platform=iOS' \
         -archivePath "$ios_archive" \
-        -allowProvisioningUpdates \
-        -allowProvisioningDeviceRegistration \
         MARKETING_VERSION="$version" \
         CURRENT_PROJECT_VERSION="$build_number" \
-        archive; then
+        archive
+      )
+      if [[ "$unsigned_ios" == "true" ]]; then
+        ios_archive_args+=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO AD_HOC_CODE_SIGNING_ALLOWED=NO)
+      else
+        ios_archive_args+=(-allowProvisioningUpdates -allowProvisioningDeviceRegistration)
+      fi
+      if ! run_xcodebuild_logged "${out_dir}/ios-archive.log" "${ios_archive_args[@]}"; then
         die "iOS archive неуспешен. См. ${out_dir}/ios-archive.log"
       fi
 
-      info "Экспортирую iOS IPA…"
-      if ! run_xcodebuild_logged "${out_dir}/ios-export.log" \
-          -exportArchive \
-          -archivePath "$ios_archive" \
-          -exportOptionsPlist "$export_options_plist" \
-          -allowProvisioningUpdates \
-          -allowProvisioningDeviceRegistration \
-          -exportPath "$ios_dir"; then
-        die "iOS export неуспешен. См. ${out_dir}/ios-export.log"
+      if [[ "$unsigned_ios" == "true" ]]; then
+        info "Упаковываю unsigned iOS IPA…"
+        package_unsigned_ipa \
+          "${ios_archive}/Products/Applications/Remission.app" \
+          "${ios_dir}/Remission-unsigned.ipa"
+      else
+        info "Экспортирую iOS IPA…"
+        if ! run_xcodebuild_logged "${out_dir}/ios-export.log" \
+            -exportArchive \
+            -archivePath "$ios_archive" \
+            -exportOptionsPlist "$export_options_plist" \
+            -allowProvisioningUpdates \
+            -allowProvisioningDeviceRegistration \
+            -exportPath "$ios_dir"; then
+          die "iOS export неуспешен. См. ${out_dir}/ios-export.log"
+        fi
       fi
       validate_artifacts "ios" "$ios_dir" "$macos_zip"
       ios_ok="true"
@@ -523,6 +557,11 @@ main() {
     echo "commit=${release_commit}"
     echo "built_from_commit=${source_commit}"
     echo "platform=${platform}"
+    if [[ "$unsigned_ios" == "true" ]]; then
+      echo "signing=unsigned"
+    else
+      echo "signing=configured"
+    fi
     if [[ "$platform" == "all" || "$platform" == "ios" ]]; then
       echo "export_options_plist=${export_options_plist}"
     fi
